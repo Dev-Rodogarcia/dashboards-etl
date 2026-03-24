@@ -1,0 +1,76 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: dashboard-api
+
+  # SQL Server (credenciais lidas do .env via spring-dotenv)
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    hikari:
+      connection-timeout: 3000
+      maximum-pool-size: 15
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA / Hibernate
+  jpa:
+    hibernate:
+      ddl-auto: none
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      jakarta:
+        persistence:
+          query:
+            timeout: 5000
+    open-in-view: false
+
+security:
+  trust-forwarded-headers: ${SECURITY_TRUST_FORWARDED_HEADERS:false}
+  rate-limit:
+    login:
+      max-attempts: ${SECURITY_RATE_LIMIT_LOGIN_MAX_ATTEMPTS:10}
+      window-seconds: ${SECURITY_RATE_LIMIT_LOGIN_WINDOW_SECONDS:900}
+    api:
+      max-requests: ${SECURITY_RATE_LIMIT_API_MAX_REQUESTS:120}
+      window-seconds: ${SECURITY_RATE_LIMIT_API_WINDOW_SECONDS:60}
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET}
+  expiracao-minutos: 30
+
+# API Key para rotas internas (ETL/RPA)
+api:
+  interno:
+    key: ${API_KEY}
+
+acl:
+  storage-file: ${ACL_STORAGE_FILE:./storage/access-control.json}
+  legacy:
+    migration-enabled: ${ACL_LEGACY_MIGRATION_ENABLED:false}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      show-components: never
+
+# Logging (complementar ao logback-spring.xml)
+logging:
+  level:
+    com.dashboard.api: INFO
+    org.hibernate.SQL: WARN
+    com.zaxxer.hikari: INFO

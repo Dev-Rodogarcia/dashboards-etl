@@ -1,0 +1,77 @@
+# Monorepo: arquivos locais e segredos
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.sample
+!**/.env.*.example
+!**/.env.*.sample
+.envrc
+.direnv/
+
+# Chaves, certificados e segredos em arquivo
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.jks
+**/*.keystore
+**/*.crt
+**/*.cer
+**/*.der
+
+# Frontend / Node
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/coverage/
+**/*.tsbuildinfo
+
+# Backend / Java
+**/target/
+**/*.class
+
+# Logs e temporarios
+**/logs/
+*.log
+*.out
+*.err
+*.tmp
+*.bak
+*.orig
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.pid
+*.pid.lock
+
+# Dumps e falhas locais
+*.hprof
+*.heapdump
+hs_err_pid*
+replay_pid*
+
+# IDE e ferramentas locais
+.idea/
+.vs/
+.history/
+.fleet/
+.cache/
+.temp/
+.tmp/
+*.iml
+*.swp
+*.swo
+.claude/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Runtime local do backend nunca deve ser versionado
+dashboard-api/storage/*
+!dashboard-api/storage/access-control.sample.json

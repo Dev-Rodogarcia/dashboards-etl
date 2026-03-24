@@ -1,0 +1,100 @@
+package com.dashboard.api.security;
+
+import com.dashboard.api.dto.acesso.PermissaoCatalogoItemDTO;
+
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public enum PermissaoCatalogo {
+    COLETAS("coletas", "Coletas", "Dashboard operacional de coletas", "/coletas"),
+    MANIFESTOS("manifestos", "Manifestos", "Dashboard operacional de manifestos", "/manifestos"),
+    FRETES("fretes", "Fretes", "Dashboard operacional de fretes", "/fretes"),
+    TRACKING("tracking", "Localização de cargas", "Dashboard de tracking e localização de cargas", "/tracking"),
+    FATURAS("faturas", "Faturas", "Dashboard financeiro de faturamento", "/faturas"),
+    FATURAS_POR_CLIENTE("faturasPorCliente", "Faturas por Cliente", "Dashboard operacional de faturamento por cliente", "/faturas-por-cliente"),
+    CONTAS_A_PAGAR("contasAPagar", "Contas a pagar", "Dashboard financeiro de contas a pagar", "/contas-a-pagar"),
+    COTACOES("cotacoes", "Cotações", "Dashboard comercial de cotações", "/cotacoes"),
+    EXECUTIVO("executivo", "Executivo", "Dashboard executivo consolidado", "/executivo"),
+    ETL_SAUDE("etlSaude", "ETL Saúde", "Monitoramento e saúde do ETL", "/etl-saude"),
+    DIMENSOES("dimensoes", "Dimensões e filtros", "Acesso às dimensões de apoio aos dashboards", null);
+
+    private final String chave;
+    private final String nome;
+    private final String descricao;
+    private final String rota;
+
+    PermissaoCatalogo(String chave, String nome, String descricao, String rota) {
+        this.chave = chave;
+        this.nome = nome;
+        this.descricao = descricao;
+        this.rota = rota;
+    }
+
+    public String chave() {
+        return chave;
+    }
+
+    public String nome() {
+        return nome;
+    }
+
+    public String descricao() {
+        return descricao;
+    }
+
+    public String rota() {
+        return rota;
+    }
+
+    public String authority() {
+        return "PERM_" + name();
+    }
+
+    public static List<PermissaoCatalogoItemDTO> catalogo() {
+        return Arrays.stream(values())
+                .map(item -> new PermissaoCatalogoItemDTO(item.chave, item.nome, item.descricao, item.rota))
+                .toList();
+    }
+
+    public static Map<String, Boolean> mapaVazio() {
+        Map<String, Boolean> permissoes = new LinkedHashMap<>();
+        for (PermissaoCatalogo permissao : values()) {
+            permissoes.put(permissao.chave, false);
+        }
+        return permissoes;
+    }
+
+    public static Map<String, Boolean> mapaCompleto() {
+        Map<String, Boolean> permissoes = mapaVazio();
+        permissoes.replaceAll((key, value) -> true);
+        return permissoes;
+    }
+
+    public static String authorityForKey(String chave) {
+        return fromKey(chave).authority();
+    }
+
+    public static PermissaoCatalogo fromKey(String chave) {
+        return Arrays.stream(values())
+                .filter(item -> item.chave.equals(chave))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Permissão inválida: " + chave));
+    }
+
+    public static List<String> dashboardKeys() {
+        return List.of(
+                COLETAS.chave,
+                MANIFESTOS.chave,
+                FRETES.chave,
+                TRACKING.chave,
+                FATURAS.chave,
+                FATURAS_POR_CLIENTE.chave,
+                CONTAS_A_PAGAR.chave,
+                COTACOES.chave,
+                EXECUTIVO.chave,
+                ETL_SAUDE.chave
+        );
+    }
+}

@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/* Tailwind v4: enable class-based dark mode */
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --color-primary: #21478A;
+  --color-bg: #F3F7FB;
+  --color-card: #FFFFFF;
+  --color-border: #D9E4F0;
+  --color-text: #1e293b;
+  --color-text-muted: #64748b;
+}
+
+.dark {
+  --color-bg: #0B1120;
+  --color-card: #111827;
+  --color-border: #1F2937;
+  --color-text: #E5E7EB;
+  --color-text-muted: #9CA3AF;
+  --color-primary: #3B82F6;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+  color: var(--color-text);
+}

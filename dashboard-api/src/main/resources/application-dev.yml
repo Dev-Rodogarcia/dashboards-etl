@@ -1,0 +1,9 @@
+# Profile de desenvolvimento — sem segredos versionados.
+# Credenciais e chaves devem vir de .env / variáveis de ambiente.
+
+cors:
+  origem-permitida: http://localhost:5173
+
+acl:
+  legacy:
+    migration-enabled: false
