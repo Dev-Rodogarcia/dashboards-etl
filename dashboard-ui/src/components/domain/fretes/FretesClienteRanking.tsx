@@ -12,7 +12,7 @@ export default function FretesClienteRanking({ dados, isLoading }: FretesCliente
   const dadosRevertidos = [...dados].reverse();
 
   const option: EChartsOption = {
-    grid: { left: 150 },
+    grid: { left: 10, containLabel: true },
     xAxis: { type: 'value', name: 'R$' },
     yAxis: {
       type: 'category',

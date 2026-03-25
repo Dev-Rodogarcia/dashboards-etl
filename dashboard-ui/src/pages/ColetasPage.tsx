@@ -6,7 +6,7 @@ import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
-import FilterBar from '../components/shared/FilterBar';
+import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
@@ -18,7 +18,7 @@ import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
 
 export default function ColetasPage() {
-  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setFiltro, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
   const clientes = useClientes();
   const usuarios = useUsuarios();
@@ -32,6 +32,12 @@ export default function ColetasPage() {
     regioes: filtros.regioes,
     usuarios: filtros.usuarios,
   };
+
+  const activeFilters: ActiveFilter[] = [
+    { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Clientes', count: filtros.clientes?.length ?? 0, onRemove: () => setFiltro('clientes', []) },
+    { label: 'Usuarios', count: filtros.usuarios?.length ?? 0, onRemove: () => setFiltro('usuarios', []) },
+  ];
 
   const overview = useColetasOverview(filtro);
   const serie = useColetasSerie(filtro);
@@ -50,9 +56,23 @@ export default function ColetasPage() {
   };
 
   const slaOption: EChartsOption = {
-    grid: { left: 120 },
+    grid: { left: 10, containLabel: true },
     xAxis: { type: 'value', max: 100 },
-    yAxis: { type: 'category', data: slaPorFilial.map((item) => item.filial).reverse() },
+    yAxis: {
+      type: 'category',
+      data: slaPorFilial.map((item) => item.filial).reverse(),
+      axisLabel: {
+        formatter: (value: string) => value.length > 18 ? value.slice(0, 18) + '…' : value,
+      },
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params: unknown) => {
+        const p = (params as { name: string; value: number }[])[0];
+        return `${p.name}<br/>${p.value.toFixed(1)}%`;
+      },
+    },
     series: [{ type: 'bar', data: slaPorFilial.map((item) => item.slaPct).reverse(), itemStyle: { color: CORES.sucesso } }],
   };
 
@@ -88,20 +108,21 @@ export default function ColetasPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#21478A]">Coletas</h1>
-          <p className="text-sm text-gray-500">SLA operacional, distribuicao por status e aging de abertas.</p>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Coletas</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>SLA operacional, distribuicao por status e aging de abertas.</p>
         </div>
         <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
       </div>
 
-      <FilterBar onClear={limparFiltros}>
+      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker
           dataInicio={dataInicio}
           dataFim={dataFim}
           onDataInicioChange={setDataInicio}
           onDataFimChange={setDataFim}
+          onRangeChange={setDataRange}
         />
         <AsyncMultiSelect
           label="Filiais"

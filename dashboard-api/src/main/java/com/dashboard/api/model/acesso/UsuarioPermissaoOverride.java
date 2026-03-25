@@ -21,7 +21,7 @@ public class UsuarioPermissaoOverride {
     private PermissaoEntity permissao;
 
     @Column(nullable = false, length = 5)
-    private String tipo; // GRANT or DENY
+    private String tipo; // Fluxo atual usa apenas DENY; GRANT permanece somente por compatibilidade legado.
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "concedido_por")

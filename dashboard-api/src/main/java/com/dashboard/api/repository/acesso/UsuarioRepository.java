@@ -7,11 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.Optional;
 
 public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
-    Optional<UsuarioEntity> findByLogin(String login);
-    Optional<UsuarioEntity> findByEmail(String email);
-
-    @Query("SELECT u FROM UsuarioEntity u WHERE LOWER(u.login) = LOWER(:loginOuEmail) OR LOWER(u.email) = LOWER(:loginOuEmail)")
-    Optional<UsuarioEntity> findByLoginOrEmail(String loginOuEmail);
+    Optional<UsuarioEntity> findByEmailIgnoreCase(String email);
 
     boolean existsByLoginIgnoreCase(String login);
     boolean existsByEmailIgnoreCase(String email);

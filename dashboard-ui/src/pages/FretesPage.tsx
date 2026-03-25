@@ -27,7 +27,7 @@ import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
 
 export default function FretesPage() {
-  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setFiltro, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
   const clientes = useClientes();
 
@@ -112,10 +112,10 @@ export default function FretesPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#21478A]">Fretes</h1>
-          <p className="text-sm text-gray-500">Receita operacional, mix documental e carteira ativa por rota.</p>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Fretes</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Receita operacional, mix documental e carteira ativa por rota.</p>
         </div>
         <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
       </div>
@@ -126,6 +126,7 @@ export default function FretesPage() {
           dataFim={dataFim}
           onDataInicioChange={setDataInicio}
           onDataFimChange={setDataFim}
+          onRangeChange={setDataRange}
         />
         <AsyncMultiSelect
           label="Filiais"

@@ -6,7 +6,7 @@ import { firstAccessibleRoute } from '../utils/accessControl';
 import { getApiErrorMessage } from '../utils/apiError';
 
 export default function LoginPage() {
-  const [usuario, setUsuario] = useState('');
+  const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
@@ -25,10 +25,10 @@ export default function LoginPage() {
     setCarregando(true);
 
     try {
-      const resposta = await login({ usuario, senha });
+      const resposta = await login({ email, senha });
       navigate(firstAccessibleRoute({
-        setor: resposta.usuario.setor,
-        papeis: resposta.usuario.papeis,
+        papel: resposta.usuario.papel,
+        permissoesEfetivas: resposta.usuario.permissoesEfetivas,
         exigeTrocaSenha: resposta.exigeTrocaSenha ?? resposta.usuario.exigeTrocaSenha,
       }), { replace: true });
     } catch (error) {
@@ -51,11 +51,11 @@ export default function LoginPage() {
         {erro && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
         <label className="space-y-1">
-          <span className="text-sm font-medium text-gray-700">Login ou e-mail</span>
+          <span className="text-sm font-medium text-gray-700">E-mail</span>
           <input
-            type="text"
-            value={usuario}
-            onChange={(e) => setUsuario(e.target.value)}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
             required
           />

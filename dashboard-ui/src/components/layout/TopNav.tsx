@@ -52,8 +52,8 @@ export default function TopNav() {
       ? 'Admin Acesso'
       : null;
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     navigate('/login', { replace: true });
   }
 
@@ -168,7 +168,7 @@ export default function TopNav() {
 
         {/* Logout */}
         <button
-          onClick={handleLogout}
+          onClick={() => void handleLogout()}
           className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-500 transition-all duration-150 hover:bg-red-500 hover:text-white"
         >
           Sair

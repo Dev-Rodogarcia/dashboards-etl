@@ -9,7 +9,7 @@ public record SetorDTO(
         String descricao,
         boolean sistema,
         int totalUsuarios,
-        Map<String, Boolean> permissoes,
+        Map<String, Boolean> templatePermissoes,
         List<String> filiaisPermitidas
 ) {
 }

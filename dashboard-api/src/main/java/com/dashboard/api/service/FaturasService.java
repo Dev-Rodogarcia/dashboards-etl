@@ -295,6 +295,7 @@ public class FaturasService {
                     BigDecimal valorFinanceiro = titulo != null ? ConsultaFiltroUtils.zeroSeNulo(titulo.getValor()) : null;
 
                     return new FaturaReconciliacaoDTO(
+                            row.getUniqueId(),
                             row.getDocumentoFatura() != null ? row.getDocumentoFatura() : row.getUniqueId(),
                             row.getEmissaoFatura() != null ? row.getEmissaoFatura().toString() : null,
                             row.getPagadorNome(),
@@ -328,6 +329,7 @@ public class FaturasService {
                     VisaoFaturasGraphqlEntity titulo = titulosPorDocumento.get(row.getDocumentoFatura());
 
                     return new FaturaResumoDTO(
+                            row.getUniqueId(),
                             row.getDocumentoFatura() != null ? row.getDocumentoFatura() : row.getUniqueId(),
                             row.getEmissaoFatura() != null ? row.getEmissaoFatura().toString() : null,
                             titulo != null && titulo.getVencimento() != null ? titulo.getVencimento().toString() : null,

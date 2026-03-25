@@ -16,6 +16,7 @@ interface KpiCardProps {
 
 export default function KpiCard({ label, valor, icone, trend }: KpiCardProps) {
   const flexBasis = getFlexBasis(valor);
+  const secondaryColor = 'var(--color-text-subtle)';
 
   return (
     <div
@@ -31,12 +32,12 @@ export default function KpiCard({ label, valor, icone, trend }: KpiCardProps) {
       <div className="flex items-center justify-between gap-1">
         <span
           className="text-[11px] font-medium uppercase tracking-wide truncate"
-          style={{ color: 'var(--color-text-muted)' }}
+          style={{ color: secondaryColor }}
         >
           {label}
         </span>
         {icone && (
-          <span className="shrink-0" style={{ color: 'var(--color-text-muted)' }}>{icone}</span>
+          <span className="shrink-0" style={{ color: secondaryColor }}>{icone}</span>
         )}
       </div>
 
@@ -56,7 +57,7 @@ export default function KpiCard({ label, valor, icone, trend }: KpiCardProps) {
                 ? '#16a34a'
                 : trend.direcao === 'down'
                   ? '#dc2626'
-                  : 'var(--color-text-muted)',
+                  : secondaryColor,
           }}
         >
           {trend.direcao === 'up' ? '▲' : trend.direcao === 'down' ? '▼' : '—'}{' '}

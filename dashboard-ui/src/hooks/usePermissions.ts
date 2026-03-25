@@ -15,7 +15,7 @@ export function usePermissions() {
   return useMemo(() => ({
     isAdminAcesso: isAdminAcesso(usuario),
     isAdminPlataforma: isAdminPlataforma(usuario),
-    permissions: usuario?.setor.permissoes ?? createEmptyPermissionMap(),
+    permissions: usuario?.permissoesEfetivas ?? createEmptyPermissionMap(),
     canAccess: (permission: PermissionKey) => canAccess(usuario, permission),
     hasRole: (role: string) => hasRole(usuario, role),
     setorNome: usuario?.setor.nome ?? '',

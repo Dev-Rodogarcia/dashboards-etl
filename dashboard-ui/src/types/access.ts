@@ -15,8 +15,8 @@ export const PERMISSION_KEYS = [
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
 
 export type PermissionMap = Record<PermissionKey, boolean>;
-export type OverrideTipo = 'GRANT' | 'DENY';
-export type PermissionOverrideMode = 'inherit' | 'grant' | 'deny';
+export type OverrideTipo = 'DENY' | 'GRANT';
+export type PermissionOverrideMode = 'inherit' | 'deny' | 'grant';
 export type PermissionOverrideStateMap = Record<PermissionKey, PermissionOverrideMode>;
 
 export interface PermissionCatalogItem {
@@ -32,7 +32,7 @@ export interface SetorAdmin {
   descricao: string | null;
   sistema: boolean;
   totalUsuarios: number;
-  permissoes: PermissionMap;
+  templatePermissoes: PermissionMap;
   filiaisPermitidas: string[];
 }
 
@@ -45,24 +45,27 @@ export interface SetorPayload {
 
 export interface UsuarioAdmin {
   id: string;
-  login: string;
   nome: string;
   email: string;
-  admin: boolean;
   ativo: boolean;
   setorId: string;
   setorNome: string;
-  permissoes: PermissionMap;
-  papeis: string[];
+  papel: string;
+  permissoesEfetivas: PermissionMap;
+  filiaisPermitidasEfetivas: string[];
+  permissoesNegadas: PermissionKey[];
+  permissoesConcedidas: PermissionKey[];
 }
 
 export interface UsuarioPayload {
-  login: string;
   nome: string;
   email: string;
   senha?: string;
+  confirmacaoSenha?: string;
   setorId: string;
-  admin: boolean;
+  papel: string;
+  permissoesNegadas: PermissionKey[];
+  permissoesConcedidas: PermissionKey[];
   ativo: boolean;
 }
 

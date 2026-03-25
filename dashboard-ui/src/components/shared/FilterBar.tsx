@@ -171,18 +171,18 @@ export default function FilterBar({
             initial={{ y: -8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.15 }}
-            className="mt-2 rounded-[20px] border p-5 shadow-sm"
+            className="mt-2 rounded-[20px] border p-4 shadow-sm"
             style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
           >
             {/* Grid de filtros */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="flex flex-wrap items-start gap-3">
               {children}
             </div>
 
             {/* Badges + Limpar */}
             {(hasActive || onClear) && (
               <div
-                className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4"
+                className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3"
                 style={{ borderColor: 'var(--color-border)' }}
               >
                 {filtersWithValues.map((f) => (

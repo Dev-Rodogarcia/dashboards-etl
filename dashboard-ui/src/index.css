@@ -10,6 +10,7 @@
   --color-border: #D9E4F0;
   --color-text: #1e293b;
   --color-text-muted: #64748b;
+  --color-text-subtle: #64748b;
 }
 
 .dark {
@@ -18,6 +19,7 @@
   --color-border: #1F2937;
   --color-text: #E5E7EB;
   --color-text-muted: #9CA3AF;
+  --color-text-subtle: #F3F4F6;
   --color-primary: #3B82F6;
 }
 

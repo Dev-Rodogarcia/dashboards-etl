@@ -5,7 +5,7 @@ import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
-import FilterBar from '../components/shared/FilterBar';
+import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
@@ -24,7 +24,7 @@ import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
 
 export default function FaturasPorClientePage() {
-  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setFiltro, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
   const clientes = useClientes();
 
@@ -35,6 +35,12 @@ export default function FaturasPorClientePage() {
     pagadores: filtros.pagadores,
     statusProcesso: filtros.statusProcesso,
   };
+
+  const activeFilters: ActiveFilter[] = [
+    { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Pagadores', count: filtros.pagadores?.length ?? 0, onRemove: () => setFiltro('pagadores', []) },
+    { label: 'Status Processo', count: filtros.statusProcesso?.length ?? 0, onRemove: () => setFiltro('statusProcesso', []) },
+  ];
 
   const overview = useFaturasPorClienteOverview(filtro);
   const mensal = useFaturasPorClienteMensal(filtro);
@@ -74,7 +80,7 @@ export default function FaturasPorClientePage() {
   };
 
   const topClientesOption: EChartsOption = {
-    grid: { left: 180 },
+    grid: { left: 10, containLabel: true },
     xAxis: { type: 'value' },
     yAxis: { type: 'category', data: (topClientes.data ?? []).map((item) => item.cliente).reverse() },
     series: [
@@ -112,20 +118,21 @@ export default function FaturasPorClientePage() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#21478A]">Faturas por Cliente</h1>
-          <p className="text-sm text-gray-500">Visão operacional de faturamento por cliente baseada em `ID Único`.</p>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Faturas por Cliente</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Visão operacional de faturamento por cliente baseada em `ID Único`.</p>
         </div>
         <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
       </div>
 
-      <FilterBar onClear={limparFiltros}>
+      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker
           dataInicio={dataInicio}
           dataFim={dataFim}
           onDataInicioChange={setDataInicio}
           onDataFimChange={setDataFim}
+          onRangeChange={setDataRange}
         />
         <AsyncMultiSelect
           label="Filiais"

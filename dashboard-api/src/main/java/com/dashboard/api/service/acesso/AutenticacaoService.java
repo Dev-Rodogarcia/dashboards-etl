@@ -17,8 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class AutenticacaoService {
@@ -33,6 +35,7 @@ public class AutenticacaoService {
     private final PermissaoResolverService permissaoResolver;
     private final AuditService auditService;
     private final PoliticaSenhaService politicaSenhaService;
+    private final RefreshTokenService refreshTokenService;
 
     public AutenticacaoService(
             UsuarioRepository usuarioRepository,
@@ -40,7 +43,8 @@ public class AutenticacaoService {
             GerenciadorTokenJwt gerenciadorToken,
             PermissaoResolverService permissaoResolver,
             AuditService auditService,
-            PoliticaSenhaService politicaSenhaService
+            PoliticaSenhaService politicaSenhaService,
+            RefreshTokenService refreshTokenService
     ) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
@@ -48,21 +52,21 @@ public class AutenticacaoService {
         this.permissaoResolver = permissaoResolver;
         this.auditService = auditService;
         this.politicaSenhaService = politicaSenhaService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional
-    public LoginResponseDTO autenticar(String loginOuEmail, String senha) {
-        UsuarioEntity usuario = usuarioRepository.findByLoginOrEmail(loginOuEmail.trim()).orElse(null);
+    public LoginResponseDTO autenticar(String email, String senha) {
+        UsuarioEntity usuario = usuarioRepository.findByEmailIgnoreCase(email.trim()).orElse(null);
 
         if (usuario == null || !usuario.isAtivo()) {
-            auditService.registrarSync(AcaoAudit.LOGIN_FALHA, null, loginOuEmail, "auth", null);
-            throw new IllegalArgumentException("Usuário ou senha inválidos.");
+            auditService.registrarSync(AcaoAudit.LOGIN_FALHA, null, email, "auth", null);
+            throw new CredencialInvalidaException("Usuário ou senha inválidos.");
         }
 
-        // Lockout check
         if (usuario.getBloqueadoAte() != null && Instant.now().isBefore(usuario.getBloqueadoAte())) {
             auditService.registrarSync(AcaoAudit.LOGIN_FALHA, usuario.getId(), usuario.getLogin(), "auth", "{\"motivo\":\"conta_bloqueada\"}");
-            throw new IllegalArgumentException("Conta temporariamente bloqueada. Tente novamente mais tarde.");
+            throw new CredencialInvalidaException("Conta temporariamente bloqueada. Tente novamente mais tarde.");
         }
 
         if (!passwordEncoder.matches(senha, usuario.getSenhaHash())) {
@@ -75,25 +79,20 @@ public class AutenticacaoService {
             }
             usuarioRepository.save(usuario);
             auditService.registrarSync(AcaoAudit.LOGIN_FALHA, usuario.getId(), usuario.getLogin(), "auth", null);
-            throw new IllegalArgumentException("Usuário ou senha inválidos.");
+            throw new CredencialInvalidaException("Usuário ou senha inválidos.");
         }
 
-        // Login bem-sucedido — reset lockout
         usuario.setTentativasFalha(0);
         usuario.setBloqueadoAte(null);
         usuarioRepository.save(usuario);
 
-        String token = gerenciadorToken.gerarToken(usuario.getLogin());
         auditService.registrar(AcaoAudit.LOGIN, usuario.getId(), usuario.getLogin(), "auth", null);
-
-        SessaoUsuarioDTO sessao = mapearSessao(usuario);
-        return new LoginResponseDTO(sessao, token, usuario.isExigeTrocaSenha());
+        return gerarSessaoParaUsuario(usuario);
     }
 
     @Transactional
-    public void alterarSenha(String login, String senhaAtual, String novaSenha) {
-        UsuarioEntity usuario = usuarioRepository.findByLogin(login)
-                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
+    public void alterarSenha(String email, String senhaAtual, String novaSenha) {
+        UsuarioEntity usuario = carregarUsuarioAtivoPorEmail(email);
 
         if (!passwordEncoder.matches(senhaAtual, usuario.getSenhaHash())) {
             throw new IllegalArgumentException("Senha atual incorreta.");
@@ -104,39 +103,31 @@ public class AutenticacaoService {
         usuario.setSenhaAlteradaEm(Instant.now());
         usuario.setExigeTrocaSenha(false);
         usuarioRepository.save(usuario);
+        refreshTokenService.revogarTodosDoUsuario(Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório."));
 
         auditService.registrar(AcaoAudit.SENHA_ALTERADA, usuario.getId(), usuario.getLogin(), "auth", null);
     }
 
     @Transactional(readOnly = true)
-    public SessaoUsuarioDTO buscarSessaoAtual(String login) {
-        UsuarioEntity usuario = usuarioRepository.findByLogin(login)
-                .orElseThrow(() -> new IllegalArgumentException("Usuário autenticado não encontrado."));
-
-        if (!usuario.isAtivo()) {
-            throw new IllegalArgumentException("Usuário autenticado não encontrado.");
-        }
-
-        return mapearSessao(usuario);
+    public SessaoUsuarioDTO buscarSessaoAtual(String email) {
+        return mapearSessao(carregarUsuarioAtivoPorEmail(email));
     }
 
     @Transactional(readOnly = true)
-    public List<SimpleGrantedAuthority> authoritiesFor(String login) {
-        UsuarioEntity usuario = usuarioRepository.findByLogin(login).orElse(null);
+    public List<SimpleGrantedAuthority> authoritiesFor(String email) {
+        UsuarioEntity usuario = usuarioRepository.findByEmailIgnoreCase(email).orElse(null);
         if (usuario == null || !usuario.isAtivo()) {
             return List.of();
         }
 
         Map<String, Boolean> permissoes = permissaoResolver.permissoesEfetivas(usuario);
-        boolean isAdmin = permissaoResolver.ehAdmin(usuario.getId());
+        Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
+        String papel = permissaoResolver.papel(usuarioId);
+        boolean isAdmin = permissaoResolver.ehAdmin(usuarioId);
 
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
         authorities.add(new SimpleGrantedAuthority(isAdmin ? "ROLE_ADMIN" : "ROLE_USER"));
-
-        // Add role-specific authorities
-        for (String papel : permissaoResolver.papeis(usuario.getId())) {
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + papel.toUpperCase()));
-        }
+        authorities.add(new SimpleGrantedAuthority("ROLE_" + papel.toUpperCase()));
 
         permissoes.entrySet().stream()
                 .filter(Map.Entry::getValue)
@@ -147,25 +138,44 @@ public class AutenticacaoService {
         return authorities;
     }
 
-    private SessaoUsuarioDTO mapearSessao(UsuarioEntity usuario) {
-        Map<String, Boolean> permissoes = permissaoResolver.permissoesEfetivas(usuario);
-        boolean isAdmin = permissaoResolver.ehAdminPlataforma(usuario.getId());
-        List<String> papeis = permissaoResolver.papeis(usuario.getId());
+    @Transactional(readOnly = true)
+    public UsuarioEntity carregarUsuarioAtivoPorEmail(String email) {
+        UsuarioEntity usuario = usuarioRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário autenticado não encontrado."));
 
-        SetorSessaoDTO setor = new SetorSessaoDTO(
-                String.valueOf(usuario.getSetor().getId()),
-                usuario.getSetor().getNome(),
-                permissoes
+        if (!usuario.isAtivo()) {
+            throw new IllegalArgumentException("Usuário autenticado não encontrado.");
+        }
+
+        return usuario;
+    }
+
+    @Transactional(readOnly = true)
+    public LoginResponseDTO gerarSessaoParaUsuario(UsuarioEntity usuario) {
+        return new LoginResponseDTO(
+                mapearSessao(usuario),
+                gerenciadorToken.gerarToken(usuario.getEmail()),
+                usuario.isExigeTrocaSenha()
         );
+    }
+
+    private SessaoUsuarioDTO mapearSessao(UsuarioEntity usuario) {
+        Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
+        Map<String, Boolean> permissoes = permissaoResolver.permissoesEfetivas(usuario);
+        String papel = permissaoResolver.papel(usuarioId);
+        List<String> filiaisPermitidas = usuario.getSetor().getFiliaisPermitidas().stream()
+                .filter(valor -> valor != null && !valor.isBlank())
+                .sorted(Comparator.comparing(String::toLowerCase))
+                .toList();
 
         return new SessaoUsuarioDTO(
                 String.valueOf(usuario.getId()),
-                usuario.getLogin(),
                 usuario.getNome(),
                 usuario.getEmail(),
-                isAdmin,
-                setor,
-                papeis,
+                papel,
+                new SetorSessaoDTO(String.valueOf(usuario.getSetor().getId()), usuario.getSetor().getNome()),
+                permissoes,
+                permissaoResolver.ehAdminPlataforma(usuarioId) ? List.of() : filiaisPermitidas,
                 usuario.isExigeTrocaSenha()
         );
     }

@@ -1,4 +1,4 @@
-import clienteAxios from '../clienteAxios';
+import clienteAxios, { renovarSessao } from '../clienteAxios';
 import type {
   AlterarSenhaRequest,
   LoginRequest,
@@ -14,6 +14,14 @@ export async function loginUsuario(credenciais: LoginRequest): Promise<LoginResp
 export async function buscarSessaoAtual(): Promise<UsuarioSessao> {
   const { data } = await clienteAxios.get<UsuarioSessao>('/api/auth/me');
   return data;
+}
+
+export async function restaurarSessao(): Promise<LoginResponse> {
+  return renovarSessao();
+}
+
+export async function logoutUsuario(): Promise<void> {
+  await clienteAxios.post('/api/auth/logout');
 }
 
 export async function alterarSenha(payload: AlterarSenhaRequest): Promise<void> {

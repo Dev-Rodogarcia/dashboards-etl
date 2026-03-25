@@ -38,6 +38,10 @@ public class RateLimitService {
         return consumir("login:" + normalizar(ip) + ":" + normalizar(loginOuEmail), loginMaxAttempts, loginWindowSeconds);
     }
 
+    public RateLimitDecision avaliarTentativaLogin(String ip, String loginOuEmail) {
+        return consultar("login:" + normalizar(ip) + ":" + normalizar(loginOuEmail), loginMaxAttempts);
+    }
+
     public void limparTentativasLogin(String ip, String loginOuEmail) {
         buckets.remove("login:" + normalizar(ip) + ":" + normalizar(loginOuEmail));
     }
@@ -64,6 +68,22 @@ public class RateLimitService {
         int total = bucket.contador().get();
         long retryAfterSeconds = Math.max(1L, (bucket.expiraEmEpochMs() - agora + 999L) / 1000L);
         return new RateLimitDecision(total <= limite, retryAfterSeconds, total);
+    }
+
+    private RateLimitDecision consultar(String chave, int limite) {
+        long agora = Instant.now().toEpochMilli();
+        if (operacoes.incrementAndGet() % LIMPEZA_INTERVALO_OPERACOES == 0) {
+            limparExpirados(agora);
+        }
+
+        Bucket bucket = buckets.get(chave);
+        if (bucket == null || bucket.expiraEmEpochMs() <= agora) {
+            return new RateLimitDecision(true, 1L, 0);
+        }
+
+        int total = bucket.contador().get();
+        long retryAfterSeconds = Math.max(1L, (bucket.expiraEmEpochMs() - agora + 999L) / 1000L);
+        return new RateLimitDecision(total < limite, retryAfterSeconds, total);
     }
 
     private String normalizar(String valor) {

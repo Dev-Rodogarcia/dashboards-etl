@@ -36,7 +36,7 @@ public class EscopoFilialService {
             return EscopoFilial.semAcesso();
         }
 
-        UsuarioEntity usuario = usuarioRepository.findByLogin(authentication.getName()).orElse(null);
+        UsuarioEntity usuario = usuarioRepository.findByEmailIgnoreCase(authentication.getName()).orElse(null);
         if (usuario == null || !usuario.isAtivo()) {
             return EscopoFilial.semAcesso();
         }

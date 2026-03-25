@@ -3,7 +3,7 @@ import ChartWrapper from '../components/charts/ChartWrapper';
 import ExecutivoKpiGrid from '../components/domain/executivo/ExecutivoKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DateRangePicker from '../components/shared/DateRangePicker';
-import FilterBar from '../components/shared/FilterBar';
+import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import MensagemErro from '../components/ui/MensagemErro';
 import { useFiltro } from '../contexts/FiltroContext';
@@ -11,7 +11,7 @@ import { useFiliais } from '../hooks/queries/useDimensoes';
 import { useExecutivoOverview, useExecutivoSerie } from '../hooks/queries/useExecutivo';
 
 export default function ExecutivoPage() {
-  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setFiltro, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
 
   const filtro = {
@@ -19,6 +19,10 @@ export default function ExecutivoPage() {
     dataFim,
     filiais: filtros.filiais,
   };
+
+  const activeFilters: ActiveFilter[] = [
+    { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+  ];
 
   const overview = useExecutivoOverview(filtro);
   const serie = useExecutivoSerie(filtro);
@@ -37,16 +41,16 @@ export default function ExecutivoPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#21478A]">Executivo</h1>
-          <p className="text-sm text-gray-500">Visão consolidada da operação, financeiro e backlog.</p>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Executivo</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Visão consolidada da operação, financeiro e backlog.</p>
         </div>
         <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
       </div>
 
-      <FilterBar onClear={limparFiltros}>
-        <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} />
+      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
+        <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
         <AsyncMultiSelect label="Filiais" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />
       </FilterBar>
 

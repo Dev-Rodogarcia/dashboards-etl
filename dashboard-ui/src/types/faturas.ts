@@ -20,6 +20,7 @@ export interface TituloReceberRow {
 }
 
 export interface FaturaReconciliacaoRow {
+  uniqueId: string;
   documento: string;
   emissao: string | null;
   clientePagador: string | null;
@@ -29,6 +30,7 @@ export interface FaturaReconciliacaoRow {
 }
 
 export interface FaturaResumoRow {
+  uniqueId: string;
   documento: string;
   emissao: string | null;
   vencimento: string | null;

@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 5010
 
 spring:
   application:
@@ -43,7 +43,13 @@ security:
 # JWT
 jwt:
   secret: ${JWT_SECRET}
-  expiracao-minutos: 30
+  expiracao-minutos: 15
+
+auth:
+  refresh-token-expiracao-dias: ${AUTH_REFRESH_TOKEN_EXPIRACAO_DIAS:30}
+  refresh-cookie-name: ${AUTH_REFRESH_COOKIE_NAME:dashboard_refresh_token}
+  refresh-cookie-secure: ${AUTH_REFRESH_COOKIE_SECURE:false}
+  refresh-cookie-same-site: ${AUTH_REFRESH_COOKIE_SAME_SITE:Lax}
 
 # API Key para rotas internas (ETL/RPA)
 api:

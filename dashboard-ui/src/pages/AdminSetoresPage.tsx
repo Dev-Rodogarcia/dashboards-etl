@@ -11,7 +11,7 @@ import {
 } from '../hooks/queries/useAdminAcesso';
 import { useFiliais } from '../hooks/queries/useDimensoes';
 import type { PermissionMap, SetorAdmin, SetorPayload } from '../types/access';
-import { createEmptyPermissionMap } from '../utils/accessControl';
+import { createEmptyPermissionMap, permissionSummary } from '../utils/accessControl';
 import { getApiErrorMessage } from '../utils/apiError';
 
 interface SetorRow extends SetorAdmin {
@@ -27,6 +27,38 @@ const FORM_INICIAL: SetorPayload = {
   filiaisPermitidas: [],
 };
 
+const SURFACE_STYLE = {
+  backgroundColor: 'var(--color-card)',
+  borderColor: 'var(--color-border)',
+};
+
+const FIELD_STYLE = {
+  backgroundColor: 'var(--color-bg)',
+  borderColor: 'var(--color-border)',
+  color: 'var(--color-text)',
+};
+
+const SECONDARY_BUTTON_STYLE = {
+  backgroundColor: 'var(--color-bg)',
+  borderColor: 'var(--color-border)',
+  color: 'var(--color-text)',
+};
+
+const ACTIVE_BADGE_STYLE = {
+  backgroundColor: 'color-mix(in srgb, var(--color-text) 14%, var(--color-card))',
+  color: 'var(--color-text)',
+};
+
+const INACTIVE_BADGE_STYLE = {
+  backgroundColor: 'var(--color-bg)',
+  color: 'var(--color-text-subtle)',
+};
+
+const DANGER_BUTTON_STYLE = {
+  borderColor: 'color-mix(in srgb, #ef4444 30%, var(--color-border))',
+  color: 'color-mix(in srgb, #ef4444 78%, var(--color-text))',
+};
+
 export default function AdminSetoresPage() {
   const catalogo = useCatalogoPermissoes();
   const setores = useSetoresAdmin();
@@ -38,15 +70,15 @@ export default function AdminSetoresPage() {
   const [editing, setEditing] = useState<SetorAdmin | null>(null);
   const [form, setForm] = useState<SetorPayload>(FORM_INICIAL);
   const [erro, setErro] = useState('');
+  const filiaisDisponiveis = filiais.data ?? [];
+  const todasFiliaisSelecionadas = filiaisDisponiveis.length > 0
+    && filiaisDisponiveis.every((filial) => form.filiaisPermitidas.includes(filial));
 
   const linhas = useMemo<SetorRow[]>(
     () =>
       (setores.data ?? []).map((setor) => ({
         ...setor,
-        permissoesResumo: catalogo.data
-          ?.filter((item) => setor.permissoes[item.chave])
-          .map((item) => item.nome)
-          .join(', ') ?? '',
+        permissoesResumo: permissionSummary(setor.templatePermissoes, catalogo.data ?? []),
         filiaisResumo: setor.filiaisPermitidas.join(', '),
         acoes: setor.id,
       })),
@@ -64,7 +96,7 @@ export default function AdminSetoresPage() {
     setForm({
       nome: setor.nome,
       descricao: setor.descricao,
-      permissoes: { ...setor.permissoes } as PermissionMap,
+      permissoes: { ...setor.templatePermissoes } as PermissionMap,
       filiaisPermitidas: [...setor.filiaisPermitidas],
     });
     setErro('');
@@ -97,59 +129,77 @@ export default function AdminSetoresPage() {
     }
   }
 
+  function selecionarTodasFiliais() {
+    if (filiaisDisponiveis.length === 0) return;
+    setForm((atual) => ({ ...atual, filiaisPermitidas: [...filiaisDisponiveis] }));
+  }
+
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="rounded-3xl border p-6 shadow-sm" style={SURFACE_STYLE}>
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Gestão de setores</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Defina quais dashboards cada perfil pode acessar.
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Gestão de setores</h1>
+          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
+            O setor define o baseline de dashboards e o escopo de filiais que cada usuário herdará.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1">
-              <span className="text-sm font-medium text-gray-700">Nome do setor</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>Nome do setor</span>
               <input
                 value={form.nome}
                 onChange={(e) => setForm((atual) => ({ ...atual, nome: e.target.value }))}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
+                className="w-full rounded-xl border px-3 py-2.5"
+                style={FIELD_STYLE}
                 placeholder="Ex: Financeiro"
                 required
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-sm font-medium text-gray-700">Descrição</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>Descrição</span>
               <input
                 value={form.descricao ?? ''}
                 onChange={(e) => setForm((atual) => ({ ...atual, descricao: e.target.value }))}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
-                placeholder="Resumo do perfil"
+                className="w-full rounded-xl border px-3 py-2.5"
+                style={FIELD_STYLE}
+                placeholder="Resumo do setor"
               />
             </label>
           </div>
 
           <div className="space-y-3">
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Escopo de filiais</h2>
-              <p className="text-xs text-gray-500">Usuários deste setor só verão dados das filiais selecionadas.</p>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Escopo de filiais</h2>
+              <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>Usuários deste setor só verão dados das filiais selecionadas.</p>
             </div>
-            <AsyncMultiSelect
-              label="Filiais permitidas"
-              opcoes={filiais.data ?? []}
-              selecionados={form.filiaisPermitidas}
-              onChange={(filiaisPermitidas) => setForm((atual) => ({ ...atual, filiaisPermitidas }))}
-              placeholder="Selecione ao menos uma filial"
-              isLoading={filiais.isLoading}
-            />
+            <div className="flex flex-wrap items-start gap-3">
+              <AsyncMultiSelect
+                label="Filiais permitidas"
+                opcoes={filiaisDisponiveis}
+                selecionados={form.filiaisPermitidas}
+                onChange={(filiaisPermitidas) => setForm((atual) => ({ ...atual, filiaisPermitidas }))}
+                placeholder="Selecione ao menos uma filial"
+                isLoading={filiais.isLoading}
+              />
+              <button
+                type="button"
+                onClick={selecionarTodasFiliais}
+                disabled={filiais.isLoading || filiaisDisponiveis.length === 0 || todasFiliaisSelecionadas}
+                className="rounded-xl border px-4 py-2.5 text-sm font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+                style={SECONDARY_BUTTON_STYLE}
+              >
+                {todasFiliaisSelecionadas ? 'Todas selecionadas' : 'Selecionar todas'}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-3">
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Permissões do setor</h2>
-              <p className="text-xs text-gray-500">Cada item habilita um dashboard ou recurso de apoio.</p>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Template de acesso do setor</h2>
+              <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>Cada item habilita o acesso base herdado pelos usuários do setor.</p>
             </div>
             <PermissionMatrix
               catalogo={catalogo.data ?? []}
@@ -159,9 +209,9 @@ export default function AdminSetoresPage() {
             />
           </div>
 
-          {erro && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+          {erro && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">{erro}</p>}
           {!erro && form.filiaisPermitidas.length === 0 && (
-            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
               Selecione pelo menos uma filial para salvar o setor.
             </p>
           )}
@@ -178,7 +228,8 @@ export default function AdminSetoresPage() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700"
+                className="rounded-xl border px-4 py-2.5 text-sm font-medium transition-opacity hover:opacity-80"
+                style={SECONDARY_BUTTON_STYLE}
               >
                 Cancelar edição
               </button>
@@ -205,14 +256,17 @@ export default function AdminSetoresPage() {
             chave: 'sistema',
             label: 'Sistema',
             formato: (valor) => (
-              <span className={`rounded-full px-2 py-1 text-xs font-medium ${valor ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
+              <span
+                className="rounded-full px-2 py-1 text-xs font-medium"
+                style={valor ? ACTIVE_BADGE_STYLE : INACTIVE_BADGE_STYLE}
+              >
                 {valor ? 'Sim' : 'Não'}
               </span>
             ),
           },
           {
             chave: 'permissoesResumo',
-            label: 'Permissões',
+            label: 'Baseline de acesso',
             formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Sem permissões')}</span>,
           },
           {
@@ -223,7 +277,8 @@ export default function AdminSetoresPage() {
                 <button
                   type="button"
                   onClick={() => startEdit(row)}
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700"
+                  className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+                  style={SECONDARY_BUTTON_STYLE}
                 >
                   Editar
                 </button>
@@ -231,7 +286,8 @@ export default function AdminSetoresPage() {
                   type="button"
                   onClick={() => handleDelete(row)}
                   disabled={row.sistema}
-                  className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
+                  style={DANGER_BUTTON_STYLE}
                 >
                   Excluir
                 </button>

@@ -5,7 +5,7 @@ import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
-import FilterBar from '../components/shared/FilterBar';
+import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
@@ -17,7 +17,7 @@ import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
 
 export default function TrackingPage() {
-  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setFiltro, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
 
   const filtro: TrackingFiltro = {
@@ -30,6 +30,12 @@ export default function TrackingPage() {
     regiaoDestino: filtros.regiaoDestino,
     statusCarga: filtros.statusCarga,
   };
+
+  const activeFilters: ActiveFilter[] = [
+    { label: 'Filial Emissora', count: filtros.filialEmissora?.length ?? 0, onRemove: () => setFiltro('filialEmissora', []) },
+    { label: 'Filial Atual', count: filtros.filialAtual?.length ?? 0, onRemove: () => setFiltro('filialAtual', []) },
+    { label: 'Status', count: filtros.statusCarga?.length ?? 0, onRemove: () => setFiltro('statusCarga', []) },
+  ];
 
   const overview = useTrackingOverview(filtro);
   const serie = useTrackingSerie(filtro);
@@ -83,16 +89,16 @@ export default function TrackingPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#21478A]">Localização de Cargas</h1>
-          <p className="text-sm text-gray-500">Status da carga, previsões vencidas e carteira em trânsito.</p>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Localização de Cargas</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Status da carga, previsões vencidas e carteira em trânsito.</p>
         </div>
         <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
       </div>
 
-      <FilterBar onClear={limparFiltros}>
-        <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} />
+      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
+        <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
         <AsyncMultiSelect label="Filial Emissora" opcoes={filiais.data ?? []} selecionados={filtros.filialEmissora ?? []} onChange={(valores) => setFiltro('filialEmissora', valores)} isLoading={filiais.isLoading} />
         <AsyncMultiSelect label="Filial Atual" opcoes={filiais.data ?? []} selecionados={filtros.filialAtual ?? []} onChange={(valores) => setFiltro('filialAtual', valores)} isLoading={filiais.isLoading} />
         <AsyncMultiSelect label="Status" opcoes={['Pendente', 'Em entrega', 'Em transferência', 'Manifestado', 'Finalizado']} selecionados={filtros.statusCarga ?? []} onChange={(valores) => setFiltro('statusCarga', valores)} />

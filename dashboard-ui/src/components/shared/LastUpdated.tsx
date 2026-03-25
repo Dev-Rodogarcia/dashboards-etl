@@ -8,7 +8,7 @@ export default function LastUpdated({ dataExtracao }: LastUpdatedProps) {
   if (!dataExtracao) return null;
 
   return (
-    <span className="text-xs text-gray-400">
+    <span className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>
       Atualizado em {formatarDataHora(dataExtracao)}
     </span>
   );

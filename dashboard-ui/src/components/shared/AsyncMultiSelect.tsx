@@ -54,7 +54,7 @@ export default function AsyncMultiSelect({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="min-w-[160px] cursor-pointer rounded-[14px] border px-3 py-2 text-left shadow-sm
+          className="min-w-[148px] cursor-pointer self-start justify-self-start rounded-[12px] border px-3 py-1.5 text-left shadow-sm
                      transition-all duration-150 hover:border-[var(--color-primary)] active:scale-[0.97]"
           style={{
             backgroundColor: 'var(--color-card)',
@@ -63,7 +63,7 @@ export default function AsyncMultiSelect({
           }}
         >
           <span
-            className="mb-0.5 flex items-center gap-1.5 text-xs font-medium"
+            className="mb-0.5 flex items-center gap-1.5 text-[11px] font-semibold leading-none"
             style={{ color: 'var(--color-text-muted)' }}
           >
             {label}
@@ -77,7 +77,7 @@ export default function AsyncMultiSelect({
             )}
           </span>
           <span
-            className="block truncate text-sm font-medium"
+            className="block truncate text-[13px] font-medium leading-5"
             style={{ color: temSelecao ? 'var(--color-text)' : 'var(--color-text-muted)' }}
           >
             {temSelecao ? `${selecionados.length} selecionado(s)` : placeholder}

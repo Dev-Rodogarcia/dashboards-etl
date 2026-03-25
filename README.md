@@ -6,7 +6,7 @@ Monorepo com backend Spring Boot e frontend React para dashboards operacionais, 
 
 - 10 areas protegidas no frontend: `Coletas`, `Manifestos`, `Fretes`, `Tracking`, `Faturas`, `Faturas por Cliente`, `Contas a Pagar`, `Cotacoes`, `Executivo` e `ETL Saude`
 - area administrativa para gestao de `setores` e `usuarios`
-- backend com JWT, ACL local em JSON e endpoints por dominio em `/api/painel/*`
+- backend com JWT, refresh token rotativo, ACL em banco e endpoints por dominio em `/api/painel/*`
 - dimensoes compartilhadas em `/api/dimensoes/*`
 - healthchecks publicos minimos em `/actuator/health/liveness` e `/actuator/health/readiness`
 - logs locais da API em `dashboard-api/logs/`
@@ -114,7 +114,9 @@ npm run dev
 
 - a tela de login vive em `/login`
 - a UI usa `VITE_API_BASE_URL` e consome autenticacao em `/api/auth/*`
+- o login passa a usar `email + senha`
 - novos usuários exigem senha explícita e política server-side
+- a sessao e renovada silenciosamente por refresh token e so deve cair em logout, revogacao ou inativacao
 - não existe endpoint público para descoberta de contas
 
 ## Rotas principais do frontend
@@ -185,6 +187,7 @@ WHERE descricao COLLATE Latin1_General_100_BIN2 LIKE N'%' + NCHAR(195) + N'%'
 ## Documentacao de apoio
 
 - [docs/relatorio-refatoracao-consolidada.md](docs/relatorio-refatoracao-consolidada.md)
+- [docs/relatorio-reestruturacao-acesso-sessao.md](docs/relatorio-reestruturacao-acesso-sessao.md)
 - [docs/implementacao-hardening-seguranca.md](docs/implementacao-hardening-seguranca.md)
 - [docs/relatorio-bi-catalogo-views.md](docs/relatorio-bi-catalogo-views.md)
 - [docs/relatorio-bi-dashboards-logistica.md](docs/relatorio-bi-dashboards-logistica.md)
@@ -196,4 +199,4 @@ WHERE descricao COLLATE Latin1_General_100_BIN2 LIKE N'%' + NCHAR(195) + N'%'
 ## Observacoes
 
 - o `.gitignore` da raiz cobre artefatos gerados do monorepo; os `.gitignore` internos continuam valendo para cada app
-- `dashboard-api/storage/access-control.json` deve permanecer fora do repositório; use apenas `dashboard-api/storage/access-control.sample.json` como referência
+- artefatos legados de ACL em JSON nao fazem parte do fluxo principal atual; a referencia vigente para o modulo de acesso e `docs/relatorio-reestruturacao-acesso-sessao.md`

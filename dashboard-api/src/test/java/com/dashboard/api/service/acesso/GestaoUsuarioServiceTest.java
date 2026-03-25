@@ -1,0 +1,416 @@
+package com.dashboard.api.service.acesso;
+
+import com.dashboard.api.dto.acesso.UsuarioRequestDTO;
+import com.dashboard.api.model.acesso.PapelEntity;
+import com.dashboard.api.model.acesso.PermissaoEntity;
+import com.dashboard.api.model.acesso.SetorEntity;
+import com.dashboard.api.model.acesso.UsuarioEntity;
+import com.dashboard.api.model.acesso.UsuarioPapelVinculo;
+import com.dashboard.api.model.acesso.UsuarioPermissaoOverride;
+import com.dashboard.api.repository.acesso.AuditLogRepository;
+import com.dashboard.api.repository.acesso.PapelRepository;
+import com.dashboard.api.repository.acesso.PermissaoRepository;
+import com.dashboard.api.repository.acesso.RefreshTokenSessionRepository;
+import com.dashboard.api.repository.acesso.SetorRepository;
+import com.dashboard.api.repository.acesso.SetorPermissaoTemplateRepository;
+import com.dashboard.api.repository.acesso.UsuarioPapelVinculoRepository;
+import com.dashboard.api.repository.acesso.UsuarioPermissaoOverrideRepository;
+import com.dashboard.api.repository.acesso.UsuarioRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.mockingDetails;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class GestaoUsuarioServiceTest {
+
+    @Mock private UsuarioRepository usuarioRepository;
+    @Mock private SetorRepository setorRepository;
+    @Mock private PapelRepository papelRepository;
+    @Mock private UsuarioPapelVinculoRepository papelVinculoRepository;
+    @Mock private UsuarioPermissaoOverrideRepository overrideRepository;
+    @Mock private PermissaoRepository permissaoRepository;
+    @Mock private SetorPermissaoTemplateRepository templateRepository;
+    @Mock private PasswordEncoder passwordEncoder;
+    @Mock private AuditLogRepository auditLogRepository;
+    @Mock private RefreshTokenSessionRepository refreshTokenSessionRepository;
+
+    private GestaoUsuarioService service;
+    private PermissaoResolverService permissaoResolver;
+    private AuditService auditService;
+    private PoliticaSenhaService politicaSenhaService;
+    private RefreshTokenService refreshTokenService;
+
+    @BeforeEach
+    void setUp() {
+        permissaoResolver = new PermissaoResolverService(
+                permissaoRepository,
+                templateRepository,
+                papelVinculoRepository,
+                overrideRepository
+        );
+        auditService = new AuditService(auditLogRepository, false);
+        politicaSenhaService = new PoliticaSenhaService();
+        refreshTokenService = new RefreshTokenService(refreshTokenSessionRepository, 30);
+
+        service = new GestaoUsuarioService(
+                usuarioRepository,
+                setorRepository,
+                papelRepository,
+                papelVinculoRepository,
+                overrideRepository,
+                permissaoRepository,
+                passwordEncoder,
+                permissaoResolver,
+                auditService,
+                politicaSenhaService,
+                refreshTokenService
+        );
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void deveRejeitarConfirmacaoSenhaDivergenteNaCriacao() {
+        UsuarioRequestDTO request = new UsuarioRequestDTO(
+                "Usuário Teste",
+                "teste@empresa.com",
+                "Senha@123456",
+                "Senha@123457",
+                "1",
+                "usuario_comum",
+                List.of(),
+                List.of(),
+                true
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> service.criarUsuario(request));
+    }
+
+    @Test
+    void adminAcessoNaoPodeCriarAdminPlataforma() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("acesso@empresa.com", null, List.of())
+        );
+
+        UsuarioEntity operador = new UsuarioEntity();
+        operador.setId(99L);
+        operador.setEmail("acesso@empresa.com");
+        operador.setAtivo(true);
+
+        SetorEntity setor = new SetorEntity();
+        setor.setId(1L);
+
+        when(usuarioRepository.findByEmailIgnoreCase("acesso@empresa.com")).thenReturn(Optional.of(operador));
+        when(usuarioRepository.existsByEmailIgnoreCase("novo@empresa.com")).thenReturn(false);
+        when(usuarioRepository.existsByLoginIgnoreCase("novo@empresa.com")).thenReturn(false);
+        when(setorRepository.findById(1L)).thenReturn(Optional.of(setor));
+
+        PapelEntity papelAdminAcesso = new PapelEntity();
+        papelAdminAcesso.setNome(PermissaoResolverService.PAPEL_ADMIN_ACESSO);
+        papelAdminAcesso.setNivel(50);
+
+        UsuarioPapelVinculo vinculo = new UsuarioPapelVinculo();
+        vinculo.setPapel(papelAdminAcesso);
+        when(papelVinculoRepository.findAllByUsuarioId(99L)).thenReturn(List.of(vinculo));
+
+        UsuarioRequestDTO request = new UsuarioRequestDTO(
+                "Novo Usuário",
+                "novo@empresa.com",
+                "Senha@123456",
+                "Senha@123456",
+                "1",
+                "admin_plataforma",
+                List.of(),
+                List.of(),
+                true
+        );
+
+        assertThrows(AccessDeniedException.class, () -> service.criarUsuario(request));
+    }
+
+    @Test
+    void atualizarUsuarioMantendoMesmoPapelNaoRecriaVinculoAoAlterarOverrides() {
+        ContextoAtualizacao contexto = prepararContextoAtualizacao(PermissaoResolverService.PAPEL_USUARIO_COMUM);
+        UsuarioEntity alvo = Objects.requireNonNull(contexto.alvo());
+        SetorEntity setor = Objects.requireNonNull(contexto.setor());
+        PapelEntity papelSolicitado = Objects.requireNonNull(contexto.papelSolicitado());
+
+        PermissaoEntity permissaoColetas = criarPermissao(10L, "coletas");
+        UsuarioPermissaoOverride denyColetas = criarOverride(alvo, permissaoColetas, "DENY");
+
+        when(papelRepository.findByNome(PermissaoResolverService.PAPEL_USUARIO_COMUM))
+                .thenReturn(Optional.of(papelSolicitado));
+        when(permissaoRepository.findByChaveLegado("coletas")).thenReturn(Optional.of(permissaoColetas));
+        when(permissaoRepository.findAllByAtivoTrue()).thenReturn(List.of(permissaoColetas));
+        when(templateRepository.findAllBySetorId(setor.getId())).thenReturn(List.of());
+        when(overrideRepository.findAllByUsuarioId(alvo.getId())).thenReturn(List.of(denyColetas));
+        when(usuarioRepository.save(alvo)).thenReturn(alvo);
+        clearInvocations(usuarioRepository);
+        clearInvocations(papelVinculoRepository);
+        clearInvocations(overrideRepository);
+
+        UsuarioRequestDTO request = new UsuarioRequestDTO(
+                "Usuário Teste Atualizado",
+                "teste@empresa.com",
+                null,
+                null,
+                "1",
+                PermissaoResolverService.PAPEL_USUARIO_COMUM,
+                List.of("coletas"),
+                List.of(),
+                true
+        );
+
+        var resultado = service.atualizarUsuario(alvo.getId(), request);
+
+        verify(papelVinculoRepository, never()).deleteAllByUsuarioId(alvo.getId());
+        assertFalse(foiChamado(papelVinculoRepository, "save"));
+        verify(overrideRepository).deleteAllByUsuarioId(alvo.getId());
+        verify(overrideRepository).flush();
+        assertSequenciaDeMetodos(overrideRepository, "deleteAllByUsuarioId", "flush", "save");
+        UsuarioPermissaoOverride overrideSalvo = argumentoSalvo(overrideRepository, UsuarioPermissaoOverride.class);
+        assertEquals("DENY", overrideSalvo.getTipo());
+        assertSame(alvo, overrideSalvo.getUsuario());
+        assertSame(permissaoColetas, overrideSalvo.getPermissao());
+        assertEquals(List.of("coletas"), resultado.permissoesNegadas());
+        assertEquals(PermissaoResolverService.PAPEL_USUARIO_COMUM, resultado.papel());
+    }
+
+    @Test
+    void deveRemoverGrantDeFaturasSemRecriarVinculoQuandoPapelNaoMuda() {
+        ContextoAtualizacao contexto = prepararContextoAtualizacao(PermissaoResolverService.PAPEL_USUARIO_COMUM);
+        UsuarioEntity alvo = Objects.requireNonNull(contexto.alvo());
+        SetorEntity setor = Objects.requireNonNull(contexto.setor());
+        PapelEntity papelSolicitado = Objects.requireNonNull(contexto.papelSolicitado());
+
+        PermissaoEntity permissaoFaturas = criarPermissao(11L, "faturas");
+
+        when(papelRepository.findByNome(PermissaoResolverService.PAPEL_USUARIO_COMUM))
+                .thenReturn(Optional.of(papelSolicitado));
+        when(permissaoRepository.findAllByAtivoTrue()).thenReturn(List.of(permissaoFaturas));
+        when(templateRepository.findAllBySetorId(setor.getId())).thenReturn(List.of());
+        when(overrideRepository.findAllByUsuarioId(alvo.getId())).thenReturn(List.of());
+        when(usuarioRepository.save(alvo)).thenReturn(alvo);
+        clearInvocations(usuarioRepository);
+        clearInvocations(papelVinculoRepository);
+        clearInvocations(overrideRepository);
+
+        UsuarioRequestDTO request = new UsuarioRequestDTO(
+                "Usuário Teste Atualizado",
+                "teste@empresa.com",
+                null,
+                null,
+                "1",
+                PermissaoResolverService.PAPEL_USUARIO_COMUM,
+                List.of(),
+                List.of(),
+                true
+        );
+
+        var resultado = service.atualizarUsuario(alvo.getId(), request);
+
+        verify(papelVinculoRepository, never()).deleteAllByUsuarioId(alvo.getId());
+        assertFalse(foiChamado(papelVinculoRepository, "save"));
+        verify(overrideRepository).deleteAllByUsuarioId(alvo.getId());
+        verify(overrideRepository).flush();
+        assertSequenciaDeMetodos(overrideRepository, "deleteAllByUsuarioId", "flush");
+        assertFalse(foiChamado(overrideRepository, "save"));
+        assertEquals(List.of(), resultado.permissoesConcedidas());
+        assertEquals(PermissaoResolverService.PAPEL_USUARIO_COMUM, resultado.papel());
+    }
+
+    @Test
+    void atualizarUsuarioComMudancaDePapelRecriaVinculo() {
+        ContextoAtualizacao contexto = prepararContextoAtualizacao(PermissaoResolverService.PAPEL_ADMIN_ACESSO);
+        UsuarioEntity alvo = Objects.requireNonNull(contexto.alvo());
+        SetorEntity setor = Objects.requireNonNull(contexto.setor());
+        PapelEntity papelSolicitado = Objects.requireNonNull(contexto.papelSolicitado());
+
+        when(papelRepository.findByNome(PermissaoResolverService.PAPEL_ADMIN_ACESSO))
+                .thenReturn(Optional.of(papelSolicitado));
+        when(permissaoRepository.findAllByAtivoTrue()).thenReturn(List.of());
+        when(templateRepository.findAllBySetorId(setor.getId())).thenReturn(List.of());
+        when(overrideRepository.findAllByUsuarioId(alvo.getId())).thenReturn(List.of());
+        when(usuarioRepository.save(alvo)).thenReturn(alvo);
+        clearInvocations(usuarioRepository);
+        clearInvocations(papelVinculoRepository);
+        clearInvocations(overrideRepository);
+
+        UsuarioRequestDTO request = new UsuarioRequestDTO(
+                "Usuário Teste Atualizado",
+                "teste@empresa.com",
+                null,
+                null,
+                "1",
+                PermissaoResolverService.PAPEL_ADMIN_ACESSO,
+                List.of(),
+                List.of(),
+                true
+        );
+
+        service.atualizarUsuario(alvo.getId(), request);
+
+        verify(papelVinculoRepository).deleteAllByUsuarioId(alvo.getId());
+        UsuarioPapelVinculo vinculoSalvo = argumentoSalvo(papelVinculoRepository, UsuarioPapelVinculo.class);
+        assertSame(alvo, vinculoSalvo.getUsuario());
+        assertSame(papelSolicitado, vinculoSalvo.getPapel());
+    }
+
+    @Test
+    void deveRejeitarPermissaoConflitanteEntreNegadaEConcedida() {
+        ContextoAtualizacao contexto = prepararContextoAtualizacao(PermissaoResolverService.PAPEL_USUARIO_COMUM);
+        UsuarioEntity alvo = Objects.requireNonNull(contexto.alvo());
+        PapelEntity papelSolicitado = Objects.requireNonNull(contexto.papelSolicitado());
+
+        when(papelRepository.findByNome(PermissaoResolverService.PAPEL_USUARIO_COMUM))
+                .thenReturn(Optional.of(papelSolicitado));
+        when(usuarioRepository.save(alvo)).thenReturn(alvo);
+        clearInvocations(usuarioRepository);
+        clearInvocations(papelVinculoRepository);
+        clearInvocations(overrideRepository);
+
+        UsuarioRequestDTO request = new UsuarioRequestDTO(
+                "Usuário Teste Atualizado",
+                "teste@empresa.com",
+                null,
+                null,
+                "1",
+                PermissaoResolverService.PAPEL_USUARIO_COMUM,
+                List.of("faturas"),
+                List.of("faturas"),
+                true
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> service.atualizarUsuario(alvo.getId(), request));
+
+        assertFalse(foiChamado(overrideRepository, "deleteAllByUsuarioId"));
+        assertFalse(foiChamado(overrideRepository, "flush"));
+        assertFalse(foiChamado(overrideRepository, "save"));
+    }
+
+    private ContextoAtualizacao prepararContextoAtualizacao(String papelSolicitadoNome) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("admin@empresa.com", null, List.of())
+        );
+
+        UsuarioEntity operador = new UsuarioEntity();
+        operador.setId(99L);
+        operador.setEmail("admin@empresa.com");
+        operador.setAtivo(true);
+
+        SetorEntity setor = new SetorEntity();
+        setor.setId(1L);
+        setor.setNome("Logística");
+        setor.setFiliaisPermitidas(Set.of("Matriz"));
+
+        UsuarioEntity alvo = new UsuarioEntity();
+        alvo.setId(2L);
+        alvo.setNome("Usuário Teste");
+        alvo.setEmail("teste@empresa.com");
+        alvo.setLogin("teste@empresa.com");
+        alvo.setAtivo(true);
+        alvo.setSetor(setor);
+
+        PapelEntity papelOperador = criarPapel(PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA, 100);
+        PapelEntity papelAtual = criarPapel(PermissaoResolverService.PAPEL_USUARIO_COMUM, 10);
+        PapelEntity papelSolicitado = criarPapel(papelSolicitadoNome, PermissaoResolverService.PAPEL_ADMIN_ACESSO.equals(papelSolicitadoNome) ? 50 : 10);
+
+        when(usuarioRepository.findByEmailIgnoreCase("admin@empresa.com")).thenReturn(Optional.of(operador));
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(alvo));
+        when(usuarioRepository.existsByEmailIgnoreCaseAndIdNot("teste@empresa.com", 2L)).thenReturn(false);
+        when(usuarioRepository.existsByLoginIgnoreCaseAndIdNot("teste@empresa.com", 2L)).thenReturn(false);
+        when(setorRepository.findById(1L)).thenReturn(Optional.of(setor));
+        when(papelVinculoRepository.findAllByUsuarioId(99L)).thenReturn(List.of(criarVinculo(papelOperador)));
+        when(papelVinculoRepository.findAllByUsuarioId(2L)).thenReturn(List.of(criarVinculo(papelAtual)));
+
+        return new ContextoAtualizacao(alvo, setor, papelSolicitado);
+    }
+
+    private PapelEntity criarPapel(String nome, int nivel) {
+        PapelEntity papel = new PapelEntity();
+        papel.setNome(nome);
+        papel.setNivel(nivel);
+        return papel;
+    }
+
+    private UsuarioPapelVinculo criarVinculo(PapelEntity papel) {
+        UsuarioPapelVinculo vinculo = new UsuarioPapelVinculo();
+        vinculo.setPapel(papel);
+        return vinculo;
+    }
+
+    private PermissaoEntity criarPermissao(Long id, String chaveLegado) {
+        PermissaoEntity permissao = new PermissaoEntity();
+        permissao.setId(id);
+        permissao.setChave(chaveLegado);
+        permissao.setChaveLegado(chaveLegado);
+        permissao.setNome(chaveLegado);
+        return permissao;
+    }
+
+    private UsuarioPermissaoOverride criarOverride(UsuarioEntity usuario, PermissaoEntity permissao, String tipo) {
+        UsuarioPermissaoOverride override = new UsuarioPermissaoOverride();
+        override.setUsuario(usuario);
+        override.setPermissao(permissao);
+        override.setTipo(tipo);
+        return override;
+    }
+
+    private boolean foiChamado(Object mock, String nomeMetodo) {
+        return mockingDetails(mock).getInvocations().stream()
+                .anyMatch(invocacao -> nomeMetodo.equals(invocacao.getMethod().getName()));
+    }
+
+    private <T> T argumentoSalvo(Object mock, Class<T> tipoEsperado) {
+        List<Object> argumentos = mockingDetails(mock).getInvocations().stream()
+                .filter(invocacao -> "save".equals(invocacao.getMethod().getName()))
+                .map(invocacao -> invocacao.getArguments()[0])
+                .toList();
+        assertEquals(1, argumentos.size());
+
+        Object argumento = Objects.requireNonNull(argumentos.get(0));
+        assertTrue(tipoEsperado.isInstance(argumento));
+        return tipoEsperado.cast(argumento);
+    }
+
+    private void assertSequenciaDeMetodos(Object mock, String... metodosEsperados) {
+        List<String> metodosChamados = mockingDetails(mock).getInvocations().stream()
+                .map(invocacao -> invocacao.getMethod().getName())
+                .filter(nome -> List.of(metodosEsperados).contains(nome))
+                .toList();
+        assertEquals(List.of(metodosEsperados), metodosChamados);
+    }
+
+    private record ContextoAtualizacao(
+            UsuarioEntity alvo,
+            SetorEntity setor,
+            PapelEntity papelSolicitado
+    ) {
+    }
+}

@@ -1,9 +1,15 @@
 package com.dashboard.api.controller;
 
-import com.dashboard.api.dto.acesso.*;
+import com.dashboard.api.dto.acesso.AuditLogDTO;
+import com.dashboard.api.dto.acesso.AuditLogPageDTO;
+import com.dashboard.api.dto.acesso.PapelDTO;
+import com.dashboard.api.dto.acesso.PermissaoCatalogoItemDTO;
+import com.dashboard.api.dto.acesso.SetorDTO;
+import com.dashboard.api.dto.acesso.SetorRequestDTO;
+import com.dashboard.api.dto.acesso.UsuarioAcessoDTO;
+import com.dashboard.api.dto.acesso.UsuarioRequestDTO;
 import com.dashboard.api.model.acesso.AuditLog;
 import com.dashboard.api.repository.acesso.AuditLogRepository;
-import com.dashboard.api.repository.acesso.PapelRepository;
 import com.dashboard.api.security.PermissaoCatalogo;
 import com.dashboard.api.service.acesso.GestaoSetorService;
 import com.dashboard.api.service.acesso.GestaoUsuarioService;
@@ -13,7 +19,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -24,29 +38,22 @@ public class AdminAcessoController {
 
     private final GestaoSetorService gestaoSetorService;
     private final GestaoUsuarioService gestaoUsuarioService;
-    private final PapelRepository papelRepository;
     private final AuditLogRepository auditLogRepository;
 
     public AdminAcessoController(
             GestaoSetorService gestaoSetorService,
             GestaoUsuarioService gestaoUsuarioService,
-            PapelRepository papelRepository,
             AuditLogRepository auditLogRepository
     ) {
         this.gestaoSetorService = gestaoSetorService;
         this.gestaoUsuarioService = gestaoUsuarioService;
-        this.papelRepository = papelRepository;
         this.auditLogRepository = auditLogRepository;
     }
-
-    // --- Catalogo de permissoes ---
 
     @GetMapping("/catalogo-permissoes")
     public List<PermissaoCatalogoItemDTO> catalogoPermissoes() {
         return PermissaoCatalogo.catalogo();
     }
-
-    // --- Setores ---
 
     @GetMapping("/setores")
     public List<SetorDTO> setores() {
@@ -71,8 +78,6 @@ public class AdminAcessoController {
         return ResponseEntity.noContent().build();
     }
 
-    // --- Usuarios ---
-
     @GetMapping("/usuarios")
     public List<UsuarioAcessoDTO> usuarios() {
         return gestaoUsuarioService.listarUsuarios();
@@ -92,48 +97,14 @@ public class AdminAcessoController {
 
     @DeleteMapping("/usuarios/{usuarioId}")
     public ResponseEntity<Void> excluirUsuario(@PathVariable Long usuarioId) {
-        gestaoUsuarioService.excluirUsuario(usuarioId);
+        gestaoUsuarioService.inativarUsuario(usuarioId);
         return ResponseEntity.noContent().build();
     }
 
-    // --- Papeis ---
-
     @GetMapping("/papeis")
     public List<PapelDTO> papeis() {
-        return papelRepository.findAll().stream()
-                .map(p -> new PapelDTO(p.getId(), p.getNome(), p.getDescricao(), p.getNivel()))
-                .toList();
+        return gestaoUsuarioService.listarPapeisDisponiveis();
     }
-
-    @PutMapping("/usuarios/{usuarioId}/papeis")
-    public ResponseEntity<Void> atribuirPapeis(
-            @PathVariable Long usuarioId,
-            @Valid @RequestBody AtribuirPapeisRequestDTO request) {
-        gestaoUsuarioService.atribuirPapeis(usuarioId, request.papelIds());
-        return ResponseEntity.ok().build();
-    }
-
-    // --- Overrides de permissao ---
-
-    @GetMapping("/usuarios/{usuarioId}/overrides")
-    public List<PermissaoOverrideDTO> buscarOverrides(@PathVariable Long usuarioId) {
-        return gestaoUsuarioService.buscarOverrides(usuarioId).stream()
-                .map(o -> new PermissaoOverrideDTO(o.permissaoChave(), o.tipo()))
-                .toList();
-    }
-
-    @PutMapping("/usuarios/{usuarioId}/overrides")
-    public ResponseEntity<Void> salvarOverrides(
-            @PathVariable Long usuarioId,
-            @Valid @RequestBody List<PermissaoOverrideDTO> overrides) {
-        List<GestaoUsuarioService.OverrideDTO> dtos = overrides.stream()
-                .map(o -> new GestaoUsuarioService.OverrideDTO(o.permissaoChave(), o.tipo()))
-                .toList();
-        gestaoUsuarioService.salvarOverrides(usuarioId, dtos);
-        return ResponseEntity.ok().build();
-    }
-
-    // --- Audit logs ---
 
     @GetMapping("/audit-logs")
     @PreAuthorize("@acessoSeguranca.possuiPapel('admin_plataforma')")

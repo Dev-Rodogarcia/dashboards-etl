@@ -5,14 +5,15 @@ import java.util.Map;
 
 public record UsuarioAcessoDTO(
         String id,
-        String login,
         String nome,
         String email,
-        boolean admin,
         boolean ativo,
         String setorId,
         String setorNome,
-        Map<String, Boolean> permissoes,
-        List<String> papeis
+        String papel,
+        Map<String, Boolean> permissoesEfetivas,
+        List<String> filiaisPermitidasEfetivas,
+        List<String> permissoesNegadas,
+        List<String> permissoesConcedidas
 ) {
 }

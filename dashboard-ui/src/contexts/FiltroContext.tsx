@@ -9,6 +9,7 @@ interface FiltroContexto {
   filtros: Record<string, string[]>;
   setDataInicio: (data: string) => void;
   setDataFim: (data: string) => void;
+  setDataRange: (inicio: string, fim: string) => void;
   setFiltro: (chave: string, valores: string[]) => void;
   limparFiltros: () => void;
 }
@@ -83,6 +84,16 @@ export function FiltroProvider({ children }: { children: ReactNode }) {
     [atualizarParams]
   );
 
+  const setDataRange = useCallback(
+    (inicio: string, fim: string) => {
+      atualizarParams((params) => {
+        params.set('dataInicio', inicio);
+        params.set('dataFim', fim);
+      });
+    },
+    [atualizarParams]
+  );
+
   const setFiltro = useCallback(
     (chave: string, valores: string[]) => {
       atualizarParams((params) => {
@@ -114,6 +125,7 @@ export function FiltroProvider({ children }: { children: ReactNode }) {
         filtros,
         setDataInicio,
         setDataFim,
+        setDataRange,
         setFiltro,
         limparFiltros,
       }}

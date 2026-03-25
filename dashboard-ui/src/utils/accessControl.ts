@@ -8,6 +8,7 @@ import type {
 
 export const PAPEL_ADMIN_PLATAFORMA = 'admin_plataforma';
 export const PAPEL_ADMIN_ACESSO = 'admin_acesso';
+export const PAPEL_USUARIO_COMUM = 'usuario_comum';
 
 export interface NavItem {
   label: string;
@@ -31,8 +32,8 @@ export const DASHBOARD_NAV_ITEMS: NavItem[] = [
 ];
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
-  { label: 'Setores', path: '/admin/setores', adminOnly: true, description: 'Perfis e permissões' },
-  { label: 'Usuários', path: '/admin/usuarios', adminOnly: true, description: 'Atribuição de setores' },
+  { label: 'Setores', path: '/admin/setores', adminOnly: true, description: 'Setor define o baseline de acesso' },
+  { label: 'Usuários', path: '/admin/usuarios', adminOnly: true, description: 'Herança do setor com negações individuais' },
 ];
 
 export function createEmptyPermissionMap(): PermissionMap {
@@ -74,15 +75,15 @@ export function createEmptyPermissionOverrideState(): PermissionOverrideStateMap
   };
 }
 
-export function hasRole(user: Pick<IUsuarioSessao, 'papeis'> | null, role: string): boolean {
-  return Boolean(user?.papeis.includes(role));
+export function hasRole(user: Pick<IUsuarioSessao, 'papel'> | null, role: string): boolean {
+  return user?.papel === role;
 }
 
-export function isAdminPlataforma(user: Pick<IUsuarioSessao, 'papeis'> | null): boolean {
+export function isAdminPlataforma(user: Pick<IUsuarioSessao, 'papel'> | null): boolean {
   return hasRole(user, PAPEL_ADMIN_PLATAFORMA);
 }
 
-export function isAdminAcesso(user: Pick<IUsuarioSessao, 'papeis'> | null): boolean {
+export function isAdminAcesso(user: Pick<IUsuarioSessao, 'papel'> | null): boolean {
   return isAdminPlataforma(user) || hasRole(user, PAPEL_ADMIN_ACESSO);
 }
 
@@ -90,15 +91,17 @@ export function canAccess(user: IUsuarioSessao | null, permission?: PermissionKe
   if (!user) return false;
   if (isAdminPlataforma(user)) return true;
   if (!permission) return true;
-  return Boolean(user.setor.permissoes[permission]);
+  return Boolean(user.permissoesEfetivas[permission]);
 }
 
-export function firstAccessibleRoute(user: Pick<IUsuarioSessao, 'setor' | 'papeis' | 'exigeTrocaSenha'> | null): string {
+export function firstAccessibleRoute(
+  user: Pick<IUsuarioSessao, 'papel' | 'permissoesEfetivas' | 'exigeTrocaSenha'> | null,
+): string {
   if (!user) return '/login';
   if (user.exigeTrocaSenha) return '/alterar-senha';
 
   const match = DASHBOARD_NAV_ITEMS.find((item) =>
-    item.permission ? isAdminPlataforma(user) || user.setor.permissoes[item.permission] : false,
+    item.permission ? isAdminPlataforma(user) || user.permissoesEfetivas[item.permission] : false,
   );
 
   if (match) {
@@ -113,4 +116,11 @@ export function buildPermissionMapFromCatalog(catalog: PermissionCatalogItem[]):
     acc[item.chave] = false;
     return acc;
   }, createEmptyPermissionMap());
+}
+
+export function permissionSummary(map: PermissionMap, catalog: PermissionCatalogItem[]): string {
+  return catalog
+    .filter((item) => map[item.chave])
+    .map((item) => item.nome)
+    .join(', ');
 }

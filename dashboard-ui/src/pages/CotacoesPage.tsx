@@ -5,7 +5,7 @@ import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
-import FilterBar from '../components/shared/FilterBar';
+import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
@@ -38,7 +38,7 @@ function corEtapaFunil(etapa: string) {
 }
 
 export default function CotacoesPage() {
-  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setFiltro, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
   const clientes = useClientes();
 
@@ -49,6 +49,12 @@ export default function CotacoesPage() {
     clientes: filtros.clientes,
     statusConversao: filtros.statusConversao,
   };
+
+  const activeFilters: ActiveFilter[] = [
+    { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Clientes', count: filtros.clientes?.length ?? 0, onRemove: () => setFiltro('clientes', []) },
+    { label: 'Status', count: filtros.statusConversao?.length ?? 0, onRemove: () => setFiltro('statusConversao', []) },
+  ];
 
   const overview = useCotacoesOverview(filtro);
   const serie = useCotacoesSerie(filtro);
@@ -104,14 +110,14 @@ export default function CotacoesPage() {
     series: [{
       type: 'funnel',
       sort: 'none',
-      left: '8%',
-      top: 20,
-      right: '12%',
-      bottom: 20,
+      left: '5%',
+      top: 8,
+      right: '18%',
+      bottom: 35,
       min: 0,
       max: maxFunil,
-      minSize: '35%',
-      maxSize: '85%',
+      minSize: '8%',
+      maxSize: '80%',
       gap: 10,
       itemStyle: {
         borderColor: '#f8fafc',
@@ -152,7 +158,7 @@ export default function CotacoesPage() {
   };
 
   const corredoresOption: EChartsOption = {
-    grid: { left: 150 },
+    grid: { left: 10, containLabel: true },
     xAxis: { type: 'value' },
     yAxis: { type: 'category', data: corredores.map((item) => item.trecho).reverse() },
     series: [{ type: 'bar', data: corredores.map((item) => item.valorFrete).reverse(), itemStyle: { color: CORES.secundaria } }],
@@ -177,16 +183,16 @@ export default function CotacoesPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#21478A]">Cotações</h1>
-          <p className="text-sm text-gray-500">Funil comercial, corredores mais valiosos e motivos de perda.</p>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Cotações</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Funil comercial, corredores mais valiosos e motivos de perda.</p>
         </div>
         <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
       </div>
 
-      <FilterBar onClear={limparFiltros}>
-        <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} />
+      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
+        <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
         <AsyncMultiSelect label="Filiais" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />
         <AsyncMultiSelect label="Clientes" opcoes={clientes.data ?? []} selecionados={filtros.clientes ?? []} onChange={(valores) => setFiltro('clientes', valores)} isLoading={clientes.isLoading} />
         <AsyncMultiSelect label="Status" opcoes={['Convertida', 'Reprovada', 'Pendente']} selecionados={filtros.statusConversao ?? []} onChange={(valores) => setFiltro('statusConversao', valores)} />
@@ -197,7 +203,7 @@ export default function CotacoesPage() {
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ChartWrapper titulo="Serie Diaria de Cotações" option={serieOption} isLoading={serie.isLoading} isEmpty={(serie.data ?? []).length === 0} />
-        <ChartWrapper titulo="Funil Comercial" option={funilOption} isLoading={graficos.isLoading} isEmpty={funilOrdenado.length === 0} altura={320} />
+        <ChartWrapper titulo="Funil Comercial" option={funilOption} isLoading={graficos.isLoading} isEmpty={funilOrdenado.length === 0} altura={260} />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">

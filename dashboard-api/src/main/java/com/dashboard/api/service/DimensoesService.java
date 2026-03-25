@@ -22,6 +22,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class DimensoesService {
@@ -88,23 +89,17 @@ public class DimensoesService {
 
         fretesRepository.findAll().stream()
                 .filter(row -> escopo.permiteAlgumaFilial(row.getFilialNome()))
-                .flatMap(row -> List.of(row.getPagadorNome(), row.getRemetenteNome(), row.getDestinatarioNome()).stream())
-                .filter(this::temTexto)
-                .map(String::trim)
+                .flatMap(row -> textoStream(row.getPagadorNome(), row.getRemetenteNome(), row.getDestinatarioNome()))
                 .forEach(clientes::add);
 
         cotacoesRepository.findAll().stream()
                 .filter(row -> escopo.permiteAlgumaFilial(row.getFilial()))
-                .flatMap(row -> List.of(row.getClientePagador(), row.getCliente()).stream())
-                .filter(this::temTexto)
-                .map(String::trim)
+                .flatMap(row -> textoStream(row.getClientePagador(), row.getCliente()))
                 .forEach(clientes::add);
 
         faturasClienteRepository.findAll().stream()
                 .filter(row -> escopo.permiteAlgumaFilial(row.getFilial()))
-                .flatMap(row -> List.of(row.getPagadorNome(), row.getRemetenteNome(), row.getDestinatarioNome()).stream())
-                .filter(this::temTexto)
-                .map(String::trim)
+                .flatMap(row -> textoStream(row.getPagadorNome(), row.getRemetenteNome(), row.getDestinatarioNome()))
                 .forEach(clientes::add);
 
         return clientes.stream()
@@ -180,5 +175,11 @@ public class DimensoesService {
 
     private boolean temTexto(String valor) {
         return valor != null && !valor.isBlank();
+    }
+
+    private Stream<String> textoStream(String... valores) {
+        return Stream.of(valores)
+                .filter(this::temTexto)
+                .map(String::trim);
     }
 }

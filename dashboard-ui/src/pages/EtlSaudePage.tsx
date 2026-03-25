@@ -13,7 +13,7 @@ import { useEtlSaudeGraficos, useEtlSaudeOverview, useEtlSaudeSerie, useEtlSaude
 import type { EtlExecucaoRow } from '../types/etlSaude';
 
 export default function EtlSaudePage() {
-  const { dataInicio, dataFim, setDataInicio, setDataFim, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, setDataInicio, setDataFim, setDataRange, limparFiltros } = useFiltro();
   const filtro = { dataInicio, dataFim };
 
   const overview = useEtlSaudeOverview(filtro);
@@ -53,16 +53,16 @@ export default function EtlSaudePage() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#21478A]">Saúde do ETL</h1>
-          <p className="text-sm text-gray-500">Execuções, volume processado e distribuição de erros.</p>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Saúde do ETL</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Execuções, volume processado e distribuição de erros.</p>
         </div>
         <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
       </div>
 
-      <FilterBar onClear={limparFiltros}>
-        <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} />
+      <FilterBar onClear={limparFiltros} dataInicio={dataInicio} dataFim={dataFim}>
+        <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
       </FilterBar>
 
       {overview.isError && <MensagemErro mensagem="Erro ao carregar indicadores do ETL." />}

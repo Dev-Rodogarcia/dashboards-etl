@@ -12,13 +12,16 @@ import org.springframework.stereotype.Service;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class PermissaoResolverService {
 
-    private static final String PAPEL_ADMIN_PLATAFORMA = "admin_plataforma";
+    public static final String PAPEL_ADMIN_PLATAFORMA = "admin_plataforma";
+    public static final String PAPEL_ADMIN_ACESSO = "admin_acesso";
+    public static final String PAPEL_USUARIO_COMUM = "usuario_comum";
 
     private final PermissaoRepository permissaoRepository;
     private final SetorPermissaoTemplateRepository templateRepository;
@@ -37,72 +40,66 @@ public class PermissaoResolverService {
         this.overrideRepository = overrideRepository;
     }
 
-    /**
-     * Calcula permissoes efetivas para um usuario.
-     * Retorna Map com chave_legado (camelCase) → boolean, compativel com o frontend.
-     */
     public Map<String, Boolean> permissoesEfetivas(UsuarioEntity usuario) {
+        Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
         List<PermissaoEntity> catalogo = permissaoRepository.findAllByAtivoTrue();
 
-        if (ehAdminPlataforma(usuario.getId())) {
+        if (ehAdminPlataforma(usuarioId)) {
             return catalogoCompleto(catalogo, true);
         }
 
-        // Baseline do setor
         Set<Long> templateIds = templateRepository.findAllBySetorId(usuario.getSetor().getId())
                 .stream()
-                .map(t -> t.getPermissao().getId())
+                .map(template -> template.getPermissao().getId())
                 .collect(Collectors.toSet());
 
-        // Overrides do usuario
-        Map<Long, String> overrides = overrideRepository.findAllByUsuarioId(usuario.getId())
-                .stream()
-                .collect(Collectors.toMap(
-                        o -> o.getPermissao().getId(),
-                        UsuarioPermissaoOverride::getTipo
-                ));
+        List<UsuarioPermissaoOverride> todosOverrides = overrideRepository.findAllByUsuarioId(usuarioId);
+        Set<Long> negadas = todosOverrides.stream()
+                .filter(override -> "DENY".equals(override.getTipo()))
+                .map(override -> override.getPermissao().getId())
+                .collect(Collectors.toSet());
+        Set<Long> concedidas = todosOverrides.stream()
+                .filter(override -> "GRANT".equals(override.getTipo()))
+                .map(override -> override.getPermissao().getId())
+                .collect(Collectors.toSet());
 
         Map<String, Boolean> resultado = new LinkedHashMap<>();
-        for (PermissaoEntity perm : catalogo) {
-            String chave = perm.getChaveLegado() != null ? perm.getChaveLegado() : perm.getChave();
-            String override = overrides.get(perm.getId());
-            if ("DENY".equals(override)) {
-                resultado.put(chave, false);
-            } else if ("GRANT".equals(override)) {
-                resultado.put(chave, true);
-            } else {
-                resultado.put(chave, templateIds.contains(perm.getId()));
-            }
+        for (PermissaoEntity permissao : catalogo) {
+            String chave = permissao.getChaveLegado() != null ? permissao.getChaveLegado() : permissao.getChave();
+            resultado.put(chave, (templateIds.contains(permissao.getId()) && !negadas.contains(permissao.getId()))
+                    || concedidas.contains(permissao.getId()));
         }
+
         return resultado;
     }
 
     public boolean ehAdminPlataforma(Long usuarioId) {
-        return papelVinculoRepository.findAllByUsuarioId(usuarioId)
-                .stream()
-                .anyMatch(v -> PAPEL_ADMIN_PLATAFORMA.equals(v.getPapel().getNome()));
+        return PAPEL_ADMIN_PLATAFORMA.equals(papel(usuarioId));
+    }
+
+    public boolean ehAdminAcesso(Long usuarioId) {
+        String papel = papel(usuarioId);
+        return PAPEL_ADMIN_PLATAFORMA.equals(papel) || PAPEL_ADMIN_ACESSO.equals(papel);
     }
 
     public boolean ehAdmin(Long usuarioId) {
-        return papelVinculoRepository.findAllByUsuarioId(usuarioId)
-                .stream()
-                .anyMatch(v -> {
-                    String nome = v.getPapel().getNome();
-                    return "admin_plataforma".equals(nome) || "admin_acesso".equals(nome);
-                });
+        return ehAdminAcesso(usuarioId);
     }
 
-    public List<String> papeis(Long usuarioId) {
+    public String papel(Long usuarioId) {
         return papelVinculoRepository.findAllByUsuarioId(usuarioId)
                 .stream()
-                .map(v -> v.getPapel().getNome())
-                .toList();
+                .map(vinculo -> vinculo.getPapel())
+                .sorted((a, b) -> Integer.compare(b.getNivel(), a.getNivel()))
+                .map(papel -> papel.getNome())
+                .findFirst()
+                .orElse(PAPEL_USUARIO_COMUM);
     }
 
     private Map<String, Boolean> catalogoCompleto(List<PermissaoEntity> catalogo, boolean valor) {
         Map<String, Boolean> mapa = new LinkedHashMap<>();
-        for (PermissaoEntity perm : catalogo) {
-            String chave = perm.getChaveLegado() != null ? perm.getChaveLegado() : perm.getChave();
+        for (PermissaoEntity permissao : catalogo) {
+            String chave = permissao.getChaveLegado() != null ? permissao.getChaveLegado() : permissao.getChave();
             mapa.put(chave, valor);
         }
         return mapa;

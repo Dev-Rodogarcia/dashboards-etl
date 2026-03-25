@@ -1,64 +1,68 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { alterarSenha as alterarSenhaServico, buscarSessaoAtual, loginUsuario } from '../api/endpoints/authServico';
+import {
+  alterarSenha as alterarSenhaServico,
+  buscarSessaoAtual,
+  loginUsuario,
+  logoutUsuario,
+} from '../api/endpoints/authServico';
 import type {
   AlterarSenhaRequest,
   IUsuarioSessao,
   LoginRequest,
   LoginResponse,
-  UsuarioSessao,
 } from '../types/auth';
-import { limparSessao, obterSessao, salvarSessao } from '../utils/gerenciadorSessao';
+import {
+  limparSessao,
+  montarSessaoDoLogin,
+  montarSessaoPersistida,
+  obterSessao,
+  salvarSessao,
+} from '../utils/gerenciadorSessao';
 
 interface AutenticacaoContexto {
   usuario: IUsuarioSessao | null;
   carregandoSessao: boolean;
   login: (credenciais: LoginRequest) => Promise<LoginResponse>;
   alterarSenha: (payload: AlterarSenhaRequest) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AutenticacaoContext = createContext<AutenticacaoContexto | null>(null);
 
-function montarSessao(
-  dados: UsuarioSessao,
-  token: string,
-  exigeTrocaSenhaFallback = false,
-): IUsuarioSessao {
-  return {
-    ...dados,
-    token,
-    papeis: dados.papeis ?? [],
-    exigeTrocaSenha: dados.exigeTrocaSenha ?? exigeTrocaSenhaFallback,
-  };
-}
-
 export function AutenticacaoProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<IUsuarioSessao | null>(() => obterSessao());
-  const [carregandoSessao, setCarregandoSessao] = useState(() => Boolean(obterSessao()?.token));
+  const [carregandoSessao, setCarregandoSessao] = useState(true);
 
   useEffect(() => {
-    const sessao = obterSessao();
-    if (!sessao?.token) return;
-
     let ativo = true;
 
-    buscarSessaoAtual()
-      .then((dados) => {
+    async function bootstrapSessao() {
+      const sessao = obterSessao();
+      if (!sessao?.token) {
+        setUsuario(null);
+        setCarregandoSessao(false);
+        return;
+      }
+
+      try {
+        const dados = await buscarSessaoAtual();
         if (!ativo) return;
-        const atualizada = montarSessao(dados, sessao.token, sessao.exigeTrocaSenha);
+
+        const atualizada = montarSessaoPersistida(dados, sessao.token, sessao.exigeTrocaSenha);
         salvarSessao(atualizada);
         setUsuario(atualizada);
-      })
-      .catch(() => {
+      } catch {
         if (!ativo) return;
         limparSessao();
         setUsuario(null);
-      })
-      .finally(() => {
+      } finally {
         if (ativo) setCarregandoSessao(false);
-      });
+      }
+    }
+
+    void bootstrapSessao();
 
     return () => {
       ativo = false;
@@ -67,7 +71,7 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (credenciais: LoginRequest): Promise<LoginResponse> => {
     const data = await loginUsuario(credenciais);
-    const sessao = montarSessao(data.usuario, data.token, data.exigeTrocaSenha);
+    const sessao = montarSessaoDoLogin(data);
     salvarSessao(sessao);
     setUsuario(sessao);
     setCarregandoSessao(false);
@@ -85,10 +89,14 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const logout = useCallback(() => {
-    limparSessao();
-    setUsuario(null);
-    setCarregandoSessao(false);
+  const logout = useCallback(async () => {
+    try {
+      await logoutUsuario();
+    } finally {
+      limparSessao();
+      setUsuario(null);
+      setCarregandoSessao(false);
+    }
   }, []);
 
   return (

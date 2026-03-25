@@ -1,46 +1,79 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import PermissionOverrideMatrix from '../components/admin/PermissionOverrideMatrix';
 import DataTable from '../components/shared/DataTable';
 import {
-  useAtribuirPapeisUsuario,
   useAtualizarUsuario,
   useCatalogoPermissoes,
   useCriarUsuario,
   useExcluirUsuario,
   usePapeisAdmin,
-  useSalvarOverridesUsuario,
   useSetoresAdmin,
-  useUsuarioOverridesAdmin,
   useUsuariosAdmin,
 } from '../hooks/queries/useAdminAcesso';
+import { usePermissions } from '../hooks/usePermissions';
 import type {
   PapelAdmin,
+  PermissionMap,
   PermissionOverrideStateMap,
-  PermissaoOverride,
   UsuarioAdmin,
   UsuarioPayload,
 } from '../types/access';
-import { createEmptyPermissionOverrideState } from '../utils/accessControl';
+import {
+  buildPermissionMapFromCatalog,
+  createEmptyPermissionMap,
+  createEmptyPermissionOverrideState,
+  PAPEL_ADMIN_PLATAFORMA,
+  permissionSummary,
+} from '../utils/accessControl';
 import { getApiErrorMessage } from '../utils/apiError';
 
 interface UsuarioRow extends UsuarioAdmin {
   acoes: string;
-  papeisResumo: string;
+  papelResumo: string;
   permissoesResumo: string;
+  negacoesResumo: string;
+  filiaisResumo: string;
 }
 
 const FORM_INICIAL: UsuarioPayload = {
-  login: '',
   nome: '',
   email: '',
   senha: '',
+  confirmacaoSenha: '',
   setorId: '',
-  admin: false,
+  papel: 'usuario_comum',
+  permissoesNegadas: [],
+  permissoesConcedidas: [],
   ativo: true,
 };
 
-const PAPEIS_INICIAIS = ['usuario_comum'];
+const SURFACE_STYLE = {
+  backgroundColor: 'var(--color-card)',
+  borderColor: 'var(--color-border)',
+};
+
+const FIELD_STYLE = {
+  backgroundColor: 'var(--color-bg)',
+  borderColor: 'var(--color-border)',
+  color: 'var(--color-text)',
+};
+
+const SOFT_PANEL_STYLE = {
+  backgroundColor: 'color-mix(in srgb, var(--color-text) 6%, var(--color-card))',
+  borderColor: 'var(--color-border)',
+};
+
+const SECONDARY_BUTTON_STYLE = {
+  backgroundColor: 'var(--color-bg)',
+  borderColor: 'var(--color-border)',
+  color: 'var(--color-text)',
+};
+
+const EDIT_DANGER_STYLE = {
+  borderColor: 'color-mix(in srgb, #ef4444 30%, var(--color-border))',
+  color: 'color-mix(in srgb, #ef4444 78%, var(--color-text))',
+};
 
 function formatRoleName(nome: string): string {
   return nome
@@ -49,34 +82,33 @@ function formatRoleName(nome: string): string {
     .join(' ');
 }
 
-function formatRoleSummary(papeis: string[], catalogo: PapelAdmin[] | undefined): string {
-  if (papeis.length === 0) return 'Sem papéis';
-
-  return papeis
-    .map((papel) => catalogo?.find((item) => item.nome === papel)?.descricao ?? formatRoleName(papel))
-    .join(', ');
-}
-
-function mapOverridesToState(overrides: PermissaoOverride[]): PermissionOverrideStateMap {
+function mapOverridesToState(permissoesNegadas: string[], permissoesConcedidas: string[]): PermissionOverrideStateMap {
   const proximo = createEmptyPermissionOverrideState();
 
-  for (const override of overrides) {
-    proximo[override.permissaoChave] = override.tipo === 'GRANT' ? 'grant' : 'deny';
+  for (const permissao of permissoesNegadas) {
+    proximo[permissao as keyof PermissionOverrideStateMap] = 'deny';
+  }
+  for (const permissao of permissoesConcedidas) {
+    proximo[permissao as keyof PermissionOverrideStateMap] = 'grant';
   }
 
   return proximo;
 }
 
-function mapStateToOverrides(state: PermissionOverrideStateMap): PermissaoOverride[] {
+function mapStateToNegacoes(state: PermissionOverrideStateMap): UsuarioPayload['permissoesNegadas'] {
   return Object.entries(state)
-    .filter(([, valor]) => valor !== 'inherit')
-    .map(([permissaoChave, valor]) => ({
-      permissaoChave: permissaoChave as PermissaoOverride['permissaoChave'],
-      tipo: valor === 'grant' ? 'GRANT' : 'DENY',
-    }));
+    .filter(([, valor]) => valor === 'deny')
+    .map(([permissaoChave]) => permissaoChave as UsuarioPayload['permissoesNegadas'][number]);
+}
+
+function mapStateToConcedidas(state: PermissionOverrideStateMap): UsuarioPayload['permissoesConcedidas'] {
+  return Object.entries(state)
+    .filter(([, valor]) => valor === 'grant')
+    .map(([permissaoChave]) => permissaoChave as UsuarioPayload['permissoesConcedidas'][number]);
 }
 
 export default function AdminUsuariosPage() {
+  const { isAdminPlataforma } = usePermissions();
   const catalogo = useCatalogoPermissoes();
   const papeis = usePapeisAdmin();
   const setores = useSetoresAdmin();
@@ -84,48 +116,63 @@ export default function AdminUsuariosPage() {
   const criarUsuario = useCriarUsuario();
   const atualizarUsuario = useAtualizarUsuario();
   const excluirUsuario = useExcluirUsuario();
-  const atribuirPapeisUsuario = useAtribuirPapeisUsuario();
-  const salvarOverridesUsuario = useSalvarOverridesUsuario();
 
   const [editing, setEditing] = useState<UsuarioAdmin | null>(null);
   const [form, setForm] = useState<UsuarioPayload>(FORM_INICIAL);
   const [erro, setErro] = useState('');
-  const [papeisSelecionados, setPapeisSelecionados] = useState<string[]>(PAPEIS_INICIAIS);
   const [overrideState, setOverrideState] = useState<PermissionOverrideStateMap>(createEmptyPermissionOverrideState());
 
-  const overridesUsuario = useUsuarioOverridesAdmin(editing?.id);
+  const setorSelecionado = useMemo(
+    () => (setores.data ?? []).find((setor) => setor.id === form.setorId) ?? null,
+    [form.setorId, setores.data],
+  );
 
-  useEffect(() => {
-    if (!editing) {
-      setOverrideState(createEmptyPermissionOverrideState());
-      return;
+  const baseline = setorSelecionado?.templatePermissoes ?? createEmptyPermissionMap();
+
+  const permissoesEfetivasPreview = useMemo<PermissionMap>(() => {
+    if (form.papel === PAPEL_ADMIN_PLATAFORMA) {
+      const completo = buildPermissionMapFromCatalog(catalogo.data ?? []);
+      return Object.keys(completo).reduce((acc, key) => {
+        acc[key as keyof PermissionMap] = true;
+        return acc;
+      }, { ...completo });
     }
 
-    if (overridesUsuario.data) {
-      setOverrideState(mapOverridesToState(overridesUsuario.data));
-      return;
+    const proximo = { ...baseline };
+    for (const [permissaoChave, modo] of Object.entries(overrideState)) {
+      if (modo === 'deny') {
+        proximo[permissaoChave as keyof PermissionMap] = false;
+      } else if (modo === 'grant') {
+        proximo[permissaoChave as keyof PermissionMap] = true;
+      }
     }
+    return proximo;
+  }, [baseline, catalogo.data, form.papel, overrideState]);
 
-    if (!overridesUsuario.isLoading && !overridesUsuario.isFetching) {
-      setOverrideState(createEmptyPermissionOverrideState());
-    }
-  }, [editing, overridesUsuario.data, overridesUsuario.isFetching, overridesUsuario.isLoading]);
+  const negacoesPreview = useMemo(
+    () => mapStateToNegacoes(overrideState)
+      .map((chave) => catalogo.data?.find((item) => item.chave === chave)?.nome ?? chave)
+      .join(', ') || 'Nenhuma',
+    [catalogo.data, overrideState],
+  );
 
-  useEffect(() => {
-    if (editing && overridesUsuario.error) {
-      setErro(getApiErrorMessage(overridesUsuario.error, 'Não foi possível carregar os overrides do usuário.'));
-    }
-  }, [editing, overridesUsuario.error]);
+  const concessoesPreview = useMemo(
+    () => mapStateToConcedidas(overrideState)
+      .map((chave) => catalogo.data?.find((item) => item.chave === chave)?.nome ?? chave)
+      .join(', ') || 'Nenhuma',
+    [catalogo.data, overrideState],
+  );
 
   const linhas = useMemo<UsuarioRow[]>(
     () =>
       (usuarios.data ?? []).map((usuario) => ({
         ...usuario,
-        papeisResumo: formatRoleSummary(usuario.papeis, papeis.data),
-        permissoesResumo: catalogo.data
-          ?.filter((item) => usuario.permissoes[item.chave])
-          .map((item) => item.nome)
-          .join(', ') ?? '',
+        papelResumo: papeis.data?.find((papel) => papel.nome === usuario.papel)?.descricao ?? formatRoleName(usuario.papel),
+        permissoesResumo: permissionSummary(usuario.permissoesEfetivas, catalogo.data ?? []),
+        negacoesResumo: usuario.permissoesNegadas
+          .map((chave) => catalogo.data?.find((item) => item.chave === chave)?.nome ?? chave)
+          .join(', '),
+        filiaisResumo: usuario.filiaisPermitidasEfetivas.join(', '),
         acoes: usuario.id,
       })),
     [catalogo.data, papeis.data, usuarios.data],
@@ -135,31 +182,23 @@ export default function AdminUsuariosPage() {
     setEditing(null);
     setForm(FORM_INICIAL);
     setErro('');
-    setPapeisSelecionados(PAPEIS_INICIAIS);
     setOverrideState(createEmptyPermissionOverrideState());
-  }
-
-  function togglePapel(nomePapel: string) {
-    setPapeisSelecionados((atuais) =>
-      atuais.includes(nomePapel)
-        ? atuais.filter((item) => item !== nomePapel)
-        : [...atuais, nomePapel],
-    );
   }
 
   function startEdit(usuario: UsuarioAdmin) {
     setEditing(usuario);
     setForm({
-      login: usuario.login,
       nome: usuario.nome,
       email: usuario.email,
       senha: '',
+      confirmacaoSenha: '',
       setorId: usuario.setorId,
-      admin: usuario.papeis.includes('admin_plataforma'),
+      papel: usuario.papel,
+      permissoesNegadas: [...usuario.permissoesNegadas],
+      permissoesConcedidas: [...usuario.permissoesConcedidas],
       ativo: usuario.ativo,
     });
-    setPapeisSelecionados(usuario.papeis.length > 0 ? usuario.papeis : PAPEIS_INICIAIS);
-    setOverrideState(createEmptyPermissionOverrideState());
+    setOverrideState(mapOverridesToState(usuario.permissoesNegadas, usuario.permissoesConcedidas));
     setErro('');
   }
 
@@ -167,35 +206,20 @@ export default function AdminUsuariosPage() {
     event.preventDefault();
     setErro('');
 
-    if (papeisSelecionados.length === 0) {
-      setErro('Selecione ao menos um papel para o usuário.');
-      return;
-    }
-
-    const papelIds = (papeis.data ?? [])
-      .filter((papel) => papeisSelecionados.includes(papel.nome))
-      .map((papel) => papel.id);
-
-    if (papelIds.length !== papeisSelecionados.length) {
-      setErro('Não foi possível resolver todos os papéis selecionados.');
-      return;
-    }
-
     const payload: UsuarioPayload = {
       ...form,
-      admin: papeisSelecionados.includes('admin_plataforma'),
+      senha: form.senha?.trim() ? form.senha : undefined,
+      confirmacaoSenha: form.confirmacaoSenha?.trim() ? form.confirmacaoSenha : undefined,
+      permissoesNegadas: mapStateToNegacoes(overrideState),
+      permissoesConcedidas: mapStateToConcedidas(overrideState),
     };
 
     try {
-      const usuarioSalvo = editing
-        ? await atualizarUsuario.mutateAsync({ id: editing.id, payload })
-        : await criarUsuario.mutateAsync(payload);
-
-      await atribuirPapeisUsuario.mutateAsync({ id: usuarioSalvo.id, papelIds });
-      await salvarOverridesUsuario.mutateAsync({
-        id: usuarioSalvo.id,
-        overrides: mapStateToOverrides(overrideState),
-      });
+      if (editing) {
+        await atualizarUsuario.mutateAsync({ id: editing.id, payload });
+      } else {
+        await criarUsuario.mutateAsync(payload);
+      }
 
       resetForm();
     } catch (error) {
@@ -204,7 +228,7 @@ export default function AdminUsuariosPage() {
   }
 
   async function handleDelete(usuario: UsuarioAdmin) {
-    if (!window.confirm(`Excluir o usuário "${usuario.login}"?`)) return;
+    if (!window.confirm(`Inativar o usuário "${usuario.email}"?`)) return;
 
     try {
       await excluirUsuario.mutateAsync(usuario.id);
@@ -217,74 +241,79 @@ export default function AdminUsuariosPage() {
   const salvando =
     criarUsuario.isPending
     || atualizarUsuario.isPending
-    || atribuirPapeisUsuario.isPending
-    || salvarOverridesUsuario.isPending
     || papeis.isLoading
-    || (Boolean(editing) && (overridesUsuario.isLoading || overridesUsuario.isFetching));
+    || setores.isLoading;
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="rounded-3xl border p-6 shadow-sm" style={SURFACE_STYLE}>
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Gestão de usuários</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Cada usuário pertence a um setor, recebe papéis administrativos e pode ter exceções de permissão.
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Gestão de usuários</h1>
+          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
+            O usuário herda o acesso do setor e pode receber apenas negações individuais de dashboard.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <label className="space-y-1">
-              <span className="text-sm font-medium text-gray-700">Login</span>
-              <input
-                value={form.login}
-                onChange={(e) => setForm((atual) => ({ ...atual, login: e.target.value }))}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
-                placeholder="ex: lucas"
-                required
-              />
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-sm font-medium text-gray-700">Nome</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>Nome</span>
               <input
                 value={form.nome}
                 onChange={(e) => setForm((atual) => ({ ...atual, nome: e.target.value }))}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
+                className="w-full rounded-xl border px-3 py-2.5"
+                style={FIELD_STYLE}
                 required
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-sm font-medium text-gray-700">E-mail</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>E-mail</span>
               <input
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((atual) => ({ ...atual, email: e.target.value }))}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
+                className="w-full rounded-xl border px-3 py-2.5"
+                style={FIELD_STYLE}
                 required
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>
                 Senha {editing ? '(opcional)' : '(obrigatória)'}
               </span>
               <input
                 type="password"
                 value={form.senha ?? ''}
                 onChange={(e) => setForm((atual) => ({ ...atual, senha: e.target.value }))}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
+                className="w-full rounded-xl border px-3 py-2.5"
+                style={FIELD_STYLE}
                 required={!editing}
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-sm font-medium text-gray-700">Setor</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>
+                Confirmar senha {editing ? '(opcional)' : '(obrigatória)'}
+              </span>
+              <input
+                type="password"
+                value={form.confirmacaoSenha ?? ''}
+                onChange={(e) => setForm((atual) => ({ ...atual, confirmacaoSenha: e.target.value }))}
+                className="w-full rounded-xl border px-3 py-2.5"
+                style={FIELD_STYLE}
+                required={!editing}
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>Setor</span>
               <select
                 value={form.setorId}
                 onChange={(e) => setForm((atual) => ({ ...atual, setorId: e.target.value }))}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
+                className="w-full rounded-xl border px-3 py-2.5"
+                style={FIELD_STYLE}
                 required
               >
                 <option value="">Selecione</option>
@@ -296,47 +325,56 @@ export default function AdminUsuariosPage() {
               </select>
             </label>
 
-            <div className="flex flex-col justify-end gap-3 rounded-2xl border border-gray-200 px-4 py-3">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+            <div className="flex flex-col justify-end gap-3 rounded-2xl border px-4 py-3" style={SOFT_PANEL_STYLE}>
+              <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text)' }}>
                 <input
                   type="checkbox"
                   checked={form.ativo}
                   onChange={(e) => setForm((atual) => ({ ...atual, ativo: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300 text-[#21478A]"
+                  className="h-4 w-4 rounded border-gray-300"
+                  style={{ accentColor: 'var(--color-primary)' }}
                 />
                 Usuário ativo
               </label>
-              <p className="text-xs text-gray-500">
-                O papel administrativo é definido na seção de papéis abaixo.
+              <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>
+                O papel é único e o e-mail será usado como login da conta.
               </p>
             </div>
           </div>
 
           <div className="space-y-3">
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Papéis administrativos</h2>
-              <p className="text-xs text-gray-500">
-                Escolha os papéis que definem privilégios administrativos do usuário.
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Papel administrativo</h2>
+              <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>
+                Escolha exatamente um papel para definir o alcance administrativo do usuário.
               </p>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {(papeis.data ?? []).map((papel) => (
+              {(papeis.data ?? []).map((papel: PapelAdmin) => (
                 <label
                   key={papel.id}
-                  className={`flex items-start gap-3 rounded-2xl border px-4 py-3 ${
-                    papeisSelecionados.includes(papel.nome) ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'
-                  }`}
+                  className="flex items-start gap-3 rounded-2xl border px-4 py-3"
+                  style={
+                    form.papel === papel.nome
+                      ? {
+                          backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, var(--color-card))',
+                          borderColor: 'color-mix(in srgb, var(--color-primary) 34%, var(--color-border))',
+                        }
+                      : SOFT_PANEL_STYLE
+                  }
                 >
                   <input
-                    type="checkbox"
-                    checked={papeisSelecionados.includes(papel.nome)}
-                    onChange={() => togglePapel(papel.nome)}
-                    className="mt-1 h-4 w-4 rounded border-gray-300 text-[#21478A]"
+                    type="radio"
+                    name="papel"
+                    checked={form.papel === papel.nome}
+                    onChange={() => setForm((atual) => ({ ...atual, papel: papel.nome }))}
+                    className="mt-1 h-4 w-4 border-gray-300"
+                    style={{ accentColor: 'var(--color-primary)' }}
                   />
                   <div>
-                    <div className="text-sm font-semibold text-gray-900">{formatRoleName(papel.nome)}</div>
-                    <div className="text-xs text-gray-500">{papel.descricao ?? 'Sem descrição'}</div>
+                    <div className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{formatRoleName(papel.nome)}</div>
+                    <div className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>{papel.descricao ?? 'Sem descrição'}</div>
                   </div>
                 </label>
               ))}
@@ -345,20 +383,65 @@ export default function AdminUsuariosPage() {
 
           <div className="space-y-3">
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Overrides de permissão</h2>
-              <p className="text-xs text-gray-500">
-                Herdar usa o baseline do setor. Liberar e negar criam exceções por usuário.
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Negações individuais</h2>
+              <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>
+                O usuário herda o setor. Aqui você só nega dashboards específicos.
               </p>
             </div>
+
+            <div className="rounded-2xl border p-3" style={SOFT_PANEL_STYLE}>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text)' }}>
+                  Resumo do acesso
+                </h3>
+                <span className="text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
+                  Prévia do acesso final
+                </span>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Setor</div>
+                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{setorSelecionado?.nome ?? 'Selecione um setor'}</div>
+                </div>
+                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Papel</div>
+                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{formatRoleName(form.papel)}</div>
+                </div>
+                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Filiais efetivas</div>
+                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{setorSelecionado?.filiaisPermitidas.join(', ') || 'Nenhuma'}</div>
+                </div>
+                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Baseline herdado</div>
+                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{permissionSummary(baseline, catalogo.data ?? []) || 'Sem permissões'}</div>
+                </div>
+                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Negações</div>
+                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{negacoesPreview}</div>
+                </div>
+                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Concessões individuais</div>
+                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{concessoesPreview}</div>
+                </div>
+                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Permissões efetivas</div>
+                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{permissionSummary(permissoesEfetivasPreview, catalogo.data ?? []) || 'Sem permissões'}</div>
+                </div>
+              </div>
+            </div>
+
             <PermissionOverrideMatrix
               catalogo={catalogo.data ?? []}
+              baseline={baseline}
+              papel={form.papel}
               valor={overrideState}
               onChange={setOverrideState}
-              disabled={catalogo.isLoading || (Boolean(editing) && (overridesUsuario.isLoading || overridesUsuario.isFetching))}
+              disabled={catalogo.isLoading || !form.setorId || form.papel === PAPEL_ADMIN_PLATAFORMA}
             />
           </div>
 
-          {erro && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+          {erro && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">{erro}</p>}
 
           <div className="flex flex-wrap gap-3">
             <button
@@ -372,7 +455,8 @@ export default function AdminUsuariosPage() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700"
+                className="rounded-xl border px-4 py-2.5 text-sm font-medium transition-opacity hover:opacity-80"
+                style={SECONDARY_BUTTON_STYLE}
               >
                 Cancelar edição
               </button>
@@ -387,37 +471,50 @@ export default function AdminUsuariosPage() {
         chaveLinha="id"
         isLoading={usuarios.isLoading}
         colunas={[
-          { chave: 'login', label: 'Login', fixo: true },
-          { chave: 'nome', label: 'Nome' },
+          { chave: 'nome', label: 'Nome', fixo: true },
           { chave: 'email', label: 'E-mail' },
           { chave: 'setorNome', label: 'Setor' },
           {
-            chave: 'papeisResumo',
-            label: 'Papéis',
-            formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Sem papéis')}</span>,
-          },
-          {
-            chave: 'admin',
-            label: 'Admin Plataforma',
-            formato: (valor) => (
-              <span className={`rounded-full px-2 py-1 text-xs font-medium ${valor ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
-                {valor ? 'Sim' : 'Não'}
-              </span>
-            ),
+            chave: 'papelResumo',
+            label: 'Papel',
+            formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Sem papel')}</span>,
           },
           {
             chave: 'ativo',
             label: 'Ativo',
             formato: (valor) => (
-              <span className={`rounded-full px-2 py-1 text-xs font-medium ${valor ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+              <span
+                className="rounded-full px-2 py-1 text-xs font-medium"
+                style={
+                  valor
+                    ? {
+                        backgroundColor: 'color-mix(in srgb, #10b981 14%, var(--color-card))',
+                        color: 'color-mix(in srgb, #10b981 72%, var(--color-text))',
+                      }
+                    : {
+                        backgroundColor: 'color-mix(in srgb, #ef4444 14%, var(--color-card))',
+                        color: 'color-mix(in srgb, #ef4444 72%, var(--color-text))',
+                      }
+                }
+              >
                 {valor ? 'Sim' : 'Não'}
               </span>
             ),
           },
           {
+            chave: 'filiaisResumo',
+            label: 'Filiais',
+            formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Acesso total')}</span>,
+          },
+          {
             chave: 'permissoesResumo',
             label: 'Permissões efetivas',
             formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Sem permissões')}</span>,
+          },
+          {
+            chave: 'negacoesResumo',
+            label: 'Negações',
+            formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Nenhuma')}</span>,
           },
           {
             chave: 'acoes',
@@ -427,16 +524,20 @@ export default function AdminUsuariosPage() {
                 <button
                   type="button"
                   onClick={() => startEdit(row)}
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700"
+                  disabled={!isAdminPlataforma && row.papel !== 'usuario_comum'}
+                  className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
+                  style={SECONDARY_BUTTON_STYLE}
                 >
                   Editar
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDelete(row)}
-                  className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600"
+                  disabled={!isAdminPlataforma && row.papel !== 'usuario_comum'}
+                  className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
+                  style={EDIT_DANGER_STYLE}
                 >
-                  Excluir
+                  Inativar
                 </button>
               </div>
             ),

@@ -11,6 +11,10 @@ public class AcessoSeguranca {
         return possuiAuthority("ROLE_ADMIN");
     }
 
+    public boolean ehAdminPlataforma() {
+        return possuiAuthority("ROLE_ADMIN_PLATAFORMA");
+    }
+
     public boolean possuiPapel(String nomePapel) {
         return possuiAuthority("ROLE_" + nomePapel.toUpperCase());
     }

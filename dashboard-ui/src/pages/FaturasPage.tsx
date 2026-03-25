@@ -6,7 +6,7 @@ import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
-import FilterBar from '../components/shared/FilterBar';
+import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
@@ -26,7 +26,7 @@ import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
 
 export default function FaturasPage() {
-  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setFiltro, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
   const clientes = useClientes();
 
@@ -38,6 +38,13 @@ export default function FaturasPage() {
     statusProcesso: filtros.statusProcesso,
     pago: filtros.pago,
   };
+
+  const activeFilters: ActiveFilter[] = [
+    { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Pagadores', count: filtros.pagadores?.length ?? 0, onRemove: () => setFiltro('pagadores', []) },
+    { label: 'Status Processo', count: filtros.statusProcesso?.length ?? 0, onRemove: () => setFiltro('statusProcesso', []) },
+    { label: 'Pago', count: filtros.pago?.length ?? 0, onRemove: () => setFiltro('pago', []) },
+  ];
 
   const overview = useFaturasOverview(filtro);
   const mensal = useFaturasMensal(filtro);
@@ -107,20 +114,21 @@ export default function FaturasPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#21478A]">Faturas</h1>
-          <p className="text-sm text-gray-500">Recebiveis, aging e reconciliacao entre operacao e financeiro.</p>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Faturas</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Recebiveis, aging e reconciliacao entre operacao e financeiro.</p>
         </div>
         <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
       </div>
 
-      <FilterBar onClear={limparFiltros}>
+      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker
           dataInicio={dataInicio}
           dataFim={dataFim}
           onDataInicioChange={setDataInicio}
           onDataFimChange={setDataFim}
+          onRangeChange={setDataRange}
         />
         <AsyncMultiSelect
           label="Filiais"
@@ -179,10 +187,10 @@ export default function FaturasPage() {
           <div className="mb-3 flex justify-end">
             <ExportButton dados={(tabela.data ?? []) as unknown as Record<string, unknown>[]} nomeArquivo="faturas" />
           </div>
-          <DataTable titulo="Titulos e Processos" dados={tabela.data ?? []} colunas={colunasResumo} chaveLinha="documento" isLoading={tabela.isLoading} />
+          <DataTable titulo="Titulos e Processos" dados={tabela.data ?? []} colunas={colunasResumo} chaveLinha="uniqueId" isLoading={tabela.isLoading} />
 
           <div className="mt-6">
-            <DataTable titulo="Reconciliacao Operacional x Financeiro" dados={reconciliacao.data ?? []} colunas={colunasReconciliacao} chaveLinha="documento" isLoading={reconciliacao.isLoading} />
+            <DataTable titulo="Reconciliacao Operacional x Financeiro" dados={reconciliacao.data ?? []} colunas={colunasReconciliacao} chaveLinha="uniqueId" isLoading={reconciliacao.isLoading} />
           </div>
         </>
       )}

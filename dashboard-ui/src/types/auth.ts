@@ -1,7 +1,7 @@
 import type { PermissionMap } from './access';
 
 export interface LoginRequest {
-  usuario: string;
+  email: string;
   senha: string;
 }
 
@@ -13,17 +13,16 @@ export interface AlterarSenhaRequest {
 export interface SetorSessao {
   id: string;
   nome: string;
-  permissoes: PermissionMap;
 }
 
 export interface UsuarioSessao {
   id: string;
-  login: string;
   nome: string;
   email: string;
-  admin: boolean;
+  papel: string;
   setor: SetorSessao;
-  papeis: string[];
+  permissoesEfetivas: PermissionMap;
+  filiaisPermitidasEfetivas: string[];
   exigeTrocaSenha: boolean;
 }
 

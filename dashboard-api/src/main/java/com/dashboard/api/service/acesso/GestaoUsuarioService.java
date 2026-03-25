@@ -1,17 +1,34 @@
 package com.dashboard.api.service.acesso;
 
+import com.dashboard.api.dto.acesso.PapelDTO;
 import com.dashboard.api.dto.acesso.UsuarioAcessoDTO;
 import com.dashboard.api.dto.acesso.UsuarioRequestDTO;
-import com.dashboard.api.model.acesso.*;
-import com.dashboard.api.repository.acesso.*;
+import com.dashboard.api.model.acesso.PapelEntity;
+import com.dashboard.api.model.acesso.PermissaoEntity;
+import com.dashboard.api.model.acesso.SetorEntity;
+import com.dashboard.api.model.acesso.UsuarioEntity;
+import com.dashboard.api.model.acesso.UsuarioPapelVinculo;
+import com.dashboard.api.model.acesso.UsuarioPermissaoOverride;
+import com.dashboard.api.repository.acesso.PapelRepository;
+import com.dashboard.api.repository.acesso.PermissaoRepository;
+import com.dashboard.api.repository.acesso.SetorRepository;
+import com.dashboard.api.repository.acesso.UsuarioPapelVinculoRepository;
+import com.dashboard.api.repository.acesso.UsuarioPermissaoOverrideRepository;
+import com.dashboard.api.repository.acesso.UsuarioRepository;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 public class GestaoUsuarioService {
@@ -26,6 +43,7 @@ public class GestaoUsuarioService {
     private final PermissaoResolverService permissaoResolver;
     private final AuditService auditService;
     private final PoliticaSenhaService politicaSenhaService;
+    private final RefreshTokenService refreshTokenService;
 
     public GestaoUsuarioService(
             UsuarioRepository usuarioRepository,
@@ -37,7 +55,8 @@ public class GestaoUsuarioService {
             PasswordEncoder passwordEncoder,
             PermissaoResolverService permissaoResolver,
             AuditService auditService,
-            PoliticaSenhaService politicaSenhaService
+            PoliticaSenhaService politicaSenhaService,
+            RefreshTokenService refreshTokenService
     ) {
         this.usuarioRepository = usuarioRepository;
         this.setorRepository = setorRepository;
@@ -49,6 +68,7 @@ public class GestaoUsuarioService {
         this.permissaoResolver = permissaoResolver;
         this.auditService = auditService;
         this.politicaSenhaService = politicaSenhaService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional(readOnly = true)
@@ -61,28 +81,29 @@ public class GestaoUsuarioService {
 
     @Transactional
     public UsuarioAcessoDTO criarUsuario(UsuarioRequestDTO request) {
-        validarLoginUnico(request.login(), null);
-        validarEmailUnico(request.email(), null);
-
         if (request.senha() == null || request.senha().isBlank()) {
             throw new IllegalArgumentException("A senha é obrigatória para novos usuários.");
         }
+
+        validarConfirmacaoSenha(request.senha(), request.confirmacaoSenha());
         politicaSenhaService.validar(request.senha());
+        validarEmailUnico(request.email(), null);
 
         SetorEntity setor = buscarSetor(request.setorId());
+        PapelEntity papel = validarGovernancaDePapel(null, request.papel());
 
         UsuarioEntity usuario = new UsuarioEntity();
-        usuario.setLogin(request.login().trim().toLowerCase());
         usuario.setNome(request.nome().trim());
-        usuario.setEmail(request.email().trim().toLowerCase());
+        usuario.setEmail(normalizarEmail(request.email()));
+        usuario.setLogin(normalizarEmail(request.email()));
         usuario.setSenhaHash(passwordEncoder.encode(request.senha()));
         usuario.setExigeTrocaSenha(true);
         usuario.setSetor(setor);
         usuario.setAtivo(request.ativo() == null || request.ativo());
         usuario = usuarioRepository.save(usuario);
 
-        // Atribuir papel baseado no flag admin
-        atribuirPapelInicial(usuario, Boolean.TRUE.equals(request.admin()));
+        salvarPapelUnico(usuario, papel);
+        salvarOverrides(usuario, request.permissoesNegadas(), request.permissoesConcedidas());
 
         auditService.registrar(AcaoAudit.USUARIO_CRIADO, usuario.getId(), usuario.getLogin(), "usuario", null);
         return mapearUsuario(usuario);
@@ -95,41 +116,45 @@ public class GestaoUsuarioService {
         UsuarioEntity usuario = usuarioRepository.findById(usuarioIdNonNull)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
-        validarLoginUnico(request.login(), usuarioIdNonNull);
         validarEmailUnico(request.email(), usuarioIdNonNull);
 
         SetorEntity setor = buscarSetor(request.setorId());
-
-        boolean novoAdmin = Boolean.TRUE.equals(request.admin());
+        String papelAtual = permissaoResolver.papel(usuarioIdNonNull);
+        PapelEntity novoPapel = validarGovernancaDePapel(usuario, request.papel());
         boolean novoAtivo = request.ativo() == null || request.ativo();
-        boolean eraAdmin = permissaoResolver.ehAdminPlataforma(usuario.getId());
 
-        // Proteger ultimo admin
-        if (eraAdmin && (!novoAdmin || !novoAtivo)) {
-            if (usuarioRepository.countAdminsAtivos() <= 1) {
-                throw new IllegalStateException("É obrigatório manter pelo menos um administrador ativo.");
-            }
+        if (PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA.equals(papelAtual)
+                && (!PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA.equals(novoPapel.getNome()) || !novoAtivo)
+                && usuarioRepository.countAdminsAtivos() <= 1) {
+            throw new IllegalStateException("É obrigatório manter pelo menos um administrador ativo.");
         }
 
-        usuario.setLogin(request.login().trim().toLowerCase());
         usuario.setNome(request.nome().trim());
-        usuario.setEmail(request.email().trim().toLowerCase());
+        usuario.setEmail(normalizarEmail(request.email()));
+        usuario.setLogin(normalizarEmail(request.email()));
         usuario.setSetor(setor);
         usuario.setAtivo(novoAtivo);
 
+        boolean senhaAlterada = false;
         if (request.senha() != null && !request.senha().isBlank()) {
+            validarConfirmacaoSenha(request.senha(), request.confirmacaoSenha());
             politicaSenhaService.validar(request.senha());
             usuario.setSenhaHash(passwordEncoder.encode(request.senha()));
             usuario.setSenhaAlteradaEm(Instant.now());
             usuario.setExigeTrocaSenha(true);
+            senhaAlterada = true;
         }
 
         usuario = usuarioRepository.save(usuario);
 
-        // Atualizar papel se mudou o flag admin
-        if (novoAdmin != eraAdmin) {
-            papelVinculoRepository.deleteAllByUsuarioId(usuarioIdNonNull);
-            atribuirPapelInicial(usuario, novoAdmin);
+        boolean papelAlterado = !Objects.equals(papelAtual, novoPapel.getNome());
+        if (papelAlterado) {
+            salvarPapelUnico(usuario, novoPapel);
+        }
+        salvarOverrides(usuario, request.permissoesNegadas(), request.permissoesConcedidas());
+
+        if (!novoAtivo || senhaAlterada) {
+            refreshTokenService.revogarTodosDoUsuario(usuarioIdNonNull);
         }
 
         auditService.registrar(AcaoAudit.USUARIO_ATUALIZADO, usuario.getId(), usuario.getLogin(), "usuario", null);
@@ -137,108 +162,74 @@ public class GestaoUsuarioService {
     }
 
     @Transactional
-    public void excluirUsuario(Long usuarioId) {
+    public void inativarUsuario(Long usuarioId) {
         Long usuarioIdNonNull = Objects.requireNonNull(usuarioId, "usuarioId é obrigatório.");
 
         UsuarioEntity usuario = usuarioRepository.findById(usuarioIdNonNull)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
-        boolean eraAdmin = permissaoResolver.ehAdminPlataforma(usuario.getId());
-        if (eraAdmin && usuarioRepository.countAdminsAtivos() <= 1) {
+        validarGovernancaDePapel(usuario, permissaoResolver.papel(usuarioIdNonNull));
+
+        if (PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA.equals(permissaoResolver.papel(usuarioIdNonNull))
+                && usuarioRepository.countAdminsAtivos() <= 1) {
             throw new IllegalStateException("É obrigatório manter pelo menos um administrador ativo.");
         }
 
-        overrideRepository.deleteAllByUsuarioId(usuarioIdNonNull);
-        papelVinculoRepository.deleteAllByUsuarioId(usuarioIdNonNull);
-        usuarioRepository.delete(usuario);
-        auditService.registrar(AcaoAudit.USUARIO_EXCLUIDO, usuarioIdNonNull, usuario.getLogin(), "usuario", null);
-    }
-
-    @Transactional
-    public void atribuirPapeis(Long usuarioId, List<Long> papelIds) {
-        Long usuarioIdNonNull = Objects.requireNonNull(usuarioId, "usuarioId é obrigatório.");
-
-        UsuarioEntity usuario = usuarioRepository.findById(usuarioIdNonNull)
-                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
-
-        papelVinculoRepository.deleteAllByUsuarioId(usuarioIdNonNull);
-
-        for (Long papelId : papelIds) {
-            Long papelIdNonNull = Objects.requireNonNull(papelId, "papelId é obrigatório.");
-            PapelEntity papel = papelRepository.findById(papelIdNonNull)
-                    .orElseThrow(() -> new IllegalArgumentException("Papel não encontrado: " + papelId));
-            UsuarioPapelVinculo vinculo = new UsuarioPapelVinculo();
-            vinculo.setUsuario(usuario);
-            vinculo.setPapel(papel);
-            papelVinculoRepository.save(vinculo);
-        }
-
-        auditService.registrar(AcaoAudit.PAPEL_CONCEDIDO, usuarioIdNonNull, usuario.getLogin(), "papel",
-                "{\"papelIds\":" + papelIds + "}");
+        usuario.setAtivo(false);
+        usuarioRepository.save(usuario);
+        refreshTokenService.revogarTodosDoUsuario(usuarioIdNonNull);
+        auditService.registrar(AcaoAudit.USUARIO_DESATIVADO, usuarioIdNonNull, usuario.getLogin(), "usuario", null);
     }
 
     @Transactional(readOnly = true)
-    public List<OverrideDTO> buscarOverrides(Long usuarioId) {
-        return overrideRepository.findAllByUsuarioId(usuarioId).stream()
-                .map(o -> new OverrideDTO(
-                        o.getPermissao().getChaveLegado() != null ? o.getPermissao().getChaveLegado() : o.getPermissao().getChave(),
-                        o.getTipo()
-                ))
+    public List<PapelDTO> listarPapeisDisponiveis() {
+        UsuarioEntity operador = usuarioAutenticado();
+        boolean adminPlataforma = permissaoResolver.ehAdminPlataforma(Objects.requireNonNull(operador.getId(), "usuario.id é obrigatório."));
+
+        return papelRepository.findAll().stream()
+                .filter(PapelEntity::isAtivo)
+                .filter(papel -> adminPlataforma || PermissaoResolverService.PAPEL_USUARIO_COMUM.equals(papel.getNome()))
+                .sorted(Comparator.comparingInt(PapelEntity::getNivel).reversed())
+                .map(papel -> new PapelDTO(papel.getId(), papel.getNome(), papel.getDescricao(), papel.getNivel()))
                 .toList();
-    }
-
-    @Transactional
-    public void salvarOverrides(Long usuarioId, List<OverrideDTO> overrides) {
-        Long usuarioIdNonNull = Objects.requireNonNull(usuarioId, "usuarioId é obrigatório.");
-
-        UsuarioEntity usuario = usuarioRepository.findById(usuarioIdNonNull)
-                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
-
-        overrideRepository.deleteAllByUsuarioId(usuarioIdNonNull);
-
-        for (OverrideDTO dto : overrides) {
-            PermissaoEntity perm = permissaoRepository.findByChaveLegado(dto.permissaoChave())
-                    .orElseThrow(() -> new IllegalArgumentException("Permissão não encontrada: " + dto.permissaoChave()));
-
-            UsuarioPermissaoOverride override = new UsuarioPermissaoOverride();
-            override.setUsuario(usuario);
-            override.setPermissao(perm);
-            override.setTipo(dto.tipo());
-            overrideRepository.save(override);
-        }
-
-        auditService.registrar(AcaoAudit.PERMISSAO_OVERRIDE_ALTERADA, usuarioIdNonNull, usuario.getLogin(), "override", null);
-    }
-
-    public record OverrideDTO(String permissaoChave, String tipo) {}
-
-    private void atribuirPapelInicial(UsuarioEntity usuario, boolean admin) {
-        String nomePapel = admin ? "admin_plataforma" : "usuario_comum";
-        papelRepository.findByNome(nomePapel).ifPresent(papel -> {
-            UsuarioPapelVinculo vinculo = new UsuarioPapelVinculo();
-            vinculo.setUsuario(usuario);
-            vinculo.setPapel(papel);
-            papelVinculoRepository.save(vinculo);
-        });
     }
 
     private UsuarioAcessoDTO mapearUsuario(UsuarioEntity usuario) {
         Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
-        Map<String, Boolean> permissoes = permissaoResolver.permissoesEfetivas(usuario);
-        boolean isAdmin = permissaoResolver.ehAdminPlataforma(usuarioId);
-        List<String> papeis = permissaoResolver.papeis(usuarioId);
+        Map<String, Boolean> permissoesEfetivas = permissaoResolver.permissoesEfetivas(usuario);
+        String papel = permissaoResolver.papel(usuarioId);
+        List<UsuarioPermissaoOverride> todosOverrides = overrideRepository.findAllByUsuarioId(usuarioId);
+        List<String> permissoesNegadas = todosOverrides.stream()
+                .filter(override -> "DENY".equals(override.getTipo()))
+                .map(override -> override.getPermissao().getChaveLegado() != null
+                        ? override.getPermissao().getChaveLegado()
+                        : override.getPermissao().getChave())
+                .sorted()
+                .toList();
+        List<String> permissoesConcedidas = todosOverrides.stream()
+                .filter(override -> "GRANT".equals(override.getTipo()))
+                .map(override -> override.getPermissao().getChaveLegado() != null
+                        ? override.getPermissao().getChaveLegado()
+                        : override.getPermissao().getChave())
+                .sorted()
+                .toList();
+        List<String> filiaisPermitidas = usuario.getSetor().getFiliaisPermitidas().stream()
+                .filter(valor -> valor != null && !valor.isBlank())
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
 
         return new UsuarioAcessoDTO(
                 String.valueOf(usuario.getId()),
-                usuario.getLogin(),
                 usuario.getNome(),
                 usuario.getEmail(),
-                isAdmin,
                 usuario.isAtivo(),
                 String.valueOf(usuario.getSetor().getId()),
                 usuario.getSetor().getNome(),
-                permissoes,
-                papeis
+                papel,
+                permissoesEfetivas,
+                permissaoResolver.ehAdminPlataforma(usuarioId) ? List.of() : filiaisPermitidas,
+                permissoesNegadas,
+                permissoesConcedidas
         );
     }
 
@@ -247,36 +238,122 @@ public class GestaoUsuarioService {
             Long id = Objects.requireNonNull(Long.valueOf(setorId), "setorId é obrigatório.");
             return setorRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Setor não encontrado."));
-        } catch (NumberFormatException e) {
-            // Tentar por chave legado
+        } catch (NumberFormatException ex) {
             return setorRepository.findByChave(setorId)
                     .orElseThrow(() -> new IllegalArgumentException("Setor não encontrado."));
         }
     }
 
-    private void validarLoginUnico(String login, Long excludeId) {
-        if (excludeId == null) {
-            if (usuarioRepository.existsByLoginIgnoreCase(login.trim())) {
-                throw new IllegalStateException("Já existe um usuário com este login.");
+    private PapelEntity validarGovernancaDePapel(UsuarioEntity alvoExistente, String nomePapelSolicitado) {
+        UsuarioEntity operador = usuarioAutenticado();
+        Long operadorId = Objects.requireNonNull(operador.getId(), "usuario.id é obrigatório.");
+        boolean operadorAdminPlataforma = permissaoResolver.ehAdminPlataforma(operadorId);
+
+        String papelAlvoAtual = alvoExistente != null && alvoExistente.getId() != null
+                ? permissaoResolver.papel(alvoExistente.getId())
+                : null;
+
+        if (!operadorAdminPlataforma) {
+            if (papelAlvoAtual != null && !PermissaoResolverService.PAPEL_USUARIO_COMUM.equals(papelAlvoAtual)) {
+                throw new AccessDeniedException("Admin de acesso só pode operar usuários comuns.");
             }
-        } else {
-            Long excludeIdNonNull = Objects.requireNonNull(excludeId, "excludeId é obrigatório.");
-            if (usuarioRepository.existsByLoginIgnoreCaseAndIdNot(login.trim(), excludeIdNonNull)) {
-                throw new IllegalStateException("Já existe um usuário com este login.");
+            if (!PermissaoResolverService.PAPEL_USUARIO_COMUM.equals(nomePapelSolicitado)) {
+                throw new AccessDeniedException("Admin de acesso só pode atribuir o papel usuario_comum.");
             }
+        }
+
+        return papelRepository.findByNome(nomePapelSolicitado)
+                .orElseThrow(() -> new IllegalArgumentException("Papel inválido: " + nomePapelSolicitado));
+    }
+
+    private void salvarPapelUnico(UsuarioEntity usuario, PapelEntity papel) {
+        Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
+        papelVinculoRepository.deleteAllByUsuarioId(usuarioId);
+
+        UsuarioPapelVinculo vinculo = new UsuarioPapelVinculo();
+        vinculo.setUsuario(usuario);
+        vinculo.setPapel(papel);
+        papelVinculoRepository.save(vinculo);
+    }
+
+    private void salvarOverrides(UsuarioEntity usuario, List<String> permissoesNegadas, List<String> permissoesConcedidas) {
+        Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
+        List<String> negadas = normalizarPermissoes(permissoesNegadas);
+        List<String> concedidas = normalizarPermissoes(permissoesConcedidas);
+
+        Set<String> conflitantes = new LinkedHashSet<>(negadas);
+        conflitantes.retainAll(concedidas);
+        if (!conflitantes.isEmpty()) {
+            throw new IllegalArgumentException("A mesma permissão não pode ser negada e concedida ao mesmo tempo: " + String.join(", ", conflitantes));
+        }
+
+        overrideRepository.deleteAllByUsuarioId(usuarioId);
+        overrideRepository.flush();
+
+        for (String chave : negadas) {
+            PermissaoEntity permissao = permissaoRepository.findByChaveLegado(chave)
+                    .orElseThrow(() -> new IllegalArgumentException("Permissão não encontrada: " + chave));
+            UsuarioPermissaoOverride override = new UsuarioPermissaoOverride();
+            override.setUsuario(usuario);
+            override.setPermissao(permissao);
+            override.setTipo("DENY");
+            overrideRepository.save(override);
+        }
+
+        for (String chave : concedidas) {
+            PermissaoEntity permissao = permissaoRepository.findByChaveLegado(chave)
+                    .orElseThrow(() -> new IllegalArgumentException("Permissão não encontrada: " + chave));
+            UsuarioPermissaoOverride override = new UsuarioPermissaoOverride();
+            override.setUsuario(usuario);
+            override.setPermissao(permissao);
+            override.setTipo("GRANT");
+            overrideRepository.save(override);
         }
     }
 
+    private List<String> normalizarPermissoes(List<String> permissoes) {
+        return permissoes == null ? List.of() : permissoes.stream()
+                .filter(chave -> chave != null && !chave.isBlank())
+                .map(String::trim)
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
     private void validarEmailUnico(String email, Long excludeId) {
+        String emailNormalizado = normalizarEmail(email);
         if (excludeId == null) {
-            if (usuarioRepository.existsByEmailIgnoreCase(email.trim())) {
+            if (usuarioRepository.existsByEmailIgnoreCase(emailNormalizado)
+                    || usuarioRepository.existsByLoginIgnoreCase(emailNormalizado)) {
                 throw new IllegalStateException("Já existe um usuário com este e-mail.");
             }
-        } else {
-            Long excludeIdNonNull = Objects.requireNonNull(excludeId, "excludeId é obrigatório.");
-            if (usuarioRepository.existsByEmailIgnoreCaseAndIdNot(email.trim(), excludeIdNonNull)) {
-                throw new IllegalStateException("Já existe um usuário com este e-mail.");
-            }
+            return;
         }
+
+        Long excludeIdNonNull = Objects.requireNonNull(excludeId, "excludeId é obrigatório.");
+        if (usuarioRepository.existsByEmailIgnoreCaseAndIdNot(emailNormalizado, excludeIdNonNull)
+                || usuarioRepository.existsByLoginIgnoreCaseAndIdNot(emailNormalizado, excludeIdNonNull)) {
+            throw new IllegalStateException("Já existe um usuário com este e-mail.");
+        }
+    }
+
+    private void validarConfirmacaoSenha(String senha, String confirmacaoSenha) {
+        if (!Objects.equals(senha, confirmacaoSenha)) {
+            throw new IllegalArgumentException("A confirmação de senha não confere.");
+        }
+    }
+
+    private UsuarioEntity usuarioAutenticado() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            throw new AccessDeniedException("Usuário autenticado não encontrado.");
+        }
+
+        return usuarioRepository.findByEmailIgnoreCase(authentication.getName())
+                .orElseThrow(() -> new AccessDeniedException("Usuário autenticado não encontrado."));
+    }
+
+    private String normalizarEmail(String email) {
+        return Objects.requireNonNull(email, "email é obrigatório.").trim().toLowerCase();
     }
 }

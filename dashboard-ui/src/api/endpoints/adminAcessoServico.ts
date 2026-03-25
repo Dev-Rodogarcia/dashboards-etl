@@ -2,7 +2,6 @@ import clienteAxios from '../clienteAxios';
 import type {
   PapelAdmin,
   PermissionCatalogItem,
-  PermissaoOverride,
   SetorAdmin,
   SetorPayload,
   UsuarioAdmin,
@@ -125,7 +124,7 @@ export async function buscarPapeis(): Promise<PapelAdmin[]> {
 
 export async function buscarUsuariosAdmin(): Promise<UsuarioAdmin[]> {
   const { data } = await clienteAxios.get<UsuarioAdmin[]>('/api/admin/acesso/usuarios');
-  return normalizeAdminAccessItems('buscarUsuariosAdmin', 'usuario', data, ['nome', 'setorNome']);
+  return normalizeAdminAccessItems('buscarUsuariosAdmin', 'usuario', data, ['nome', 'setorNome', 'papel']);
 }
 
 export async function criarUsuario(payload: UsuarioPayload): Promise<UsuarioAdmin> {
@@ -140,17 +139,4 @@ export async function atualizarUsuario(id: string, payload: UsuarioPayload): Pro
 
 export async function excluirUsuario(id: string): Promise<void> {
   await clienteAxios.delete(`/api/admin/acesso/usuarios/${id}`);
-}
-
-export async function atribuirPapeis(id: string, papelIds: number[]): Promise<void> {
-  await clienteAxios.put(`/api/admin/acesso/usuarios/${id}/papeis`, { papelIds });
-}
-
-export async function buscarOverrides(id: string): Promise<PermissaoOverride[]> {
-  const { data } = await clienteAxios.get<PermissaoOverride[]>(`/api/admin/acesso/usuarios/${id}/overrides`);
-  return data;
-}
-
-export async function salvarOverrides(id: string, overrides: PermissaoOverride[]): Promise<void> {
-  await clienteAxios.put(`/api/admin/acesso/usuarios/${id}/overrides`, overrides);
 }

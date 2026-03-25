@@ -1,15 +1,16 @@
 package com.dashboard.api.dto;
 
 import java.util.List;
+import java.util.Map;
 
 public record SessaoUsuarioDTO(
         String id,
-        String login,
         String nome,
         String email,
-        boolean admin,
+        String papel,
         SetorSessaoDTO setor,
-        List<String> papeis,
+        Map<String, Boolean> permissoesEfetivas,
+        List<String> filiaisPermitidasEfetivas,
         boolean exigeTrocaSenha
 ) {
 }

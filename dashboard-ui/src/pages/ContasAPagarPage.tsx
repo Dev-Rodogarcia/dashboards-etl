@@ -5,7 +5,7 @@ import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
-import FilterBar from '../components/shared/FilterBar';
+import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
@@ -17,7 +17,7 @@ import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
 
 export default function ContasAPagarPage() {
-  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setFiltro, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
   const planoContas = usePlanoContas();
 
@@ -29,6 +29,12 @@ export default function ContasAPagarPage() {
     pago: filtros.pago,
     conciliado: filtros.conciliado,
   };
+
+  const activeFilters: ActiveFilter[] = [
+    { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Plano Contas', count: filtros.classificacoes?.length ?? 0, onRemove: () => setFiltro('classificacoes', []) },
+    { label: 'Pago', count: filtros.pago?.length ?? 0, onRemove: () => setFiltro('pago', []) },
+  ];
 
   const overview = useContasAPagarOverview(filtro);
   const serie = useContasAPagarSerie(filtro);
@@ -50,9 +56,23 @@ export default function ContasAPagarPage() {
   };
 
   const fornecedorOption: EChartsOption = {
-    grid: { left: 150 },
+    grid: { left: 10, containLabel: true },
     xAxis: { type: 'value' },
-    yAxis: { type: 'category', data: rankingFornecedor.map((item) => item.fornecedor).reverse() },
+    yAxis: {
+      type: 'category',
+      data: rankingFornecedor.map((item) => item.fornecedor).reverse(),
+      axisLabel: {
+        formatter: (value: string) => value.length > 22 ? value.slice(0, 22) + '…' : value,
+      },
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params: unknown) => {
+        const p = (params as { name: string; value: number }[])[0];
+        return `${p.name}<br/>R$ ${p.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+      },
+    },
     series: [{ type: 'bar', data: rankingFornecedor.map((item) => item.valor).reverse(), itemStyle: { color: CORES.primaria } }],
   };
 
@@ -80,16 +100,16 @@ export default function ContasAPagarPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#21478A]">Contas a Pagar</h1>
-          <p className="text-sm text-gray-500">Fluxo mensal, fornecedores relevantes e conciliação financeira.</p>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Contas a Pagar</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Fluxo mensal, fornecedores relevantes e conciliação financeira.</p>
         </div>
         <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
       </div>
 
-      <FilterBar onClear={limparFiltros}>
-        <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} />
+      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
+        <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
         <AsyncMultiSelect label="Filiais" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />
         <AsyncMultiSelect label="Plano Contas" opcoes={(planoContas.data ?? []).map((item) => item.classificacao)} selecionados={filtros.classificacoes ?? []} onChange={(valores) => setFiltro('classificacoes', valores)} isLoading={planoContas.isLoading} />
         <AsyncMultiSelect label="Pago" opcoes={['PAGO', 'Sim', 'Nao']} selecionados={filtros.pago ?? []} onChange={(valores) => setFiltro('pago', valores)} />

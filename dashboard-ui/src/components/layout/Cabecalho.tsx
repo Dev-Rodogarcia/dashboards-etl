@@ -5,8 +5,8 @@ export default function Cabecalho() {
   const { usuario, logout } = useAutenticacao();
   const navigate = useNavigate();
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     navigate('/login', { replace: true });
   }
 
@@ -16,7 +16,7 @@ export default function Cabecalho() {
         <div className="text-xs uppercase tracking-wide text-gray-400">Perfil ativo</div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-gray-900">{usuario?.setor.nome}</span>
-          {usuario?.admin && (
+          {usuario?.papel === 'admin_plataforma' && (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
               Admin
             </span>
@@ -30,7 +30,7 @@ export default function Cabecalho() {
           <div className="text-xs text-gray-500">{usuario?.email}</div>
         </div>
         <button
-          onClick={handleLogout}
+          onClick={() => void handleLogout()}
           className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
         >
           Sair

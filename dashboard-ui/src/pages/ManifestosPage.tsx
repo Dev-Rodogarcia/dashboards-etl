@@ -6,7 +6,7 @@ import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
-import FilterBar from '../components/shared/FilterBar';
+import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
@@ -18,7 +18,7 @@ import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarNumero, formatarPeso } from '../utils/formatadores';
 
 export default function ManifestosPage() {
-  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setFiltro, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
   const motoristas = useMotoristas();
   const veiculos = useVeiculos();
@@ -32,6 +32,12 @@ export default function ManifestosPage() {
     veiculos: filtros.veiculos,
   };
 
+  const activeFilters: ActiveFilter[] = [
+    { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Motoristas', count: filtros.motoristas?.length ?? 0, onRemove: () => setFiltro('motoristas', []) },
+    { label: 'Veiculos', count: filtros.veiculos?.length ?? 0, onRemove: () => setFiltro('veiculos', []) },
+  ];
+
   const overview = useManifestosOverview(filtro);
   const serie = useManifestosSerie(filtro);
   const graficos = useManifestosGraficos(filtro);
@@ -43,14 +49,28 @@ export default function ManifestosPage() {
   const ocupacaoScatter = graficos.data?.ocupacaoScatter ?? [];
 
   const custoOption: EChartsOption = {
-    grid: { left: 120 },
+    grid: { left: 10, containLabel: true },
     xAxis: { type: 'value' },
-    yAxis: { type: 'category', data: custoPorFilial.map((item) => item.filial).reverse() },
+    yAxis: {
+      type: 'category',
+      data: custoPorFilial.map((item) => item.filial).reverse(),
+      axisLabel: {
+        formatter: (value: string) => value.length > 18 ? value.slice(0, 18) + '…' : value,
+      },
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params: unknown) => {
+        const p = (params as { name: string; value: number }[])[0];
+        return `${p.name}<br/>R$ ${p.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+      },
+    },
     series: [{ type: 'bar', data: custoPorFilial.map((item) => item.custoTotal).reverse(), itemStyle: { color: CORES.secundaria } }],
   };
 
   const rankingOption: EChartsOption = {
-    grid: { left: 140 },
+    grid: { left: 10, containLabel: true },
     xAxis: { type: 'value' },
     yAxis: { type: 'category', data: rankingMotorista.map((item) => item.motorista).reverse() },
     series: [{ type: 'bar', data: rankingMotorista.map((item) => item.custoTotal).reverse(), itemStyle: { color: CORES.primaria } }],
@@ -90,20 +110,21 @@ export default function ManifestosPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#21478A]">Manifestos</h1>
-          <p className="text-sm text-gray-500">Custos, ocupacao de carga e performance por motorista.</p>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Manifestos</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Custos, ocupacao de carga e performance por motorista.</p>
         </div>
         <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
       </div>
 
-      <FilterBar onClear={limparFiltros}>
+      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker
           dataInicio={dataInicio}
           dataFim={dataFim}
           onDataInicioChange={setDataInicio}
           onDataFimChange={setDataFim}
+          onRangeChange={setDataRange}
         />
         <AsyncMultiSelect
           label="Filiais"

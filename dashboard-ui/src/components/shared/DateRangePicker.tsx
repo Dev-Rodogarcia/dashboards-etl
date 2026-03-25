@@ -5,6 +5,7 @@ interface DateRangePickerProps {
   dataFim: string;
   onDataInicioChange: (valor: string) => void;
   onDataFimChange: (valor: string) => void;
+  onRangeChange?: (inicio: string, fim: string) => void;
 }
 
 const PRESETS = [
@@ -47,6 +48,7 @@ export default function DateRangePicker({
   dataFim,
   onDataInicioChange,
   onDataFimChange,
+  onRangeChange,
 }: DateRangePickerProps) {
   // Detecta qual preset está ativo comparando datas
   const presetAtivo = useMemo(() => {
@@ -59,20 +61,28 @@ export default function DateRangePicker({
 
   function aplicarPreset(dias: number) {
     const p = normalizarPeriodo(dataNDiasAtras(dias), dataHoje());
-    onDataInicioChange(p.dataInicio);
-    onDataFimChange(p.dataFim);
+    if (onRangeChange) {
+      onRangeChange(p.dataInicio, p.dataFim);
+    } else {
+      onDataInicioChange(p.dataInicio);
+      onDataFimChange(p.dataFim);
+    }
   }
 
   function atualizarInicio(valor: string) {
-    const p = normalizarPeriodo(valor, dataFim);
-    onDataInicioChange(p.dataInicio);
-    onDataFimChange(p.dataFim);
+    if (onRangeChange) {
+      onRangeChange(valor, dataFim);
+    } else {
+      onDataInicioChange(valor);
+    }
   }
 
   function atualizarFim(valor: string) {
-    const p = normalizarPeriodo(dataInicio, valor);
-    onDataInicioChange(p.dataInicio);
-    onDataFimChange(p.dataFim);
+    if (onRangeChange) {
+      onRangeChange(dataInicio, valor);
+    } else {
+      onDataFimChange(valor);
+    }
   }
 
   return (

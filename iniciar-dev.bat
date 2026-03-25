@@ -58,7 +58,7 @@ if not exist "%BACKEND_DIR%\.env" (
     echo.
 )
 
-echo Backend esperado em: http://localhost:8080
+echo Backend esperado em: http://localhost:5010
 echo Frontend esperado em: http://localhost:5173
 echo.
 
