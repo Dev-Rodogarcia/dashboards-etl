@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { dataHojeLocal, dataNDiasAtrasLocal, normalizarPeriodo } from '../../utils/dateUtils';
 
 interface DateRangePickerProps {
   dataInicio: string;
@@ -8,35 +9,15 @@ interface DateRangePickerProps {
   onRangeChange?: (inicio: string, fim: string) => void;
 }
 
+// Atalhos corporativos: semana, quinzena, mês, bimestre, trimestre, semestre
 const PRESETS = [
-  { label: '7d', dias: 7 },
-  { label: '30d', dias: 30 },
-  { label: '90d', dias: 90 },
+  { label: '7d',   dias: 7   },
+  { label: '15d',  dias: 15  },
+  { label: '30d',  dias: 30  },
+  { label: '60d',  dias: 60  },
+  { label: '90d',  dias: 90  },
+  { label: '180d', dias: 180 },
 ];
-
-function dataNDiasAtras(dias: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - dias);
-  return d.toISOString().slice(0, 10);
-}
-
-function dataHoje(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function adicionarDias(data: string, dias: number): string {
-  const d = new Date(`${data}T00:00:00`);
-  d.setDate(d.getDate() + dias);
-  return d.toISOString().slice(0, 10);
-}
-
-function normalizarPeriodo(dataInicio: string, dataFim: string) {
-  if (!dataInicio || !dataFim) return { dataInicio, dataFim };
-  if (dataInicio > dataFim) return { dataInicio: dataFim, dataFim };
-  const limiteMaximo = adicionarDias(dataInicio, 90);
-  if (limiteMaximo < dataFim) return { dataInicio, dataFim: limiteMaximo };
-  return { dataInicio, dataFim };
-}
 
 const inputClass =
   'cursor-pointer rounded-lg border px-3 py-2 text-sm shadow-sm transition-all duration-150 ' +
@@ -50,17 +31,17 @@ export default function DateRangePicker({
   onDataFimChange,
   onRangeChange,
 }: DateRangePickerProps) {
-  // Detecta qual preset está ativo comparando datas
+  // Detecta qual preset está ativo comparando datas com timezone local
   const presetAtivo = useMemo(() => {
-    const hoje = dataHoje();
+    const hoje = dataHojeLocal();
     for (const { label, dias } of PRESETS) {
-      if (dataFim === hoje && dataInicio === dataNDiasAtras(dias)) return label;
+      if (dataFim === hoje && dataInicio === dataNDiasAtrasLocal(dias)) return label;
     }
     return null;
   }, [dataInicio, dataFim]);
 
   function aplicarPreset(dias: number) {
-    const p = normalizarPeriodo(dataNDiasAtras(dias), dataHoje());
+    const p = normalizarPeriodo(dataNDiasAtrasLocal(dias), dataHojeLocal());
     if (onRangeChange) {
       onRangeChange(p.dataInicio, p.dataFim);
     } else {
@@ -86,41 +67,62 @@ export default function DateRangePicker({
   }
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      {/* Data início */}
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-          De
-        </label>
-        <input
-          type="date"
-          value={dataInicio}
-          onChange={(e) => atualizarInicio(e.target.value)}
-          className={inputClass}
-          style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-        />
+    <div className="flex flex-wrap items-end gap-4">
+      {/* Bloco: campos De / Até */}
+      <div className="flex items-end gap-2">
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="date-inicio"
+            className="text-xs font-medium"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            De
+          </label>
+          <input
+            id="date-inicio"
+            type="date"
+            value={dataInicio}
+            onChange={(e) => atualizarInicio(e.target.value)}
+            className={inputClass}
+            style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="date-fim"
+            className="text-xs font-medium"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            Até
+          </label>
+          <input
+            id="date-fim"
+            type="date"
+            value={dataFim}
+            onChange={(e) => atualizarFim(e.target.value)}
+            className={inputClass}
+            style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+          />
+        </div>
       </div>
 
-      {/* Data fim */}
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-          Até
-        </label>
-        <input
-          type="date"
-          value={dataFim}
-          onChange={(e) => atualizarFim(e.target.value)}
-          className={inputClass}
-          style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-        />
-      </div>
+      {/* Separador visual */}
+      <div
+        className="hidden h-9 w-px self-end sm:block"
+        style={{ backgroundColor: 'var(--color-border)' }}
+        aria-hidden="true"
+      />
 
-      {/* Atalhos */}
+      {/* Bloco: atalhos de período */}
       <div className="flex flex-col gap-1">
-        <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+        <span
+          className="text-xs font-medium"
+          style={{ color: 'var(--color-text-muted)' }}
+        >
           Atalho
         </span>
-        <div className="flex gap-1">
+        <div className="grid grid-cols-3 gap-1 sm:flex sm:flex-wrap">
           {PRESETS.map(({ label, dias }) => {
             const ativo = presetAtivo === label;
             return (
@@ -128,8 +130,10 @@ export default function DateRangePicker({
                 key={label}
                 type="button"
                 onClick={() => aplicarPreset(dias)}
-                className="cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold
-                           transition-all duration-150 active:scale-[0.97]"
+                aria-pressed={ativo}
+                className="cursor-pointer rounded-lg border px-2.5 py-2 text-xs font-semibold
+                           transition-all duration-150 active:scale-[0.97]
+                           focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
                 style={
                   ativo
                     ? {

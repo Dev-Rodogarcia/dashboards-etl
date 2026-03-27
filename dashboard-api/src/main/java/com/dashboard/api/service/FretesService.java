@@ -12,6 +12,7 @@ import com.dashboard.api.dto.fretes.FretesTrendPointDTO;
 import com.dashboard.api.model.VisaoFretesEntity;
 import com.dashboard.api.repository.VisaoFretesRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -23,8 +24,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -41,15 +40,26 @@ public class FretesService {
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoFretesRepository repository;
     private final EscopoFilialService escopoFilialService;
+    private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
 
+    FretesService(
+            ValidadorPeriodoService validadorPeriodo,
+            VisaoFretesRepository repository
+    ) {
+        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
+    }
+
+    @Autowired
     public FretesService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoFretesRepository repository,
-            EscopoFilialService escopoFilialService
+            EscopoFilialService escopoFilialService,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.repository = repository;
         this.escopoFilialService = escopoFilialService;
+        this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
     }
 
     public FretesOverviewDTO buscarOverview(LocalDate dataInicio, LocalDate dataFim) {
@@ -325,12 +335,12 @@ public class FretesService {
 
     @NonNull
     private Specification<VisaoFretesEntity> criarSpecification(FiltroConsultaDTO filtro) {
-        OffsetDateTime inicio = filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC);
-        OffsetDateTime fim = filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC);
+        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         return ConsultaSpecificationUtils.allOf(
-                ConsultaSpecificationUtils.between("dataFrete", inicio, fim),
+                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataFrete", janela.inicioInclusivo()),
+                ConsultaSpecificationUtils.lessThan("dataFrete", janela.fimExclusivo()),
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "filialNome"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filiais", "filialNome"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "status", "status"),
@@ -340,5 +350,14 @@ public class FretesService {
                 ConsultaSpecificationUtils.filtroTexto(filtro, "tiposFrete", "tipoFrete"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "modais", "modal")
         );
+    }
+
+    private static EscopoFilialService escopoSemRestricao() {
+        return new EscopoFilialService(null, null) {
+            @Override
+            public EscopoFilial escopoAtual() {
+                return EscopoFilial.comAcessoTotal();
+            }
+        };
     }
 }

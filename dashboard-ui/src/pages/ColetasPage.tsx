@@ -10,6 +10,7 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useClientes, useFiliais, useUsuarios } from '../hooks/queries/useDimensoes';
 import { useColetasGraficos, useColetasOverview, useColetasSerie, useColetasTabela } from '../hooks/queries/useColetas';
@@ -147,7 +148,7 @@ export default function ColetasPage() {
         />
       </FilterBar>
 
-      {overview.isError && <MensagemErro mensagem="Erro ao carregar indicadores de coletas." />}
+      {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de coletas.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <ColetasKpiGrid overview={overview.data} />}
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">

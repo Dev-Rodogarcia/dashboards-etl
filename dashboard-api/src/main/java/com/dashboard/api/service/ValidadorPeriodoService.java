@@ -8,7 +8,7 @@ import java.time.temporal.ChronoUnit;
 @Service
 public class ValidadorPeriodoService {
 
-    private static final long PERIODO_MAXIMO_DIAS = 90;
+    private static final long PERIODO_MAXIMO_DIAS = 365;
 
     public void validar(LocalDate dataInicio, LocalDate dataFim) {
         if (dataInicio == null || dataFim == null) {

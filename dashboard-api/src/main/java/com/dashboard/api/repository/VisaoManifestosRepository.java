@@ -11,5 +11,8 @@ import java.util.List;
 public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestosEntity, VisaoManifestosId>,
         JpaSpecificationExecutor<VisaoManifestosEntity> {
 
-    List<VisaoManifestosEntity> findByDataCriacaoBetween(OffsetDateTime inicio, OffsetDateTime fim);
+    List<VisaoManifestosEntity> findByDataCriacaoGreaterThanEqualAndDataCriacaoLessThan(
+            OffsetDateTime inicioInclusivo,
+            OffsetDateTime fimExclusivo
+    );
 }

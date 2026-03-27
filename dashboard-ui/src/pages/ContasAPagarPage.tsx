@@ -9,6 +9,7 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useFiliais, usePlanoContas } from '../hooks/queries/useDimensoes';
 import { useContasAPagarGraficos, useContasAPagarOverview, useContasAPagarSerie, useContasAPagarTabela } from '../hooks/queries/useContasAPagar';
@@ -115,7 +116,7 @@ export default function ContasAPagarPage() {
         <AsyncMultiSelect label="Pago" opcoes={['PAGO', 'Sim', 'Nao']} selecionados={filtros.pago ?? []} onChange={(valores) => setFiltro('pago', valores)} />
       </FilterBar>
 
-      {overview.isError && <MensagemErro mensagem="Erro ao carregar indicadores de contas a pagar." />}
+      {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de contas a pagar.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <ContasAPagarKpiGrid overview={overview.data} />}
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">

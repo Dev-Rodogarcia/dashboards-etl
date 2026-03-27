@@ -9,6 +9,7 @@ import com.dashboard.api.repository.VisaoFaturasClienteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -27,6 +28,7 @@ import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,7 +47,7 @@ class FaturasPorClienteServiceTest {
 
     @Test
     void buscarOverviewDeveNormalizarLinhasDuplicadasPorIdUnico() {
-        when(repository.findPowerBiRowsByDataEmissaoCteBetween(any(), any())).thenReturn(List.of(
+        when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of(
                 linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",
                         LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
                         LocalDateTime.of(2026, 3, 21, 10, 0)),
@@ -66,7 +68,7 @@ class FaturasPorClienteServiceTest {
 
     @Test
     void buscarOverviewDeveContarTitulosEmAtrasoApenasComDocumentoEVencidosSemBaixa() {
-        when(repository.findPowerBiRowsByDataEmissaoCteBetween(any(), any())).thenReturn(List.of(
+        when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of(
                 linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",
                         LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
                         LocalDateTime.of(2026, 3, 23, 8, 0)),
@@ -88,7 +90,7 @@ class FaturasPorClienteServiceTest {
 
     @Test
     void buscarStatusProcessoDeveSepararFaturadoEAguardando() {
-        when(repository.findPowerBiRowsByDataEmissaoCteBetween(any(), any())).thenReturn(List.of(
+        when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of(
                 linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",
                         LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
                         LocalDateTime.of(2026, 3, 23, 8, 0)),
@@ -108,7 +110,7 @@ class FaturasPorClienteServiceTest {
 
     @Test
     void buscarTabelaDeveUsarIdUnicoComoChaveDaLinha() {
-        when(repository.findPowerBiRowsByDataEmissaoCteBetween(any(), any())).thenReturn(List.of(
+        when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of(
                 linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",
                         LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
                         LocalDateTime.of(2026, 3, 23, 8, 0))
@@ -120,6 +122,22 @@ class FaturasPorClienteServiceTest {
         assertThat(tabela.get(0).idUnico()).isEqualTo("uid-1");
         assertThat(tabela.get(0).documentoFatura()).isEqualTo("DOC-1");
         assertThat(tabela.get(0).statusProcesso()).isEqualTo("Faturado");
+    }
+
+    @Test
+    void buscarOverviewDeveConsultarPeriodoNoFusoDeSaoPaulo() {
+        when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of());
+
+        service.buscarOverview(filtroPadrao());
+
+        ArgumentCaptor<OffsetDateTime> inicio = ArgumentCaptor.forClass(OffsetDateTime.class);
+        ArgumentCaptor<OffsetDateTime> fim = ArgumentCaptor.forClass(OffsetDateTime.class);
+        verify(repository).findPowerBiRowsByDataEmissaoCteNaJanela(inicio.capture(), fim.capture());
+
+        assertThat(inicio.getValue())
+                .isEqualTo(OffsetDateTime.of(2026, 2, 21, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
+        assertThat(fim.getValue())
+                .isEqualTo(OffsetDateTime.of(2026, 3, 24, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
     }
 
     private static FiltroConsultaDTO filtroPadrao() {

@@ -9,6 +9,7 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useFiliais } from '../hooks/queries/useDimensoes';
 import { useTrackingGraficos, useTrackingOverview, useTrackingSerie, useTrackingTabela } from '../hooks/queries/useTracking';
@@ -104,7 +105,7 @@ export default function TrackingPage() {
         <AsyncMultiSelect label="Status" opcoes={['Pendente', 'Em entrega', 'Em transferência', 'Manifestado', 'Finalizado']} selecionados={filtros.statusCarga ?? []} onChange={(valores) => setFiltro('statusCarga', valores)} />
       </FilterBar>
 
-      {overview.isError && <MensagemErro mensagem="Erro ao carregar indicadores de localização de cargas." />}
+      {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de localização de cargas.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <TrackingKpiGrid overview={overview.data} />}
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">

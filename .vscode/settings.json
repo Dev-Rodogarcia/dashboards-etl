@@ -2,6 +2,9 @@
     "files.encoding": "utf8",
     "java.compile.nullAnalysis.mode": "automatic",
     "cSpell.enabled": false,
+    "css.lint.unknownAtRules": "ignore",
+    "scss.lint.unknownAtRules": "ignore",
+    "less.lint.unknownAtRules": "ignore",
     "github.copilot.chat.localeOverride": "pt-BR",
     "github.copilot.chat.commitMessageGeneration.instructions": [
         {

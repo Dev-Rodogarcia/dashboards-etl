@@ -24,9 +24,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.time.YearMonth;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
@@ -54,14 +52,16 @@ public class FaturasPorClienteService {
     private final VisaoFaturasClienteRepository repository;
     private final EscopoFilialService escopoFilialService;
     private final Clock clock;
+    private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
 
     @Autowired
     public FaturasPorClienteService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoFaturasClienteRepository repository,
-            EscopoFilialService escopoFilialService
+            EscopoFilialService escopoFilialService,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
-        this(validadorPeriodo, repository, escopoFilialService, Clock.systemDefaultZone());
+        this(validadorPeriodo, repository, escopoFilialService, Clock.systemDefaultZone(), periodoOffsetDateTimeHelper);
     }
 
     FaturasPorClienteService(
@@ -69,19 +69,21 @@ public class FaturasPorClienteService {
             VisaoFaturasClienteRepository repository,
             Clock clock
     ) {
-        this(validadorPeriodo, repository, escopoSemRestricao(), clock);
+        this(validadorPeriodo, repository, escopoSemRestricao(), clock, PeriodoOffsetDateTimeHelper.padrao());
     }
 
     FaturasPorClienteService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoFaturasClienteRepository repository,
             EscopoFilialService escopoFilialService,
-            Clock clock
+            Clock clock,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.repository = repository;
         this.escopoFilialService = escopoFilialService;
         this.clock = clock;
+        this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
     }
 
     public FaturasPorClienteOverviewDTO buscarOverview(FiltroConsultaDTO filtro) {
@@ -232,9 +234,10 @@ public class FaturasPorClienteService {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         if (deveUsarConsultaLegada(filtro, escopo)) {
-            for (VisaoFaturasClienteEntity row : repository.findPowerBiRowsByDataEmissaoCteBetween(
-                    filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC),
-                    filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
+            JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+            for (VisaoFaturasClienteEntity row : repository.findPowerBiRowsByDataEmissaoCteNaJanela(
+                    janela.inicioInclusivo(),
+                    janela.fimExclusivo()
             )) {
                 if (!temTexto(row.getUniqueId())) {
                     continue;
@@ -372,9 +375,10 @@ public class FaturasPorClienteService {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         if (deveUsarConsultaLegada(filtro, escopo)) {
-            return repository.findPowerBiRowsByDataEmissaoCteBetween(
-                            filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC),
-                            filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
+            JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+            return repository.findPowerBiRowsByDataEmissaoCteNaJanela(
+                            janela.inicioInclusivo(),
+                            janela.fimExclusivo()
                     ).stream()
                     .filter(row -> temTexto(row.getUniqueId()))
                     .sorted(Comparator
@@ -425,12 +429,12 @@ public class FaturasPorClienteService {
 
     @NonNull
     private Specification<VisaoFaturasClienteEntity> criarSpecification(FiltroConsultaDTO filtro) {
-        OffsetDateTime inicio = filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC);
-        OffsetDateTime fim = filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC);
+        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         return ConsultaSpecificationUtils.allOf(
-                ConsultaSpecificationUtils.between("dataEmissaoCte", inicio, fim),
+                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataEmissaoCte", janela.inicioInclusivo()),
+                ConsultaSpecificationUtils.lessThan("dataEmissaoCte", janela.fimExclusivo()),
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filiais", "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "pagadores", "pagadorNome"),

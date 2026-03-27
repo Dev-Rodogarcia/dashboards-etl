@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import FretesClienteRanking from '../components/domain/fretes/FretesClienteRanking';
 import FretesDocumentMix from '../components/domain/fretes/FretesDocumentMix';
@@ -12,6 +13,7 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useClientes, useFiliais } from '../hooks/queries/useDimensoes';
 import {
@@ -51,6 +53,15 @@ export default function FretesPage() {
   const topClientes = useFretesTopClientes(filtro);
   const mixDoc = useFretesMixDocumental(filtro);
   const tabela = useFretesTabela(filtro, 120);
+
+  // Query de status sem o filtro de status aplicado — evita filtro circular onde
+  // selecionar um status remove os demais do dropdown de opções.
+  const filtroParaStatus: FretesFiltro = { dataInicio, dataFim, filiais: filtros.filiais, pagadores: filtros.pagadores };
+  const tabelaStatus = useFretesTabela(filtroParaStatus, 500);
+  const opcoesStatus = useMemo(
+    () => Array.from(new Set((tabelaStatus.data ?? []).map((r) => r.status))).filter(Boolean).sort(),
+    [tabelaStatus.data],
+  );
 
   const previsaoEntries = graficos.data?.previsaoPorStatus ?? [];
   const origemDestinoEntries = graficos.data?.topRotasPorReceita ?? [];
@@ -144,13 +155,14 @@ export default function FretesPage() {
         />
         <AsyncMultiSelect
           label="Status"
-          opcoes={Array.from(new Set((tabela.data ?? []).map((item) => item.status))).filter(Boolean)}
+          opcoes={opcoesStatus}
           selecionados={filtros.status ?? []}
           onChange={(valores) => setFiltro('status', valores)}
+          isLoading={tabelaStatus.isLoading}
         />
       </FilterBar>
 
-      {overview.isError && <MensagemErro mensagem="Erro ao carregar indicadores de fretes." />}
+      {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de fretes.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <FretesKpiGrid overview={overview.data} />}
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">

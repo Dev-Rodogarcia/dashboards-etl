@@ -8,6 +8,7 @@ import com.dashboard.api.repository.VisaoCotacoesRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -24,6 +25,7 @@ import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,7 +43,7 @@ class CotacoesServiceTest {
 
     @Test
     void buscarGraficosDeveRetornarMotivosVaziosQuandoNaoHaMotivoPerdaNemReprovacao() {
-        when(repository.findByDataCotacaoBetween(any(), any())).thenReturn(List.of(
+        when(repository.findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(any(), any())).thenReturn(List.of(
                 cotacao(1L, "Convertida", null, "SP > RJ", "100.00"),
                 cotacao(2L, "Convertida", "", "SP > RJ", "200.00")
         ));
@@ -59,6 +61,22 @@ class CotacoesServiceTest {
             assertThat(corredor.valorFrete()).isEqualByComparingTo("300.00");
             assertThat(corredor.cotacoes()).isEqualTo(2);
         });
+    }
+
+    @Test
+    void buscarOverviewDeveConsultarPeriodoNoFusoDeSaoPaulo() {
+        when(repository.findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(any(), any())).thenReturn(List.of());
+
+        service.buscarOverview(filtroPadrao());
+
+        ArgumentCaptor<OffsetDateTime> inicio = ArgumentCaptor.forClass(OffsetDateTime.class);
+        ArgumentCaptor<OffsetDateTime> fim = ArgumentCaptor.forClass(OffsetDateTime.class);
+        verify(repository).findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(inicio.capture(), fim.capture());
+
+        assertThat(inicio.getValue())
+                .isEqualTo(OffsetDateTime.of(2026, 2, 21, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
+        assertThat(fim.getValue())
+                .isEqualTo(OffsetDateTime.of(2026, 3, 24, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
     }
 
     private static FiltroConsultaDTO filtroPadrao() {

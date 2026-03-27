@@ -60,6 +60,23 @@ public class ManipuladorGlobalExcecoes {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(resposta);
     }
 
+    @ExceptionHandler({
+        jakarta.persistence.QueryTimeoutException.class,
+        org.springframework.dao.QueryTimeoutException.class
+    })
+    public ResponseEntity<RespostaErroPadrao> handleQueryTimeout(Exception ex) {
+        log.warn("Timeout na consulta ao banco de dados: {}", ex.getMessage());
+
+        RespostaErroPadrao resposta = new RespostaErroPadrao(
+                LocalDateTime.now(),
+                HttpStatus.REQUEST_TIMEOUT.value(),
+                "Request Timeout",
+                "A consulta excedeu o tempo limite. Reduza o período ou os filtros e tente novamente."
+        );
+
+        return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(resposta);
+    }
+
     @ExceptionHandler({SQLException.class, DataAccessException.class})
     public ResponseEntity<RespostaErroPadrao> handleDatabaseFailure(Exception ex) {
         log.error("Falha no acesso ao banco de dados: {}", ex.getMessage(), ex);

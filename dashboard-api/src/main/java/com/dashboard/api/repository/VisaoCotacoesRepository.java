@@ -10,5 +10,8 @@ import java.util.List;
 public interface VisaoCotacoesRepository extends JpaRepository<VisaoCotacoesEntity, Long>,
         JpaSpecificationExecutor<VisaoCotacoesEntity> {
 
-    List<VisaoCotacoesEntity> findByDataCotacaoBetween(OffsetDateTime inicio, OffsetDateTime fim);
+    List<VisaoCotacoesEntity> findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(
+            OffsetDateTime inicioInclusivo,
+            OffsetDateTime fimExclusivo
+    );
 }

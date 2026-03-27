@@ -26,9 +26,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.time.YearMonth;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -48,13 +46,14 @@ public class FaturasService {
     private final VisaoFaturasGraphqlRepository graphqlRepository;
     private final VisaoFaturasClienteRepository clienteRepository;
     private final EscopoFilialService escopoFilialService;
+    private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
 
     FaturasService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoFaturasGraphqlRepository graphqlRepository,
             VisaoFaturasClienteRepository clienteRepository
     ) {
-        this(validadorPeriodo, graphqlRepository, clienteRepository, escopoSemRestricao());
+        this(validadorPeriodo, graphqlRepository, clienteRepository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
     }
 
     @Autowired
@@ -62,12 +61,14 @@ public class FaturasService {
             ValidadorPeriodoService validadorPeriodo,
             VisaoFaturasGraphqlRepository graphqlRepository,
             VisaoFaturasClienteRepository clienteRepository,
-            EscopoFilialService escopoFilialService
+            EscopoFilialService escopoFilialService,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.graphqlRepository = graphqlRepository;
         this.clienteRepository = clienteRepository;
         this.escopoFilialService = escopoFilialService;
+        this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
     }
 
     public FaturasOverviewDTO buscarOverview(LocalDate dataInicio, LocalDate dataFim) {
@@ -89,10 +90,16 @@ public class FaturasService {
         }
 
         if (titulos.isEmpty()) {
+            int clientesAtivos = (int) operacionais.stream()
+                    .map(VisaoFaturasClienteEntity::getPagadorNome)
+                    .filter(nome -> nome != null && !nome.isBlank())
+                    .distinct()
+                    .count();
+
             return new FaturasOverviewDTO(
                     latestUpdate(titulos, operacionais),
                     BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-                    0.0, 0.0, 0, 0, false
+                    0.0, 0.0, 0, clientesAtivos, false
             );
         }
 
@@ -357,9 +364,10 @@ public class FaturasService {
     private List<VisaoFaturasClienteEntity> buscarOperacionais(FiltroConsultaDTO filtro) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         if (deveUsarConsultaLegada(filtro, escopo)) {
-            return clienteRepository.findByDataEmissaoCteBetween(
-                    filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC),
-                    filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
+            JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+            return clienteRepository.findByDataEmissaoCteGreaterThanEqualAndDataEmissaoCteLessThan(
+                    janela.inicioInclusivo(),
+                    janela.fimExclusivo()
             );
         }
         return clienteRepository.findAll(criarSpecificationOperacionais(filtro));
@@ -440,9 +448,10 @@ public class FaturasService {
     private List<VisaoFaturasClienteEntity> buscarOperacionaisPaginados(FiltroConsultaDTO filtro, int limite) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         if (deveUsarConsultaLegada(filtro, escopo)) {
-            return clienteRepository.findByDataEmissaoCteBetween(
-                            filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC),
-                            filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
+            JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+            return clienteRepository.findByDataEmissaoCteGreaterThanEqualAndDataEmissaoCteLessThan(
+                            janela.inicioInclusivo(),
+                            janela.fimExclusivo()
                     ).stream()
                     .sorted(Comparator.comparing(VisaoFaturasClienteEntity::getDataEmissaoCte, Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(limite)
@@ -474,12 +483,12 @@ public class FaturasService {
 
     @NonNull
     private Specification<VisaoFaturasClienteEntity> criarSpecificationOperacionais(FiltroConsultaDTO filtro) {
-        OffsetDateTime inicio = filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC);
-        OffsetDateTime fim = filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC);
+        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         return ConsultaSpecificationUtils.allOf(
-                ConsultaSpecificationUtils.between("dataEmissaoCte", inicio, fim),
+                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataEmissaoCte", janela.inicioInclusivo()),
+                ConsultaSpecificationUtils.lessThan("dataEmissaoCte", janela.fimExclusivo()),
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filiais", "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "pagadores", "pagadorNome"),

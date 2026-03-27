@@ -7,6 +7,7 @@ export interface ColunaTabela<T> {
   formato?: (valor: T[keyof T], row: T) => string | ReactNode;
   largura?: string;
   fixo?: boolean;
+  ordenavel?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -32,8 +33,13 @@ export default function DataTable<T>({
   const [direcao, setDirecao] = useState<'asc' | 'desc'>('asc');
   const [paginaAtual, setPaginaAtual] = useState(paginaInicial);
   const [tamanhoPagina, setTamanhoPagina] = useState(tamanhoPaginaInicial);
+  const colunaOrdenada = colunas.find((coluna) => coluna.chave === ordenarPor);
 
-  function handleSort(chave: string) {
+  function handleSort(chave: string, ordenavel = true) {
+    if (!ordenavel) {
+      return;
+    }
+
     if (ordenarPor === chave) {
       setDirecao((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -44,7 +50,7 @@ export default function DataTable<T>({
   }
 
   const dadosOrdenados = useMemo(() => {
-    if (!ordenarPor) {
+    if (!ordenarPor || !colunaOrdenada || colunaOrdenada.ordenavel === false) {
       return dados;
     }
 
@@ -63,7 +69,7 @@ export default function DataTable<T>({
       if (valorA > valorB) return direcao === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [dados, direcao, ordenarPor]);
+  }, [colunaOrdenada, dados, direcao, ordenarPor]);
 
   const totalPaginas = Math.max(1, Math.ceil(dadosOrdenados.length / tamanhoPagina));
   const paginaSegura = Math.min(paginaAtual, totalPaginas);
@@ -101,7 +107,7 @@ export default function DataTable<T>({
             {dados.length} registros carregados
           </p>
         </div>
-        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+        <label className="flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
           Linhas
           <select
             value={tamanhoPagina}
@@ -132,8 +138,10 @@ export default function DataTable<T>({
               {colunas.map((col) => (
                 <th
                   key={col.chave}
-                  onClick={() => handleSort(col.chave)}
-                  className={`px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider cursor-pointer ${
+                  onClick={() => handleSort(col.chave, col.ordenavel !== false)}
+                  className={`px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider select-none ${
+                    col.ordenavel === false ? 'cursor-default' : 'cursor-pointer'
+                  } ${
                     col.fixo ? 'sticky left-0 z-10' : ''
                   }`}
                   style={{
@@ -143,7 +151,7 @@ export default function DataTable<T>({
                   }}
                 >
                   {col.label}
-                  {ordenarPor === col.chave && (
+                  {col.ordenavel !== false && ordenarPor === col.chave && (
                     <span className="ml-1">{direcao === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </th>
@@ -193,14 +201,14 @@ export default function DataTable<T>({
       </div>
 
       <div
-        className="flex items-center justify-between border-t px-4 py-3 text-xs"
+        className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-xs"
         style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
       >
         <span>
           Mostrando {dadosPaginados.length === 0 ? 0 : inicio + 1} a{' '}
           {Math.min(inicio + dadosPaginados.length, dados.length)} de {dados.length}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}

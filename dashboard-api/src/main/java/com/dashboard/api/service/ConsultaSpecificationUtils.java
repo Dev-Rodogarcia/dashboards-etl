@@ -43,6 +43,16 @@ final class ConsultaSpecificationUtils {
     }
 
     @NonNull
+    static <T, Y extends Comparable<? super Y>> Specification<T> greaterThanOrEqualTo(String campo, Y valor) {
+        return (root, query, cb) -> cb.greaterThanOrEqualTo(root.get(campo), valor);
+    }
+
+    @NonNull
+    static <T, Y extends Comparable<? super Y>> Specification<T> lessThan(String campo, Y valor) {
+        return (root, query, cb) -> cb.lessThan(root.get(campo), valor);
+    }
+
+    @NonNull
     static <T> Specification<T> filtroTexto(FiltroConsultaDTO filtro, String chaveFiltro, String campo) {
         return valoresIgnoreCase(campo, filtro.valores(chaveFiltro));
     }

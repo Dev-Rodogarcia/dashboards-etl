@@ -10,6 +10,7 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useClientes, useFiliais } from '../hooks/queries/useDimensoes';
 import {
@@ -158,7 +159,7 @@ export default function FaturasPage() {
         />
       </FilterBar>
 
-      {overview.isError && <MensagemErro mensagem="Erro ao carregar indicadores de faturas." />}
+      {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de faturas.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <FaturasKpiGrid overview={overview.data} />}
 
       {!overview.isLoading && overview.data && !hasFinancialData ? (

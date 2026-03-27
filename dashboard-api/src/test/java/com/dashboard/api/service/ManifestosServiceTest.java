@@ -10,6 +10,7 @@ import jakarta.persistence.EmbeddedId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -26,6 +27,7 @@ import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,7 +45,7 @@ class ManifestosServiceTest {
 
     @Test
     void buscarOverviewDeveSomarCadaLinhaMesmoQuandoONumeroSeRepete() {
-        when(repository.findByDataCriacaoBetween(any(), any())).thenReturn(List.of(
+        when(repository.findByDataCriacaoGreaterThanEqualAndDataCriacaoLessThan(any(), any())).thenReturn(List.of(
                 manifesto(62848L, "62848_MDFE_4380", "em trânsito", "100.00", "200.00", "1000.00", "100.00", "4.00"),
                 manifesto(62848L, "62848_MDFE_4381", "encerrado", "50.00", "100.00", "500.00", "200.00", "2.00"),
                 manifesto(70000L, "70000_MDFE_1", "encerrado", "25.00", "50.00", "250.00", "50.00", "1.00")
@@ -63,7 +65,7 @@ class ManifestosServiceTest {
 
     @Test
     void buscarTabelaDevePreservarIdentificadoresUnicosParaLinhasComMesmoNumero() {
-        when(repository.findByDataCriacaoBetween(any(), any())).thenReturn(List.of(
+        when(repository.findByDataCriacaoGreaterThanEqualAndDataCriacaoLessThan(any(), any())).thenReturn(List.of(
                 manifesto(62848L, "62848_MDFE_4380", "em trânsito", "100.00", "200.00", "1000.00", "100.00", "4.00"),
                 manifesto(62848L, "62848_MDFE_4381", "encerrado", "50.00", "100.00", "500.00", "200.00", "2.00")
         ));
@@ -85,6 +87,22 @@ class ManifestosServiceTest {
         assertThat(entity.getId()).isEqualTo(new VisaoManifestosId(62848L, "62848_MDFE_4380"));
         assertThat(entity.getNumero()).isEqualTo(62848L);
         assertThat(entity.getIdentificadorUnico()).isEqualTo("62848_MDFE_4380");
+    }
+
+    @Test
+    void buscarOverviewDeveConsultarPeriodoNoFusoDeSaoPaulo() {
+        when(repository.findByDataCriacaoGreaterThanEqualAndDataCriacaoLessThan(any(), any())).thenReturn(List.of());
+
+        service.buscarOverview(filtroPadrao());
+
+        ArgumentCaptor<OffsetDateTime> inicio = ArgumentCaptor.forClass(OffsetDateTime.class);
+        ArgumentCaptor<OffsetDateTime> fim = ArgumentCaptor.forClass(OffsetDateTime.class);
+        verify(repository).findByDataCriacaoGreaterThanEqualAndDataCriacaoLessThan(inicio.capture(), fim.capture());
+
+        assertThat(inicio.getValue())
+                .isEqualTo(OffsetDateTime.of(2026, 2, 21, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
+        assertThat(fim.getValue())
+                .isEqualTo(OffsetDateTime.of(2026, 3, 24, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
     }
 
     private static FiltroConsultaDTO filtroPadrao() {

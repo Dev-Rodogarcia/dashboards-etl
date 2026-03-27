@@ -24,8 +24,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -42,20 +40,23 @@ public class ManifestosService {
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoManifestosRepository repository;
     private final EscopoFilialService escopoFilialService;
+    private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
 
     ManifestosService(ValidadorPeriodoService validadorPeriodo, VisaoManifestosRepository repository) {
-        this(validadorPeriodo, repository, escopoSemRestricao());
+        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
     }
 
     @Autowired
     public ManifestosService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoManifestosRepository repository,
-            EscopoFilialService escopoFilialService
+            EscopoFilialService escopoFilialService,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.repository = repository;
         this.escopoFilialService = escopoFilialService;
+        this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
     }
 
     public ManifestosOverviewDTO buscarOverview(LocalDate dataInicio, LocalDate dataFim) {
@@ -172,9 +173,10 @@ public class ManifestosService {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         if (deveUsarConsultaLegada(filtro, escopo)) {
-            return repository.findByDataCriacaoBetween(
-                            filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC),
-                            filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
+            JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+            return repository.findByDataCriacaoGreaterThanEqualAndDataCriacaoLessThan(
+                            janela.inicioInclusivo(),
+                            janela.fimExclusivo()
                     ).stream()
                     .sorted(Comparator.comparing(VisaoManifestosEntity::getDataCriacao, Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(limiteAplicado)
@@ -317,9 +319,10 @@ public class ManifestosService {
     private List<VisaoManifestosEntity> buscarRegistros(FiltroConsultaDTO filtro) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         if (deveUsarConsultaLegada(filtro, escopo)) {
-            return repository.findByDataCriacaoBetween(
-                    filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC),
-                    filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
+            JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+            return repository.findByDataCriacaoGreaterThanEqualAndDataCriacaoLessThan(
+                    janela.inicioInclusivo(),
+                    janela.fimExclusivo()
             );
         }
         return repository.findAll(criarSpecification(filtro));
@@ -331,12 +334,12 @@ public class ManifestosService {
 
     @NonNull
     private Specification<VisaoManifestosEntity> criarSpecification(FiltroConsultaDTO filtro) {
-        OffsetDateTime inicio = filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC);
-        OffsetDateTime fim = filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC);
+        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         return ConsultaSpecificationUtils.allOf(
-                ConsultaSpecificationUtils.between("dataCriacao", inicio, fim),
+                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataCriacao", janela.inicioInclusivo()),
+                ConsultaSpecificationUtils.lessThan("dataCriacao", janela.fimExclusivo()),
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filiais", "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "status", "status"),

@@ -24,8 +24,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -42,20 +40,23 @@ public class CotacoesService {
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoCotacoesRepository repository;
     private final EscopoFilialService escopoFilialService;
+    private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
 
     CotacoesService(ValidadorPeriodoService validadorPeriodo, VisaoCotacoesRepository repository) {
-        this(validadorPeriodo, repository, escopoSemRestricao());
+        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
     }
 
     @Autowired
     public CotacoesService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoCotacoesRepository repository,
-            EscopoFilialService escopoFilialService
+            EscopoFilialService escopoFilialService,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.repository = repository;
         this.escopoFilialService = escopoFilialService;
+        this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
     }
 
     public CotacoesOverviewDTO buscarOverview(LocalDate dataInicio, LocalDate dataFim) {
@@ -155,9 +156,10 @@ public class CotacoesService {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         if (deveUsarConsultaLegada(filtro, escopo)) {
-            return repository.findByDataCotacaoBetween(
-                            filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC),
-                            filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
+            JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+            return repository.findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(
+                            janela.inicioInclusivo(),
+                            janela.fimExclusivo()
                     ).stream()
                     .sorted(Comparator.comparing(VisaoCotacoesEntity::getDataCotacao, Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(limiteAplicado)
@@ -251,9 +253,10 @@ public class CotacoesService {
     private List<VisaoCotacoesEntity> buscarRegistros(FiltroConsultaDTO filtro) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         if (deveUsarConsultaLegada(filtro, escopo)) {
-            return repository.findByDataCotacaoBetween(
-                    filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC),
-                    filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
+            JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+            return repository.findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(
+                    janela.inicioInclusivo(),
+                    janela.fimExclusivo()
             );
         }
         return repository.findAll(criarSpecification(filtro));
@@ -280,12 +283,12 @@ public class CotacoesService {
 
     @NonNull
     private Specification<VisaoCotacoesEntity> criarSpecification(FiltroConsultaDTO filtro) {
-        OffsetDateTime inicio = filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC);
-        OffsetDateTime fim = filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC);
+        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         return ConsultaSpecificationUtils.allOf(
-                ConsultaSpecificationUtils.between("dataCotacao", inicio, fim),
+                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataCotacao", janela.inicioInclusivo()),
+                ConsultaSpecificationUtils.lessThan("dataCotacao", janela.fimExclusivo()),
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filiais", "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "clientes", "clientePagador"),

@@ -28,6 +28,8 @@ DECLARE @DataInicio DATE = '${dataInicio}';
 DECLARE @DataFim DATE = '${dataFim}';
 DECLARE @Limite INT = 200;
 DECLARE @Hoje DATE = CAST(GETDATE() AS DATE);
+DECLARE @DataInicioOffset DATETIMEOFFSET = CAST(@DataInicio AS DATETIME2) AT TIME ZONE 'E. South America Standard Time';
+DECLARE @DataFimExclusivoOffset DATETIMEOFFSET = CAST(DATEADD(DAY, 1, @DataFim) AS DATETIME2) AT TIME ZONE 'E. South America Standard Time';
 `.trim();
 }
 
@@ -142,8 +144,8 @@ FROM base`,
 WITH base AS (
     SELECT *
     FROM dbo.vw_fretes_powerbi
-    WHERE [Data frete] >= @DataInicio
-      AND [Data frete] < DATEADD(DAY, 1, @DataFim)
+    WHERE [Data frete] >= @DataInicioOffset
+      AND [Data frete] < @DataFimExclusivoOffset
 )`,
       select: `
 SELECT
@@ -203,8 +205,8 @@ WITH titulos AS (
 operacional AS (
     SELECT *
     FROM dbo.vw_faturas_por_cliente_powerbi
-    WHERE [CT-e/Data de emissão] >= @DataInicio
-      AND [CT-e/Data de emissão] < DATEADD(DAY, 1, @DataFim)
+    WHERE [CT-e/Data de emissão] >= @DataInicioOffset
+      AND [CT-e/Data de emissão] < @DataFimExclusivoOffset
 )`,
       select: `
 SELECT
@@ -262,8 +264,8 @@ SELECT
 WITH base AS (
     SELECT *
     FROM dbo.vw_cotacoes_powerbi
-    WHERE [Data Cotação] >= @DataInicio
-      AND [Data Cotação] < DATEADD(DAY, 1, @DataFim)
+    WHERE [Data Cotação] >= @DataInicioOffset
+      AND [Data Cotação] < @DataFimExclusivoOffset
 )`,
       select: `
 SELECT
@@ -370,8 +372,8 @@ FROM base`,
 WITH base AS (
     SELECT *
     FROM dbo.vw_localizacao_cargas_powerbi
-    WHERE [Data do frete] >= @DataInicio
-      AND [Data do frete] < DATEADD(DAY, 1, @DataFim)
+    WHERE [Data do frete] >= @DataInicioOffset
+      AND [Data do frete] < @DataFimExclusivoOffset
 )`,
       select: `
 SELECT
@@ -417,8 +419,8 @@ FROM base`,
 WITH base AS (
     SELECT *
     FROM dbo.vw_manifestos_powerbi
-    WHERE [Data criação] >= @DataInicio
-      AND [Data criação] < DATEADD(DAY, 1, @DataFim)
+    WHERE [Data criação] >= @DataInicioOffset
+      AND [Data criação] < @DataFimExclusivoOffset
 )`,
       select: `
 SELECT
@@ -467,8 +469,8 @@ FROM base`,
 WITH base AS (
     SELECT *
     FROM dbo.vw_faturas_por_cliente_powerbi
-    WHERE [CT-e/Data de emissão] >= @DataInicio
-      AND [CT-e/Data de emissão] < DATEADD(DAY, 1, @DataFim)
+    WHERE [CT-e/Data de emissão] >= @DataInicioOffset
+      AND [CT-e/Data de emissão] < @DataFimExclusivoOffset
 ),
 normalizada AS (
     SELECT *
@@ -589,8 +591,8 @@ WITH fretes AS (
     SELECT
         SUM(ISNULL([Valor Total do Serviço], 0)) AS receita_operacional
     FROM dbo.vw_fretes_powerbi
-    WHERE [Data frete] >= @DataInicio
-      AND [Data frete] < DATEADD(DAY, 1, @DataFim)
+    WHERE [Data frete] >= @DataInicioOffset
+      AND [Data frete] < @DataFimExclusivoOffset
 ),
 titulos AS (
     SELECT
@@ -635,8 +637,8 @@ tracking AS (
             END
         ) AS previsao_vencida
     FROM dbo.vw_localizacao_cargas_powerbi
-    WHERE [Data do frete] >= @DataInicio
-      AND [Data do frete] < DATEADD(DAY, 1, @DataFim)
+    WHERE [Data do frete] >= @DataInicioOffset
+      AND [Data do frete] < @DataFimExclusivoOffset
 ),
 manifestos AS (
     SELECT
@@ -647,8 +649,8 @@ manifestos AS (
             END
         ) AS DECIMAL(10, 2)) AS ocupacao_peso_media_pct
     FROM dbo.vw_manifestos_powerbi
-    WHERE [Data criação] >= @DataInicio
-      AND [Data criação] < DATEADD(DAY, 1, @DataFim)
+    WHERE [Data criação] >= @DataInicioOffset
+      AND [Data criação] < @DataFimExclusivoOffset
 )`,
       select: `
 SELECT

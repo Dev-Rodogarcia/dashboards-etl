@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import PermissionOverrideMatrix from '../components/admin/PermissionOverrideMatrix';
-import DataTable from '../components/shared/DataTable';
+import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import {
   useAtualizarUsuario,
   useCatalogoPermissoes,
@@ -75,6 +75,16 @@ const EDIT_DANGER_STYLE = {
   color: 'color-mix(in srgb, #ef4444 78%, var(--color-text))',
 };
 
+const ACTIVE_BADGE_STYLE = {
+  backgroundColor: 'color-mix(in srgb, #10b981 14%, var(--color-card))',
+  color: 'color-mix(in srgb, #10b981 72%, var(--color-text))',
+};
+
+const INACTIVE_BADGE_STYLE = {
+  backgroundColor: 'color-mix(in srgb, #ef4444 14%, var(--color-card))',
+  color: 'color-mix(in srgb, #ef4444 72%, var(--color-text))',
+};
+
 function formatRoleName(nome: string): string {
   return nome
     .split('_')
@@ -107,6 +117,126 @@ function mapStateToConcedidas(state: PermissionOverrideStateMap): UsuarioPayload
     .map(([permissaoChave]) => permissaoChave as UsuarioPayload['permissoesConcedidas'][number]);
 }
 
+function useIsMobileUsersTable() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false,
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 860px)');
+
+    function handleChange(event: MediaQueryListEvent) {
+      setIsMobile(event.matches);
+    }
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
+
+  return isMobile;
+}
+
+function ExpandableMobileText({
+  value,
+  fallback,
+  maxLength = 72,
+}: {
+  value: string;
+  fallback: string;
+  maxLength?: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const text = value.trim() || fallback;
+  const canExpand = text.length > maxLength;
+  const content = canExpand && !expanded ? `${text.slice(0, maxLength).trimEnd()}...` : text;
+
+  return (
+    <div className="space-y-1">
+      <span style={{ color: 'var(--color-text)' }}>{content}</span>
+      {canExpand && (
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          className="inline-flex rounded-md text-[11px] font-semibold transition-opacity hover:opacity-75"
+          style={{ color: 'var(--color-primary)' }}
+        >
+          {expanded ? 'Ver menos' : 'Ver mais'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function renderStatusBadge(ativo: boolean) {
+  return (
+    <span
+      className="inline-flex w-fit rounded-full px-2 py-1 text-xs font-medium"
+      style={ativo ? ACTIVE_BADGE_STYLE : INACTIVE_BADGE_STYLE}
+    >
+      {ativo ? 'Ativo' : 'Inativo'}
+    </span>
+  );
+}
+
+function renderMobileUsuarioCell(row: UsuarioRow) {
+  return (
+    <div className="min-w-[11rem] whitespace-normal">
+      <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--color-text)' }}>
+        {row.nome}
+      </p>
+      <p className="mt-1 break-all text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+        {row.email}
+      </p>
+    </div>
+  );
+}
+
+function renderMobileAccessCell(row: UsuarioRow) {
+  return (
+    <div className="min-w-[16rem] space-y-2 whitespace-normal text-xs leading-relaxed">
+      <div className="flex flex-wrap items-center gap-2">
+        {renderStatusBadge(row.ativo)}
+        <span className="font-medium" style={{ color: 'var(--color-text)' }}>
+          {row.setorNome}
+        </span>
+      </div>
+
+      <div className="space-y-2 break-words">
+        <div>
+          <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
+            Papel
+          </span>
+          <span style={{ color: 'var(--color-text)' }}>{row.papelResumo || 'Sem papel'}</span>
+        </div>
+        <div>
+          <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
+            Filiais
+          </span>
+          <ExpandableMobileText value={row.filiaisResumo} fallback="Acesso total" maxLength={52} />
+        </div>
+        <div>
+          <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
+            Permissões
+          </span>
+          <ExpandableMobileText value={row.permissoesResumo} fallback="Sem permissões" maxLength={56} />
+        </div>
+        <div>
+          <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
+            Negações
+          </span>
+          <span style={{ color: 'var(--color-text)' }}>{row.negacoesResumo || 'Nenhuma'}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminUsuariosPage() {
   const { isAdminPlataforma } = usePermissions();
   const catalogo = useCatalogoPermissoes();
@@ -121,6 +251,7 @@ export default function AdminUsuariosPage() {
   const [form, setForm] = useState<UsuarioPayload>(FORM_INICIAL);
   const [erro, setErro] = useState('');
   const [overrideState, setOverrideState] = useState<PermissionOverrideStateMap>(createEmptyPermissionOverrideState());
+  const isMobileUsersTable = useIsMobileUsersTable();
 
   const setorSelecionado = useMemo(
     () => (setores.data ?? []).find((setor) => setor.id === form.setorId) ?? null,
@@ -243,6 +374,93 @@ export default function AdminUsuariosPage() {
     || atualizarUsuario.isPending
     || papeis.isLoading
     || setores.isLoading;
+
+  function renderActionButtons(row: UsuarioRow, compacto = false) {
+    const bloqueado = !isAdminPlataforma && row.papel !== 'usuario_comum';
+
+    return (
+      <div className={compacto ? 'flex min-w-[8.5rem] flex-col gap-2' : 'flex gap-2'}>
+        <button
+          type="button"
+          onClick={() => startEdit(row)}
+          disabled={bloqueado}
+          className={`rounded-lg border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40 ${compacto ? 'w-full text-center' : ''}`}
+          style={SECONDARY_BUTTON_STYLE}
+        >
+          Editar
+        </button>
+        <button
+          type="button"
+          onClick={() => handleDelete(row)}
+          disabled={bloqueado}
+          className={`rounded-lg border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40 ${compacto ? 'w-full text-center' : ''}`}
+          style={EDIT_DANGER_STYLE}
+        >
+          Inativar
+        </button>
+      </div>
+    );
+  }
+
+  const colunasUsuariosDesktop: ColunaTabela<UsuarioRow>[] = [
+    { chave: 'nome', label: 'Nome', fixo: true },
+    { chave: 'email', label: 'E-mail' },
+    { chave: 'setorNome', label: 'Setor' },
+    {
+      chave: 'papelResumo',
+      label: 'Papel',
+      formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Sem papel')}</span>,
+    },
+    {
+      chave: 'ativo',
+      label: 'Ativo',
+      formato: (valor) => renderStatusBadge(Boolean(valor)),
+    },
+    {
+      chave: 'filiaisResumo',
+      label: 'Filiais',
+      formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Acesso total')}</span>,
+    },
+    {
+      chave: 'permissoesResumo',
+      label: 'Permissões efetivas',
+      formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Sem permissões')}</span>,
+    },
+    {
+      chave: 'negacoesResumo',
+      label: 'Negações',
+      formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Nenhuma')}</span>,
+    },
+    {
+      chave: 'acoes',
+      label: 'Ações',
+      ordenavel: false,
+      formato: (_, row) => renderActionButtons(row),
+    },
+  ];
+
+  const colunasUsuariosMobile: ColunaTabela<UsuarioRow>[] = [
+    {
+      chave: 'nome',
+      label: 'Usuário',
+      largura: '220px',
+      formato: (_, row) => renderMobileUsuarioCell(row),
+    },
+    {
+      chave: 'setorNome',
+      label: 'Acesso',
+      largura: '320px',
+      ordenavel: false,
+      formato: (_, row) => renderMobileAccessCell(row),
+    },
+    {
+      chave: 'acoes',
+      label: 'Ações',
+      largura: '160px',
+      ordenavel: false,
+      formato: (_, row) => renderActionButtons(row, true),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -470,79 +688,7 @@ export default function AdminUsuariosPage() {
         dados={linhas}
         chaveLinha="id"
         isLoading={usuarios.isLoading}
-        colunas={[
-          { chave: 'nome', label: 'Nome', fixo: true },
-          { chave: 'email', label: 'E-mail' },
-          { chave: 'setorNome', label: 'Setor' },
-          {
-            chave: 'papelResumo',
-            label: 'Papel',
-            formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Sem papel')}</span>,
-          },
-          {
-            chave: 'ativo',
-            label: 'Ativo',
-            formato: (valor) => (
-              <span
-                className="rounded-full px-2 py-1 text-xs font-medium"
-                style={
-                  valor
-                    ? {
-                        backgroundColor: 'color-mix(in srgb, #10b981 14%, var(--color-card))',
-                        color: 'color-mix(in srgb, #10b981 72%, var(--color-text))',
-                      }
-                    : {
-                        backgroundColor: 'color-mix(in srgb, #ef4444 14%, var(--color-card))',
-                        color: 'color-mix(in srgb, #ef4444 72%, var(--color-text))',
-                      }
-                }
-              >
-                {valor ? 'Sim' : 'Não'}
-              </span>
-            ),
-          },
-          {
-            chave: 'filiaisResumo',
-            label: 'Filiais',
-            formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Acesso total')}</span>,
-          },
-          {
-            chave: 'permissoesResumo',
-            label: 'Permissões efetivas',
-            formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Sem permissões')}</span>,
-          },
-          {
-            chave: 'negacoesResumo',
-            label: 'Negações',
-            formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Nenhuma')}</span>,
-          },
-          {
-            chave: 'acoes',
-            label: 'Ações',
-            formato: (_, row) => (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => startEdit(row)}
-                  disabled={!isAdminPlataforma && row.papel !== 'usuario_comum'}
-                  className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
-                  style={SECONDARY_BUTTON_STYLE}
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(row)}
-                  disabled={!isAdminPlataforma && row.papel !== 'usuario_comum'}
-                  className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
-                  style={EDIT_DANGER_STYLE}
-                >
-                  Inativar
-                </button>
-              </div>
-            ),
-          },
-        ]}
+        colunas={isMobileUsersTable ? colunasUsuariosMobile : colunasUsuariosDesktop}
       />
     </div>
   );

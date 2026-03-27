@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
 interface AsyncMultiSelectProps {
@@ -20,13 +20,7 @@ export default function AsyncMultiSelect({
 }: AsyncMultiSelectProps) {
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState('');
-
-  // Cache de opções: evita lista vazia durante re-fetch em background
-  const cachedRef = useRef<string[]>([]);
-  useEffect(() => {
-    if (opcoes.length > 0) cachedRef.current = opcoes;
-  }, [opcoes]);
-  const opcoesEfetivas = opcoes.length > 0 ? opcoes : cachedRef.current;
+  const opcoesEfetivas = opcoes;
 
   function handleOpenChange(next: boolean) {
     setAberto(next);

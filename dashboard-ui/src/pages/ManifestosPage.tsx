@@ -10,6 +10,7 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useFiliais, useMotoristas, useVeiculos } from '../hooks/queries/useDimensoes';
 import { useManifestosGraficos, useManifestosOverview, useManifestosSerie, useManifestosTabela } from '../hooks/queries/useManifestos';
@@ -149,7 +150,7 @@ export default function ManifestosPage() {
         />
       </FilterBar>
 
-      {overview.isError && <MensagemErro mensagem="Erro ao carregar indicadores de manifestos." />}
+      {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de manifestos.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <ManifestosKpiGrid overview={overview.data} />}
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">

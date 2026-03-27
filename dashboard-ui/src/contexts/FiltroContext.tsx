@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { data30DiasAtrasLocal, dataHojeLocal } from '../utils/dateUtils';
 
 interface FiltroContexto {
   dataInicio: string;
@@ -16,16 +17,6 @@ interface FiltroContexto {
 
 const FiltroContext = createContext<FiltroContexto | null>(null);
 const PREFIXO_FILTRO = 'f.';
-
-function dataHoje(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function data30DiasAtras(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 30);
-  return d.toISOString().slice(0, 10);
-}
 
 function lerFiltros(params: URLSearchParams): Record<string, string[]> {
   const filtros: Record<string, string[]> = {};
@@ -53,8 +44,8 @@ function lerFiltros(params: URLSearchParams): Record<string, string[]> {
 export function FiltroProvider({ children }: { children: ReactNode }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const dataInicio = searchParams.get('dataInicio') ?? data30DiasAtras();
-  const dataFim = searchParams.get('dataFim') ?? dataHoje();
+  const dataInicio = searchParams.get('dataInicio') ?? data30DiasAtrasLocal();
+  const dataFim = searchParams.get('dataFim') ?? dataHojeLocal();
   const filtros = useMemo(() => lerFiltros(searchParams), [searchParams]);
 
   const atualizarParams = useCallback(
@@ -110,8 +101,8 @@ export function FiltroProvider({ children }: { children: ReactNode }) {
   const limparFiltros = useCallback(() => {
     setSearchParams(
       {
-        dataInicio: data30DiasAtras(),
-        dataFim: dataHoje(),
+        dataInicio: data30DiasAtrasLocal(),
+        dataFim: dataHojeLocal(),
       },
       { replace: true }
     );

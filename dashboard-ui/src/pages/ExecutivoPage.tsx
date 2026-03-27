@@ -6,6 +6,7 @@ import DateRangePicker from '../components/shared/DateRangePicker';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import MensagemErro from '../components/ui/MensagemErro';
+import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useFiliais } from '../hooks/queries/useDimensoes';
 import { useExecutivoOverview, useExecutivoSerie } from '../hooks/queries/useExecutivo';
@@ -54,7 +55,7 @@ export default function ExecutivoPage() {
         <AsyncMultiSelect label="Filiais" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />
       </FilterBar>
 
-      {overview.isError && <MensagemErro mensagem="Erro ao carregar visão executiva." />}
+      {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar visão executiva.')} tipo={getTipoErro(overview.error)} />}
       {overview.isLoading && (
         <div className="mb-6 flex h-24 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />

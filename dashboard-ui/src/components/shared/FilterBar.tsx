@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -49,7 +49,8 @@ function FilterBadge({ label, count, onRemove }: ActiveFilter) {
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onRemove(); }}
-        className="ml-0.5 rounded-full p-0.5 transition-opacity hover:opacity-60 active:scale-95"
+        className="ml-0.5 rounded-full p-0.5 transition-opacity hover:opacity-60 active:scale-95
+                   focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
         aria-label={`Remover filtro ${label}`}
       >
         <X size={9} />
@@ -67,10 +68,8 @@ export default function FilterBar({
   dataFim,
 }: FilterBarProps) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const isMobile = useIsMobile();
-
-  useEffect(() => setMounted(true), []);
+  const panelId = useId();
 
   // Scroll lock quando drawer mobile está aberto
   useEffect(() => {
@@ -95,12 +94,12 @@ export default function FilterBar({
       {showDate && (
         <>
           <div className="hidden items-center gap-1.5 text-xs sm:flex" style={{ color: 'var(--color-text-muted)' }}>
-            <Calendar size={13} className="shrink-0" />
+            <Calendar size={13} className="shrink-0" aria-hidden="true" />
             <span className="font-medium tabular-nums" style={{ color: 'var(--color-text)' }}>{fmtData(dataInicio)}</span>
-            <span>→</span>
+            <span aria-hidden="true">→</span>
             <span className="font-medium tabular-nums" style={{ color: 'var(--color-text)' }}>{fmtData(dataFim)}</span>
           </div>
-          <div className="hidden h-5 w-px shrink-0 sm:block" style={{ backgroundColor: 'var(--color-border)' }} />
+          <div className="hidden h-5 w-px shrink-0 sm:block" style={{ backgroundColor: 'var(--color-border)' }} aria-hidden="true" />
         </>
       )}
 
@@ -108,28 +107,32 @@ export default function FilterBar({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={panelId}
         className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium
-                   transition-all duration-150 hover:bg-[var(--color-bg)] active:scale-[0.97]"
+                   transition-all duration-150 hover:bg-[var(--color-bg)] active:scale-[0.97]
+                   focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
         style={{ color: 'var(--color-text)' }}
       >
-        <SlidersHorizontal size={14} />
+        <SlidersHorizontal size={14} aria-hidden="true" />
         Filtros
         {totalActive > 0 && (
           <span
             className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
             style={{ backgroundColor: 'var(--color-primary)' }}
+            aria-label={`${totalActive} filtros ativos`}
           >
             {totalActive}
           </span>
         )}
-        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2, ease: 'easeInOut' }}>
+        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2, ease: 'easeInOut' }} aria-hidden="true">
           <ChevronDown size={13} />
         </motion.span>
       </button>
 
       {/* Chips de filtros ativos — somente desktop */}
       {hasActive && (
-        <div className="hidden min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:flex">
+        <div className="hidden min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:flex" aria-label="Filtros ativos">
           {filtersWithValues.slice(0, 3).map((f) => (
             <FilterBadge key={f.label} {...f} />
           ))}
@@ -146,7 +149,8 @@ export default function FilterBar({
         <button
           type="button"
           onClick={onClear}
-          className="ml-auto shrink-0 cursor-pointer text-xs font-medium transition-opacity hover:opacity-70 active:scale-[0.97]"
+          className="ml-auto shrink-0 cursor-pointer text-xs font-medium transition-opacity hover:opacity-70 active:scale-[0.97]
+                     focus:outline-none focus:underline"
           style={{ color: 'var(--color-text-muted)' }}
         >
           Limpar
@@ -160,7 +164,10 @@ export default function FilterBar({
     <AnimatePresence initial={false}>
       {open && !isMobile && (
         <motion.div
+          id={panelId}
           key="desktop-panel"
+          role="region"
+          aria-label="Painel de filtros"
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
@@ -171,18 +178,22 @@ export default function FilterBar({
             initial={{ y: -8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.15 }}
-            className="mt-2 rounded-[20px] border p-4 shadow-sm"
+            className="mt-2 rounded-[20px] border p-5 shadow-sm"
             style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
           >
-            {/* Grid de filtros */}
-            <div className="flex flex-wrap items-start gap-3">
+            {/* Filtros agrupados — data + dimensionais lado a lado */}
+            <div
+              role="group"
+              aria-label="Opções de filtro"
+              className="flex flex-wrap items-start gap-4"
+            >
               {children}
             </div>
 
-            {/* Badges + Limpar */}
+            {/* Rodapé: badges de ativos + botão limpar */}
             {(hasActive || onClear) && (
               <div
-                className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3"
+                className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4"
                 style={{ borderColor: 'var(--color-border)' }}
               >
                 {filtersWithValues.map((f) => (
@@ -193,7 +204,8 @@ export default function FilterBar({
                     type="button"
                     onClick={onClear}
                     className="ml-auto cursor-pointer rounded-lg border px-3 py-1 text-xs font-medium
-                               transition-all duration-150 hover:opacity-70 active:scale-[0.97]"
+                               transition-all duration-150 hover:opacity-70 active:scale-[0.97]
+                               focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
                     style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
                   >
                     Limpar filtros
@@ -208,7 +220,7 @@ export default function FilterBar({
   );
 
   // ── drawer mobile (portal, slide de baixo) ────────────────────────
-  const mobileDrawer = mounted
+  const mobileDrawer = typeof document !== 'undefined'
     ? createPortal(
         <AnimatePresence>
           {open && isMobile && (
@@ -221,10 +233,15 @@ export default function FilterBar({
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
                 onClick={() => setOpen(false)}
+                aria-hidden="true"
               />
 
               {/* Drawer */}
               <motion.div
+                id={panelId}
+                role="dialog"
+                aria-label="Filtros"
+                aria-modal="true"
                 className="fixed bottom-0 left-0 right-0 z-50 rounded-t-[28px] border-t shadow-2xl"
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
@@ -233,7 +250,7 @@ export default function FilterBar({
                 style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
               >
                 {/* Handle */}
-                <div className="flex justify-center pt-3 pb-1">
+                <div className="flex justify-center pt-3 pb-1" aria-hidden="true">
                   <div className="h-1 w-10 rounded-full" style={{ backgroundColor: 'var(--color-border)' }} />
                 </div>
 
@@ -245,6 +262,7 @@ export default function FilterBar({
                       <span
                         className="ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
                         style={{ backgroundColor: 'var(--color-primary)' }}
+                        aria-label={`${totalActive} filtros ativos`}
                       >
                         {totalActive}
                       </span>
@@ -253,8 +271,10 @@ export default function FilterBar({
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    className="cursor-pointer rounded-full p-1.5 transition-all hover:bg-[var(--color-bg)] active:scale-[0.97]"
+                    className="cursor-pointer rounded-full p-1.5 transition-all hover:bg-[var(--color-bg)] active:scale-[0.97]
+                               focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
                     style={{ color: 'var(--color-text-muted)' }}
+                    aria-label="Fechar filtros"
                   >
                     <X size={16} />
                   </button>
@@ -262,7 +282,11 @@ export default function FilterBar({
 
                 {/* Content */}
                 <div className="max-h-[68vh] overflow-y-auto px-5 pb-8">
-                  <div className="flex flex-col gap-4">
+                  <div
+                    role="group"
+                    aria-label="Opções de filtro"
+                    className="flex flex-col gap-4"
+                  >
                     {children}
                   </div>
 
@@ -282,7 +306,8 @@ export default function FilterBar({
                       type="button"
                       onClick={() => { onClear(); setOpen(false); }}
                       className="mt-4 w-full cursor-pointer rounded-xl border py-3 text-sm font-medium
-                                 transition-all duration-150 hover:opacity-80 active:scale-[0.98]"
+                                 transition-all duration-150 hover:opacity-80 active:scale-[0.98]
+                                 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
                       style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
                     >
                       Limpar filtros

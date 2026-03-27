@@ -10,6 +10,7 @@ import com.dashboard.api.repository.VisaoFaturasGraphqlRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -26,6 +27,7 @@ import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -47,7 +49,7 @@ class FaturasServiceTest {
     @Test
     void buscarDeveRetornarVazioFinanceiroQuandoNaoHaTitulosMesmoComOperacional() {
         when(graphqlRepository.findByEmissaoBetween(any(), any())).thenReturn(List.of());
-        when(clienteRepository.findByDataEmissaoCteBetween(any(), any())).thenReturn(List.of(
+        when(clienteRepository.findByDataEmissaoCteGreaterThanEqualAndDataEmissaoCteLessThan(any(), any())).thenReturn(List.of(
                 operacional("uid-1", "DOC-OPER-1", "Cliente A", "Filial SP", "120.00")
         ));
 
@@ -57,7 +59,7 @@ class FaturasServiceTest {
         assertThat(overview.valorRecebido()).isEqualByComparingTo("0.00");
         assertThat(overview.saldoAberto()).isEqualByComparingTo("0.00");
         assertThat(overview.titulosEmAtraso()).isZero();
-        assertThat(overview.clientesAtivos()).isZero();
+        assertThat(overview.clientesAtivos()).isEqualTo(1);
         assertThat(overview.hasFinancialData()).isFalse();
 
         assertThat(service.buscarMensal(filtroPadrao())).isEmpty();
@@ -76,7 +78,7 @@ class FaturasServiceTest {
                 titulo(2L, "DOC-2", "Filial SP", "Nao Pago", "Aberto", "150.00", "50.00", "100.00",
                         LocalDate.of(2026, 3, 5), LocalDate.of(2026, 3, 15), LocalDateTime.of(2026, 3, 23, 9, 0))
         ));
-        when(clienteRepository.findByDataEmissaoCteBetween(any(), any())).thenReturn(List.of(
+        when(clienteRepository.findByDataEmissaoCteGreaterThanEqualAndDataEmissaoCteLessThan(any(), any())).thenReturn(List.of(
                 operacional("uid-1", "DOC-1", "Cliente A", "Filial SP", "100.00"),
                 operacional("uid-2", "DOC-2", "Cliente B", "Filial SP", "150.00")
         ));
@@ -112,6 +114,23 @@ class FaturasServiceTest {
         List<FaturaResumoDTO> tabela = service.buscarTabela(filtroPadrao(), 10);
         assertThat(tabela).hasSize(2);
         assertThat(tabela).extracting(FaturaResumoDTO::documento).containsExactly("DOC-1", "DOC-2");
+    }
+
+    @Test
+    void buscarOverviewDeveConsultarOperacionalNoFusoDeSaoPaulo() {
+        when(graphqlRepository.findByEmissaoBetween(any(), any())).thenReturn(List.of());
+        when(clienteRepository.findByDataEmissaoCteGreaterThanEqualAndDataEmissaoCteLessThan(any(), any())).thenReturn(List.of());
+
+        service.buscarOverview(filtroPadrao());
+
+        ArgumentCaptor<OffsetDateTime> inicio = ArgumentCaptor.forClass(OffsetDateTime.class);
+        ArgumentCaptor<OffsetDateTime> fim = ArgumentCaptor.forClass(OffsetDateTime.class);
+        verify(clienteRepository).findByDataEmissaoCteGreaterThanEqualAndDataEmissaoCteLessThan(inicio.capture(), fim.capture());
+
+        assertThat(inicio.getValue())
+                .isEqualTo(OffsetDateTime.of(2026, 2, 21, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
+        assertThat(fim.getValue())
+                .isEqualTo(OffsetDateTime.of(2026, 3, 24, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
     }
 
     private static FiltroConsultaDTO filtroPadrao() {

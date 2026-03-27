@@ -27,7 +27,7 @@ spring:
       jakarta:
         persistence:
           query:
-            timeout: 5000
+            timeout: 30000  # 30s — suporta queries de até 365 dias em views grandes
     open-in-view: false
 
 security:
@@ -50,6 +50,10 @@ auth:
   refresh-cookie-name: ${AUTH_REFRESH_COOKIE_NAME:dashboard_refresh_token}
   refresh-cookie-secure: ${AUTH_REFRESH_COOKIE_SECURE:false}
   refresh-cookie-same-site: ${AUTH_REFRESH_COOKIE_SAME_SITE:Lax}
+
+dashboard:
+  periodo:
+    zone-id: ${DASHBOARD_PERIODO_ZONE_ID:America/Sao_Paulo}
 
 # API Key para rotas internas (ETL/RPA)
 api:
@@ -78,5 +82,8 @@ management:
 logging:
   level:
     com.dashboard.api: INFO
+    # Para debugar filtros de data: habilitar temporariamente com DEBUG
+    # org.hibernate.SQL: DEBUG
+    # org.hibernate.orm.jdbc.bind: TRACE
     org.hibernate.SQL: WARN
     com.zaxxer.hikari: INFO

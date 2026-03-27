@@ -77,7 +77,7 @@ Notas:
 Use `dashboard-ui/.env.example` como base.
 
 ```env
-VITE_API_BASE_URL=http://localhost:8080
+VITE_API_BASE_URL=http://localhost:5010
 ```
 
 ## Como executar
@@ -90,7 +90,7 @@ VITE_API_BASE_URL=http://localhost:8080
 
 O script abre duas janelas separadas e inicia:
 
-- API em `http://localhost:8080`
+- API em `http://localhost:5010`
 - UI em `http://localhost:5173`
 
 ### Opcao 2: manual
@@ -117,7 +117,15 @@ npm run dev
 - o login passa a usar `email + senha`
 - novos usuários exigem senha explícita e política server-side
 - a sessao e renovada silenciosamente por refresh token e so deve cair em logout, revogacao ou inativacao
+- a sessao do frontend e por aba: recarregar a mesma aba preserva a autenticacao, mas abrir nova aba exige novo login
+- falha temporaria da API nao deve redirecionar o usuario para `/login`
 - não existe endpoint público para descoberta de contas
+
+### Observacoes de deploy para o telão
+
+- se UI e API estiverem no mesmo site, manter `AUTH_REFRESH_COOKIE_SAME_SITE=Lax`
+- se UI e API estiverem em sites diferentes, usar `AUTH_REFRESH_COOKIE_SAME_SITE=None`
+- em deploy cross-site, `AUTH_REFRESH_COOKIE_SECURE=true` e `cors.origem-permitida` devem apontar para a origem exata da UI
 
 ## Rotas principais do frontend
 
@@ -146,7 +154,7 @@ npm run dev
 ## Convencoes relevantes
 
 - filtros compartilhados sao serializados na URL como `f.<chave>`
-- o periodo maximo aceito por frontend e backend e de `90 dias`
+- o periodo maximo aceito por frontend e backend e de `365 dias`
 - logs da API sao gravados em `dashboard-api/logs/dashboard-api.log`
 
 ## Correcao manual de encoding da ACL local
@@ -186,6 +194,7 @@ WHERE descricao COLLATE Latin1_General_100_BIN2 LIKE N'%' + NCHAR(195) + N'%'
 
 ## Documentacao de apoio
 
+- [docs/README.md](docs/README.md)
 - [docs/relatorio-refatoracao-consolidada.md](docs/relatorio-refatoracao-consolidada.md)
 - [docs/relatorio-reestruturacao-acesso-sessao.md](docs/relatorio-reestruturacao-acesso-sessao.md)
 - [docs/implementacao-hardening-seguranca.md](docs/implementacao-hardening-seguranca.md)

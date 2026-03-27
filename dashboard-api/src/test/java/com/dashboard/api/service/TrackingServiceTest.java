@@ -8,6 +8,7 @@ import com.dashboard.api.repository.VisaoLocalizacaoCargasRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -24,6 +25,7 @@ import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,7 +43,7 @@ class TrackingServiceTest {
 
     @Test
     void buscarOverviewDeveIgnorarStatusNuloNaPrevisaoVencida() {
-        when(repository.findByDataFreteBetween(any(), any())).thenReturn(List.of(
+        when(repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(any(), any())).thenReturn(List.of(
                 carga(1L, "Em entrega", -2),
                 carga(2L, null, -2),
                 carga(3L, "Finalizado", -2),
@@ -60,7 +62,7 @@ class TrackingServiceTest {
 
     @Test
     void buscarGraficosDeveAgruparPrevisaoVencidaSemFilial() {
-        when(repository.findByDataFreteBetween(any(), any())).thenReturn(List.of(
+        when(repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(any(), any())).thenReturn(List.of(
                 carga(1L, "Em entrega", -2, null),
                 carga(2L, "Manifestado", -3, "   "),
                 carga(3L, "Em entrega", -1, "Filial SP"),
@@ -77,6 +79,22 @@ class TrackingServiceTest {
                 org.assertj.core.groups.Tuple.tuple("Sem filial", 2, 2),
                 org.assertj.core.groups.Tuple.tuple("Filial SP", 1, 1)
         );
+    }
+
+    @Test
+    void buscarOverviewDeveConsultarPeriodoNoFusoDeSaoPaulo() {
+        when(repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(any(), any())).thenReturn(List.of());
+
+        service.buscarOverview(filtroPadrao());
+
+        ArgumentCaptor<OffsetDateTime> inicio = ArgumentCaptor.forClass(OffsetDateTime.class);
+        ArgumentCaptor<OffsetDateTime> fim = ArgumentCaptor.forClass(OffsetDateTime.class);
+        verify(repository).findByDataFreteGreaterThanEqualAndDataFreteLessThan(inicio.capture(), fim.capture());
+
+        assertThat(inicio.getValue())
+                .isEqualTo(OffsetDateTime.of(2026, 2, 21, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
+        assertThat(fim.getValue())
+                .isEqualTo(OffsetDateTime.of(2026, 3, 24, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
     }
 
     private static FiltroConsultaDTO filtroPadrao() {

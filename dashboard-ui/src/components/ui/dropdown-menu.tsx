@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 
 export const DropdownMenu = DropdownMenuPrimitive.Root;

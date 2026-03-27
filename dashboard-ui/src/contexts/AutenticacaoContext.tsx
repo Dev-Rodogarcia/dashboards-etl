@@ -15,11 +15,13 @@ import type {
 } from '../types/auth';
 import {
   limparSessao,
+  EVENTO_SESSAO_ATUALIZADA,
   montarSessaoDoLogin,
   montarSessaoPersistida,
   obterSessao,
   salvarSessao,
 } from '../utils/gerenciadorSessao';
+import { resolverAcaoBootstrapSessao } from '../utils/authSession';
 
 interface AutenticacaoContexto {
   usuario: IUsuarioSessao | null;
@@ -34,6 +36,17 @@ const AutenticacaoContext = createContext<AutenticacaoContexto | null>(null);
 export function AutenticacaoProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<IUsuarioSessao | null>(() => obterSessao());
   const [carregandoSessao, setCarregandoSessao] = useState(true);
+
+  useEffect(() => {
+    function sincronizarSessaoAtual() {
+      setUsuario(obterSessao());
+    }
+
+    window.addEventListener(EVENTO_SESSAO_ATUALIZADA, sincronizarSessaoAtual);
+    return () => {
+      window.removeEventListener(EVENTO_SESSAO_ATUALIZADA, sincronizarSessaoAtual);
+    };
+  }, []);
 
   useEffect(() => {
     let ativo = true;
@@ -53,10 +66,15 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
         const atualizada = montarSessaoPersistida(dados, sessao.token, sessao.exigeTrocaSenha);
         salvarSessao(atualizada);
         setUsuario(atualizada);
-      } catch {
+      } catch (error) {
         if (!ativo) return;
-        limparSessao();
-        setUsuario(null);
+
+        if (resolverAcaoBootstrapSessao(error) === 'encerrar_sessao') {
+          limparSessao();
+          setUsuario(null);
+        } else {
+          setUsuario(sessao);
+        }
       } finally {
         if (ativo) setCarregandoSessao(false);
       }

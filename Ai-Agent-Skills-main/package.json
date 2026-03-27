@@ -1,0 +1,54 @@
+{
+  "name": "ai-agent-skills",
+  "version": "3.5.0",
+  "description": "My curated agent skills library, with a CLI that installs from any source.",
+  "main": "cli.js",
+  "bin": {
+    "ai-agent-skills": "cli.js"
+  },
+  "engines": {
+    "node": ">=14.16.0"
+  },
+  "scripts": {
+    "test": "node test.js",
+    "test:live": "node scripts/test-live.js",
+    "test:live:quick": "node scripts/test-live.js --quick",
+    "render:docs": "node scripts/render-docs.js",
+    "validate": "node scripts/validate.js",
+    "vendor": "node scripts/vendor.js"
+  },
+  "dependencies": {
+    "htm": "^3.1.1",
+    "ink": "^4.4.1",
+    "ink-text-input": "^5.0.1",
+    "react": "^18.3.1",
+    "yaml": "^2.8.3"
+  },
+  "files": [
+    "cli.js",
+    "lib/",
+    "skills/",
+    "skills.json",
+    "tui/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MoizIbnYousaf/Ai-Agent-Skills.git"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "skills",
+    "claude",
+    "mcp",
+    "curated",
+    "library",
+    "provenance"
+  ],
+  "author": "Moiz Ibn Yousaf",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/MoizIbnYousaf/Ai-Agent-Skills/issues"
+  },
+  "homepage": "https://github.com/MoizIbnYousaf/Ai-Agent-Skills#readme"
+}

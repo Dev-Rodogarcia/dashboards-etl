@@ -10,5 +10,8 @@ import java.util.List;
 public interface VisaoLocalizacaoCargasRepository extends JpaRepository<VisaoLocalizacaoCargasEntity, Long>,
         JpaSpecificationExecutor<VisaoLocalizacaoCargasEntity> {
 
-    List<VisaoLocalizacaoCargasEntity> findByDataFreteBetween(OffsetDateTime inicio, OffsetDateTime fim);
+    List<VisaoLocalizacaoCargasEntity> findByDataFreteGreaterThanEqualAndDataFreteLessThan(
+            OffsetDateTime inicioInclusivo,
+            OffsetDateTime fimExclusivo
+    );
 }

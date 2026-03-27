@@ -24,7 +24,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -43,20 +42,23 @@ public class TrackingService {
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoLocalizacaoCargasRepository repository;
     private final EscopoFilialService escopoFilialService;
+    private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
 
     TrackingService(ValidadorPeriodoService validadorPeriodo, VisaoLocalizacaoCargasRepository repository) {
-        this(validadorPeriodo, repository, escopoSemRestricao());
+        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
     }
 
     @Autowired
     public TrackingService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoLocalizacaoCargasRepository repository,
-            EscopoFilialService escopoFilialService
+            EscopoFilialService escopoFilialService,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.repository = repository;
         this.escopoFilialService = escopoFilialService;
+        this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
     }
 
     public TrackingOverviewDTO buscarOverview(LocalDate dataInicio, LocalDate dataFim) {
@@ -138,9 +140,10 @@ public class TrackingService {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         if (deveUsarConsultaLegada(filtro, escopo)) {
-            return repository.findByDataFreteBetween(
-                            filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC),
-                            filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
+            JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+            return repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(
+                            janela.inicioInclusivo(),
+                            janela.fimExclusivo()
                     ).stream()
                     .sorted(Comparator.comparing(VisaoLocalizacaoCargasEntity::getDataFrete, Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(limiteAplicado)
@@ -248,9 +251,10 @@ public class TrackingService {
     private List<VisaoLocalizacaoCargasEntity> buscarRegistros(FiltroConsultaDTO filtro) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         if (deveUsarConsultaLegada(filtro, escopo)) {
-            return repository.findByDataFreteBetween(
-                    filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC),
-                    filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
+            JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+            return repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(
+                    janela.inicioInclusivo(),
+                    janela.fimExclusivo()
             );
         }
         return repository.findAll(criarSpecification(filtro));
@@ -280,12 +284,12 @@ public class TrackingService {
 
     @NonNull
     private Specification<VisaoLocalizacaoCargasEntity> criarSpecification(FiltroConsultaDTO filtro) {
-        OffsetDateTime inicio = filtro.dataInicio().atStartOfDay().atOffset(ZoneOffset.UTC);
-        OffsetDateTime fim = filtro.dataFim().atTime(23, 59, 59).atOffset(ZoneOffset.UTC);
+        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         return ConsultaSpecificationUtils.allOf(
-                ConsultaSpecificationUtils.between("dataFrete", inicio, fim),
+                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataFrete", janela.inicioInclusivo()),
+                ConsultaSpecificationUtils.lessThan("dataFrete", janela.fimExclusivo()),
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "filialEmissora", "filialOrigem", "filialAtual", "filialDestino"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filialEmissora", "filialEmissora"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filialAtual", "filialAtual"),
