@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -13,9 +13,73 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '../ui/dropdown-menu';
 
 const focusRingClass = 'outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]';
+const DESKTOP_NAV_ITEM_GAP = 4;
+const DESKTOP_NAV_TOGGLE_GAP = 8;
+
+type DesktopNavEntry =
+  | {
+      key: string;
+      type: 'dashboard';
+      item: NavItem;
+    }
+  | {
+      key: 'admin';
+      type: 'admin';
+    };
+
+function measureDesktopNavWidth(entries: DesktopNavEntry[], itemWidths: Record<string, number>) {
+  return entries.reduce((total, entry, index) => {
+    const width = itemWidths[entry.key] ?? 0;
+    return total + width + (index > 0 ? DESKTOP_NAV_ITEM_GAP : 0);
+  }, 0);
+}
+
+function buildCollapsedDesktopNavEntries(
+  entries: DesktopNavEntry[],
+  activeEntryKey: string | null,
+  itemWidths: Record<string, number>,
+  availableWidth: number,
+) {
+  if (entries.length === 0 || availableWidth <= 0) {
+    return entries.slice(0, 1);
+  }
+
+  const visibleEntries: DesktopNavEntry[] = [];
+
+  for (const entry of entries) {
+    const nextEntries = [...visibleEntries, entry];
+    if (measureDesktopNavWidth(nextEntries, itemWidths) > availableWidth && visibleEntries.length > 0) {
+      break;
+    }
+
+    visibleEntries.push(entry);
+  }
+
+  if (activeEntryKey == null || visibleEntries.some((entry) => entry.key === activeEntryKey)) {
+    return visibleEntries;
+  }
+
+  const activeEntry = entries.find((entry) => entry.key === activeEntryKey);
+  if (!activeEntry) {
+    return visibleEntries;
+  }
+
+  const pinnedEntries = [...visibleEntries];
+  while (pinnedEntries.length > 0) {
+    const candidateEntries = [...pinnedEntries.slice(0, -1), activeEntry];
+    if (measureDesktopNavWidth(candidateEntries, itemWidths) <= availableWidth) {
+      return candidateEntries;
+    }
+
+    pinnedEntries.pop();
+  }
+
+  return [activeEntry];
+}
 
 function SunIcon() {
   return (
@@ -114,8 +178,15 @@ export default function TopNav() {
   const { theme, setTheme } = useTheme();
   const { canAccess, isAdminAcesso, isAdminPlataforma } = usePermissions();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [desktopNavHasOverflow, setDesktopNavHasOverflow] = useState(false);
+  const [desktopNavItemWidths, setDesktopNavItemWidths] = useState<Record<string, number>>({});
+  const [desktopNavToggleWidth, setDesktopNavToggleWidth] = useState(0);
+  const [desktopNavCollapsedWidth, setDesktopNavCollapsedWidth] = useState(0);
   const hamburgerButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const desktopNavShellRef = useRef<HTMLDivElement>(null);
+  const desktopNavMeasureRef = useRef<HTMLDivElement>(null);
+  const desktopNavToggleMeasureRef = useRef<HTMLButtonElement>(null);
   const wasMenuOpenRef = useRef(false);
   const previousPathnameRef = useRef(currentLocation.pathname);
   const panelId = useId();
@@ -125,6 +196,15 @@ export default function TopNav() {
     item.permission ? canAccess(item.permission) : true,
   );
   const adminItems = isAdminAcesso ? ADMIN_NAV_ITEMS : [];
+  const desktopNavEntries: DesktopNavEntry[] = [
+    ...dashboardsVisiveis.map((item) => ({
+      key: item.path,
+      type: 'dashboard' as const,
+      item,
+    })),
+    ...(isAdminAcesso ? [{ key: 'admin' as const, type: 'admin' as const }] : []),
+  ];
+  const desktopNavMeasurementKey = desktopNavEntries.map((entry) => entry.key).join('|');
   const mobileSections = [
     { title: 'Dashboards', items: dashboardsVisiveis },
     ...(adminItems.length > 0 ? [{ title: 'Administração', items: adminItems }] : []),
@@ -139,6 +219,172 @@ export default function TopNav() {
   const isDarkTheme = theme === 'dark';
   const themeToggleLabel = isDarkTheme ? 'Alternar para modo claro' : 'Alternar para modo escuro';
   const hamburgerLabel = isMobileMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação';
+  const activeDesktopNavEntryKey = isAdminRoute ? 'admin' : currentLocation.pathname;
+  const desktopNavVisibleEntries = desktopNavHasOverflow
+    ? buildCollapsedDesktopNavEntries(
+        desktopNavEntries,
+        activeDesktopNavEntryKey,
+        desktopNavItemWidths,
+        desktopNavCollapsedWidth,
+      )
+    : desktopNavEntries;
+  const desktopNavVisibleKeys = new Set(desktopNavVisibleEntries.map((entry) => entry.key));
+  const desktopNavOverflowEntries = desktopNavEntries.filter((entry) => !desktopNavVisibleKeys.has(entry.key));
+  const desktopNavHasHiddenAdmin = desktopNavOverflowEntries.some((entry) => entry.type === 'admin');
+  const desktopNavOverflowDashboards = desktopNavOverflowEntries.filter((entry) => entry.type === 'dashboard');
+
+  function renderDesktopNavEntry(entry: DesktopNavEntry, measureOnly = false) {
+    if (entry.type === 'dashboard') {
+      if (measureOnly) {
+        return (
+          <span
+            key={entry.key}
+            data-desktop-nav-measure-item="true"
+            data-desktop-nav-key={entry.key}
+            className="inline-flex whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium"
+          >
+            {entry.item.label}
+          </span>
+        );
+      }
+
+      return (
+        <NavLink
+          key={entry.key}
+          to={entry.item.path}
+          className={({ isActive }) =>
+            `whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${focusRingClass} ${
+              isActive ? 'text-white' : 'hover:bg-[var(--color-bg)]'
+            }`
+          }
+          style={({ isActive }) =>
+            isActive
+              ? { backgroundColor: 'var(--color-primary)' }
+              : { color: 'var(--color-text-muted)' }
+          }
+        >
+          {entry.item.label}
+        </NavLink>
+      );
+    }
+
+    if (measureOnly) {
+      return (
+        <span
+          key={entry.key}
+          data-desktop-nav-measure-item="true"
+          data-desktop-nav-key={entry.key}
+          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium"
+        >
+          <ShieldCheck size={14} />
+          Admin
+          <ChevronDown size={12} />
+        </span>
+      );
+    }
+
+    return (
+      <DropdownMenu key={entry.key}>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
+            style={isAdminRoute
+              ? {
+                  backgroundColor: 'var(--color-primary)',
+                  color: '#FFFFFF',
+                }
+              : {
+                  color: 'var(--color-text-muted)',
+                }}
+          >
+            <ShieldCheck size={14} />
+            Admin
+            <ChevronDown size={12} />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {ADMIN_NAV_ITEMS.map((item) => (
+            <DropdownMenuItem key={item.path} asChild>
+              <NavLink
+                to={item.path}
+                className={({ isActive }) =>
+                  `flex w-full flex-col ${isActive ? 'font-semibold' : ''}`
+                }
+                style={({ isActive }) => ({
+                  color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
+                })}
+              >
+                <span className="font-medium">{item.label}</span>
+                {item.description && (
+                  <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    {item.description}
+                  </span>
+                )}
+              </NavLink>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  useLayoutEffect(() => {
+    const shell = desktopNavShellRef.current;
+    const measure = desktopNavMeasureRef.current;
+    const toggle = desktopNavToggleMeasureRef.current;
+
+    if (!shell || !measure || desktopNavMeasurementKey.length === 0) {
+      setDesktopNavHasOverflow(false);
+      setDesktopNavItemWidths({});
+      setDesktopNavToggleWidth(0);
+      setDesktopNavCollapsedWidth(0);
+      return;
+    }
+
+    const shellElement = shell;
+    const measureElement = measure;
+    let frame = 0;
+
+    function measureDesktopNav() {
+      const shellWidth = Math.ceil(shellElement.getBoundingClientRect().width);
+      const toggleWidth = toggle ? Math.ceil(toggle.getBoundingClientRect().width) : 0;
+      const itemElements = Array.from(measureElement.querySelectorAll<HTMLElement>('[data-desktop-nav-measure-item="true"]'));
+      const measuredWidths = Object.fromEntries(
+        itemElements.map((element) => [
+          element.dataset.desktopNavKey ?? '',
+          Math.ceil(element.getBoundingClientRect().width),
+        ]),
+      );
+      const totalWidth = itemElements.reduce((total, element, index) => {
+        return total + Math.ceil(element.getBoundingClientRect().width) + (index > 0 ? DESKTOP_NAV_ITEM_GAP : 0);
+      }, 0);
+
+      setDesktopNavItemWidths(measuredWidths);
+      setDesktopNavToggleWidth(toggleWidth);
+      setDesktopNavCollapsedWidth(Math.max(shellWidth - toggleWidth - DESKTOP_NAV_TOGGLE_GAP, 0));
+      setDesktopNavHasOverflow(shellWidth > 0 && totalWidth > shellWidth);
+    }
+
+    function scheduleMeasure() {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(measureDesktopNav);
+    }
+
+    scheduleMeasure();
+
+    const observer = new ResizeObserver(scheduleMeasure);
+    observer.observe(shellElement);
+    observer.observe(measureElement);
+    if (toggle) {
+      observer.observe(toggle);
+    }
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [desktopNavMeasurementKey]);
 
   useEffect(() => {
     const previousPathname = previousPathnameRef.current;
@@ -355,48 +601,54 @@ export default function TopNav() {
           />
         </div>
 
-        <nav className="top-nav__desktop-nav flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-          {dashboardsVisiveis.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${focusRingClass} ${
-                  isActive ? 'text-white' : 'hover:bg-[var(--color-bg)]'
-                }`
-              }
-              style={({ isActive }) =>
-                isActive
-                  ? { backgroundColor: 'var(--color-primary)' }
-                  : { color: 'var(--color-text-muted)' }
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
+        <div ref={desktopNavShellRef} className="top-nav__desktop-nav relative flex min-w-0 flex-1 items-center gap-2">
+          <nav
+            className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden"
+            aria-label="Navegação principal"
+          >
+            {desktopNavVisibleEntries.map((entry) => renderDesktopNavEntry(entry))}
+          </nav>
 
-          {isAdminAcesso && (
+          {desktopNavHasOverflow && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
-                  style={isAdminRoute
-                    ? {
-                        backgroundColor: 'var(--color-primary)',
-                        color: '#FFFFFF',
-                      }
-                    : {
-                        color: 'var(--color-text-muted)',
-                      }}
+                  className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
+                  style={{
+                    color: 'var(--color-text-muted)',
+                    minWidth: desktopNavToggleWidth > 0 ? `${desktopNavToggleWidth}px` : undefined,
+                  }}
                 >
-                  <ShieldCheck size={14} />
-                  Admin
+                  Mostrar mais
                   <ChevronDown size={12} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                {ADMIN_NAV_ITEMS.map((item) => (
+                {desktopNavOverflowDashboards.map((entry) => (
+                  <DropdownMenuItem key={entry.key} asChild>
+                    <NavLink
+                      to={entry.item.path}
+                      className={({ isActive }) =>
+                        `flex w-full flex-col ${isActive ? 'font-semibold' : ''}`
+                      }
+                      style={({ isActive }) => ({
+                        color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
+                      })}
+                    >
+                      <span className="font-medium">{entry.item.label}</span>
+                    </NavLink>
+                  </DropdownMenuItem>
+                ))}
+
+                {desktopNavHasHiddenAdmin && desktopNavOverflowDashboards.length > 0 && (
+                  <DropdownMenuSeparator
+                    className="mx-2 my-1 h-px"
+                    style={{ backgroundColor: 'var(--color-border)' }}
+                  />
+                )}
+
+                {desktopNavHasHiddenAdmin && ADMIN_NAV_ITEMS.map((item) => (
                   <DropdownMenuItem key={item.path} asChild>
                     <NavLink
                       to={item.path}
@@ -419,7 +671,26 @@ export default function TopNav() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-        </nav>
+
+          <div
+            ref={desktopNavMeasureRef}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-0 top-0 -z-10 flex items-center gap-1 opacity-0"
+          >
+            {desktopNavEntries.map((entry) => renderDesktopNavEntry(entry, true))}
+          </div>
+
+          <button
+            ref={desktopNavToggleMeasureRef}
+            type="button"
+            aria-hidden="true"
+            tabIndex={-1}
+            className="pointer-events-none absolute left-0 top-0 -z-10 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium opacity-0"
+          >
+            Mostrar mais
+            <ChevronDown size={12} />
+          </button>
+        </div>
 
         <div className="top-nav__right flex shrink-0 items-center gap-3">
           <div className="top-nav__desktop-info flex items-center gap-3">

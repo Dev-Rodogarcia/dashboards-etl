@@ -16,6 +16,7 @@ public enum PermissaoCatalogo {
     FATURAS_POR_CLIENTE("faturasPorCliente", "Faturas por Cliente", "Dashboard operacional de faturamento por cliente", "/faturas-por-cliente"),
     CONTAS_A_PAGAR("contasAPagar", "Contas a pagar", "Dashboard financeiro de contas a pagar", "/contas-a-pagar"),
     COTACOES("cotacoes", "Cotações", "Dashboard comercial de cotações", "/cotacoes"),
+    INDICADORES_GESTAO_A_VISTA("indicadoresGestaoAVista", "Indicadores de Gestão à Vista", "Dashboard operacional de indicadores de gestão à vista", "/indicadores-gestao-a-vista"),
     EXECUTIVO("executivo", "Executivo", "Dashboard executivo consolidado", "/executivo"),
     ETL_SAUDE("etlSaude", "ETL Saúde", "Monitoramento e saúde do ETL", "/etl-saude"),
     DIMENSOES("dimensoes", "Dimensões e filtros", "Acesso às dimensões de apoio aos dashboards", null);
@@ -93,6 +94,7 @@ public enum PermissaoCatalogo {
                 FATURAS_POR_CLIENTE.chave,
                 CONTAS_A_PAGAR.chave,
                 COTACOES.chave,
+                INDICADORES_GESTAO_A_VISTA.chave,
                 EXECUTIVO.chave,
                 ETL_SAUDE.chave
         );

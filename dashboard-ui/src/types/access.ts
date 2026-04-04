@@ -7,6 +7,7 @@ export const PERMISSION_KEYS = [
   'faturasPorCliente',
   'contasAPagar',
   'cotacoes',
+  'indicadoresGestaoAVista',
   'executivo',
   'etlSaude',
   'dimensoes',

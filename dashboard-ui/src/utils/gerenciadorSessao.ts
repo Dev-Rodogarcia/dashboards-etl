@@ -71,29 +71,29 @@ function lerSessaoStorage(storage: Storage | null): IUsuarioSessao | null {
 }
 
 export function salvarSessao(usuario: IUsuarioSessao): void {
-  const sessionStorage = obterSessionStorage();
-  sessionStorage?.setItem(CHAVE_SESSAO, JSON.stringify(usuario));
-  obterLocalStorage()?.removeItem(CHAVE_SESSAO);
+  obterLocalStorage()?.setItem(CHAVE_SESSAO, JSON.stringify(usuario));
+  obterSessionStorage()?.removeItem(CHAVE_SESSAO);
   notificarMudancaSessao();
 }
 
 export function obterSessao(): IUsuarioSessao | null {
-  const sessionStorage = obterSessionStorage();
-  const sessaoAtual = lerSessaoStorage(sessionStorage);
+  const localStorage = obterLocalStorage();
+  const sessaoAtual = lerSessaoStorage(localStorage);
   if (sessaoAtual) {
     return sessaoAtual;
   }
 
-  const localStorage = obterLocalStorage();
-  const sessaoLegada = lerSessaoStorage(localStorage);
+  // Migração: sessões antigas ainda no sessionStorage
+  const sessionStorage = obterSessionStorage();
+  const sessaoLegada = lerSessaoStorage(sessionStorage);
   if (!sessaoLegada) {
     return null;
   }
 
-  if (sessionStorage) {
-    sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessaoLegada));
+  if (localStorage) {
+    localStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessaoLegada));
   }
-  localStorage?.removeItem(CHAVE_SESSAO);
+  sessionStorage?.removeItem(CHAVE_SESSAO);
 
   return sessaoLegada;
 }

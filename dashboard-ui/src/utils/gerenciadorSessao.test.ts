@@ -75,6 +75,7 @@ function criarPermissoes(): PermissionMap {
     faturasPorCliente: false,
     contasAPagar: false,
     cotacoes: false,
+    indicadoresGestaoAVista: false,
     executivo: false,
     etlSaude: false,
     dimensoes: false,
@@ -111,36 +112,36 @@ beforeEach(() => {
 });
 
 describe('gerenciadorSessao', () => {
-  it('salva a sessao no sessionStorage e remove legado do localStorage', () => {
+  it('salva a sessao no localStorage e remove legado do sessionStorage', () => {
     const sessao = criarSessao();
-    localStorage.setItem('dashboard_usuario', JSON.stringify({ legado: true }));
+    sessionStorage.setItem('dashboard_usuario', JSON.stringify({ legado: true }));
 
     salvarSessao(sessao);
 
-    expect(sessionStorage.getItem('dashboard_usuario')).toBe(JSON.stringify(sessao));
-    expect(localStorage.getItem('dashboard_usuario')).toBeNull();
+    expect(localStorage.getItem('dashboard_usuario')).toBe(JSON.stringify(sessao));
+    expect(sessionStorage.getItem('dashboard_usuario')).toBeNull();
   });
 
-  it('migra a sessao legada do localStorage para o sessionStorage na primeira leitura', () => {
+  it('migra a sessao legada do sessionStorage para o localStorage na primeira leitura', () => {
     const sessao = criarSessao();
-    localStorage.setItem('dashboard_usuario', JSON.stringify(sessao));
+    sessionStorage.setItem('dashboard_usuario', JSON.stringify(sessao));
 
     const resultado = obterSessao();
 
     expect(resultado).toEqual(sessao);
-    expect(sessionStorage.getItem('dashboard_usuario')).toBe(JSON.stringify(sessao));
-    expect(localStorage.getItem('dashboard_usuario')).toBeNull();
+    expect(localStorage.getItem('dashboard_usuario')).toBe(JSON.stringify(sessao));
+    expect(sessionStorage.getItem('dashboard_usuario')).toBeNull();
   });
 
   it('limpa sessionStorage e localStorage ao encerrar a sessao', () => {
     const sessao = criarSessao();
-    sessionStorage.setItem('dashboard_usuario', JSON.stringify(sessao));
     localStorage.setItem('dashboard_usuario', JSON.stringify(sessao));
+    sessionStorage.setItem('dashboard_usuario', JSON.stringify(sessao));
 
     limparSessao();
 
-    expect(sessionStorage.getItem('dashboard_usuario')).toBeNull();
     expect(localStorage.getItem('dashboard_usuario')).toBeNull();
+    expect(sessionStorage.getItem('dashboard_usuario')).toBeNull();
   });
 
   it('dispara evento interno quando a sessao e atualizada ou removida', () => {

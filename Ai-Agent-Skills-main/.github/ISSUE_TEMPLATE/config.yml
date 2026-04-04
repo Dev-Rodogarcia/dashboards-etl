@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Browse Collections
-    url: https://github.com/MoizIbnYousaf/Ai-Agent-Skills#collections
-    about: Start with the main shelves I use to organize the repo
-  - name: Read the Curation Guide
-    url: https://github.com/MoizIbnYousaf/Ai-Agent-Skills/blob/main/CURATION.md
-    about: Read this before opening an issue or PR

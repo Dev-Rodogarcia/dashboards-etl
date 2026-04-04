@@ -15,6 +15,7 @@ import FaturasPage from './pages/FaturasPage';
 import FaturasPorClientePage from './pages/FaturasPorClientePage';
 import ContasAPagarPage from './pages/ContasAPagarPage';
 import CotacoesPage from './pages/CotacoesPage';
+import IndicadoresGestaoAVistaPage from './pages/IndicadoresGestaoAVistaPage';
 import ExecutivoPage from './pages/ExecutivoPage';
 import EtlSaudePage from './pages/EtlSaudePage';
 import AdminSetoresPage from './pages/AdminSetoresPage';
@@ -103,6 +104,10 @@ export default function App() {
 
                   <Route element={<RotaProtegida permissao="cotacoes" />}>
                     <Route path="/cotacoes" element={<CotacoesPage />} />
+                  </Route>
+
+                  <Route element={<RotaProtegida permissao="indicadoresGestaoAVista" />}>
+                    <Route path="/indicadores-gestao-a-vista" element={<IndicadoresGestaoAVistaPage />} />
                   </Route>
 
                   <Route element={<RotaProtegida permissao="executivo" />}>

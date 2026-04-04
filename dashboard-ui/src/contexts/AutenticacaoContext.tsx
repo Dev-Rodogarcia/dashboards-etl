@@ -63,7 +63,12 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
         const dados = await buscarSessaoAtual();
         if (!ativo) return;
 
-        const atualizada = montarSessaoPersistida(dados, sessao.token, sessao.exigeTrocaSenha);
+        // Re-lê o token do storage: o interceptor pode ter feito refresh silencioso
+        // durante a chamada acima, atualizando o token. Usar sessao.token (capturado
+        // antes do await) sobrescreveria o token novo com o expirado.
+        const sessaoAtualizada = obterSessao();
+        const tokenAtual = sessaoAtualizada?.token ?? sessao.token;
+        const atualizada = montarSessaoPersistida(dados, tokenAtual, sessao.exigeTrocaSenha);
         salvarSessao(atualizada);
         setUsuario(atualizada);
       } catch (error) {

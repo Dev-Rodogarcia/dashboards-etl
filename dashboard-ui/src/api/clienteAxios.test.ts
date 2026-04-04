@@ -14,6 +14,7 @@ function criarPermissoes(): PermissionMap {
     faturasPorCliente: false,
     contasAPagar: false,
     cotacoes: false,
+    indicadoresGestaoAVista: false,
     executivo: false,
     etlSaude: false,
     dimensoes: false,

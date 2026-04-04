@@ -54,6 +54,8 @@ auth:
 dashboard:
   periodo:
     zone-id: ${DASHBOARD_PERIODO_ZONE_ID:America/Sao_Paulo}
+  indicadores:
+    fail-on-schema-mismatch: ${DASHBOARD_INDICADORES_FAIL_ON_SCHEMA_MISMATCH:false}
 
 # API Key para rotas internas (ETL/RPA)
 api:

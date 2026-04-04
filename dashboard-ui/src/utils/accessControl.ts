@@ -27,6 +27,7 @@ export const DASHBOARD_NAV_ITEMS: NavItem[] = [
   { label: 'Faturas por Cliente', path: '/faturas-por-cliente', permission: 'faturasPorCliente' },
   { label: 'Contas a Pagar', path: '/contas-a-pagar', permission: 'contasAPagar' },
   { label: 'Cotações', path: '/cotacoes', permission: 'cotacoes' },
+  { label: 'Indicadores de Gestão à Vista', path: '/indicadores-gestao-a-vista', permission: 'indicadoresGestaoAVista' },
   { label: 'Executivo', path: '/executivo', permission: 'executivo' },
   { label: 'ETL Saúde', path: '/etl-saude', permission: 'etlSaude' },
 ];
@@ -46,6 +47,7 @@ export function createEmptyPermissionMap(): PermissionMap {
     faturasPorCliente: false,
     contasAPagar: false,
     cotacoes: false,
+    indicadoresGestaoAVista: false,
     executivo: false,
     etlSaude: false,
     dimensoes: false,
@@ -69,6 +71,7 @@ export function createEmptyPermissionOverrideState(): PermissionOverrideStateMap
     faturasPorCliente: 'inherit',
     contasAPagar: 'inherit',
     cotacoes: 'inherit',
+    indicadoresGestaoAVista: 'inherit',
     executivo: 'inherit',
     etlSaude: 'inherit',
     dimensoes: 'inherit',

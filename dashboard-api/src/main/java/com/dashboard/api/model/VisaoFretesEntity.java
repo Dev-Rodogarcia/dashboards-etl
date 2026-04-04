@@ -23,6 +23,9 @@ public class VisaoFretesEntity {
     @Column(name = "[Data frete]")
     private OffsetDateTime dataFrete;
 
+    @Column(name = "[Nº Minuta]")
+    private Long numeroMinuta;
+
     @Column(name = "[Criado em]")
     private OffsetDateTime criadoEm;
 
@@ -52,6 +55,9 @@ public class VisaoFretesEntity {
 
     @Column(name = "[M3]")
     private BigDecimal m3Total;
+
+    @Column(name = "[Total M3]")
+    private BigDecimal totalM3;
 
     @Column(name = "[Pagador]")
     private String pagadorNome;
@@ -86,6 +92,12 @@ public class VisaoFretesEntity {
     @Column(name = "[Filial]")
     private String filialNome;
 
+    @Column(name = "[Filial Emissora]")
+    private String filialEmissora;
+
+    @Column(name = "[Responsável pela Região de Destino]")
+    private String responsavelRegiaoDestino;
+
     @Column(name = "[Filial Apelido]")
     private String filialApelido;
 
@@ -106,6 +118,24 @@ public class VisaoFretesEntity {
 
     @Column(name = "[Previsão de Entrega]")
     private LocalDate previsaoEntrega;
+
+    @Column(name = "[Data de Finalização]")
+    private LocalDate dataFinalizacao;
+
+    @Column(name = "[Finalização da Performance]")
+    private OffsetDateTime finalizacaoPerformance;
+
+    @Column(name = "[Performance Diferença de Dias]")
+    private Integer performanceDiferencaDias;
+
+    @Column(name = "[Performance Status]")
+    private String performanceStatus;
+
+    @Column(name = "[Performance Status Dif de Dias]")
+    private String performanceStatusDifDias;
+
+    @Column(name = "[Performance Status Dif de Dias Oficial]")
+    private String performanceStatusDifDiasOficial;
 
     @Column(name = "[Modal]")
     private String modal;
@@ -163,6 +193,10 @@ public class VisaoFretesEntity {
         return dataFrete;
     }
 
+    public Long getNumeroMinuta() {
+        return numeroMinuta;
+    }
+
     public OffsetDateTime getCriadoEm() {
         return criadoEm;
     }
@@ -201,6 +235,10 @@ public class VisaoFretesEntity {
 
     public BigDecimal getM3Total() {
         return m3Total;
+    }
+
+    public BigDecimal getTotalM3() {
+        return totalM3;
     }
 
     public String getPagadorNome() {
@@ -247,6 +285,14 @@ public class VisaoFretesEntity {
         return filialNome;
     }
 
+    public String getFilialEmissora() {
+        return filialEmissora;
+    }
+
+    public String getResponsavelRegiaoDestino() {
+        return responsavelRegiaoDestino;
+    }
+
     public String getFilialApelido() {
         return filialApelido;
     }
@@ -273,6 +319,30 @@ public class VisaoFretesEntity {
 
     public LocalDate getPrevisaoEntrega() {
         return previsaoEntrega;
+    }
+
+    public LocalDate getDataFinalizacao() {
+        return dataFinalizacao;
+    }
+
+    public OffsetDateTime getFinalizacaoPerformance() {
+        return finalizacaoPerformance;
+    }
+
+    public Integer getPerformanceDiferencaDias() {
+        return performanceDiferencaDias;
+    }
+
+    public String getPerformanceStatus() {
+        return performanceStatus;
+    }
+
+    public String getPerformanceStatusDifDias() {
+        return performanceStatusDifDias;
+    }
+
+    public String getPerformanceStatusDifDiasOficial() {
+        return performanceStatusDifDiasOficial;
     }
 
     public String getModal() {

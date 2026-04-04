@@ -52,6 +52,9 @@ public class VisaoLocalizacaoCargasEntity {
     @Column(name = "[Filial Destino]")
     private String filialDestino;
 
+    @Column(name = "[Responsável pela Região de Destino]")
+    private String responsavelRegiaoDestino;
+
     @Column(name = "[Classificação]")
     private String classificacao;
 
@@ -119,6 +122,10 @@ public class VisaoLocalizacaoCargasEntity {
 
     public String getFilialDestino() {
         return filialDestino;
+    }
+
+    public String getResponsavelRegiaoDestino() {
+        return responsavelRegiaoDestino;
     }
 
     public String getClassificacao() {

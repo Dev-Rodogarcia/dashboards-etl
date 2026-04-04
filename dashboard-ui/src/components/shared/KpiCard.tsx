@@ -1,3 +1,7 @@
+import { createElement, type ReactNode } from 'react';
+import { resolveKpiIcon } from './kpiIconResolver';
+import { getGoalToneStyle, type GoalTone } from '../../utils/indicadoresGestaoVistaUi';
+
 function getFlexBasis(valor: string): number {
   if (valor.length > 14) return 190;
   if (valor.length > 8) return 155;
@@ -7,23 +11,28 @@ function getFlexBasis(valor: string): number {
 interface KpiCardProps {
   label: string;
   valor: string;
-  icone?: React.ReactNode;
+  icone?: ReactNode;
+  tone?: GoalTone;
+  progressPct?: number | null;
   trend?: {
     valor: number;
     direcao: 'up' | 'down' | 'neutral';
   };
 }
 
-export default function KpiCard({ label, valor, icone, trend }: KpiCardProps) {
+export default function KpiCard({ label, valor, icone, tone = 'neutral', progressPct, trend }: KpiCardProps) {
   const flexBasis = getFlexBasis(valor);
-  const secondaryColor = 'var(--color-text-subtle)';
+  const style = getGoalToneStyle(tone);
+  const secondaryColor = tone === 'neutral' ? 'var(--color-text-subtle)' : style.text;
+  const iconNode = icone ?? createElement(resolveKpiIcon(label), { size: 16, 'aria-hidden': 'true' });
+  const widthPct = Math.max(0, Math.min(progressPct ?? 0, 100));
 
   return (
     <div
       className="flex flex-col gap-1 rounded-[20px] border p-3 transition-all duration-150 hover:shadow-lg hover:-translate-y-[2px] cursor-default"
       style={{
-        backgroundColor: 'var(--color-card)',
-        borderColor: 'var(--color-border)',
+        backgroundColor: tone === 'neutral' ? 'var(--color-card)' : `color-mix(in srgb, var(--color-card) 94%, ${style.soft} 6%)`,
+        borderColor: tone === 'neutral' ? 'var(--color-border)' : style.border,
         flexGrow: 1,
         flexShrink: 1,
         flexBasis: `${flexBasis}px`,
@@ -36,8 +45,8 @@ export default function KpiCard({ label, valor, icone, trend }: KpiCardProps) {
         >
           {label}
         </span>
-        {icone && (
-          <span className="shrink-0" style={{ color: secondaryColor }}>{icone}</span>
+        {iconNode && (
+          <span className="shrink-0" style={{ color: secondaryColor }}>{iconNode}</span>
         )}
       </div>
 
@@ -47,6 +56,14 @@ export default function KpiCard({ label, valor, icone, trend }: KpiCardProps) {
       >
         {valor}
       </span>
+
+      {progressPct != null && (
+        <div className="mt-1">
+          <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: style.track }}>
+            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${widthPct}%`, backgroundColor: style.fill }} />
+          </div>
+        </div>
+      )}
 
       {trend && (
         <span

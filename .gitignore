@@ -96,6 +96,8 @@ replay_pid*
 **/exports/
 **/backup/
 **/backups/
+docs/analises/
+Ai-Agent-Skills-main/
 **/*.sqlite
 **/*.sqlite3
 **/*.db
@@ -123,6 +125,7 @@ replay_pid*
 **/*.psv
 **/*.xls
 **/*.xlsx
+!dashboard-ui/public/templates/horarios-corte-modelo.xlsx
 **/*.parquet
 **/*.feather
 **/*.orc

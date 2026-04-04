@@ -27,6 +27,9 @@ public class VisaoManifestosEntity {
     @Column(name = "[Filial]")
     private String filial;
 
+    @Column(name = "[Filial Emissora]")
+    private String filialEmissora;
+
     @Column(name = "[Data criação]")
     private OffsetDateTime dataCriacao;
 
@@ -99,6 +102,9 @@ public class VisaoManifestosEntity {
     @Column(name = "[Itens/Total]")
     private Integer itensTotal;
 
+    @Column(name = "[Local de Descarregamento]")
+    private String localDescarregamento;
+
     @Column(name = "[Data de extracao]")
     private LocalDateTime dataExtracao;
 
@@ -127,6 +133,10 @@ public class VisaoManifestosEntity {
 
     public String getFilial() {
         return filial;
+    }
+
+    public String getFilialEmissora() {
+        return filialEmissora;
     }
 
     public OffsetDateTime getDataCriacao() {
@@ -223,6 +233,10 @@ public class VisaoManifestosEntity {
 
     public Integer getItensTotal() {
         return itensTotal;
+    }
+
+    public String getLocalDescarregamento() {
+        return localDescarregamento;
     }
 
     public LocalDateTime getDataExtracao() {

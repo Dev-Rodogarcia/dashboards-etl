@@ -16,6 +16,7 @@ interface DataTableProps<T> {
   chaveLinha: keyof T & string;
   isLoading?: boolean;
   titulo?: string;
+  mostrarCabecalho?: boolean;
   paginaInicial?: number;
   tamanhoPaginaInicial?: number;
 }
@@ -26,6 +27,7 @@ export default function DataTable<T>({
   chaveLinha,
   isLoading,
   titulo,
+  mostrarCabecalho = true,
   paginaInicial = 1,
   tamanhoPaginaInicial = 10,
 }: DataTableProps<T>) {
@@ -95,41 +97,43 @@ export default function DataTable<T>({
       className="overflow-hidden rounded-[20px] border shadow-sm"
       style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
     >
-      <div
-        className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
-        style={{ borderColor: 'var(--color-border)' }}
-      >
-        <div>
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-            {titulo ?? 'Tabela analitica'}
-          </h3>
-          <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            {dados.length} registros carregados
-          </p>
+      {mostrarCabecalho && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
+          style={{ borderColor: 'var(--color-border)' }}
+        >
+          <div>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+              {titulo ?? 'Tabela analitica'}
+            </h3>
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              {dados.length} registros carregados
+            </p>
+          </div>
+          <label className="flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+            Linhas
+            <select
+              value={tamanhoPagina}
+              onChange={(event) => {
+                setTamanhoPagina(Number(event.target.value));
+                setPaginaAtual(1);
+              }}
+              className="rounded-lg border px-2 py-1 text-xs"
+              style={{
+                backgroundColor: 'var(--color-bg)',
+                borderColor: 'var(--color-border)',
+                color: 'var(--color-text)',
+              }}
+            >
+              {[10, 20, 50].map((valor) => (
+                <option key={valor} value={valor}>
+                  {valor}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        <label className="flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          Linhas
-          <select
-            value={tamanhoPagina}
-            onChange={(event) => {
-              setTamanhoPagina(Number(event.target.value));
-              setPaginaAtual(1);
-            }}
-            className="rounded-lg border px-2 py-1 text-xs"
-            style={{
-              backgroundColor: 'var(--color-bg)',
-              borderColor: 'var(--color-border)',
-              color: 'var(--color-text)',
-            }}
-          >
-            {[10, 20, 50].map((valor) => (
-              <option key={valor} value={valor}>
-                {valor}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-full text-sm">

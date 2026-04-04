@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PermissaoRepository extends JpaRepository<PermissaoEntity, Long> {
+    Optional<PermissaoEntity> findByChave(String chave);
     Optional<PermissaoEntity> findByChaveLegado(String chaveLegado);
     List<PermissaoEntity> findAllByAtivoTrue();
 }
