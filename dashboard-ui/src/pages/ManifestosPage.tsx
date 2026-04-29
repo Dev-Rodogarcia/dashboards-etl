@@ -10,10 +10,12 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { exportarManifestosExcel } from '../api/endpoints/manifestosServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useFiliais, useMotoristas, useVeiculos } from '../hooks/queries/useDimensoes';
-import { useManifestosGraficos, useManifestosOverview, useManifestosSerie, useManifestosTabela } from '../hooks/queries/useManifestos';
+import { useManifestosGraficos, useManifestosOverview, useManifestosSerie, useManifestosTabelaPaginada } from '../hooks/queries/useManifestos';
+import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ManifestoResumoRow, ManifestosFiltro } from '../types/manifestos';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarNumero, formatarPeso } from '../utils/formatadores';
@@ -42,7 +44,8 @@ export default function ManifestosPage() {
   const overview = useManifestosOverview(filtro);
   const serie = useManifestosSerie(filtro);
   const graficos = useManifestosGraficos(filtro);
-  const tabela = useManifestosTabela(filtro, 120);
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
+  const tabela = useManifestosTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
 
   const custoPorFilial = graficos.data?.custoPorFilial ?? [];
   const rankingMotorista = graficos.data?.rankingMotorista ?? [];
@@ -165,9 +168,20 @@ export default function ManifestosPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton dados={(tabela.data ?? []) as unknown as Record<string, unknown>[]} nomeArquivo="manifestos" />
+        <ExportButton nomeArquivo="manifestos" onExport={() => exportarManifestosExcel(filtro)} />
       </div>
-      <DataTable titulo="Manifestos Analiticos" dados={tabela.data ?? []} colunas={colunas} chaveLinha="identificadorUnico" isLoading={tabela.isLoading} />
+      <DataTable
+        titulo="Manifestos Analiticos"
+        dados={tabela.data?.conteudo ?? []}
+        colunas={colunas}
+        chaveLinha="identificadorUnico"
+        isLoading={tabela.isLoading}
+        totalRegistros={tabela.data?.totalElementos}
+        paginaAtual={paginacaoTabela.pagina}
+        tamanhoPagina={paginacaoTabela.tamanhoPagina}
+        onPaginaChange={paginacaoTabela.setPagina}
+        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+      />
     </div>
   );
 }

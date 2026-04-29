@@ -63,6 +63,11 @@ final class ConsultaSpecificationUtils {
     }
 
     @NonNull
+    static <T> Specification<T> filtroTextoCoalesce(FiltroConsultaDTO filtro, String chaveFiltro, String... campos) {
+        return valoresIgnoreCaseCoalesce(filtro.valores(chaveFiltro), campos);
+    }
+
+    @NonNull
     static <T> Specification<T> escopoFiliais(EscopoFilialService.EscopoFilial escopo, String... campos) {
         if (escopo.acessoTotal()) {
             return sempreVerdadeiro();
@@ -72,6 +77,18 @@ final class ConsultaSpecificationUtils {
             return sempreFalso();
         }
         return valoresIgnoreCaseQualquerCampo(filiais, campos);
+    }
+
+    @NonNull
+    static <T> Specification<T> escopoFiliaisCoalesce(EscopoFilialService.EscopoFilial escopo, String... campos) {
+        if (escopo.acessoTotal()) {
+            return sempreVerdadeiro();
+        }
+        List<String> filiais = escopo.filiaisOrdenadas();
+        if (filiais.isEmpty()) {
+            return sempreFalso();
+        }
+        return valoresIgnoreCaseCoalesce(filiais, campos);
     }
 
     @NonNull
@@ -97,6 +114,25 @@ final class ConsultaSpecificationUtils {
         return (root, query, cb) -> cb.or(Arrays.stream(campos)
                 .map(campo -> cb.lower(root.get(campo)).in(normalizados))
                 .toArray(jakarta.persistence.criteria.Predicate[]::new));
+    }
+
+    @NonNull
+    static <T> Specification<T> valoresIgnoreCaseCoalesce(Collection<String> valores, String... campos) {
+        List<String> normalizados = normalizar(valores);
+        if (normalizados.isEmpty()) {
+            return sempreVerdadeiro();
+        }
+        if (campos == null || campos.length == 0) {
+            return sempreVerdadeiro();
+        }
+
+        return (root, query, cb) -> {
+            jakarta.persistence.criteria.CriteriaBuilder.Coalesce<String> coalesce = cb.coalesce();
+            for (String campo : campos) {
+                coalesce.value(cb.lower(root.get(campo).as(String.class)));
+            }
+            return coalesce.in(normalizados);
+        };
     }
 
     private static List<String> normalizar(Collection<String> valores) {

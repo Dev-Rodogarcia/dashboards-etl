@@ -61,6 +61,20 @@ class TrackingServiceTest {
     }
 
     @Test
+    void buscarOverviewDeveConsiderarPrevisaoVencidaPorDataCivilLocal() {
+        LocalDate hojeSaoPaulo = PeriodoOffsetDateTimeHelper.padrao().hoje();
+        when(repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(any(), any())).thenReturn(List.of(
+                cargaComPrevisao(1L, "Em entrega", hojeSaoPaulo.atTime(0, 1).atOffset(ZoneOffset.ofHours(-3))),
+                cargaComPrevisao(2L, "Manifestado", hojeSaoPaulo.minusDays(1).atTime(23, 59).atOffset(ZoneOffset.ofHours(-3))),
+                cargaComPrevisao(3L, "Finalizado", hojeSaoPaulo.minusDays(2).atTime(10, 0).atOffset(ZoneOffset.ofHours(-3)))
+        ));
+
+        TrackingOverviewDTO overview = service.buscarOverview(filtroPadrao());
+
+        assertThat(overview.previsaoVencida()).isEqualTo(1);
+    }
+
+    @Test
     void buscarGraficosDeveAgruparPrevisaoVencidaSemFilial() {
         when(repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(any(), any())).thenReturn(List.of(
                 carga(1L, "Em entrega", -2, null),
@@ -106,11 +120,28 @@ class TrackingServiceTest {
     }
 
     private static VisaoLocalizacaoCargasEntity carga(Long numeroMinuta, String statusCarga, int diasPrevisao, String filialAtual) {
+        return cargaComPrevisao(numeroMinuta, statusCarga, OffsetDateTime.now().plusDays(diasPrevisao), filialAtual);
+    }
+
+    private static VisaoLocalizacaoCargasEntity cargaComPrevisao(
+            Long numeroMinuta,
+            String statusCarga,
+            OffsetDateTime previsaoEntrega
+    ) {
+        return cargaComPrevisao(numeroMinuta, statusCarga, previsaoEntrega, null);
+    }
+
+    private static VisaoLocalizacaoCargasEntity cargaComPrevisao(
+            Long numeroMinuta,
+            String statusCarga,
+            OffsetDateTime previsaoEntrega,
+            String filialAtual
+    ) {
         VisaoLocalizacaoCargasEntity entity = Objects.requireNonNull(novaInstancia(VisaoLocalizacaoCargasEntity.class));
         ReflectionTestUtils.setField(entity, "sequenceNumber", numeroMinuta);
         ReflectionTestUtils.setField(entity, "statusCarga", statusCarga);
         ReflectionTestUtils.setField(entity, "filialAtual", filialAtual);
-        ReflectionTestUtils.setField(entity, "previsaoEntrega", OffsetDateTime.now().plusDays(diasPrevisao));
+        ReflectionTestUtils.setField(entity, "previsaoEntrega", previsaoEntrega);
         ReflectionTestUtils.setField(entity, "dataFrete", OffsetDateTime.of(2026, 3, 20, 10, 0, 0, 0, ZoneOffset.UTC));
         ReflectionTestUtils.setField(entity, "valorFrete", new BigDecimal("100.00"));
         ReflectionTestUtils.setField(entity, "pesoTaxado", "10");

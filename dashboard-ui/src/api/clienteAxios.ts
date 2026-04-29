@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, AUTH_REQUEST_TIMEOUT_MS } from '../config/api';
 import type { LoginResponse } from '../types/auth';
 import { limparSessao, montarSessaoDoLogin, obterSessao, salvarSessao } from '../utils/gerenciadorSessao';
 import { ehSessaoExpiradaError, normalizarErroSessao } from '../utils/authSession';
@@ -32,6 +32,7 @@ async function renovarSessaoSilenciosamente(): Promise<LoginResponse> {
       {},
       {
         withCredentials: true,
+        timeout: AUTH_REQUEST_TIMEOUT_MS,
         headers: { 'Content-Type': 'application/json' },
       },
     );

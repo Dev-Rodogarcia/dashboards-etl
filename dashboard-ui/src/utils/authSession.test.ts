@@ -18,13 +18,13 @@ function criarAxiosError(status?: number): AxiosError {
 }
 
 describe('authSession', () => {
-  it('normaliza 401 e 403 como sessao expirada', () => {
+  it('normaliza 401 como sessao expirada', () => {
     expect(normalizarErroSessao(criarAxiosError(401))).toBeInstanceOf(SessaoExpiradaError);
-    expect(normalizarErroSessao(criarAxiosError(403))).toBeInstanceOf(SessaoExpiradaError);
   });
 
-  it('normaliza falhas de rede e 5xx como sessao temporariamente indisponivel', () => {
+  it('normaliza falhas de rede, 403 e 5xx como sessao temporariamente indisponivel', () => {
     expect(normalizarErroSessao(criarAxiosError())).toBeInstanceOf(SessaoTemporariamenteIndisponivelError);
+    expect(normalizarErroSessao(criarAxiosError(403))).toBeInstanceOf(SessaoTemporariamenteIndisponivelError);
     expect(normalizarErroSessao(criarAxiosError(503))).toBeInstanceOf(SessaoTemporariamenteIndisponivelError);
   });
 

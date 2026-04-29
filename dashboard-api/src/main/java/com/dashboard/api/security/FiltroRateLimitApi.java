@@ -30,16 +30,24 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
             "/api/painel/faturas",
             "/api/painel/faturas-por-cliente",
             "/api/painel/fretes",
+            "/api/painel/indicadores-gestao-a-vista",
             "/api/painel/manifestos",
-            "/api/painel/tracking"
+            "/api/painel/tracking",
+            "/api/admin/acesso"
     );
 
     private final RateLimitService rateLimitService;
     private final AuditService auditService;
+    private final IpClienteResolver ipClienteResolver;
 
-    public FiltroRateLimitApi(RateLimitService rateLimitService, AuditService auditService) {
+    public FiltroRateLimitApi(
+            RateLimitService rateLimitService,
+            AuditService auditService,
+            IpClienteResolver ipClienteResolver
+    ) {
         this.rateLimitService = rateLimitService;
         this.auditService = auditService;
+        this.ipClienteResolver = ipClienteResolver;
     }
 
     @Override
@@ -55,7 +63,11 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
         String principal = principalAtual();
-        RateLimitService.RateLimitDecision decisao = rateLimitService.consumirChamadaApi(request.getRemoteAddr() + ":" + principal);
+        String identificador = ipClienteResolver.resolver(request) + ":" + principal;
+        boolean exportacao = ehExportacao(request.getRequestURI());
+        RateLimitService.RateLimitDecision decisao = exportacao
+                ? rateLimitService.consumirExportacao(identificador)
+                : rateLimitService.consumirChamadaApi(identificador);
 
         if (!decisao.permitido()) {
             auditService.registrarSync(
@@ -69,7 +81,11 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setHeader("Retry-After", String.valueOf(decisao.retryAfterSeconds()));
             response.getWriter().write(
-                    "{\"status\":429,\"erro\":\"Too Many Requests\",\"mensagem\":\"Limite temporário de requisições excedido.\"}"
+                    "{\"status\":429,\"erro\":\"Too Many Requests\",\"mensagem\":\""
+                            + (exportacao
+                            ? "Limite temporário de exportações excedido."
+                            : "Limite temporário de requisições excedido.")
+                            + "\"}"
             );
             return;
         }
@@ -83,5 +99,9 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
             return "anon";
         }
         return authentication.getName();
+    }
+
+    private boolean ehExportacao(String path) {
+        return path.endsWith("/exportacao") || path.endsWith("/exportacao-financeira");
     }
 }

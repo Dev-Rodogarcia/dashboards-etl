@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAutenticacao } from '../contexts/AutenticacaoContext';
 import { firstAccessibleRoute } from '../utils/accessControl';
 import { getApiErrorMessage } from '../utils/apiError';
+import { getPasswordPolicyErrors, PASSWORD_POLICY_HINT } from '../utils/passwordPolicy';
 
 export default function AlterarSenhaPage() {
   const { usuario, alterarSenha, logout } = useAutenticacao();
@@ -21,6 +22,12 @@ export default function AlterarSenhaPage() {
 
     if (novaSenha !== confirmacaoSenha) {
       setErro('A confirmação da nova senha não confere.');
+      return;
+    }
+
+    const passwordErrors = getPasswordPolicyErrors(novaSenha);
+    if (passwordErrors.length > 0) {
+      setErro(passwordErrors[0]);
       return;
     }
 
@@ -77,9 +84,10 @@ export default function AlterarSenhaPage() {
             value={novaSenha}
             onChange={(event) => setNovaSenha(event.target.value)}
             className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
-            minLength={8}
+            minLength={12}
             required
           />
+          <span className="block text-xs text-gray-500">{PASSWORD_POLICY_HINT}</span>
         </label>
 
         <label className="space-y-1">
@@ -89,7 +97,7 @@ export default function AlterarSenhaPage() {
             value={confirmacaoSenha}
             onChange={(event) => setConfirmacaoSenha(event.target.value)}
             className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
-            minLength={8}
+            minLength={12}
             required
           />
         </label>

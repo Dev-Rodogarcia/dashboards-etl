@@ -47,6 +47,9 @@ public class VisaoSinistrosEntity {
     @Column(name = "[Ocorrência/Ocorrência]")
     private String ocorrencia;
 
+    @Column(name = "[Ocorrência/Descrição]")
+    private String ocorrenciaDescricao;
+
     @Column(name = "[Tratativa/Solução]")
     private String solucao;
 
@@ -97,6 +100,10 @@ public class VisaoSinistrosEntity {
 
     public String getOcorrencia() {
         return ocorrencia;
+    }
+
+    public String getOcorrenciaDescricao() {
+        return ocorrenciaDescricao;
     }
 
     public String getSolucao() {

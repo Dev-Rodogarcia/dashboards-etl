@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { buscarEtlSaudeGraficos, buscarEtlSaudeOverview, buscarEtlSaudeSerie, buscarEtlSaudeTabela } from '../../api/endpoints/etlSaudeServico';
+import {
+  buscarEtlSaudeGraficos,
+  buscarEtlSaudeOverview,
+  buscarEtlSaudeSerie,
+  buscarEtlSaudeTabela,
+  buscarEtlSaudeTabelaPaginada,
+  buscarEtlSaudeTabelaTotal,
+} from '../../api/endpoints/etlSaudeServico';
 import type { FiltroQuery } from '../../types/common';
 
 const STALE_TIME = 5 * 60 * 1000;
@@ -35,6 +42,24 @@ export function useEtlSaudeTabela(filtro: FiltroQuery, limite = 100) {
   return useQuery({
     queryKey: ['etl-saude', 'tabela', filtro, limite],
     queryFn: () => buscarEtlSaudeTabela(filtro, limite),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useEtlSaudeTabelaTotal(filtro: FiltroQuery) {
+  return useQuery({
+    queryKey: ['etl-saude', 'tabela-total', filtro],
+    queryFn: () => buscarEtlSaudeTabelaTotal(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useEtlSaudeTabelaPaginada(filtro: FiltroQuery, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['etl-saude', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarEtlSaudeTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
     retry: 1,
   });

@@ -2,11 +2,18 @@ import type { IUsuarioSessao, LoginResponse, UsuarioSessao } from '../types/auth
 
 const CHAVE_SESSAO = 'dashboard_usuario';
 export const EVENTO_SESSAO_ATUALIZADA = 'dashboard:sessao-atualizada';
+const TOLERANCIA_EXPIRACAO_SESSAO_MS = 2 * 60 * 1000;
 
-export function montarSessaoPersistida(dados: UsuarioSessao, token: string, exigeTrocaSenhaFallback = false): IUsuarioSessao {
+export function montarSessaoPersistida(
+  dados: UsuarioSessao,
+  token: string,
+  exigeTrocaSenhaFallback = false,
+  sessaoExpiraEm = '',
+): IUsuarioSessao {
   return {
     ...dados,
     token,
+    sessaoExpiraEm,
     exigeTrocaSenha: dados.exigeTrocaSenha ?? exigeTrocaSenhaFallback,
   };
 }
@@ -16,6 +23,7 @@ export function montarSessaoDoLogin(resposta: LoginResponse): IUsuarioSessao {
     resposta.usuario,
     resposta.token,
     resposta.exigeTrocaSenha,
+    resposta.sessaoExpiraEm,
   );
 }
 
@@ -35,14 +43,26 @@ function notificarMudancaSessao(): void {
   window.dispatchEvent(new Event(EVENTO_SESSAO_ATUALIZADA));
 }
 
-function normalizarSessaoPersistida(sessao: Partial<IUsuarioSessao> | null): IUsuarioSessao | null {
-  if (!sessao?.token || !sessao?.papel) return null;
+function dataValida(valor: unknown): valor is string {
+  return typeof valor === 'string' && Number.isFinite(Date.parse(valor));
+}
 
-  return {
+export function sessaoExpirada(sessao: Pick<IUsuarioSessao, 'sessaoExpiraEm'>): boolean {
+  const expiraEmMs = Date.parse(sessao.sessaoExpiraEm);
+  return Number.isFinite(expiraEmMs) && expiraEmMs + TOLERANCIA_EXPIRACAO_SESSAO_MS <= Date.now();
+}
+
+function normalizarSessaoPersistida(sessao: Partial<IUsuarioSessao> | null): IUsuarioSessao | null {
+  if (!sessao?.token || !sessao?.papel || !dataValida(sessao.sessaoExpiraEm)) return null;
+
+  const sessaoNormalizada = {
     ...sessao,
+    sessaoExpiraEm: sessao.sessaoExpiraEm,
     exigeTrocaSenha: Boolean(sessao.exigeTrocaSenha),
     filiaisPermitidasEfetivas: Array.isArray(sessao.filiaisPermitidasEfetivas) ? sessao.filiaisPermitidasEfetivas : [],
   } as IUsuarioSessao;
+
+  return sessaoExpirada(sessaoNormalizada) ? null : sessaoNormalizada;
 }
 
 function lerSessaoStorage(storage: Storage | null): IUsuarioSessao | null {
@@ -71,29 +91,29 @@ function lerSessaoStorage(storage: Storage | null): IUsuarioSessao | null {
 }
 
 export function salvarSessao(usuario: IUsuarioSessao): void {
-  obterLocalStorage()?.setItem(CHAVE_SESSAO, JSON.stringify(usuario));
-  obterSessionStorage()?.removeItem(CHAVE_SESSAO);
+  obterSessionStorage()?.setItem(CHAVE_SESSAO, JSON.stringify(usuario));
+  obterLocalStorage()?.removeItem(CHAVE_SESSAO);
   notificarMudancaSessao();
 }
 
 export function obterSessao(): IUsuarioSessao | null {
-  const localStorage = obterLocalStorage();
-  const sessaoAtual = lerSessaoStorage(localStorage);
+  const sessionStorage = obterSessionStorage();
+  const sessaoAtual = lerSessaoStorage(sessionStorage);
   if (sessaoAtual) {
     return sessaoAtual;
   }
 
-  // Migração: sessões antigas ainda no sessionStorage
-  const sessionStorage = obterSessionStorage();
-  const sessaoLegada = lerSessaoStorage(sessionStorage);
+  // Migração: sessões antigas ainda no localStorage
+  const localStorage = obterLocalStorage();
+  const sessaoLegada = lerSessaoStorage(localStorage);
   if (!sessaoLegada) {
     return null;
   }
 
-  if (localStorage) {
-    localStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessaoLegada));
+  if (sessionStorage) {
+    sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessaoLegada));
   }
-  sessionStorage?.removeItem(CHAVE_SESSAO);
+  localStorage?.removeItem(CHAVE_SESSAO);
 
   return sessaoLegada;
 }

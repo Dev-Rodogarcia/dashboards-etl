@@ -1,6 +1,7 @@
 package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasSeriePointDTO;
@@ -97,6 +98,17 @@ public class IndicadoresGestaoAVistaController {
         return ResponseEntity.ok(performanceEntregaService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
     }
 
+    @GetMapping("/performance-entrega/tabela/paginada")
+    public ResponseEntity<PaginaDTO<PerformanceEntregaRowDTO>> performanceTabelaPaginada(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "10") int tamanhoPagina,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        return ResponseEntity.ok(performanceEntregaService.buscarTabelaPaginada(FiltroRequestMapper.from(dataInicio, dataFim, params), pagina, tamanhoPagina));
+    }
+
     @GetMapping("/utilizacao-coletores/overview")
     public ResponseEntity<UtilizacaoColetoresOverviewDTO> utilizacaoColetoresOverview(
             @RequestParam LocalDate dataInicio,
@@ -123,6 +135,17 @@ public class IndicadoresGestaoAVistaController {
             @RequestParam MultiValueMap<String, String> params
     ) {
         return ResponseEntity.ok(utilizacaoColetoresService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
+    }
+
+    @GetMapping("/utilizacao-coletores/tabela/paginada")
+    public ResponseEntity<PaginaDTO<UtilizacaoColetoresRowDTO>> utilizacaoColetoresTabelaPaginada(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "10") int tamanhoPagina,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        return ResponseEntity.ok(utilizacaoColetoresService.buscarTabelaPaginada(FiltroRequestMapper.from(dataInicio, dataFim, params), pagina, tamanhoPagina));
     }
 
     @GetMapping("/cubagem-mercadorias/overview")
@@ -153,6 +176,17 @@ public class IndicadoresGestaoAVistaController {
         return ResponseEntity.ok(cubagemMercadoriasService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
     }
 
+    @GetMapping("/cubagem-mercadorias/tabela/paginada")
+    public ResponseEntity<PaginaDTO<CubagemMercadoriasRowDTO>> cubagemTabelaPaginada(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "10") int tamanhoPagina,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        return ResponseEntity.ok(cubagemMercadoriasService.buscarTabelaPaginada(FiltroRequestMapper.from(dataInicio, dataFim, params), pagina, tamanhoPagina));
+    }
+
     @GetMapping("/indenizacao-mercadorias/overview")
     public ResponseEntity<IndenizacaoMercadoriasOverviewDTO> indenizacaoOverview(
             @RequestParam LocalDate dataInicio,
@@ -179,6 +213,17 @@ public class IndicadoresGestaoAVistaController {
             @RequestParam MultiValueMap<String, String> params
     ) {
         return ResponseEntity.ok(indenizacaoMercadoriasService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
+    }
+
+    @GetMapping("/indenizacao-mercadorias/tabela/paginada")
+    public ResponseEntity<PaginaDTO<IndenizacaoMercadoriasRowDTO>> indenizacaoTabelaPaginada(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "10") int tamanhoPagina,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        return ResponseEntity.ok(indenizacaoMercadoriasService.buscarTabelaPaginada(FiltroRequestMapper.from(dataInicio, dataFim, params), pagina, tamanhoPagina));
     }
 
     @GetMapping("/horarios-corte/overview")
@@ -209,6 +254,17 @@ public class IndicadoresGestaoAVistaController {
             @RequestParam MultiValueMap<String, String> params
     ) {
         return ResponseEntity.ok(horariosCorteService.buscarHorariosCorteTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
+    }
+
+    @GetMapping("/horarios-corte/tabela/paginada")
+    public ResponseEntity<PaginaDTO<HorarioCorteRowDTO>> tabelaPaginada(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "10") int tamanhoPagina,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        return ResponseEntity.ok(horariosCorteService.buscarHorariosCorteTabelaPaginada(FiltroRequestMapper.from(dataInicio, dataFim, params), pagina, tamanhoPagina));
     }
 
     @PostMapping(path = "/horarios-corte/importacao", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

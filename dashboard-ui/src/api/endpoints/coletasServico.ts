@@ -1,5 +1,8 @@
 import clienteAxios from '../clienteAxios';
+import { baixarExcel } from '../downloadExcel';
+import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
+import type { PaginacaoResponse } from '../../types/common';
 import type { ColetaResumoRow, ColetasCharts, ColetasFiltro, ColetasOverview, ColetasTrendPoint } from '../../types/coletas';
 
 export async function buscarColetasOverview(filtro: ColetasFiltro): Promise<ColetasOverview> {
@@ -31,4 +34,23 @@ export async function buscarColetasTabela(
   params.set('limite', String(limite));
   const { data } = await clienteAxios.get<ColetaResumoRow[]>('/api/painel/coletas/tabela', { params });
   return data;
+}
+
+export async function buscarColetasTabelaTotal(filtro: ColetasFiltro): Promise<number> {
+  const { data } = await clienteAxios.get<{ total: number }>('/api/painel/coletas/tabela/total', {
+    params: montarQueryParams(filtro),
+  });
+  return data.total;
+}
+
+export async function buscarColetasTabelaPaginada(
+  filtro: ColetasFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+): Promise<PaginacaoResponse<ColetaResumoRow>> {
+  return buscarTabelaPaginada('/api/painel/coletas/tabela/paginada', filtro, pagina, tamanhoPagina);
+}
+
+export async function exportarColetasExcel(filtro: ColetasFiltro): Promise<void> {
+  await baixarExcel('/api/painel/coletas/exportacao', filtro, 'coletas');
 }

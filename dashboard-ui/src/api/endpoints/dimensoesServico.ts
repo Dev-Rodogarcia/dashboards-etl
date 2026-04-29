@@ -1,4 +1,6 @@
 import clienteAxios from '../clienteAxios';
+import { montarQueryParams } from './queryParams';
+import type { FretesFiltro } from '../../types/fretes';
 
 export interface VeiculoDim {
   placa: string;
@@ -43,5 +45,12 @@ export async function buscarPlanoContas(): Promise<PlanoContasDim[]> {
 
 export async function buscarUsuarios(): Promise<UsuarioDim[]> {
   const { data } = await clienteAxios.get<UsuarioDim[]>('/api/dimensoes/usuarios');
+  return data;
+}
+
+export async function buscarFretesStatus(filtro: FretesFiltro): Promise<string[]> {
+  const { data } = await clienteAxios.get<string[]>('/api/dimensoes/fretes/status', {
+    params: montarQueryParams(filtro),
+  });
   return data;
 }

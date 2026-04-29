@@ -1,40 +1,49 @@
+import { useState } from 'react';
+
 interface ExportButtonProps {
-  dados: Record<string, unknown>[];
+  dados?: Record<string, unknown>[];
   nomeArquivo: string;
+  onExport?: () => Promise<void> | void;
+  label?: string;
 }
 
-export default function ExportButton({ dados, nomeArquivo }: ExportButtonProps) {
-  function exportarCSV() {
-    if (dados.length === 0) return;
+export default function ExportButton({ onExport, label = 'Exportar Excel' }: ExportButtonProps) {
+  const [exportando, setExportando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const podeExportar = Boolean(onExport);
 
-    const colunas = Object.keys(dados[0]);
-    const linhas = dados.map((row) =>
-      colunas.map((col) => {
-        const valor = row[col];
-        const str = valor == null ? '' : String(valor);
-        return str.includes(',') || str.includes('"') || str.includes('\n')
-          ? `"${str.replace(/"/g, '""')}"`
-          : str;
-      }).join(',')
-    );
+  async function exportarExcel() {
+    if (!podeExportar || exportando) return;
 
-    const csv = [colunas.join(','), ...linhas].join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${nomeArquivo}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    setErro(null);
+    setExportando(true);
+    try {
+      if (onExport) {
+        await onExport();
+      }
+    } catch (error) {
+      console.error('Falha ao exportar Excel', error);
+      setErro('Nao foi possivel exportar agora.');
+    } finally {
+      setExportando(false);
+    }
   }
 
   return (
-    <button
-      onClick={exportarCSV}
-      disabled={dados.length === 0}
-      className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50"
-    >
-      Exportar CSV
-    </button>
+    <span className="inline-flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={exportarExcel}
+        disabled={!podeExportar || exportando}
+        className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50"
+      >
+        {exportando ? 'Exportando...' : label}
+      </button>
+      {erro && (
+        <span className="text-[11px]" style={{ color: 'var(--color-danger)' }} role="status">
+          {erro}
+        </span>
+      )}
+    </span>
   );
 }

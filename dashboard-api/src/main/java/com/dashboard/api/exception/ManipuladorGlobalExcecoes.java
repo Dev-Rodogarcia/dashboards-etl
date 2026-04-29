@@ -3,9 +3,11 @@ package com.dashboard.api.exception;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -60,6 +62,20 @@ public class ManipuladorGlobalExcecoes {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(resposta);
     }
 
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<RespostaErroPadrao> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        log.warn("Método HTTP não permitido: {}", ex.getMessage());
+
+        RespostaErroPadrao resposta = new RespostaErroPadrao(
+                LocalDateTime.now(),
+                HttpStatus.METHOD_NOT_ALLOWED.value(),
+                "Method Not Allowed",
+                "Método HTTP não permitido para este endpoint."
+        );
+
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(resposta);
+    }
+
     @ExceptionHandler({
         jakarta.persistence.QueryTimeoutException.class,
         org.springframework.dao.QueryTimeoutException.class
@@ -75,6 +91,20 @@ public class ManipuladorGlobalExcecoes {
         );
 
         return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(resposta);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<RespostaErroPadrao> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        log.warn("Violação de integridade no banco de dados: {}", ex.getMostSpecificCause().getMessage());
+
+        RespostaErroPadrao resposta = new RespostaErroPadrao(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                "Conflict",
+                "Não foi possível salvar porque os dados violam uma regra de unicidade ou relacionamento."
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(resposta);
     }
 
     @ExceptionHandler({SQLException.class, DataAccessException.class})

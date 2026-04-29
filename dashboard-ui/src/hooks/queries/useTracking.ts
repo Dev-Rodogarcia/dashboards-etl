@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { buscarTrackingGraficos, buscarTrackingOverview, buscarTrackingSerie, buscarTrackingTabela } from '../../api/endpoints/trackingServico';
+import {
+  buscarTrackingGraficos,
+  buscarTrackingOverview,
+  buscarTrackingSerie,
+  buscarTrackingTabela,
+  buscarTrackingTabelaPaginada,
+  buscarTrackingTabelaTotal,
+} from '../../api/endpoints/trackingServico';
 import type { TrackingFiltro } from '../../types/tracking';
 
 const STALE_TIME = 5 * 60 * 1000;
@@ -35,6 +42,24 @@ export function useTrackingTabela(filtro: TrackingFiltro, limite = 100) {
   return useQuery({
     queryKey: ['tracking', 'tabela', filtro, limite],
     queryFn: () => buscarTrackingTabela(filtro, limite),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useTrackingTabelaTotal(filtro: TrackingFiltro) {
+  return useQuery({
+    queryKey: ['tracking', 'tabela-total', filtro],
+    queryFn: () => buscarTrackingTabelaTotal(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useTrackingTabelaPaginada(filtro: TrackingFiltro, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['tracking', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarTrackingTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
     retry: 1,
   });

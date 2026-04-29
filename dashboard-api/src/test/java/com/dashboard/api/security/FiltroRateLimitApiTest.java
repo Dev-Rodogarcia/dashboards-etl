@@ -1,0 +1,97 @@
+package com.dashboard.api.security;
+
+import com.dashboard.api.service.acesso.AuditService;
+import com.dashboard.api.service.acesso.AcaoAudit;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class FiltroRateLimitApiTest {
+
+    @AfterEach
+    void limparContexto() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void limitaEndpointsDeIndicadores() throws Exception {
+        FiltroRateLimitApi filtro = filtroComLimite(1, 10);
+        autenticar("gestor@empresa.com");
+
+        MockHttpServletResponse primeiraResposta = executar(
+                filtro,
+                "/api/painel/indicadores-gestao-a-vista/performance-entrega/overview"
+        );
+        MockHttpServletResponse segundaResposta = executar(
+                filtro,
+                "/api/painel/indicadores-gestao-a-vista/performance-entrega/overview"
+        );
+
+        assertThat(primeiraResposta.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
+        assertThat(segundaResposta.getStatus()).isEqualTo(429);
+        assertThat(segundaResposta.getHeader("Retry-After")).isNotBlank();
+    }
+
+    @Test
+    void exportacaoUsaBucketProprioMaisRestrito() throws Exception {
+        FiltroRateLimitApi filtro = filtroComLimite(10, 1);
+        autenticar("gestor@empresa.com");
+
+        MockHttpServletResponse primeiraResposta = executar(filtro, "/api/painel/fretes/exportacao");
+        MockHttpServletResponse segundaResposta = executar(filtro, "/api/painel/fretes/exportacao");
+        MockHttpServletResponse chamadaNormal = executar(filtro, "/api/painel/fretes/tabela");
+
+        assertThat(primeiraResposta.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
+        assertThat(segundaResposta.getStatus()).isEqualTo(429);
+        assertThat(chamadaNormal.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
+    }
+
+    private FiltroRateLimitApi filtroComLimite(int apiMaxRequests, int exportMaxRequests) {
+        RateLimitService rateLimitService = new RateLimitService(
+                10,
+                900,
+                apiMaxRequests,
+                60,
+                exportMaxRequests,
+                60
+        );
+        return new FiltroRateLimitApi(rateLimitService, new NoopAuditService(), new IpClienteResolver(false));
+    }
+
+    private void autenticar(String principal) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, List.of())
+        );
+    }
+
+    private MockHttpServletResponse executar(FiltroRateLimitApi filtro, String path) throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+        request.setRemoteAddr("10.0.0.10");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = (servletRequest, servletResponse) ->
+                ((HttpServletResponse) servletResponse).setStatus(HttpServletResponse.SC_NO_CONTENT);
+
+        filtro.doFilter(request, response, chain);
+        return response;
+    }
+
+    private static class NoopAuditService extends AuditService {
+        NoopAuditService() {
+            super(null, new IpClienteResolver(false));
+        }
+
+        @Override
+        public void registrarSync(AcaoAudit acao, Long usuarioId, String usuarioLogin, String recurso, String detalhesJson) {
+            // no-op para teste do filtro
+        }
+    }
+}

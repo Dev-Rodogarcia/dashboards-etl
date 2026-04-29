@@ -1,0 +1,165 @@
+package com.dashboard.api.service.acesso;
+
+import com.dashboard.api.model.acesso.AuditLog;
+import com.dashboard.api.model.acesso.SetorEntity;
+import com.dashboard.api.model.acesso.UsuarioEntity;
+import com.dashboard.api.repository.acesso.AuditLogRepository;
+import com.dashboard.api.repository.acesso.RefreshTokenSessionRepository;
+import com.dashboard.api.repository.acesso.UsuarioRepository;
+import com.dashboard.api.security.GerenciadorTokenJwt;
+import com.dashboard.api.security.IpClienteResolver;
+import com.dashboard.api.repository.acesso.PermissaoRepository;
+import com.dashboard.api.repository.acesso.SetorPermissaoTemplateRepository;
+import com.dashboard.api.repository.acesso.UsuarioPapelVinculoRepository;
+import com.dashboard.api.repository.acesso.UsuarioPermissaoOverrideRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.lang.NonNull;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class AutenticacaoServiceTest {
+
+    @Mock private UsuarioRepository usuarioRepository;
+    @Mock private AuditLogRepository auditLogRepository;
+    @Mock private RefreshTokenSessionRepository refreshTokenSessionRepository;
+
+    private AutenticacaoService service;
+    private StubPermissaoResolverService permissaoResolverService;
+
+    @BeforeEach
+    void setUp() {
+        PasswordHashService passwordHashService = new PasswordHashService(
+                Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8(),
+                new BCryptPasswordEncoder()
+        );
+        AuditService auditService = new AuditService(auditLogRepository, new IpClienteResolver(false));
+        RefreshTokenService refreshTokenService = new RefreshTokenService(refreshTokenSessionRepository, 24);
+        permissaoResolverService = new StubPermissaoResolverService();
+
+        service = new AutenticacaoService(
+                usuarioRepository,
+                passwordHashService,
+                new GerenciadorTokenJwt("12345678901234567890123456789012", 15),
+                permissaoResolverService,
+                auditService,
+                new PoliticaSenhaService(),
+                refreshTokenService
+        );
+    }
+
+    @Test
+    void autenticarDeveMigrarHashBcryptValidoParaArgon2idNoMesmoLogin() {
+        BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder();
+        UsuarioEntity usuario = criarUsuarioBase();
+        usuario.setSenhaHash(bcrypt.encode("Senha@123456"));
+        usuario.setAlgoritmoHash(PasswordHashService.ALGORITMO_BCRYPT);
+
+        when(usuarioRepository.findByEmailIgnoreCase("maria@empresa.com")).thenReturn(Optional.of(usuario));
+        when(usuarioRepository.save(anyNonNull(UsuarioEntity.class))).thenReturn(usuario);
+        permissaoResolverService.permissoes = Map.of("coletas", true);
+        permissaoResolverService.papel = PermissaoResolverService.PAPEL_USUARIO_COMUM;
+        permissaoResolverService.adminPlataforma = false;
+
+        var resposta = service.autenticar("maria@empresa.com", "Senha@123456");
+
+        verify(usuarioRepository).save(anyNonNull(UsuarioEntity.class));
+
+        assertThat(resposta.token()).isNotBlank();
+        assertThat(usuario.getAlgoritmoHash()).isEqualTo(PasswordHashService.ALGORITMO_ARGON2ID);
+        assertThat(usuario.getSenhaHash()).startsWith("$argon2id");
+        assertThat(usuario.getSenhaAlteradaEm()).isNull();
+    }
+
+    @Test
+    void autenticarDeveBloquearHashLegadoEAuditarMotivoDeResetObrigatorio() {
+        UsuarioEntity usuario = criarUsuarioBase();
+        usuario.setSenhaHash("5e884898da28047151d0e56f8dc62927");
+        usuario.setAlgoritmoHash(PasswordHashService.ALGORITMO_MD5);
+
+        when(usuarioRepository.findByEmailIgnoreCase("maria@empresa.com")).thenReturn(Optional.of(usuario));
+        AtomicReference<AuditLog> auditLogSalvo = new AtomicReference<>();
+        when(auditLogRepository.save(anyNonNull(AuditLog.class))).thenAnswer(invocation -> {
+            AuditLog auditLog = Objects.requireNonNull(invocation.getArgument(0, AuditLog.class));
+            auditLogSalvo.set(auditLog);
+            return auditLog;
+        });
+
+        assertThatThrownBy(() -> service.autenticar("maria@empresa.com", "password"))
+                .isInstanceOf(CredencialInvalidaException.class)
+                .hasMessage("Usuário ou senha inválidos.");
+
+        AuditLog auditLog = Objects.requireNonNull(auditLogSalvo.get());
+        assertThat(auditLog.getAcao()).isEqualTo(AcaoAudit.LOGIN_FALHA.name());
+        assertThat(auditLog.getDetalhesJson()).contains("hash_legado_reset_obrigatorio");
+    }
+
+    private UsuarioEntity criarUsuarioBase() {
+        SetorEntity setor = new SetorEntity();
+        setor.setId(2L);
+        setor.setNome("Logística");
+        setor.setFiliaisPermitidas(java.util.Set.of("Matriz"));
+
+        UsuarioEntity usuario = new UsuarioEntity();
+        usuario.setId(10L);
+        usuario.setNome("Maria");
+        usuario.setEmail("maria@empresa.com");
+        usuario.setLogin("maria@empresa.com");
+        usuario.setAtivo(true);
+        usuario.setSetor(setor);
+        usuario.setExigeTrocaSenha(false);
+        return usuario;
+    }
+
+    @SuppressWarnings("null")
+    @NonNull
+    private static <T> T anyNonNull(Class<T> type) {
+        return any(type);
+    }
+
+    private static final class StubPermissaoResolverService extends PermissaoResolverService {
+        private java.util.Map<String, Boolean> permissoes = Map.of();
+        private String papel = PermissaoResolverService.PAPEL_USUARIO_COMUM;
+        private boolean adminPlataforma;
+
+        private StubPermissaoResolverService() {
+            super(
+                    org.mockito.Mockito.mock(PermissaoRepository.class),
+                    org.mockito.Mockito.mock(SetorPermissaoTemplateRepository.class),
+                    org.mockito.Mockito.mock(UsuarioPapelVinculoRepository.class),
+                    org.mockito.Mockito.mock(UsuarioPermissaoOverrideRepository.class),
+                    new UsuarioSupremo("supremo@empresa.com", "Senha@123456", "Supremo", "desenvolvedor", 1000, false)
+            );
+        }
+
+        @Override
+        public Map<String, Boolean> permissoesEfetivas(UsuarioEntity usuario) {
+            return permissoes;
+        }
+
+        @Override
+        public String papel(Long usuarioId) {
+            return papel;
+        }
+
+        @Override
+        public boolean ehAdminPlataforma(Long usuarioId) {
+            return adminPlataforma;
+        }
+    }
+}

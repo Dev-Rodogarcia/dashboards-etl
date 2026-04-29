@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
 interface AsyncMultiSelectProps {
@@ -20,6 +20,8 @@ export default function AsyncMultiSelect({
 }: AsyncMultiSelectProps) {
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState('');
+  const labelId = useId();
+  const valueId = useId();
   const opcoesEfetivas = opcoes;
 
   function handleOpenChange(next: boolean) {
@@ -45,39 +47,46 @@ export default function AsyncMultiSelect({
 
   return (
     <Popover open={aberto} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="min-w-[148px] cursor-pointer self-start justify-self-start rounded-[12px] border px-3 py-1.5 text-left shadow-sm
-                     transition-all duration-150 hover:border-[var(--color-primary)] active:scale-[0.97]"
-          style={{
-            backgroundColor: 'var(--color-card)',
-            borderColor: aberto ? 'var(--color-primary)' : 'var(--color-border)',
-            boxShadow: aberto ? '0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent)' : undefined,
-          }}
+      <div className="flex w-full min-w-[148px] flex-col gap-1 self-start justify-self-start md:w-auto">
+        <span
+          id={labelId}
+          className="flex min-h-4 items-center gap-1.5 text-xs font-medium leading-4"
+          style={{ color: 'var(--color-text-muted)' }}
         >
-          <span
-            className="mb-0.5 flex items-center gap-1.5 text-[11px] font-semibold leading-none"
-            style={{ color: 'var(--color-text-muted)' }}
+          {label}
+          {temSelecao && (
+            <span
+              className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
+              style={{ backgroundColor: 'var(--color-primary)' }}
+            >
+              {selecionados.length}
+            </span>
+          )}
+        </span>
+
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-labelledby={`${labelId} ${valueId}`}
+            className="h-10 w-full cursor-pointer rounded-lg border px-3 text-left text-sm shadow-sm
+                       transition-all duration-150 hover:border-[var(--color-primary)] active:scale-[0.97]
+                       focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
+            style={{
+              backgroundColor: 'var(--color-card)',
+              borderColor: aberto ? 'var(--color-primary)' : 'var(--color-border)',
+              boxShadow: aberto ? '0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent)' : undefined,
+            }}
           >
-            {label}
-            {temSelecao && (
-              <span
-                className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
-                style={{ backgroundColor: 'var(--color-primary)' }}
-              >
-                {selecionados.length}
-              </span>
-            )}
-          </span>
-          <span
-            className="block truncate text-[13px] font-medium leading-5"
-            style={{ color: temSelecao ? 'var(--color-text)' : 'var(--color-text-muted)' }}
-          >
-            {temSelecao ? `${selecionados.length} selecionado(s)` : placeholder}
-          </span>
-        </button>
-      </PopoverTrigger>
+            <span
+              id={valueId}
+              className="block truncate font-medium leading-none"
+              style={{ color: temSelecao ? 'var(--color-text)' : 'var(--color-text-muted)' }}
+            >
+              {temSelecao ? `${selecionados.length} selecionado(s)` : placeholder}
+            </span>
+          </button>
+        </PopoverTrigger>
+      </div>
 
       <PopoverContent>
         {/* Campo de busca */}

@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { buscarCotacoesGraficos, buscarCotacoesOverview, buscarCotacoesSerie, buscarCotacoesTabela } from '../../api/endpoints/cotacoesServico';
+import {
+  buscarCotacoesGraficos,
+  buscarCotacoesOverview,
+  buscarCotacoesSerie,
+  buscarCotacoesTabela,
+  buscarCotacoesTabelaPaginada,
+  buscarCotacoesTabelaTotal,
+} from '../../api/endpoints/cotacoesServico';
 import type { CotacoesFiltro } from '../../types/cotacoes';
 
 const STALE_TIME = 5 * 60 * 1000;
@@ -35,6 +42,24 @@ export function useCotacoesTabela(filtro: CotacoesFiltro, limite = 100) {
   return useQuery({
     queryKey: ['cotacoes', 'tabela', filtro, limite],
     queryFn: () => buscarCotacoesTabela(filtro, limite),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useCotacoesTabelaTotal(filtro: CotacoesFiltro) {
+  return useQuery({
+    queryKey: ['cotacoes', 'tabela-total', filtro],
+    queryFn: () => buscarCotacoesTabelaTotal(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useCotacoesTabelaPaginada(filtro: CotacoesFiltro, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['cotacoes', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarCotacoesTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
     retry: 1,
   });

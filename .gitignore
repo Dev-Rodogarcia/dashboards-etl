@@ -5,6 +5,7 @@
 !**/.env.sample
 !**/.env.*.example
 !**/.env.*.sample
+!dashboard-api/src/main/resources/.env.properties
 .envrc
 .direnv/
 **/*.local.json

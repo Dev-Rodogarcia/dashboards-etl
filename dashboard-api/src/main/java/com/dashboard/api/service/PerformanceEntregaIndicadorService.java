@@ -1,13 +1,12 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaSeriePointDTO;
 import com.dashboard.api.model.VisaoFretesEntity;
-import com.dashboard.api.model.VisaoLocalizacaoCargasEntity;
 import com.dashboard.api.repository.VisaoFretesRepository;
-import com.dashboard.api.repository.VisaoLocalizacaoCargasRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,31 +26,29 @@ import java.util.stream.Collectors;
 @Service
 public class PerformanceEntregaIndicadorService {
 
+    private static final String STATUS_FINALIZADO = "finalizado";
+
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoFretesRepository fretesRepository;
-    private final VisaoLocalizacaoCargasRepository localizacaoRepository;
     private final EscopoFilialService escopoFilialService;
     private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
 
     PerformanceEntregaIndicadorService(
             ValidadorPeriodoService validadorPeriodo,
-            VisaoFretesRepository fretesRepository,
-            VisaoLocalizacaoCargasRepository localizacaoRepository
+            VisaoFretesRepository fretesRepository
     ) {
-        this(validadorPeriodo, fretesRepository, localizacaoRepository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
+        this(validadorPeriodo, fretesRepository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
     }
 
     @Autowired
     public PerformanceEntregaIndicadorService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoFretesRepository fretesRepository,
-            VisaoLocalizacaoCargasRepository localizacaoRepository,
             EscopoFilialService escopoFilialService,
             PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.fretesRepository = fretesRepository;
-        this.localizacaoRepository = localizacaoRepository;
         this.escopoFilialService = escopoFilialService;
         this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
     }
@@ -74,15 +71,13 @@ public class PerformanceEntregaIndicadorService {
         int entregasNoPrazo = (int) registros.stream()
                 .filter(PerformanceEntregaRegistro::noPrazo)
                 .count();
-        int entregasSemDados = (int) registros.stream()
-                .filter(PerformanceEntregaRegistro::semDados)
-                .count();
+        int entregasForaDoPrazo = Math.max(totalEntregas - entregasNoPrazo, 0);
 
         return new PerformanceEntregaOverviewDTO(
                 IndicadoresGestaoMetricasUtils.latestUpdate(registros, PerformanceEntregaRegistro::updatedAt),
                 totalEntregas,
                 entregasNoPrazo,
-                entregasSemDados,
+                entregasForaDoPrazo,
                 IndicadoresGestaoMetricasUtils.percentual(entregasNoPrazo, totalEntregas)
         );
     }
@@ -92,24 +87,24 @@ public class PerformanceEntregaIndicadorService {
 
         return buscarRegistros(filtro).stream()
                 .filter(registro -> registro.dataReferencia() != null)
-                .collect(Collectors.groupingBy(registro -> IndicadoresGestaoMetricasUtils.chaveSerie(registro.dataReferencia(), registro.responsavelRegiaoDestino())))
+                .collect(Collectors.groupingBy(registro -> IndicadoresGestaoMetricasUtils.chaveSerie(registro.dataReferencia(), registro.filialPerformance())))
                 .values().stream()
                 .map(grupo -> {
                     PerformanceEntregaRegistro amostra = grupo.get(0);
                     int totalEntregas = grupo.size();
                     int entregasNoPrazo = (int) grupo.stream().filter(PerformanceEntregaRegistro::noPrazo).count();
-                    int entregasSemDados = (int) grupo.stream().filter(PerformanceEntregaRegistro::semDados).count();
+                    int entregasForaDoPrazo = Math.max(totalEntregas - entregasNoPrazo, 0);
                     return new PerformanceEntregaSeriePointDTO(
                             amostra.dataReferencia().toString(),
-                            amostra.responsavelRegiaoDestino(),
+                            amostra.filialPerformance(),
                             totalEntregas,
                             entregasNoPrazo,
-                            entregasSemDados,
+                            entregasForaDoPrazo,
                             IndicadoresGestaoMetricasUtils.percentual(entregasNoPrazo, totalEntregas)
                     );
                 })
                 .sorted(Comparator.comparing(PerformanceEntregaSeriePointDTO::date)
-                        .thenComparing(PerformanceEntregaSeriePointDTO::responsavelRegiaoDestino, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                        .thenComparing(PerformanceEntregaSeriePointDTO::filialPerformance, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
                 .toList();
     }
 
@@ -118,15 +113,15 @@ public class PerformanceEntregaIndicadorService {
         int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 100, 500);
 
         return buscarRegistros(filtro).stream()
-                .sorted(Comparator.comparing(PerformanceEntregaRegistro::dataFinalizacao, Comparator.nullsLast(Comparator.reverseOrder()))
-                        .thenComparing(PerformanceEntregaRegistro::dataFrete, Comparator.nullsLast(Comparator.reverseOrder()))
+                .sorted(Comparator.comparing(PerformanceEntregaRegistro::dataFrete, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(PerformanceEntregaRegistro::dataFinalizacao, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(PerformanceEntregaRegistro::numeroMinuta, Comparator.reverseOrder()))
                 .limit(limiteAplicado)
                 .map(registro -> new PerformanceEntregaRowDTO(
                         registro.numeroMinuta(),
                         IndicadoresGestaoMetricasUtils.formatar(registro.dataFrete()),
+                        registro.filialPerformance(),
                         registro.filialEmissora(),
-                        registro.responsavelRegiaoDestino(),
                         IndicadoresGestaoMetricasUtils.formatar(registro.previsaoEntrega()),
                         IndicadoresGestaoMetricasUtils.formatar(registro.dataFinalizacao()),
                         registro.performanceDiferencaDias(),
@@ -135,47 +130,61 @@ public class PerformanceEntregaIndicadorService {
                 .toList();
     }
 
+    public List<PerformanceEntregaRowDTO> buscarExportacao(FiltroConsultaDTO filtro) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+
+        return buscarRegistros(filtro).stream()
+                .sorted(Comparator.comparing(PerformanceEntregaRegistro::dataFrete, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(PerformanceEntregaRegistro::dataFinalizacao, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(PerformanceEntregaRegistro::numeroMinuta, Comparator.reverseOrder()))
+                .map(registro -> new PerformanceEntregaRowDTO(
+                        registro.numeroMinuta(),
+                        IndicadoresGestaoMetricasUtils.formatar(registro.dataFrete()),
+                        registro.filialPerformance(),
+                        registro.filialEmissora(),
+                        IndicadoresGestaoMetricasUtils.formatar(registro.previsaoEntrega()),
+                        IndicadoresGestaoMetricasUtils.formatar(registro.dataFinalizacao()),
+                        registro.performanceDiferencaDias(),
+                        registro.performanceStatus()
+                ))
+                .toList();
+    }
+
+    public PaginaDTO<PerformanceEntregaRowDTO> buscarTabelaPaginada(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
+        return PaginacaoListaUtils.paginar(buscarExportacao(filtro), pagina, tamanhoPagina);
+    }
+
     private List<PerformanceEntregaRegistro> buscarRegistros(FiltroConsultaDTO filtro) {
         JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         List<VisaoFretesEntity> fretes = fretesRepository.findAll(criarFretesSpecification(filtro, escopo, janela));
-        Map<Long, String> responsavelDestinoPorMinuta = localizacaoRepository.findAll(criarLocalizacaoSpecification(janela)).stream()
-                .filter(item -> item.getSequenceNumber() != null)
-                .collect(Collectors.toMap(
-                        VisaoLocalizacaoCargasEntity::getSequenceNumber,
-                        item -> primeiroTexto(
-                                item.getResponsavelRegiaoDestino(),
-                                item.getFilialDestino(),
-                                item.getFilialEmissora()
-                        ),
-                        PerformanceEntregaIndicadorService::preferirTextoMaisCompleto,
-                        LinkedHashMap::new
-                ));
-
         Map<Long, PerformanceEntregaRegistro> porMinuta = new LinkedHashMap<>();
         for (VisaoFretesEntity frete : fretes) {
             Long numeroMinuta = frete.getNumeroMinuta();
-            if (numeroMinuta == null) {
+            String performanceStatus = textoOuNulo(frete.getPerformanceStatus());
+            if (numeroMinuta == null || !statusFinalizado(frete.getStatus()) || performanceStatus == null) {
                 continue;
             }
 
             String filialEmissora = primeiroTexto(frete.getFilialEmissora(), frete.getFilialNome());
-            String responsavelRegiaoDestino = primeiroTexto(
+            String filialPerformance = primeiroTexto(
                     frete.getResponsavelRegiaoDestino(),
-                    responsavelDestinoPorMinuta.get(numeroMinuta),
                     filialEmissora
             );
+            if (!permiteFilial(escopo, filtro, filialPerformance)) {
+                continue;
+            }
 
             PerformanceEntregaRegistro registro = new PerformanceEntregaRegistro(
                     numeroMinuta,
                     frete.getDataFrete(),
                     frete.getPrevisaoEntrega(),
                     frete.getDataFinalizacao(),
-                    responsavelRegiaoDestino,
+                    filialPerformance,
                     filialEmissora,
                     frete.getPerformanceDiferencaDias(),
-                    textoOuNulo(frete.getPerformanceStatus()),
+                    performanceStatus,
                     frete.getDataExtracao()
             );
 
@@ -194,16 +203,9 @@ public class PerformanceEntregaIndicadorService {
         return ConsultaSpecificationUtils.allOf(
                 ConsultaSpecificationUtils.greaterThanOrEqualTo("dataFrete", janela.inicioInclusivo()),
                 ConsultaSpecificationUtils.lessThan("dataFrete", janela.fimExclusivo()),
-                ConsultaSpecificationUtils.escopoFiliais(escopo, "filialEmissora", "filialNome"),
-                ConsultaSpecificationUtils.filtroTextoQualquerCampo(filtro, "filiais", "filialEmissora", "filialNome")
-        );
-    }
-
-    @NonNull
-    private Specification<VisaoLocalizacaoCargasEntity> criarLocalizacaoSpecification(JanelaOffsetDateTime janela) {
-        return ConsultaSpecificationUtils.allOf(
-                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataFrete", janela.inicioInclusivo()),
-                ConsultaSpecificationUtils.lessThan("dataFrete", janela.fimExclusivo())
+                ConsultaSpecificationUtils.valoresIgnoreCase("status", List.of(STATUS_FINALIZADO)),
+                ConsultaSpecificationUtils.escopoFiliaisCoalesce(escopo, "responsavelRegiaoDestino", "filialEmissora"),
+                ConsultaSpecificationUtils.filtroTextoCoalesce(filtro, "filiais", "responsavelRegiaoDestino", "filialEmissora")
         );
     }
 
@@ -211,7 +213,21 @@ public class PerformanceEntregaIndicadorService {
             PerformanceEntregaRegistro atual,
             PerformanceEntregaRegistro candidato
     ) {
-        return pontuacao(candidato) > pontuacao(atual) ? candidato : atual;
+        int pontuacaoAtual = pontuacao(atual);
+        int pontuacaoCandidata = pontuacao(candidato);
+        if (pontuacaoCandidata > pontuacaoAtual) {
+            return candidato;
+        }
+        if (pontuacaoCandidata < pontuacaoAtual) {
+            return atual;
+        }
+        if (atual.updatedAt() == null) {
+            return candidato;
+        }
+        if (candidato.updatedAt() == null) {
+            return atual;
+        }
+        return candidato.updatedAt().isAfter(atual.updatedAt()) ? candidato : atual;
     }
 
     private int pontuacao(PerformanceEntregaRegistro registro) {
@@ -222,7 +238,7 @@ public class PerformanceEntregaIndicadorService {
         if (registro.performanceStatus() != null) {
             score += 3;
         }
-        if (registro.responsavelRegiaoDestino() != null) {
+        if (registro.filialPerformance() != null) {
             score += 2;
         }
         if (registro.updatedAt() != null) {
@@ -231,14 +247,18 @@ public class PerformanceEntregaIndicadorService {
         return score;
     }
 
-    private static String preferirTextoMaisCompleto(String atual, String candidato) {
-        if (atual == null || atual.isBlank()) {
-            return candidato;
-        }
-        if (candidato == null || candidato.isBlank()) {
-            return atual;
-        }
-        return candidato.length() > atual.length() ? candidato : atual;
+    private boolean permiteFilial(
+            EscopoFilialService.EscopoFilial escopo,
+            FiltroConsultaDTO filtro,
+            String filialPerformance
+    ) {
+        return filialPerformance != null
+                && escopo.permiteAlgumaFilial(filialPerformance)
+                && filtro.corresponde("filiais", filialPerformance);
+    }
+
+    private static boolean statusFinalizado(String status) {
+        return status != null && STATUS_FINALIZADO.equalsIgnoreCase(status.trim());
     }
 
     private static String primeiroTexto(String... valores) {
@@ -268,25 +288,18 @@ public class PerformanceEntregaIndicadorService {
             OffsetDateTime dataFrete,
             LocalDate previsaoEntrega,
             LocalDate dataFinalizacao,
-            String responsavelRegiaoDestino,
+            String filialPerformance,
             String filialEmissora,
             Integer performanceDiferencaDias,
             String performanceStatus,
             LocalDateTime updatedAt
     ) {
         private LocalDate dataReferencia() {
-            if (dataFinalizacao != null) {
-                return dataFinalizacao;
-            }
             return dataFrete != null ? dataFrete.toLocalDate() : null;
         }
 
         private boolean noPrazo() {
             return "NO PRAZO".equalsIgnoreCase(performanceStatus);
-        }
-
-        private boolean semDados() {
-            return performanceStatus == null || performanceStatus.isBlank();
         }
     }
 }

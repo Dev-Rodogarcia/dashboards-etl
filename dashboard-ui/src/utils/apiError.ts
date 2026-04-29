@@ -7,7 +7,26 @@ type RespostaErroBackend = {
   mensagem?: unknown;
   // Formato padrão do Spring Boot (BasicErrorController)
   message?: unknown;
+  erro?: unknown;
+  status?: unknown;
 };
+
+function errorCodeIndicaTimeout(error: AxiosError): boolean {
+  return error.code === 'ECONNABORTED' || error.message.toLowerCase().includes('timeout');
+}
+
+function formatarRetryAfter(segundos: number): string {
+  if (!Number.isFinite(segundos) || segundos <= 0) {
+    return 'alguns instantes';
+  }
+
+  if (segundos < 60) {
+    return `${segundos} segundo${segundos === 1 ? '' : 's'}`;
+  }
+
+  const minutos = Math.ceil(segundos / 60);
+  return `${minutos} minuto${minutos === 1 ? '' : 's'}`;
+}
 
 export function getApiErrorMessage(error: unknown, fallback = 'Não foi possível concluir a operação.'): string {
   if (error instanceof SessaoTemporariamenteIndisponivelError) {
@@ -20,6 +39,19 @@ export function getApiErrorMessage(error: unknown, fallback = 'Não foi possíve
 
   if (error instanceof AxiosError) {
     const data = error.response?.data as RespostaErroBackend | undefined;
+    const status = error.response?.status;
+    const retryAfterHeader = error.response?.headers?.['retry-after'];
+    const retryAfterSeconds = Number(retryAfterHeader);
+
+    if (status === 429) {
+      return Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+        ? `Muitas tentativas de autenticação. Aguarde ${formatarRetryAfter(retryAfterSeconds)} e tente novamente.`
+        : 'Muitas tentativas de autenticação. Aguarde alguns instantes e tente novamente.';
+    }
+
+    if (status === 408 || status === 504 || errorCodeIndicaTimeout(error)) {
+      return 'A autenticação demorou mais do que o esperado. Verifique a conexão com a API e tente novamente.';
+    }
 
     // Tenta o campo "mensagem" (formato do nosso ManipuladorGlobalExcecoes)
     if (typeof data?.mensagem === 'string' && data.mensagem.trim()) {
@@ -58,6 +90,7 @@ export function getTipoErro(error: unknown): TipoErro {
   }
 
   if (error instanceof AxiosError) {
+    if (errorCodeIndicaTimeout(error)) return 'timeout';
     if (!error.response || error.code === 'ERR_NETWORK') return 'indisponivel';
     const status = error.response.status;
     if (status === 400) return 'periodo';

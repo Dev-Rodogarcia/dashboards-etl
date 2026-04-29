@@ -335,11 +335,16 @@ export default function TopNav() {
     const toggle = desktopNavToggleMeasureRef.current;
 
     if (!shell || !measure || desktopNavMeasurementKey.length === 0) {
-      setDesktopNavHasOverflow(false);
-      setDesktopNavItemWidths({});
-      setDesktopNavToggleWidth(0);
-      setDesktopNavCollapsedWidth(0);
-      return;
+      const frame = window.requestAnimationFrame(() => {
+        setDesktopNavHasOverflow(false);
+        setDesktopNavItemWidths({});
+        setDesktopNavToggleWidth(0);
+        setDesktopNavCollapsedWidth(0);
+      });
+
+      return () => {
+        window.cancelAnimationFrame(frame);
+      };
     }
 
     const shellElement = shell;

@@ -46,9 +46,18 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-gray-500">
             Controle de acesso por setor com área administrativa.
           </p>
+          {carregandoSessao && (
+            <p className="mt-2 text-xs text-amber-700">
+              Validando a sessão salva nesta aba...
+            </p>
+          )}
         </div>
 
-        {erro && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+        {erro && (
+          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {erro}
+          </p>
+        )}
 
         <label className="space-y-1">
           <span className="text-sm font-medium text-gray-700">E-mail</span>
@@ -79,6 +88,12 @@ export default function LoginPage() {
         >
           {carregando ? 'Entrando...' : 'Entrar'}
         </button>
+
+        {carregando && (
+          <p className="text-xs text-gray-500">
+            Validando credenciais e preparando a sessão...
+          </p>
+        )}
       </form>
     </div>
   );

@@ -2,10 +2,10 @@ package com.dashboard.api.dto.indicadoresgestao;
 
 public record PerformanceEntregaSeriePointDTO(
         String date,
-        String responsavelRegiaoDestino,
+        String filialPerformance,
         int totalEntregas,
         int entregasNoPrazo,
-        int entregasSemDados,
+        int entregasForaDoPrazo,
         double pctNoPrazo
 ) {
 }

@@ -39,6 +39,10 @@ public class PeriodoOffsetDateTimeHelper {
         OffsetDateTime fimExclusivo = dataFim.plusDays(1).atStartOfDay(zoneId).toOffsetDateTime();
         return new JanelaOffsetDateTime(inicioInclusivo, fimExclusivo);
     }
+
+    LocalDate hoje() {
+        return LocalDate.now(zoneId);
+    }
 }
 
 record JanelaOffsetDateTime(

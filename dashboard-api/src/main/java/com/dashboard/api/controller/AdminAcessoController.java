@@ -101,13 +101,20 @@ public class AdminAcessoController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/usuarios/{usuarioId}/hard-delete")
+    @PreAuthorize("@acessoSeguranca.podeExcluirUsuario()")
+    public ResponseEntity<Void> excluirUsuarioDefinitivamente(@PathVariable Long usuarioId) {
+        gestaoUsuarioService.excluirUsuarioDefinitivamente(usuarioId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/papeis")
     public List<PapelDTO> papeis() {
         return gestaoUsuarioService.listarPapeisDisponiveis();
     }
 
     @GetMapping("/audit-logs")
-    @PreAuthorize("@acessoSeguranca.possuiPapel('admin_plataforma')")
+    @PreAuthorize("@acessoSeguranca.ehAdminPlataformaOuDesenvolvedor()")
     public ResponseEntity<?> auditLogs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,

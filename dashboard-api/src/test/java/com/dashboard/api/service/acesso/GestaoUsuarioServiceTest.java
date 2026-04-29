@@ -16,6 +16,7 @@ import com.dashboard.api.repository.acesso.SetorPermissaoTemplateRepository;
 import com.dashboard.api.repository.acesso.UsuarioPapelVinculoRepository;
 import com.dashboard.api.repository.acesso.UsuarioPermissaoOverrideRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
+import com.dashboard.api.security.IpClienteResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,8 +25,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Objects;
@@ -53,27 +55,34 @@ class GestaoUsuarioServiceTest {
     @Mock private UsuarioPermissaoOverrideRepository overrideRepository;
     @Mock private PermissaoRepository permissaoRepository;
     @Mock private SetorPermissaoTemplateRepository templateRepository;
-    @Mock private PasswordEncoder passwordEncoder;
     @Mock private AuditLogRepository auditLogRepository;
     @Mock private RefreshTokenSessionRepository refreshTokenSessionRepository;
+    @Mock private UsuarioDependenciaCleanup dependenciaCleanupService;
 
     private GestaoUsuarioService service;
     private PermissaoResolverService permissaoResolver;
     private AuditService auditService;
     private PoliticaSenhaService politicaSenhaService;
     private RefreshTokenService refreshTokenService;
+    private UsuarioSupremo usuarioSupremo;
 
     @BeforeEach
     void setUp() {
+        usuarioSupremo = new UsuarioSupremo("supremo@empresa.com", "Senha@123456", "Supremo", "desenvolvedor", 1000, false);
         permissaoResolver = new PermissaoResolverService(
                 permissaoRepository,
                 templateRepository,
                 papelVinculoRepository,
-                overrideRepository
+                overrideRepository,
+                usuarioSupremo
         );
-        auditService = new AuditService(auditLogRepository, false);
+        auditService = new AuditService(auditLogRepository, new IpClienteResolver(false));
         politicaSenhaService = new PoliticaSenhaService();
-        refreshTokenService = new RefreshTokenService(refreshTokenSessionRepository, 30);
+        refreshTokenService = new RefreshTokenService(refreshTokenSessionRepository, 24);
+        PasswordHashService passwordHashService = new PasswordHashService(
+                Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8(),
+                new BCryptPasswordEncoder()
+        );
 
         service = new GestaoUsuarioService(
                 usuarioRepository,
@@ -82,11 +91,13 @@ class GestaoUsuarioServiceTest {
                 papelVinculoRepository,
                 overrideRepository,
                 permissaoRepository,
-                passwordEncoder,
+                passwordHashService,
                 permissaoResolver,
                 auditService,
                 politicaSenhaService,
-                refreshTokenService
+                refreshTokenService,
+                dependenciaCleanupService,
+                usuarioSupremo
         );
     }
 
@@ -312,6 +323,71 @@ class GestaoUsuarioServiceTest {
         assertFalse(foiChamado(overrideRepository, "deleteAllByUsuarioId"));
         assertFalse(foiChamado(overrideRepository, "flush"));
         assertFalse(foiChamado(overrideRepository, "save"));
+    }
+
+    @Test
+    void adminPlataformaPodeExcluirUsuarioDefinitivamenteComLimpezaDeDependencias() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("admin@empresa.com", null, List.of())
+        );
+
+        UsuarioEntity operador = new UsuarioEntity();
+        operador.setId(99L);
+        operador.setEmail("admin@empresa.com");
+        operador.setLogin("admin@empresa.com");
+        operador.setAtivo(true);
+
+        UsuarioEntity alvo = new UsuarioEntity();
+        alvo.setId(2L);
+        alvo.setEmail("alvo@empresa.com");
+        alvo.setLogin("alvo@empresa.com");
+        alvo.setAtivo(true);
+
+        when(usuarioRepository.findByEmailIgnoreCase("admin@empresa.com")).thenReturn(Optional.of(operador));
+        when(papelVinculoRepository.findAllByUsuarioId(99L))
+                .thenReturn(List.of(criarVinculo(criarPapel(PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA, 100))));
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(alvo));
+
+        service.excluirUsuarioDefinitivamente(2L);
+
+        verify(dependenciaCleanupService).limparDependencias(2L);
+        verify(usuarioRepository).delete(alvo);
+    }
+
+    @Test
+    void usuarioSupremoNaoPodeSerInativado() {
+        UsuarioEntity supremo = new UsuarioEntity();
+        supremo.setId(1L);
+        supremo.setEmail(usuarioSupremo.email());
+        supremo.setLogin(usuarioSupremo.email());
+        supremo.setAtivo(true);
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(supremo));
+
+        assertThrows(AccessDeniedException.class, () -> service.inativarUsuario(1L));
+
+        verify(usuarioRepository, never()).save(supremo);
+    }
+
+    @Test
+    void desenvolvedorNaoPodeExcluirASiMesmo() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(usuarioSupremo.email(), null, List.of())
+        );
+
+        UsuarioEntity operador = new UsuarioEntity();
+        operador.setId(1L);
+        operador.setEmail(usuarioSupremo.email());
+        operador.setLogin(usuarioSupremo.email());
+        operador.setAtivo(true);
+
+        when(usuarioRepository.findByEmailIgnoreCase(usuarioSupremo.email())).thenReturn(Optional.of(operador));
+        when(papelVinculoRepository.findAllByUsuarioId(1L))
+                .thenReturn(List.of(criarVinculo(criarPapel(usuarioSupremo.papel(), 1000))));
+
+        assertThrows(AccessDeniedException.class, () -> service.excluirUsuarioDefinitivamente(1L));
+
+        verify(dependenciaCleanupService, never()).limparDependencias(1L);
     }
 
     private ContextoAtualizacao prepararContextoAtualizacao(String papelSolicitadoNome) {

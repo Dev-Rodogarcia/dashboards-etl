@@ -5,6 +5,8 @@ import {
   buscarFretesOverview,
   buscarFretesSerie,
   buscarFretesTabela,
+  buscarFretesTabelaPaginada,
+  buscarFretesTabelaTotal,
   buscarFretesTopClientes,
 } from '../../api/endpoints/fretesServico';
 import type { FretesFiltro } from '../../types/fretes';
@@ -60,6 +62,24 @@ export function useFretesTabela(filtro: FretesFiltro, limite = 100) {
   return useQuery({
     queryKey: ['fretes', 'tabela', filtro, limite],
     queryFn: () => buscarFretesTabela(filtro, limite),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFretesTabelaTotal(filtro: FretesFiltro) {
+  return useQuery({
+    queryKey: ['fretes', 'tabela-total', filtro],
+    queryFn: () => buscarFretesTabelaTotal(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFretesTabelaPaginada(filtro: FretesFiltro, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['fretes', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarFretesTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
     retry: 1,
   });

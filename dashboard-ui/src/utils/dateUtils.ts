@@ -42,7 +42,7 @@ export function adicionarDias(data: string, dias: number): string {
 export function normalizarPeriodo(
   dataInicio: string,
   dataFim: string,
-  maxDias = 366,
+  maxDias = 365,
 ): { dataInicio: string; dataFim: string } {
   if (!dataInicio || !dataFim) return { dataInicio, dataFim };
   if (dataInicio > dataFim) return { dataInicio: dataFim, dataFim: dataInicio };

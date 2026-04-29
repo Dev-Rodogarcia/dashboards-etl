@@ -1,5 +1,8 @@
 import clienteAxios from '../clienteAxios';
+import { baixarExcel } from '../downloadExcel';
+import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
+import type { PaginacaoResponse } from '../../types/common';
 import type {
   FaturasAgingBucket,
   FaturasClienteTop,
@@ -67,4 +70,27 @@ export async function buscarFaturasTabela(
   params.set('limite', String(limite));
   const { data } = await clienteAxios.get<FaturaResumoRow[]>('/api/painel/faturas/tabela', { params });
   return data;
+}
+
+export async function buscarFaturasTabelaTotal(filtro: FaturasFiltro): Promise<number> {
+  const { data } = await clienteAxios.get<{ total: number }>('/api/painel/faturas/tabela/total', {
+    params: montarQueryParams(filtro),
+  });
+  return data.total;
+}
+
+export async function buscarFaturasTabelaPaginada(
+  filtro: FaturasFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+): Promise<PaginacaoResponse<FaturaResumoRow>> {
+  return buscarTabelaPaginada('/api/painel/faturas/tabela/paginada', filtro, pagina, tamanhoPagina);
+}
+
+export async function exportarFaturasProcessosExcel(filtro: FaturasFiltro): Promise<void> {
+  await baixarExcel('/api/painel/faturas/exportacao', filtro, 'faturas-processos');
+}
+
+export async function exportarFaturasFinanceirasExcel(filtro: FaturasFiltro): Promise<void> {
+  await baixarExcel('/api/painel/faturas/exportacao-financeira', filtro, 'faturas-titulos-financeiros');
 }

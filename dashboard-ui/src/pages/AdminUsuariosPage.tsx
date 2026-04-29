@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import PermissionOverrideMatrix from '../components/admin/PermissionOverrideMatrix';
+import UsuariosImportacaoModal from '../components/admin/UsuariosImportacaoModal';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import {
   useAtualizarUsuario,
   useCatalogoPermissoes,
   useCriarUsuario,
+  useExcluirUsuarioDefinitivamente,
   useExcluirUsuario,
   usePapeisAdmin,
   useSetoresAdmin,
@@ -24,9 +26,11 @@ import {
   createEmptyPermissionMap,
   createEmptyPermissionOverrideState,
   PAPEL_ADMIN_PLATAFORMA,
+  PAPEL_DESENVOLVEDOR,
   permissionSummary,
 } from '../utils/accessControl';
 import { getApiErrorMessage } from '../utils/apiError';
+import { getPasswordPolicyErrors, PASSWORD_POLICY_HINT } from '../utils/passwordPolicy';
 
 interface UsuarioRow extends UsuarioAdmin {
   acoes: string;
@@ -34,6 +38,7 @@ interface UsuarioRow extends UsuarioAdmin {
   permissoesResumo: string;
   negacoesResumo: string;
   filiaisResumo: string;
+  senhaResumo: string;
 }
 
 const FORM_INICIAL: UsuarioPayload = {
@@ -84,6 +89,62 @@ const INACTIVE_BADGE_STYLE = {
   backgroundColor: 'color-mix(in srgb, #ef4444 14%, var(--color-card))',
   color: 'color-mix(in srgb, #ef4444 72%, var(--color-text))',
 };
+
+const PASSWORD_STATUS_STYLE = {
+  segura: {
+    backgroundColor: 'color-mix(in srgb, #10b981 14%, var(--color-card))',
+    color: 'color-mix(in srgb, #10b981 74%, var(--color-text))',
+  },
+  migrar_no_login: {
+    backgroundColor: 'color-mix(in srgb, #f59e0b 14%, var(--color-card))',
+    color: 'color-mix(in srgb, #b45309 72%, var(--color-text))',
+  },
+  reset_obrigatorio: {
+    backgroundColor: 'color-mix(in srgb, #ef4444 14%, var(--color-card))',
+    color: 'color-mix(in srgb, #b91c1c 76%, var(--color-text))',
+  },
+} as const;
+
+function formatPasswordStatus(status: UsuarioAdmin['statusSenha']): string {
+  switch (status) {
+    case 'segura':
+      return 'Segura';
+    case 'migrar_no_login':
+      return 'Migrar no login';
+    case 'reset_obrigatorio':
+      return 'Reset obrigatório';
+    default:
+      return status;
+  }
+}
+
+function renderPasswordStatusBadge(status: UsuarioAdmin['statusSenha'], algoritmo: string) {
+  const style = PASSWORD_STATUS_STYLE[status];
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="inline-flex w-fit rounded-full px-2 py-1 text-xs font-medium" style={style}>
+        {formatPasswordStatus(status)}
+      </span>
+      <span className="text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
+        Hash: {algoritmo}
+      </span>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, accent }: { label: string; value: number; accent: string }) {
+  return (
+    <div className="rounded-2xl border px-4 py-3" style={SURFACE_STYLE}>
+      <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
+        {label}
+      </div>
+      <div className="mt-1 text-2xl font-bold" style={{ color: accent }}>
+        {value}
+      </div>
+    </div>
+  );
+}
 
 function formatRoleName(nome: string): string {
   return nome
@@ -232,13 +293,19 @@ function renderMobileAccessCell(row: UsuarioRow) {
           </span>
           <span style={{ color: 'var(--color-text)' }}>{row.negacoesResumo || 'Nenhuma'}</span>
         </div>
+        <div>
+          <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
+            Senha
+          </span>
+          {renderPasswordStatusBadge(row.statusSenha, row.algoritmoSenha)}
+        </div>
       </div>
     </div>
   );
 }
 
 export default function AdminUsuariosPage() {
-  const { isAdminPlataforma } = usePermissions();
+  const { canHardDeleteUsers, isAdminPlataforma, isDesenvolvedor } = usePermissions();
   const catalogo = useCatalogoPermissoes();
   const papeis = usePapeisAdmin();
   const setores = useSetoresAdmin();
@@ -246,12 +313,22 @@ export default function AdminUsuariosPage() {
   const criarUsuario = useCriarUsuario();
   const atualizarUsuario = useAtualizarUsuario();
   const excluirUsuario = useExcluirUsuario();
+  const excluirUsuarioDefinitivamente = useExcluirUsuarioDefinitivamente();
 
   const [editing, setEditing] = useState<UsuarioAdmin | null>(null);
   const [form, setForm] = useState<UsuarioPayload>(FORM_INICIAL);
   const [erro, setErro] = useState('');
   const [overrideState, setOverrideState] = useState<PermissionOverrideStateMap>(createEmptyPermissionOverrideState());
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [usuarioParaExcluir, setUsuarioParaExcluir] = useState<UsuarioAdmin | null>(null);
+  const [confirmacaoExclusao, setConfirmacaoExclusao] = useState('');
   const isMobileUsersTable = useIsMobileUsersTable();
+  const podeOperarPapelElevado = isAdminPlataforma || isDesenvolvedor;
+  const senhaEmEdicao = form.senha ?? '';
+  const senhaPolicyErrors = useMemo(
+    () => (senhaEmEdicao.trim() ? getPasswordPolicyErrors(senhaEmEdicao) : []),
+    [senhaEmEdicao],
+  );
 
   const setorSelecionado = useMemo(
     () => (setores.data ?? []).find((setor) => setor.id === form.setorId) ?? null,
@@ -304,10 +381,27 @@ export default function AdminUsuariosPage() {
           .map((chave) => catalogo.data?.find((item) => item.chave === chave)?.nome ?? chave)
           .join(', '),
         filiaisResumo: usuario.filiaisPermitidasEfetivas.join(', '),
+        senhaResumo: `${formatPasswordStatus(usuario.statusSenha)} • ${usuario.algoritmoSenha}`,
         acoes: usuario.id,
       })),
     [catalogo.data, papeis.data, usuarios.data],
   );
+
+  const resumoStatusSenha = useMemo(() => {
+    return linhas.reduce(
+      (acc, usuario) => {
+        acc.total += 1;
+        acc[usuario.statusSenha] += 1;
+        return acc;
+      },
+      {
+        total: 0,
+        segura: 0,
+        migrar_no_login: 0,
+        reset_obrigatorio: 0,
+      },
+    );
+  }, [linhas]);
 
   function resetForm() {
     setEditing(null);
@@ -337,6 +431,14 @@ export default function AdminUsuariosPage() {
     event.preventDefault();
     setErro('');
 
+    if (form.senha?.trim()) {
+      const errors = getPasswordPolicyErrors(form.senha);
+      if (errors.length > 0) {
+        setErro(errors[0]);
+        return;
+      }
+    }
+
     const payload: UsuarioPayload = {
       ...form,
       senha: form.senha?.trim() ? form.senha : undefined,
@@ -358,12 +460,36 @@ export default function AdminUsuariosPage() {
     }
   }
 
-  async function handleDelete(usuario: UsuarioAdmin) {
+  async function handleInativar(usuario: UsuarioAdmin) {
     if (!window.confirm(`Inativar o usuário "${usuario.email}"?`)) return;
 
     try {
       await excluirUsuario.mutateAsync(usuario.id);
       if (editing?.id === usuario.id) resetForm();
+    } catch (error) {
+      setErro(getApiErrorMessage(error));
+    }
+  }
+
+  function abrirModalExclusao(usuario: UsuarioAdmin) {
+    setErro('');
+    setConfirmacaoExclusao('');
+    setUsuarioParaExcluir(usuario);
+  }
+
+  function fecharModalExclusao() {
+    if (excluirUsuarioDefinitivamente.isPending) return;
+    setUsuarioParaExcluir(null);
+    setConfirmacaoExclusao('');
+  }
+
+  async function confirmarExclusaoDefinitiva() {
+    if (!usuarioParaExcluir || confirmacaoExclusao !== 'EXCLUIR') return;
+
+    try {
+      await excluirUsuarioDefinitivamente.mutateAsync(usuarioParaExcluir.id);
+      if (editing?.id === usuarioParaExcluir.id) resetForm();
+      fecharModalExclusao();
     } catch (error) {
       setErro(getApiErrorMessage(error));
     }
@@ -376,10 +502,12 @@ export default function AdminUsuariosPage() {
     || setores.isLoading;
 
   function renderActionButtons(row: UsuarioRow, compacto = false) {
-    const bloqueado = !isAdminPlataforma && row.papel !== 'usuario_comum';
+    const usuarioSupremo = row.papel === PAPEL_DESENVOLVEDOR;
+    const bloqueado = usuarioSupremo || (!podeOperarPapelElevado && row.papel !== 'usuario_comum');
+    const podeExcluirDefinitivamente = canHardDeleteUsers && !usuarioSupremo;
 
     return (
-      <div className={compacto ? 'flex min-w-[8.5rem] flex-col gap-2' : 'flex gap-2'}>
+      <div className={compacto ? 'flex min-w-[8.5rem] flex-col gap-2' : 'flex flex-wrap gap-2'}>
         <button
           type="button"
           onClick={() => startEdit(row)}
@@ -391,13 +519,28 @@ export default function AdminUsuariosPage() {
         </button>
         <button
           type="button"
-          onClick={() => handleDelete(row)}
+          onClick={() => handleInativar(row)}
           disabled={bloqueado}
           className={`rounded-lg border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40 ${compacto ? 'w-full text-center' : ''}`}
           style={EDIT_DANGER_STYLE}
         >
           Inativar
         </button>
+        {podeExcluirDefinitivamente && (
+          <button
+            type="button"
+            onClick={() => abrirModalExclusao(row)}
+            disabled={excluirUsuarioDefinitivamente.isPending}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${compacto ? 'w-full text-center' : ''}`}
+            style={{
+              backgroundColor: 'color-mix(in srgb, #dc2626 12%, var(--color-card))',
+              borderColor: 'color-mix(in srgb, #dc2626 42%, var(--color-border))',
+              color: 'color-mix(in srgb, #dc2626 86%, var(--color-text))',
+            }}
+          >
+            Excluir
+          </button>
+        )}
       </div>
     );
   }
@@ -415,6 +558,13 @@ export default function AdminUsuariosPage() {
       chave: 'ativo',
       label: 'Ativo',
       formato: (valor) => renderStatusBadge(Boolean(valor)),
+    },
+    {
+      chave: 'senhaResumo',
+      label: 'Senha',
+      largura: '180px',
+      ordenavel: false,
+      formato: (_, row) => renderPasswordStatusBadge(row.statusSenha, row.algoritmoSenha),
     },
     {
       chave: 'filiaisResumo',
@@ -465,11 +615,29 @@ export default function AdminUsuariosPage() {
   return (
     <div className="space-y-6">
       <section className="rounded-3xl border p-6 shadow-sm" style={SURFACE_STYLE}>
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Gestão de usuários</h1>
-          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
-            O usuário herda o acesso do setor e pode receber apenas negações individuais de dashboard.
-          </p>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Gestão de usuários</h1>
+            <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
+              O usuário herda o acesso do setor, pode receber apenas negações individuais e agora também suporta importação guiada via Excel.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsImportModalOpen(true)}
+            className="rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--color-primary)' }}
+          >
+            Importar usuários (Excel)
+          </button>
+        </div>
+
+        <div className="mb-6 grid gap-4 md:grid-cols-4">
+          <SummaryCard label="Usuários monitorados" value={resumoStatusSenha.total} accent="var(--color-text)" />
+          <SummaryCard label="Hash seguro" value={resumoStatusSenha.segura} accent="#10b981" />
+          <SummaryCard label="Migra no login" value={resumoStatusSenha.migrar_no_login} accent="#f59e0b" />
+          <SummaryCard label="Reset obrigatório" value={resumoStatusSenha.reset_obrigatorio} accent="#ef4444" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -507,8 +675,12 @@ export default function AdminUsuariosPage() {
                 onChange={(e) => setForm((atual) => ({ ...atual, senha: e.target.value }))}
                 className="w-full rounded-xl border px-3 py-2.5"
                 style={FIELD_STYLE}
+                minLength={12}
                 required={!editing}
               />
+              <span className="text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
+                {PASSWORD_POLICY_HINT}
+              </span>
             </label>
 
             <label className="space-y-1">
@@ -521,6 +693,7 @@ export default function AdminUsuariosPage() {
                 onChange={(e) => setForm((atual) => ({ ...atual, confirmacaoSenha: e.target.value }))}
                 className="w-full rounded-xl border px-3 py-2.5"
                 style={FIELD_STYLE}
+                minLength={12}
                 required={!editing}
               />
             </label>
@@ -559,6 +732,19 @@ export default function AdminUsuariosPage() {
               </p>
             </div>
           </div>
+
+          {senhaPolicyErrors.length > 0 && (
+            <div
+              className="rounded-2xl border px-4 py-3 text-sm"
+              style={{
+                backgroundColor: 'color-mix(in srgb, #f59e0b 10%, var(--color-card))',
+                borderColor: 'color-mix(in srgb, #f59e0b 28%, var(--color-border))',
+                color: 'color-mix(in srgb, #b45309 72%, var(--color-text))',
+              }}
+            >
+              {senhaPolicyErrors[0]}
+            </div>
+          )}
 
           <div className="space-y-3">
             <div>
@@ -690,6 +876,55 @@ export default function AdminUsuariosPage() {
         isLoading={usuarios.isLoading}
         colunas={isMobileUsersTable ? colunasUsuariosMobile : colunasUsuariosDesktop}
       />
+
+      {usuarioParaExcluir && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-lg rounded-2xl border p-5 shadow-xl" style={SURFACE_STYLE}>
+            <div className="space-y-2">
+              <h2 className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>Excluir usuário</h2>
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-subtle)' }}>
+                Esta ação remove definitivamente a conta de {usuarioParaExcluir.email} e limpa vínculos de acesso, sessões e referências dependentes.
+              </p>
+            </div>
+
+            <label className="mt-5 block space-y-2">
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                Digite EXCLUIR para confirmar
+              </span>
+              <input
+                value={confirmacaoExclusao}
+                onChange={(event) => setConfirmacaoExclusao(event.target.value)}
+                className="w-full rounded-xl border px-3 py-2.5 font-mono"
+                style={FIELD_STYLE}
+                autoFocus
+              />
+            </label>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={fecharModalExclusao}
+                disabled={excluirUsuarioDefinitivamente.isPending}
+                className="rounded-xl border px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                style={SECONDARY_BUTTON_STYLE}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarExclusaoDefinitiva}
+                disabled={confirmacaoExclusao !== 'EXCLUIR' || excluirUsuarioDefinitivamente.isPending}
+                className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ backgroundColor: '#dc2626' }}
+              >
+                Excluir definitivamente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <UsuariosImportacaoModal open={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ public record CubagemMercadoriasRowDTO(
         String dataFrete,
         String filialEmissora,
         String pagador,
+        String remetenteDocumento,
         String destino,
         BigDecimal pesoTaxado,
         BigDecimal pesoReal,

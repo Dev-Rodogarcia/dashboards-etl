@@ -1,5 +1,8 @@
 import clienteAxios from '../clienteAxios';
+import { baixarExcel } from '../downloadExcel';
+import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
+import type { PaginacaoResponse } from '../../types/common';
 import type { ManifestoResumoRow, ManifestosCharts, ManifestosFiltro, ManifestosOverview, ManifestosTrendPoint } from '../../types/manifestos';
 
 export async function buscarManifestosOverview(filtro: ManifestosFiltro): Promise<ManifestosOverview> {
@@ -31,4 +34,23 @@ export async function buscarManifestosTabela(
   params.set('limite', String(limite));
   const { data } = await clienteAxios.get<ManifestoResumoRow[]>('/api/painel/manifestos/tabela', { params });
   return data;
+}
+
+export async function buscarManifestosTabelaTotal(filtro: ManifestosFiltro): Promise<number> {
+  const { data } = await clienteAxios.get<{ total: number }>('/api/painel/manifestos/tabela/total', {
+    params: montarQueryParams(filtro),
+  });
+  return data.total;
+}
+
+export async function buscarManifestosTabelaPaginada(
+  filtro: ManifestosFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+): Promise<PaginacaoResponse<ManifestoResumoRow>> {
+  return buscarTabelaPaginada('/api/painel/manifestos/tabela/paginada', filtro, pagina, tamanhoPagina);
+}
+
+export async function exportarManifestosExcel(filtro: ManifestosFiltro): Promise<void> {
+  await baixarExcel('/api/painel/manifestos/exportacao', filtro, 'manifestos');
 }

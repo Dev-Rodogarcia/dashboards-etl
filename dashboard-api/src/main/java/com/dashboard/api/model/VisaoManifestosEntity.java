@@ -99,8 +99,14 @@ public class VisaoManifestosEntity {
     @Column(name = "[Tipo de carga]")
     private String tipoCarga;
 
+    @Column(name = "[Leitura Móvel/Em]")
+    private OffsetDateTime leituraMovelEm;
+
     @Column(name = "[Itens/Total]")
     private Integer itensTotal;
+
+    @Column(name = "[Itens/Finalizados]")
+    private Integer itensFinalizados;
 
     @Column(name = "[Local de Descarregamento]")
     private String localDescarregamento;
@@ -231,8 +237,16 @@ public class VisaoManifestosEntity {
         return tipoCarga;
     }
 
+    public OffsetDateTime getLeituraMovelEm() {
+        return leituraMovelEm;
+    }
+
     public Integer getItensTotal() {
         return itensTotal;
+    }
+
+    public Integer getItensFinalizados() {
+        return itensFinalizados;
     }
 
     public String getLocalDescarregamento() {

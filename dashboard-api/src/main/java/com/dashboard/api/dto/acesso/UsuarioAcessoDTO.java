@@ -14,6 +14,8 @@ public record UsuarioAcessoDTO(
         Map<String, Boolean> permissoesEfetivas,
         List<String> filiaisPermitidasEfetivas,
         List<String> permissoesNegadas,
-        List<String> permissoesConcedidas
+        List<String> permissoesConcedidas,
+        String statusSenha,
+        String algoritmoSenha
 ) {
 }

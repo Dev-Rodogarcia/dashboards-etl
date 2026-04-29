@@ -2,30 +2,31 @@ export interface IndicadoresGestaoVistaFiltro {
   dataInicio: string;
   dataFim: string;
   filiais?: string[];
+  classificacoes?: string[];
 }
 
 export interface PerformanceEntregaOverview {
   updatedAt: string;
   totalEntregas: number;
   entregasNoPrazo: number;
-  entregasSemDados: number;
+  entregasForaDoPrazo: number;
   pctNoPrazo: number;
 }
 
 export interface PerformanceEntregaSeriePoint {
   date: string | null;
-  responsavelRegiaoDestino: string | null;
+  filialPerformance: string | null;
   totalEntregas: number;
   entregasNoPrazo: number;
-  entregasSemDados: number;
+  entregasForaDoPrazo: number;
   pctNoPrazo: number;
 }
 
 export interface PerformanceEntregaRow {
   numeroMinuta: number;
   dataFrete: string | null;
+  filialPerformance: string | null;
   filialEmissora: string | null;
-  responsavelRegiaoDestino: string | null;
   previsaoEntrega: string | null;
   dataFinalizacao: string | null;
   performanceDiferencaDias: number | null;
@@ -34,20 +35,23 @@ export interface PerformanceEntregaRow {
 
 export interface UtilizacaoColetoresOverview {
   updatedAt: string;
-  ordensConferencia: number;
+  manifestosBipados: number;
   manifestosEmitidos: number;
   manifestosDescarregamento: number;
   totalManifestos: number;
+  manifestosIncompletos: number;
   pctUtilizacao: number;
 }
 
 export interface UtilizacaoColetoresSeriePoint {
   date: string | null;
   filial: string | null;
-  ordensConferencia: number;
+  classificacao: string | null;
+  manifestosBipados: number;
   manifestosEmitidos: number;
   manifestosDescarregamento: number;
   totalManifestos: number;
+  manifestosIncompletos: number;
   pctUtilizacao: number;
 }
 
@@ -55,10 +59,12 @@ export interface UtilizacaoColetoresRow {
   chave: string;
   date: string | null;
   filial: string | null;
-  ordensConferencia: number;
+  classificacao: string | null;
+  manifestosBipados: number;
   manifestosEmitidos: number;
   manifestosDescarregamento: number;
   totalManifestos: number;
+  manifestosIncompletos: number;
   pctUtilizacao: number;
 }
 
@@ -83,6 +89,7 @@ export interface CubagemMercadoriasRow {
   dataFrete: string | null;
   filialEmissora: string | null;
   pagador: string | null;
+  remetenteDocumento: string | null;
   destino: string | null;
   pesoTaxado: number;
   pesoReal: number;
@@ -104,19 +111,21 @@ export interface IndenizacaoMercadoriasSeriePoint {
   date: string | null;
   filial: string | null;
   totalSinistros: number;
+  valorIndenizadoOriginal?: number;
   valorIndenizadoAbs: number;
   faturamentoBase: number;
+  faturamentoPeriodoFilial?: number;
   pctIndenizacao: number;
 }
 
 export interface IndenizacaoMercadoriasRow {
   numeroSinistro: number;
-  dataAbertura: string | null;
+  dataFinalizacao: string | null;
   filial: string | null;
   minuta: number | null;
   resultadoFinalOriginal: number;
   resultadoFinalAbs: number;
-  ocorrencia: string | null;
+  causaRaiz: string | null;
   solucao: string | null;
   pctSobreFaturamentoFilial: number;
 }

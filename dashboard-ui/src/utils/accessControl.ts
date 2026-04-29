@@ -8,6 +8,7 @@ import type {
 
 export const PAPEL_ADMIN_PLATAFORMA = 'admin_plataforma';
 export const PAPEL_ADMIN_ACESSO = 'admin_acesso';
+export const PAPEL_DESENVOLVEDOR = String(import.meta.env.VITE_ACESSO_USUARIO_SUPREMO_PAPEL ?? '');
 export const PAPEL_USUARIO_COMUM = 'usuario_comum';
 
 export interface NavItem {
@@ -86,13 +87,21 @@ export function isAdminPlataforma(user: Pick<IUsuarioSessao, 'papel'> | null): b
   return hasRole(user, PAPEL_ADMIN_PLATAFORMA);
 }
 
+export function isDesenvolvedor(user: Pick<IUsuarioSessao, 'papel'> | null): boolean {
+  return hasRole(user, PAPEL_DESENVOLVEDOR);
+}
+
 export function isAdminAcesso(user: Pick<IUsuarioSessao, 'papel'> | null): boolean {
-  return isAdminPlataforma(user) || hasRole(user, PAPEL_ADMIN_ACESSO);
+  return isDesenvolvedor(user) || isAdminPlataforma(user) || hasRole(user, PAPEL_ADMIN_ACESSO);
+}
+
+export function canHardDeleteUsers(user: Pick<IUsuarioSessao, 'papel'> | null): boolean {
+  return isDesenvolvedor(user) || isAdminPlataforma(user);
 }
 
 export function canAccess(user: IUsuarioSessao | null, permission?: PermissionKey): boolean {
   if (!user) return false;
-  if (isAdminPlataforma(user)) return true;
+  if (isDesenvolvedor(user) || isAdminPlataforma(user)) return true;
   if (!permission) return true;
   return Boolean(user.permissoesEfetivas[permission]);
 }
@@ -104,7 +113,7 @@ export function firstAccessibleRoute(
   if (user.exigeTrocaSenha) return '/alterar-senha';
 
   const match = DASHBOARD_NAV_ITEMS.find((item) =>
-    item.permission ? isAdminPlataforma(user) || user.permissoesEfetivas[item.permission] : false,
+    item.permission ? isDesenvolvedor(user) || isAdminPlataforma(user) || user.permissoesEfetivas[item.permission] : false,
   );
 
   if (match) {

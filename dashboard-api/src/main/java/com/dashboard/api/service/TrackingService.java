@@ -23,7 +23,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -82,9 +81,9 @@ public class TrackingService {
                 .filter(c -> c.getStatusCarga() != null && STATUS_EM_TRANSITO.contains(c.getStatusCarga()))
                 .count();
 
-        OffsetDateTime agora = OffsetDateTime.now();
+        LocalDate hoje = periodoOffsetDateTimeHelper.hoje();
         int previsaoVencida = (int) cargas.stream()
-                .filter(c -> previsaoVencida(c, agora))
+                .filter(c -> previsaoVencida(c, hoje))
                 .count();
 
         BigDecimal valorFreteEmCarteira = cargas.stream()
@@ -198,7 +197,7 @@ public class TrackingService {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
         List<VisaoLocalizacaoCargasEntity> cargas = buscarRegistros(filtro);
-        OffsetDateTime agora = OffsetDateTime.now();
+        LocalDate hoje = periodoOffsetDateTimeHelper.hoje();
 
         List<TrackingStatusDistribuicaoDTO> statusDistribuicao = cargas.stream()
                 .collect(Collectors.groupingBy(c -> textoOuPadrao(c.getStatusCarga(), "Sem status")))
@@ -217,7 +216,7 @@ public class TrackingService {
                 .toList();
 
         List<TrackingPrevisaoVencidaFilialDTO> previsaoVencidaPorFilialAtual = cargas.stream()
-                .filter(c -> previsaoVencida(c, agora))
+                .filter(c -> previsaoVencida(c, hoje))
                 .collect(Collectors.groupingBy(c -> textoOuPadrao(c.getFilialAtual(), "Sem filial")))
                 .entrySet().stream()
                 .map(entry -> new TrackingPrevisaoVencidaFilialDTO(
@@ -271,10 +270,10 @@ public class TrackingService {
                 .doubleValue();
     }
 
-    private boolean previsaoVencida(VisaoLocalizacaoCargasEntity carga, OffsetDateTime agora) {
+    private boolean previsaoVencida(VisaoLocalizacaoCargasEntity carga, LocalDate hoje) {
         return carga.getPrevisaoEntrega() != null
                 && carga.getStatusCarga() != null
-                && carga.getPrevisaoEntrega().isBefore(agora)
+                && carga.getPrevisaoEntrega().toLocalDate().isBefore(hoje)
                 && !"Finalizado".equalsIgnoreCase(carga.getStatusCarga());
     }
 

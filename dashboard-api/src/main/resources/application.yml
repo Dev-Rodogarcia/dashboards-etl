@@ -1,11 +1,12 @@
 server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
   port: 5010
 
 spring:
   application:
     name: dashboard-api
 
-  # SQL Server (credenciais lidas do .env via spring-dotenv)
+  # SQL Server (credenciais lidas de dashboards-etl/.env)
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}
@@ -16,9 +17,11 @@ spring:
       maximum-pool-size: 15
       idle-timeout: 600000
       max-lifetime: 1800000
+      connection-init-sql: SET ANSI_NULLS ON; SET QUOTED_IDENTIFIER ON
 
   # JPA / Hibernate
   jpa:
+    database-platform: org.hibernate.dialect.SQLServerDialect
     hibernate:
       ddl-auto: none
       naming:
@@ -39,6 +42,12 @@ security:
     api:
       max-requests: ${SECURITY_RATE_LIMIT_API_MAX_REQUESTS:120}
       window-seconds: ${SECURITY_RATE_LIMIT_API_WINDOW_SECONDS:60}
+    export:
+      max-requests: ${SECURITY_RATE_LIMIT_EXPORT_MAX_REQUESTS:12}
+      window-seconds: ${SECURITY_RATE_LIMIT_EXPORT_WINDOW_SECONDS:60}
+
+cors:
+  origens-permitidas: ${CORS_ORIGENS_PERMITIDAS:http://localhost:5173,https://analytics.rodogarcia.com.br}
 
 # JWT
 jwt:
@@ -46,7 +55,7 @@ jwt:
   expiracao-minutos: 15
 
 auth:
-  refresh-token-expiracao-dias: ${AUTH_REFRESH_TOKEN_EXPIRACAO_DIAS:30}
+  session-expiracao-horas: ${AUTH_SESSION_EXPIRACAO_HORAS:24}
   refresh-cookie-name: ${AUTH_REFRESH_COOKIE_NAME:dashboard_refresh_token}
   refresh-cookie-secure: ${AUTH_REFRESH_COOKIE_SECURE:false}
   refresh-cookie-same-site: ${AUTH_REFRESH_COOKIE_SAME_SITE:Lax}
@@ -56,6 +65,8 @@ dashboard:
     zone-id: ${DASHBOARD_PERIODO_ZONE_ID:America/Sao_Paulo}
   indicadores:
     fail-on-schema-mismatch: ${DASHBOARD_INDICADORES_FAIL_ON_SCHEMA_MISMATCH:false}
+    cubagem:
+      remetente-docs-excluidos: ${DASHBOARD_INDICADORES_CUBAGEM_REMETENTE_DOCS_EXCLUIDOS:}
 
 # API Key para rotas internas (ETL/RPA)
 api:
@@ -66,6 +77,19 @@ acl:
   storage-file: ${ACL_STORAGE_FILE:./storage/access-control.json}
   legacy:
     migration-enabled: ${ACL_LEGACY_MIGRATION_ENABLED:false}
+
+acesso:
+  usuario-supremo:
+    email: ${ACESSO_USUARIO_SUPREMO_EMAIL}
+    senha-inicial: ${ACESSO_USUARIO_SUPREMO_SENHA_INICIAL}
+    nome: ${ACESSO_USUARIO_SUPREMO_NOME}
+    papel: ${ACESSO_USUARIO_SUPREMO_PAPEL}
+    nivel: ${ACESSO_USUARIO_SUPREMO_NIVEL}
+    rotacionar-senha: ${ACESSO_USUARIO_SUPREMO_ROTACIONAR_SENHA:false}
+  retencao:
+    refresh-token-expirado-dias: ${ACESSO_RETENCAO_REFRESH_TOKEN_EXPIRADO_DIAS:30}
+    audit-log-dias: ${ACESSO_RETENCAO_AUDIT_LOG_DIAS:90}
+    cron: "${ACESSO_RETENCAO_CRON:0 30 3 * * *}"
 
 # Actuator
 management:

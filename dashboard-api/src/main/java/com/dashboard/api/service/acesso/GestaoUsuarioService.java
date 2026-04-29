@@ -18,7 +18,6 @@ import com.dashboard.api.repository.acesso.UsuarioRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,11 +38,13 @@ public class GestaoUsuarioService {
     private final UsuarioPapelVinculoRepository papelVinculoRepository;
     private final UsuarioPermissaoOverrideRepository overrideRepository;
     private final PermissaoRepository permissaoRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordHashService passwordHashService;
     private final PermissaoResolverService permissaoResolver;
     private final AuditService auditService;
     private final PoliticaSenhaService politicaSenhaService;
     private final RefreshTokenService refreshTokenService;
+    private final UsuarioDependenciaCleanup dependenciaCleanupService;
+    private final UsuarioSupremo usuarioSupremo;
 
     public GestaoUsuarioService(
             UsuarioRepository usuarioRepository,
@@ -52,11 +53,13 @@ public class GestaoUsuarioService {
             UsuarioPapelVinculoRepository papelVinculoRepository,
             UsuarioPermissaoOverrideRepository overrideRepository,
             PermissaoRepository permissaoRepository,
-            PasswordEncoder passwordEncoder,
+            PasswordHashService passwordHashService,
             PermissaoResolverService permissaoResolver,
             AuditService auditService,
             PoliticaSenhaService politicaSenhaService,
-            RefreshTokenService refreshTokenService
+            RefreshTokenService refreshTokenService,
+            UsuarioDependenciaCleanup dependenciaCleanupService,
+            UsuarioSupremo usuarioSupremo
     ) {
         this.usuarioRepository = usuarioRepository;
         this.setorRepository = setorRepository;
@@ -64,11 +67,13 @@ public class GestaoUsuarioService {
         this.papelVinculoRepository = papelVinculoRepository;
         this.overrideRepository = overrideRepository;
         this.permissaoRepository = permissaoRepository;
-        this.passwordEncoder = passwordEncoder;
+        this.passwordHashService = passwordHashService;
         this.permissaoResolver = permissaoResolver;
         this.auditService = auditService;
         this.politicaSenhaService = politicaSenhaService;
         this.refreshTokenService = refreshTokenService;
+        this.dependenciaCleanupService = dependenciaCleanupService;
+        this.usuarioSupremo = usuarioSupremo;
     }
 
     @Transactional(readOnly = true)
@@ -91,12 +96,14 @@ public class GestaoUsuarioService {
 
         SetorEntity setor = buscarSetor(request.setorId());
         PapelEntity papel = validarGovernancaDePapel(null, request.papel());
+        PasswordHashService.PasswordHash senhaHash = passwordHashService.gerarHashSeguro(request.senha());
 
         UsuarioEntity usuario = new UsuarioEntity();
         usuario.setNome(request.nome().trim());
         usuario.setEmail(normalizarEmail(request.email()));
         usuario.setLogin(normalizarEmail(request.email()));
-        usuario.setSenhaHash(passwordEncoder.encode(request.senha()));
+        usuario.setSenhaHash(senhaHash.valor());
+        usuario.setAlgoritmoHash(senhaHash.algoritmo());
         usuario.setExigeTrocaSenha(true);
         usuario.setSetor(setor);
         usuario.setAtivo(request.ativo() == null || request.ativo());
@@ -116,6 +123,7 @@ public class GestaoUsuarioService {
         UsuarioEntity usuario = usuarioRepository.findById(usuarioIdNonNull)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
+        validarImutabilidadeUsuarioSupremo(usuario);
         validarEmailUnico(request.email(), usuarioIdNonNull);
 
         SetorEntity setor = buscarSetor(request.setorId());
@@ -125,7 +133,7 @@ public class GestaoUsuarioService {
 
         if (PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA.equals(papelAtual)
                 && (!PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA.equals(novoPapel.getNome()) || !novoAtivo)
-                && usuarioRepository.countAdminsAtivos() <= 1) {
+                && contarAdminsAtivos() <= 1) {
             throw new IllegalStateException("É obrigatório manter pelo menos um administrador ativo.");
         }
 
@@ -139,7 +147,9 @@ public class GestaoUsuarioService {
         if (request.senha() != null && !request.senha().isBlank()) {
             validarConfirmacaoSenha(request.senha(), request.confirmacaoSenha());
             politicaSenhaService.validar(request.senha());
-            usuario.setSenhaHash(passwordEncoder.encode(request.senha()));
+            PasswordHashService.PasswordHash senhaHash = passwordHashService.gerarHashSeguro(request.senha());
+            usuario.setSenhaHash(senhaHash.valor());
+            usuario.setAlgoritmoHash(senhaHash.algoritmo());
             usuario.setSenhaAlteradaEm(Instant.now());
             usuario.setExigeTrocaSenha(true);
             senhaAlterada = true;
@@ -168,10 +178,11 @@ public class GestaoUsuarioService {
         UsuarioEntity usuario = usuarioRepository.findById(usuarioIdNonNull)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
+        validarOperacaoContraUsuarioSupremo(usuario);
         validarGovernancaDePapel(usuario, permissaoResolver.papel(usuarioIdNonNull));
 
         if (PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA.equals(permissaoResolver.papel(usuarioIdNonNull))
-                && usuarioRepository.countAdminsAtivos() <= 1) {
+                && contarAdminsAtivos() <= 1) {
             throw new IllegalStateException("É obrigatório manter pelo menos um administrador ativo.");
         }
 
@@ -181,14 +192,46 @@ public class GestaoUsuarioService {
         auditService.registrar(AcaoAudit.USUARIO_DESATIVADO, usuarioIdNonNull, usuario.getLogin(), "usuario", null);
     }
 
+    @Transactional
+    public void excluirUsuarioDefinitivamente(Long usuarioId) {
+        Long usuarioIdNonNull = Objects.requireNonNull(usuarioId, "usuarioId é obrigatório.");
+        UsuarioEntity operador = usuarioAutenticado();
+        Long operadorId = Objects.requireNonNull(operador.getId(), "usuario.id é obrigatório.");
+
+        if (!permissaoResolver.ehDesenvolvedor(operadorId) && !permissaoResolver.ehAdminPlataforma(operadorId)) {
+            throw new AccessDeniedException("Usuário autenticado não pode excluir usuários definitivamente.");
+        }
+        if (Objects.equals(operadorId, usuarioIdNonNull)) {
+            throw new AccessDeniedException("Usuário autenticado não pode excluir a própria conta.");
+        }
+
+        UsuarioEntity usuario = usuarioRepository.findById(usuarioIdNonNull)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
+
+        validarOperacaoContraUsuarioSupremo(usuario);
+
+        auditService.registrarSync(
+                AcaoAudit.USUARIO_EXCLUIDO,
+                operadorId,
+                operador.getLogin(),
+                "usuario",
+                "{\"alvoUsuarioId\":" + usuarioIdNonNull + ",\"alvoEmail\":\"" + escapeJson(usuario.getEmail()) + "\"}"
+        );
+
+        dependenciaCleanupService.limparDependencias(usuarioIdNonNull);
+        usuarioRepository.delete(usuario);
+    }
+
     @Transactional(readOnly = true)
     public List<PapelDTO> listarPapeisDisponiveis() {
         UsuarioEntity operador = usuarioAutenticado();
-        boolean adminPlataforma = permissaoResolver.ehAdminPlataforma(Objects.requireNonNull(operador.getId(), "usuario.id é obrigatório."));
+        Long operadorId = Objects.requireNonNull(operador.getId(), "usuario.id é obrigatório.");
+        boolean papelElevado = permissaoResolver.ehAdminPlataforma(operadorId) || permissaoResolver.ehDesenvolvedor(operadorId);
 
         return papelRepository.findAll().stream()
                 .filter(PapelEntity::isAtivo)
-                .filter(papel -> adminPlataforma || PermissaoResolverService.PAPEL_USUARIO_COMUM.equals(papel.getNome()))
+                .filter(papel -> papelElevado || PermissaoResolverService.PAPEL_USUARIO_COMUM.equals(papel.getNome()))
+                .filter(papel -> !usuarioSupremo.papel().equals(papel.getNome()))
                 .sorted(Comparator.comparingInt(PapelEntity::getNivel).reversed())
                 .map(papel -> new PapelDTO(papel.getId(), papel.getNome(), papel.getDescricao(), papel.getNivel()))
                 .toList();
@@ -227,9 +270,13 @@ public class GestaoUsuarioService {
                 usuario.getSetor().getNome(),
                 papel,
                 permissoesEfetivas,
-                permissaoResolver.ehAdminPlataforma(usuarioId) ? List.of() : filiaisPermitidas,
+                permissaoResolver.ehAdminPlataforma(usuarioId) || permissaoResolver.ehDesenvolvedor(usuarioId)
+                        ? List.of()
+                        : filiaisPermitidas,
                 permissoesNegadas,
-                permissoesConcedidas
+                permissoesConcedidas,
+                passwordHashService.statusAdministrativo(usuario).valor(),
+                passwordHashService.algoritmoExibicao(usuario)
         );
     }
 
@@ -247,13 +294,19 @@ public class GestaoUsuarioService {
     private PapelEntity validarGovernancaDePapel(UsuarioEntity alvoExistente, String nomePapelSolicitado) {
         UsuarioEntity operador = usuarioAutenticado();
         Long operadorId = Objects.requireNonNull(operador.getId(), "usuario.id é obrigatório.");
-        boolean operadorAdminPlataforma = permissaoResolver.ehAdminPlataforma(operadorId);
+        boolean operadorPapelElevado = permissaoResolver.ehAdminPlataforma(operadorId)
+                || permissaoResolver.ehDesenvolvedor(operadorId);
 
         String papelAlvoAtual = alvoExistente != null && alvoExistente.getId() != null
                 ? permissaoResolver.papel(alvoExistente.getId())
                 : null;
 
-        if (!operadorAdminPlataforma) {
+        boolean solicitouPapelSupremo = usuarioSupremo.papel().equals(nomePapelSolicitado);
+        if (solicitouPapelSupremo && !usuarioSupremo.ehUsuarioSupremo(alvoExistente)) {
+            throw new AccessDeniedException("O papel desenvolvedor é exclusivo do usuário supremo.");
+        }
+
+        if (!operadorPapelElevado) {
             if (papelAlvoAtual != null && !PermissaoResolverService.PAPEL_USUARIO_COMUM.equals(papelAlvoAtual)) {
                 throw new AccessDeniedException("Admin de acesso só pode operar usuários comuns.");
             }
@@ -343,6 +396,25 @@ public class GestaoUsuarioService {
         }
     }
 
+    private void validarImutabilidadeUsuarioSupremo(UsuarioEntity usuario) {
+        if (usuarioSupremo.ehUsuarioSupremo(usuario)) {
+            throw new AccessDeniedException("Usuário supremo é imutável.");
+        }
+    }
+
+    private void validarOperacaoContraUsuarioSupremo(UsuarioEntity usuario) {
+        if (usuarioSupremo.ehUsuarioSupremo(usuario)) {
+            throw new AccessDeniedException("Usuário supremo não pode ser excluído nem inativado.");
+        }
+    }
+
+    private long contarAdminsAtivos() {
+        return usuarioRepository.countAdminsAtivosPorPapeis(List.of(
+                PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA,
+                usuarioSupremo.papel()
+        ));
+    }
+
     private UsuarioEntity usuarioAutenticado() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
@@ -355,5 +427,12 @@ public class GestaoUsuarioService {
 
     private String normalizarEmail(String email) {
         return Objects.requireNonNull(email, "email é obrigatório.").trim().toLowerCase();
+    }
+
+    private String escapeJson(String valor) {
+        if (valor == null) {
+            return "";
+        }
+        return valor.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

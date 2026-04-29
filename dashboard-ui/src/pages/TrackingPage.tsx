@@ -9,10 +9,12 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { exportarTrackingExcel } from '../api/endpoints/trackingServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useFiliais } from '../hooks/queries/useDimensoes';
-import { useTrackingGraficos, useTrackingOverview, useTrackingSerie, useTrackingTabela } from '../hooks/queries/useTracking';
+import { useTrackingGraficos, useTrackingOverview, useTrackingSerie, useTrackingTabelaPaginada } from '../hooks/queries/useTracking';
+import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { TrackingFiltro, TrackingRawRow } from '../types/tracking';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
@@ -41,7 +43,8 @@ export default function TrackingPage() {
   const overview = useTrackingOverview(filtro);
   const serie = useTrackingSerie(filtro);
   const graficos = useTrackingGraficos(filtro);
-  const tabela = useTrackingTabela(filtro, 120);
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
+  const tabela = useTrackingTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
 
   const statusData = graficos.data?.statusDistribuicao ?? [];
   const vencidasFilial = graficos.data?.previsaoVencidaPorFilialAtual ?? [];
@@ -119,9 +122,20 @@ export default function TrackingPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton dados={(tabela.data ?? []) as unknown as Record<string, unknown>[]} nomeArquivo="localizacao-cargas" />
+        <ExportButton nomeArquivo="localizacao-cargas" onExport={() => exportarTrackingExcel(filtro)} />
       </div>
-      <DataTable titulo="Localização de Cargas Analítica" dados={tabela.data ?? []} colunas={colunas} chaveLinha="numeroMinuta" isLoading={tabela.isLoading} />
+      <DataTable
+        titulo="Localização de Cargas Analítica"
+        dados={tabela.data?.conteudo ?? []}
+        colunas={colunas}
+        chaveLinha="numeroMinuta"
+        isLoading={tabela.isLoading}
+        totalRegistros={tabela.data?.totalElementos}
+        paginaAtual={paginacaoTabela.pagina}
+        tamanhoPagina={paginacaoTabela.tamanhoPagina}
+        onPaginaChange={paginacaoTabela.setPagina}
+        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+      />
     </div>
   );
 }

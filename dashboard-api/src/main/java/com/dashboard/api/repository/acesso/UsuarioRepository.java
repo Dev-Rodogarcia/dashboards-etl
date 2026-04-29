@@ -3,7 +3,9 @@ package com.dashboard.api.repository.acesso;
 import com.dashboard.api.model.acesso.UsuarioEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.Optional;
 
 public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
@@ -16,6 +18,6 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
 
     long countBySetorId(Long setorId);
 
-    @Query("SELECT COUNT(u) FROM UsuarioEntity u JOIN UsuarioPapelVinculo v ON v.usuario = u JOIN PapelEntity p ON v.papel = p WHERE p.nome = 'admin_plataforma' AND u.ativo = true")
-    long countAdminsAtivos();
+    @Query("SELECT COUNT(u) FROM UsuarioEntity u JOIN UsuarioPapelVinculo v ON v.usuario = u JOIN PapelEntity p ON v.papel = p WHERE p.nome IN :papeis AND u.ativo = true")
+    long countAdminsAtivosPorPapeis(@Param("papeis") Collection<String> papeis);
 }

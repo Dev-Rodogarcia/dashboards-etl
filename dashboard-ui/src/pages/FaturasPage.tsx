@@ -10,6 +10,7 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { exportarFaturasFinanceirasExcel, exportarFaturasProcessosExcel } from '../api/endpoints/faturasServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useClientes, useFiliais } from '../hooks/queries/useDimensoes';
@@ -19,9 +20,10 @@ import {
   useFaturasOverview,
   useFaturasReconciliacao,
   useFaturasStatusProcesso,
-  useFaturasTabela,
+  useFaturasTabelaPaginada,
   useFaturasTopClientes,
 } from '../hooks/queries/useFaturas';
+import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { FaturaReconciliacaoRow, FaturaResumoRow, FaturasFiltro } from '../types/faturas';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
@@ -53,7 +55,8 @@ export default function FaturasPage() {
   const topClientes = useFaturasTopClientes(filtro);
   const statusProcesso = useFaturasStatusProcesso(filtro);
   const reconciliacao = useFaturasReconciliacao(filtro, 80);
-  const tabela = useFaturasTabela(filtro, 120);
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
+  const tabela = useFaturasTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
   const hasFinancialData = overview.data?.hasFinancialData ?? true;
 
   const mensalOption: EChartsOption = {
@@ -185,10 +188,30 @@ export default function FaturasPage() {
             <ChartWrapper titulo="Status do Processo" option={statusOption} isLoading={statusProcesso.isLoading} isEmpty={(statusProcesso.data ?? []).length === 0} />
           </div>
 
-          <div className="mb-3 flex justify-end">
-            <ExportButton dados={(tabela.data ?? []) as unknown as Record<string, unknown>[]} nomeArquivo="faturas" />
+          <div className="mb-3 flex flex-wrap justify-end gap-2">
+            <ExportButton
+              nomeArquivo="faturas-processos"
+              label="Exportar processos"
+              onExport={() => exportarFaturasProcessosExcel(filtro)}
+            />
+            <ExportButton
+              nomeArquivo="faturas-titulos-financeiros"
+              label="Exportar titulos financeiros"
+              onExport={() => exportarFaturasFinanceirasExcel(filtro)}
+            />
           </div>
-          <DataTable titulo="Titulos e Processos" dados={tabela.data ?? []} colunas={colunasResumo} chaveLinha="uniqueId" isLoading={tabela.isLoading} />
+          <DataTable
+            titulo="Titulos e Processos"
+            dados={tabela.data?.conteudo ?? []}
+            colunas={colunasResumo}
+            chaveLinha="uniqueId"
+            isLoading={tabela.isLoading}
+            totalRegistros={tabela.data?.totalElementos}
+            paginaAtual={paginacaoTabela.pagina}
+            tamanhoPagina={paginacaoTabela.tamanhoPagina}
+            onPaginaChange={paginacaoTabela.setPagina}
+            onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+          />
 
           <div className="mt-6">
             <DataTable titulo="Reconciliacao Operacional x Financeiro" dados={reconciliacao.data ?? []} colunas={colunasReconciliacao} chaveLinha="uniqueId" isLoading={reconciliacao.isLoading} />

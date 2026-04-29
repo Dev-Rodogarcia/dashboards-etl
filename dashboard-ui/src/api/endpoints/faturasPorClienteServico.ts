@@ -1,5 +1,8 @@
 import clienteAxios from '../clienteAxios';
+import { baixarExcel } from '../downloadExcel';
+import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
+import type { PaginacaoResponse } from '../../types/common';
 import type {
   FaturaPorClienteResumoRow,
   FaturasPorClienteAgingBucket,
@@ -68,4 +71,23 @@ export async function buscarFaturasPorClienteTabela(
     params,
   });
   return data;
+}
+
+export async function buscarFaturasPorClienteTabelaTotal(filtro: FaturasPorClienteFiltro): Promise<number> {
+  const { data } = await clienteAxios.get<{ total: number }>('/api/painel/faturas-por-cliente/tabela/total', {
+    params: montarQueryParams(filtro),
+  });
+  return data.total;
+}
+
+export async function buscarFaturasPorClienteTabelaPaginada(
+  filtro: FaturasPorClienteFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+): Promise<PaginacaoResponse<FaturaPorClienteResumoRow>> {
+  return buscarTabelaPaginada('/api/painel/faturas-por-cliente/tabela/paginada', filtro, pagina, tamanhoPagina);
+}
+
+export async function exportarFaturasPorClienteExcel(filtro: FaturasPorClienteFiltro): Promise<void> {
+  await baixarExcel('/api/painel/faturas-por-cliente/exportacao', filtro, 'faturas-por-cliente');
 }

@@ -75,7 +75,7 @@ function sqlConnectionFromEnv(env, overrides) {
 
   return {
     server: normalizeSqlcmdServer(overrides.dbServer ?? serverMatch?.[1] ?? 'localhost,1433'),
-    database: overrides.dbName ?? databaseMatch?.[1] ?? 'ETL_SISTEMA',
+    database: overrides.dbName ?? databaseMatch?.[1] ?? 'DASHBOARDS',
     user: overrides.dbUser ?? env.DB_USER,
     password: overrides.dbPassword ?? env.DB_PASSWORD,
   };

@@ -30,8 +30,10 @@ export interface LoginResponse {
   usuario: UsuarioSessao;
   token: string;
   exigeTrocaSenha: boolean;
+  sessaoExpiraEm: string;
 }
 
 export interface IUsuarioSessao extends UsuarioSessao {
   token: string;
+  sessaoExpiraEm: string;
 }

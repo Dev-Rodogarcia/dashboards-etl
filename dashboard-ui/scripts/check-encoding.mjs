@@ -10,8 +10,8 @@ const scanRoots = [
   resolve(uiRoot, 'src'),
   resolve(uiRoot, 'index.html'),
   resolve(uiRoot, 'package.json'),
-  resolve(uiRoot, '.env.example'),
   resolve(uiRoot, 'scripts'),
+  resolve(repoRoot, '.env.example'),
   resolve(repoRoot, '.editorconfig'),
   resolve(repoRoot, '.gitattributes'),
   resolve(repoRoot, '.vscode'),
@@ -53,7 +53,7 @@ const ignoredDirectoryNames = new Set([
   'target',
 ]);
 
-const suspiciousPattern = /[\u00C2\u00C3\uFFFD]/;
+const suspiciousPattern = /(?:\u00C2[\u0080-\u00BF]|\u00C3[\u0080-\u00BF]|\uFFFD)/;
 const decoder = new TextDecoder('utf-8', { fatal: true });
 const issues = [];
 

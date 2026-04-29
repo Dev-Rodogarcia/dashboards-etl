@@ -9,10 +9,12 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { exportarCotacoesExcel } from '../api/endpoints/cotacoesServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useClientes, useFiliais } from '../hooks/queries/useDimensoes';
-import { useCotacoesGraficos, useCotacoesOverview, useCotacoesSerie, useCotacoesTabela } from '../hooks/queries/useCotacoes';
+import { useCotacoesGraficos, useCotacoesOverview, useCotacoesSerie, useCotacoesTabelaPaginada } from '../hooks/queries/useCotacoes';
+import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { CotacaoResumoRow, CotacoesFiltro } from '../types/cotacoes';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
@@ -60,7 +62,8 @@ export default function CotacoesPage() {
   const overview = useCotacoesOverview(filtro);
   const serie = useCotacoesSerie(filtro);
   const graficos = useCotacoesGraficos(filtro);
-  const tabela = useCotacoesTabela(filtro, 120);
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
+  const tabela = useCotacoesTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
 
   const funil = graficos.data?.funil ?? [];
   const corredores = graficos.data?.corredoresMaisValiosos ?? [];
@@ -219,9 +222,20 @@ export default function CotacoesPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton dados={(tabela.data ?? []) as unknown as Record<string, unknown>[]} nomeArquivo="cotacoes" />
+        <ExportButton nomeArquivo="cotacoes" onExport={() => exportarCotacoesExcel(filtro)} />
       </div>
-      <DataTable titulo="Cotacoes Analiticas" dados={tabela.data ?? []} colunas={colunas} chaveLinha="numeroCotacao" isLoading={tabela.isLoading} />
+      <DataTable
+        titulo="Cotacoes Analiticas"
+        dados={tabela.data?.conteudo ?? []}
+        colunas={colunas}
+        chaveLinha="numeroCotacao"
+        isLoading={tabela.isLoading}
+        totalRegistros={tabela.data?.totalElementos}
+        paginaAtual={paginacaoTabela.pagina}
+        tamanhoPagina={paginacaoTabela.tamanhoPagina}
+        onPaginaChange={paginacaoTabela.setPagina}
+        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+      />
     </div>
   );
 }

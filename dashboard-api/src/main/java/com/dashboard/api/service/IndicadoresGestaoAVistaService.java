@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorarioCorteRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
@@ -137,6 +138,39 @@ public class IndicadoresGestaoAVistaService {
                         row.entity().getImportadoPor()
                 ))
                 .toList();
+    }
+
+    public List<HorarioCorteRowDTO> buscarHorariosCorteExportacao(FiltroConsultaDTO filtro) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+
+        return buscarHorariosCorte(filtro).stream()
+                .sorted(Comparator.comparing((HorarioCorteRegistroResolvido row) -> row.entity().getData(), Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(row -> row.entity().getImportadoEm(), Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(HorarioCorteRegistroResolvido::filial, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                        .thenComparing(row -> row.entity().getLinhaOuOperacao(), Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .map(row -> new HorarioCorteRowDTO(
+                        Objects.requireNonNullElse(row.entity().getId(), 0L),
+                        formatar(row.entity().getData()),
+                        row.filial(),
+                        row.entity().getLinhaOuOperacao(),
+                        formatar(row.entity().getInicio()),
+                        formatar(row.entity().getManifestado()),
+                        formatar(row.entity().getSmGerada()),
+                        formatar(row.entity().getCorte()),
+                        formatar(row.entity().getSaidaEfetiva()),
+                        formatar(row.entity().getHorarioCorte()),
+                        row.entity().getSaiuNoHorario(),
+                        row.entity().getAtrasoMinutos(),
+                        row.entity().getObservacao(),
+                        row.entity().getNomeArquivo(),
+                        formatar(row.entity().getImportadoEm()),
+                        row.entity().getImportadoPor()
+                ))
+                .toList();
+    }
+
+    public PaginaDTO<HorarioCorteRowDTO> buscarHorariosCorteTabelaPaginada(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
+        return PaginacaoListaUtils.paginar(buscarHorariosCorteExportacao(filtro), pagina, tamanhoPagina);
     }
 
     private List<HorarioCorteRegistroResolvido> buscarHorariosCorte(FiltroConsultaDTO filtro) {

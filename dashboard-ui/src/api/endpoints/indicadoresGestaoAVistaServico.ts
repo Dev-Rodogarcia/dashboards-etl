@@ -1,5 +1,8 @@
 import clienteAxios from '../clienteAxios';
+import { baixarExcel } from '../downloadExcel';
+import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
+import type { PaginacaoResponse } from '../../types/common';
 import type {
   CubagemMercadoriasOverview,
   CubagemMercadoriasRow,
@@ -56,6 +59,18 @@ export async function buscarPerformanceEntregaTabela(
   return data;
 }
 
+export async function buscarPerformanceEntregaTabelaPaginada(
+  filtro: IndicadoresGestaoVistaFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+): Promise<PaginacaoResponse<PerformanceEntregaRow>> {
+  return buscarTabelaPaginada(`${BASE}/performance-entrega/tabela/paginada`, filtro, pagina, tamanhoPagina);
+}
+
+export async function exportarPerformanceEntregaExcel(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
+  await baixarExcel(`${BASE}/performance-entrega/exportacao`, filtro, 'indicadores-performance-entrega');
+}
+
 export async function buscarUtilizacaoColetoresOverview(
   filtro: IndicadoresGestaoVistaFiltro,
 ): Promise<UtilizacaoColetoresOverview> {
@@ -82,6 +97,18 @@ export async function buscarUtilizacaoColetoresTabela(
     params: withLimit(filtro, limite),
   });
   return data;
+}
+
+export async function buscarUtilizacaoColetoresTabelaPaginada(
+  filtro: IndicadoresGestaoVistaFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+): Promise<PaginacaoResponse<UtilizacaoColetoresRow>> {
+  return buscarTabelaPaginada(`${BASE}/utilizacao-coletores/tabela/paginada`, filtro, pagina, tamanhoPagina);
+}
+
+export async function exportarUtilizacaoColetoresExcel(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
+  await baixarExcel(`${BASE}/utilizacao-coletores/exportacao`, filtro, 'indicadores-utilizacao-coletores');
 }
 
 export async function buscarCubagemMercadoriasOverview(
@@ -112,6 +139,18 @@ export async function buscarCubagemMercadoriasTabela(
   return data;
 }
 
+export async function buscarCubagemMercadoriasTabelaPaginada(
+  filtro: IndicadoresGestaoVistaFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+): Promise<PaginacaoResponse<CubagemMercadoriasRow>> {
+  return buscarTabelaPaginada(`${BASE}/cubagem-mercadorias/tabela/paginada`, filtro, pagina, tamanhoPagina);
+}
+
+export async function exportarCubagemMercadoriasExcel(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
+  await baixarExcel(`${BASE}/cubagem-mercadorias/exportacao`, filtro, 'indicadores-cubagem-mercadorias');
+}
+
 export async function buscarIndenizacaoMercadoriasOverview(
   filtro: IndicadoresGestaoVistaFiltro,
 ): Promise<IndenizacaoMercadoriasOverview> {
@@ -140,6 +179,18 @@ export async function buscarIndenizacaoMercadoriasTabela(
   return data;
 }
 
+export async function buscarIndenizacaoMercadoriasTabelaPaginada(
+  filtro: IndicadoresGestaoVistaFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+): Promise<PaginacaoResponse<IndenizacaoMercadoriasRow>> {
+  return buscarTabelaPaginada(`${BASE}/indenizacao-mercadorias/tabela/paginada`, filtro, pagina, tamanhoPagina);
+}
+
+export async function exportarIndenizacaoMercadoriasExcel(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
+  await baixarExcel(`${BASE}/indenizacao-mercadorias/exportacao`, filtro, 'indicadores-indenizacao-mercadorias');
+}
+
 export async function buscarHorariosCorteOverview(
   filtro: IndicadoresGestaoVistaFiltro,
 ): Promise<HorariosCorteOverview> {
@@ -166,6 +217,18 @@ export async function buscarHorariosCorteTabela(
     params: withLimit(filtro, limite),
   });
   return data;
+}
+
+export async function buscarHorariosCorteTabelaPaginada(
+  filtro: IndicadoresGestaoVistaFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+): Promise<PaginacaoResponse<HorarioCorteRow>> {
+  return buscarTabelaPaginada(`${BASE}/horarios-corte/tabela/paginada`, filtro, pagina, tamanhoPagina);
+}
+
+export async function exportarHorariosCorteExcel(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
+  await baixarExcel(`${BASE}/horarios-corte/exportacao`, filtro, 'indicadores-horarios-corte');
 }
 
 export async function importarHorariosCorte(

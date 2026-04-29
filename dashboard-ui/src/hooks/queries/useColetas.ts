@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { buscarColetasGraficos, buscarColetasOverview, buscarColetasSerie, buscarColetasTabela } from '../../api/endpoints/coletasServico';
+import {
+  buscarColetasGraficos,
+  buscarColetasOverview,
+  buscarColetasSerie,
+  buscarColetasTabela,
+  buscarColetasTabelaPaginada,
+  buscarColetasTabelaTotal,
+} from '../../api/endpoints/coletasServico';
 import type { ColetasFiltro } from '../../types/coletas';
 
 const STALE_TIME = 5 * 60 * 1000;
@@ -35,6 +42,24 @@ export function useColetasTabela(filtro: ColetasFiltro, limite = 100) {
   return useQuery({
     queryKey: ['coletas', 'tabela', filtro, limite],
     queryFn: () => buscarColetasTabela(filtro, limite),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useColetasTabelaTotal(filtro: ColetasFiltro) {
+  return useQuery({
+    queryKey: ['coletas', 'tabela-total', filtro],
+    queryFn: () => buscarColetasTabelaTotal(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useColetasTabelaPaginada(filtro: ColetasFiltro, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['coletas', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarColetasTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
     retry: 1,
   });

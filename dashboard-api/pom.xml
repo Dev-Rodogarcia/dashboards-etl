@@ -99,6 +99,13 @@
             <version>5.4.1</version>
         </dependency>
 
+        <!-- Argon2 support -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.81</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

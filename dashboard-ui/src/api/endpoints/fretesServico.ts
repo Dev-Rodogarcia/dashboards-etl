@@ -1,5 +1,8 @@
 import clienteAxios from '../clienteAxios';
+import { baixarExcel } from '../downloadExcel';
+import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
+import type { PaginacaoResponse } from '../../types/common';
 import type {
   FretesCharts,
   FretesClienteRanking,
@@ -56,4 +59,23 @@ export async function buscarFretesTabela(
   params.set('limite', String(limite));
   const { data } = await clienteAxios.get<FreteResumoRow[]>('/api/painel/fretes/tabela', { params });
   return data;
+}
+
+export async function buscarFretesTabelaTotal(filtro: FretesFiltro): Promise<number> {
+  const { data } = await clienteAxios.get<{ total: number }>('/api/painel/fretes/tabela/total', {
+    params: montarQueryParams(filtro),
+  });
+  return data.total;
+}
+
+export async function buscarFretesTabelaPaginada(
+  filtro: FretesFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+): Promise<PaginacaoResponse<FreteResumoRow>> {
+  return buscarTabelaPaginada('/api/painel/fretes/tabela/paginada', filtro, pagina, tamanhoPagina);
+}
+
+export async function exportarFretesExcel(filtro: FretesFiltro): Promise<void> {
+  await baixarExcel('/api/painel/fretes/exportacao', filtro, 'fretes');
 }

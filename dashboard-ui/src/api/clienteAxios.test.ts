@@ -25,6 +25,7 @@ function criarRespostaLogin(token = 'token-renovado'): LoginResponse {
   return {
     token,
     exigeTrocaSenha: false,
+    sessaoExpiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     usuario: {
       id: '1',
       nome: 'Painel',
@@ -105,5 +106,28 @@ describe('tratarErroRespostaApi', () => {
 
     expect(limparSessao).not.toHaveBeenCalled();
     expect(redirecionar).not.toHaveBeenCalled();
+  });
+
+  it('redireciona 403 para acesso negado sem limpar sessao', async () => {
+    const limparSessao = vi.fn();
+    const redirecionar = vi.fn();
+    const erro = {
+      response: { status: 403 },
+      config: {
+        url: '/api/painel/coletas',
+        headers: {},
+      } as RetryableRequestConfig,
+    };
+
+    await expect(tratarErroRespostaApi(erro, {
+      renovarSessao: vi.fn(),
+      repetirRequisicao: vi.fn(),
+      limparSessao,
+      obterPathAtual: () => '/coletas',
+      redirecionar,
+    })).rejects.toBe(erro);
+
+    expect(limparSessao).not.toHaveBeenCalled();
+    expect(redirecionar).toHaveBeenCalledWith('/acesso-negado');
   });
 });

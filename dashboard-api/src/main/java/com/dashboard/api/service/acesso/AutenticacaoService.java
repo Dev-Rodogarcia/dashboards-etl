@@ -10,7 +10,6 @@ import com.dashboard.api.security.PermissaoCatalogo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +29,7 @@ public class AutenticacaoService {
     private static final int LOCKOUT_MINUTOS = 15;
 
     private final UsuarioRepository usuarioRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordHashService passwordHashService;
     private final GerenciadorTokenJwt gerenciadorToken;
     private final PermissaoResolverService permissaoResolver;
     private final AuditService auditService;
@@ -39,7 +38,7 @@ public class AutenticacaoService {
 
     public AutenticacaoService(
             UsuarioRepository usuarioRepository,
-            PasswordEncoder passwordEncoder,
+            PasswordHashService passwordHashService,
             GerenciadorTokenJwt gerenciadorToken,
             PermissaoResolverService permissaoResolver,
             AuditService auditService,
@@ -47,7 +46,7 @@ public class AutenticacaoService {
             RefreshTokenService refreshTokenService
     ) {
         this.usuarioRepository = usuarioRepository;
-        this.passwordEncoder = passwordEncoder;
+        this.passwordHashService = passwordHashService;
         this.gerenciadorToken = gerenciadorToken;
         this.permissaoResolver = permissaoResolver;
         this.auditService = auditService;
@@ -69,7 +68,19 @@ public class AutenticacaoService {
             throw new CredencialInvalidaException("Conta temporariamente bloqueada. Tente novamente mais tarde.");
         }
 
-        if (!passwordEncoder.matches(senha, usuario.getSenhaHash())) {
+        PasswordHashService.PasswordVerification verificacao = passwordHashService.verificarSenha(usuario, senha);
+        if (verificacao.resetObrigatorio()) {
+            auditService.registrarSync(
+                    AcaoAudit.LOGIN_FALHA,
+                    usuario.getId(),
+                    usuario.getLogin(),
+                    "auth",
+                    "{\"motivo\":\"hash_legado_reset_obrigatorio\",\"algoritmo\":\"" + verificacao.algoritmoAtual() + "\"}"
+            );
+            throw new CredencialInvalidaException("Usuário ou senha inválidos.");
+        }
+
+        if (!verificacao.valida()) {
             usuario.setTentativasFalha(usuario.getTentativasFalha() + 1);
             if (usuario.getTentativasFalha() >= MAX_TENTATIVAS) {
                 usuario.setBloqueadoAte(Instant.now().plus(LOCKOUT_MINUTOS, ChronoUnit.MINUTES));
@@ -84,6 +95,11 @@ public class AutenticacaoService {
 
         usuario.setTentativasFalha(0);
         usuario.setBloqueadoAte(null);
+        if (verificacao.precisaUpgrade()) {
+            PasswordHashService.PasswordHash senhaRehash = passwordHashService.gerarHashSeguro(senha);
+            usuario.setSenhaHash(senhaRehash.valor());
+            usuario.setAlgoritmoHash(senhaRehash.algoritmo());
+        }
         usuarioRepository.save(usuario);
 
         auditService.registrar(AcaoAudit.LOGIN, usuario.getId(), usuario.getLogin(), "auth", null);
@@ -93,13 +109,16 @@ public class AutenticacaoService {
     @Transactional
     public void alterarSenha(String email, String senhaAtual, String novaSenha) {
         UsuarioEntity usuario = carregarUsuarioAtivoPorEmail(email);
+        PasswordHashService.PasswordVerification verificacaoSenhaAtual = passwordHashService.verificarSenha(usuario, senhaAtual);
 
-        if (!passwordEncoder.matches(senhaAtual, usuario.getSenhaHash())) {
+        if (!verificacaoSenhaAtual.valida()) {
             throw new IllegalArgumentException("Senha atual incorreta.");
         }
 
         politicaSenhaService.validar(novaSenha);
-        usuario.setSenhaHash(passwordEncoder.encode(novaSenha));
+        PasswordHashService.PasswordHash senhaHash = passwordHashService.gerarHashSeguro(novaSenha);
+        usuario.setSenhaHash(senhaHash.valor());
+        usuario.setAlgoritmoHash(senhaHash.algoritmo());
         usuario.setSenhaAlteradaEm(Instant.now());
         usuario.setExigeTrocaSenha(false);
         usuarioRepository.save(usuario);
@@ -152,10 +171,16 @@ public class AutenticacaoService {
 
     @Transactional(readOnly = true)
     public LoginResponseDTO gerarSessaoParaUsuario(UsuarioEntity usuario) {
+        return gerarSessaoParaUsuario(usuario, null);
+    }
+
+    @Transactional(readOnly = true)
+    public LoginResponseDTO gerarSessaoParaUsuario(UsuarioEntity usuario, Instant sessaoExpiraEm) {
         return new LoginResponseDTO(
                 mapearSessao(usuario),
                 gerenciadorToken.gerarToken(usuario.getEmail()),
-                usuario.isExigeTrocaSenha()
+                usuario.isExigeTrocaSenha(),
+                sessaoExpiraEm
         );
     }
 
@@ -175,7 +200,9 @@ public class AutenticacaoService {
                 papel,
                 new SetorSessaoDTO(String.valueOf(usuario.getSetor().getId()), usuario.getSetor().getNome()),
                 permissoes,
-                permissaoResolver.ehAdminPlataforma(usuarioId) ? List.of() : filiaisPermitidas,
+                permissaoResolver.ehAdminPlataforma(usuarioId) || permissaoResolver.ehDesenvolvedor(usuarioId)
+                        ? List.of()
+                        : filiaisPermitidas,
                 usuario.isExigeTrocaSenha()
         );
     }

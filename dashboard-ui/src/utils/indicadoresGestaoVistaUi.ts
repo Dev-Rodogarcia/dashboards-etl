@@ -33,17 +33,17 @@ export interface PerformanceRankingItem {
   pctNoPrazo: number;
   totalEntregas: number;
   entregasNoPrazo: number;
-  entregasSemDados: number;
   entregasForaDoPrazo: number;
 }
 
 export interface UtilizacaoRankingItem {
   group: string;
   pctUtilizacao: number;
-  ordensConferencia: number;
+  manifestosBipados: number;
   manifestosEmitidos: number;
   manifestosDescarregamento: number;
   totalManifestos: number;
+  manifestosIncompletos: number;
 }
 
 export interface CubagemRankingItem {
@@ -58,6 +58,7 @@ export interface IndenizacaoRankingItem {
   group: string;
   pctIndenizacao: number;
   totalSinistros: number;
+  valorIndenizadoOriginal: number;
   valorIndenizadoAbs: number;
   faturamentoBase: number;
 }
@@ -170,6 +171,18 @@ export function calcularProgressoMeta(value: number, threshold: number, mode: Go
   return Math.max(0, Math.min(100, Number(((threshold / value) * 100).toFixed(1))));
 }
 
+export function calcularDistanciaRelativaMeta(value: number, threshold: number, mode: GoalMode): number {
+  if (!Number.isFinite(value) || !Number.isFinite(threshold) || threshold <= 0) {
+    return 0;
+  }
+
+  if (mode === 'atLeast') {
+    return Number(Math.max((threshold - value) / threshold, 0).toFixed(4));
+  }
+
+  return Number(Math.max((value - threshold) / threshold, 0).toFixed(4));
+}
+
 export function resolverTomMetaPorProgresso(progressPct: number): GoalTone {
   if (progressPct >= 100) {
     return 'positive';
@@ -213,27 +226,26 @@ export function avaliarMetaIndicador({
 }
 
 export function aggregatePerformanceRanking(points: PerformanceEntregaSeriePoint[]): PerformanceRankingItem[] {
-  const grouped = new Map<string, Omit<PerformanceRankingItem, 'pctNoPrazo' | 'entregasForaDoPrazo'>>();
+  const grouped = new Map<string, Omit<PerformanceRankingItem, 'pctNoPrazo'>>();
 
   for (const point of points) {
-    const key = groupLabel(point.responsavelRegiaoDestino, 'Regiao nao informada');
+    const key = groupLabel(point.filialPerformance, 'Filial performance nao informada');
     const current = grouped.get(key) ?? {
       group: key,
       totalEntregas: 0,
       entregasNoPrazo: 0,
-      entregasSemDados: 0,
+      entregasForaDoPrazo: 0,
     };
 
     current.totalEntregas += point.totalEntregas ?? 0;
     current.entregasNoPrazo += point.entregasNoPrazo ?? 0;
-    current.entregasSemDados += point.entregasSemDados ?? 0;
+    current.entregasForaDoPrazo += point.entregasForaDoPrazo ?? 0;
     grouped.set(key, current);
   }
 
   return Array.from(grouped.values())
     .map((item) => ({
       ...item,
-      entregasForaDoPrazo: Math.max(item.totalEntregas - item.entregasNoPrazo - item.entregasSemDados, 0),
       pctNoPrazo: percentual(item.entregasNoPrazo, item.totalEntregas),
     }))
     .sort((left, right) => left.pctNoPrazo - right.pctNoPrazo || right.totalEntregas - left.totalEntregas || left.group.localeCompare(right.group));
@@ -243,26 +255,30 @@ export function aggregateUtilizacaoRanking(points: UtilizacaoColetoresSeriePoint
   const grouped = new Map<string, Omit<UtilizacaoRankingItem, 'pctUtilizacao'>>();
 
   for (const point of points) {
-    const key = groupLabel(point.filial, 'Filial nao informada');
+    const filial = groupLabel(point.filial, 'Filial nao informada');
+    const classificacao = groupLabel(point.classificacao, 'Sem classificacao');
+    const key = `${filial} · ${classificacao}`;
     const current = grouped.get(key) ?? {
       group: key,
-      ordensConferencia: 0,
+      manifestosBipados: 0,
       manifestosEmitidos: 0,
       manifestosDescarregamento: 0,
       totalManifestos: 0,
+      manifestosIncompletos: 0,
     };
 
-    current.ordensConferencia += point.ordensConferencia ?? 0;
+    current.manifestosBipados += point.manifestosBipados ?? 0;
     current.manifestosEmitidos += point.manifestosEmitidos ?? 0;
     current.manifestosDescarregamento += point.manifestosDescarregamento ?? 0;
     current.totalManifestos += point.totalManifestos ?? 0;
+    current.manifestosIncompletos += point.manifestosIncompletos ?? 0;
     grouped.set(key, current);
   }
 
   return Array.from(grouped.values())
     .map((item) => ({
       ...item,
-      pctUtilizacao: percentual(item.ordensConferencia, item.totalManifestos),
+      pctUtilizacao: percentual(item.manifestosBipados, item.totalManifestos),
     }))
     .sort((left, right) => left.pctUtilizacao - right.pctUtilizacao || right.totalManifestos - left.totalManifestos || left.group.localeCompare(right.group));
 }
@@ -293,30 +309,44 @@ export function aggregateCubagemRanking(points: CubagemMercadoriasSeriePoint[]):
 }
 
 export function aggregateIndenizacaoRanking(points: IndenizacaoMercadoriasSeriePoint[]): IndenizacaoRankingItem[] {
-  const grouped = new Map<string, Omit<IndenizacaoRankingItem, 'pctIndenizacao'>>();
+  const grouped = new Map<string, Omit<IndenizacaoRankingItem, 'pctIndenizacao' | 'valorIndenizadoAbs'> & { faturamentoPeriodoFilial: number; valorIndenizadoAbsFallback: number; temValorOriginal: boolean }>();
 
   for (const point of points) {
     const key = groupLabel(point.filial, 'Filial nao informada');
     const current = grouped.get(key) ?? {
       group: key,
       totalSinistros: 0,
-      valorIndenizadoAbs: 0,
+      valorIndenizadoOriginal: 0,
       faturamentoBase: 0,
+      faturamentoPeriodoFilial: 0,
+      valorIndenizadoAbsFallback: 0,
+      temValorOriginal: false,
     };
 
     current.totalSinistros += point.totalSinistros ?? 0;
-    current.valorIndenizadoAbs += point.valorIndenizadoAbs ?? 0;
+    current.temValorOriginal = current.temValorOriginal || point.valorIndenizadoOriginal != null;
+    current.valorIndenizadoOriginal += point.valorIndenizadoOriginal ?? 0;
+    current.valorIndenizadoAbsFallback += point.valorIndenizadoAbs ?? 0;
     current.faturamentoBase += point.faturamentoBase ?? 0;
+    current.faturamentoPeriodoFilial = Math.max(current.faturamentoPeriodoFilial, point.faturamentoPeriodoFilial ?? 0);
     grouped.set(key, current);
   }
 
   return Array.from(grouped.values())
-    .map((item) => ({
-      ...item,
-      valorIndenizadoAbs: Number(item.valorIndenizadoAbs.toFixed(2)),
-      faturamentoBase: Number(item.faturamentoBase.toFixed(2)),
-      pctIndenizacao: item.faturamentoBase > 0 ? Number(((item.valorIndenizadoAbs / item.faturamentoBase) * 100).toFixed(3)) : 0,
-    }))
+    .map((item) => {
+      const faturamentoBase = item.faturamentoPeriodoFilial > 0 ? item.faturamentoPeriodoFilial : item.faturamentoBase;
+      const valorIndenizadoAbs = item.temValorOriginal
+        ? Math.abs(item.valorIndenizadoOriginal)
+        : item.valorIndenizadoAbsFallback;
+      return {
+        group: item.group,
+        totalSinistros: item.totalSinistros,
+        valorIndenizadoOriginal: Number(item.valorIndenizadoOriginal.toFixed(2)),
+        valorIndenizadoAbs: Number(valorIndenizadoAbs.toFixed(2)),
+        faturamentoBase: Number(faturamentoBase.toFixed(2)),
+        pctIndenizacao: faturamentoBase > 0 ? Number(((valorIndenizadoAbs / faturamentoBase) * 100).toFixed(3)) : 0,
+      };
+    })
     .sort((left, right) => right.pctIndenizacao - left.pctIndenizacao || right.valorIndenizadoAbs - left.valorIndenizadoAbs || left.group.localeCompare(right.group));
 }
 

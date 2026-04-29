@@ -44,16 +44,19 @@ Protegidas:
 Configuracao atual:
 
 - JWT com expiracao de `15 minutos`
-- refresh token rotativo com expiracao padrao de `30 dias`
+- refresh token rotativo com expiracao absoluta padrao de `24 horas`
 - refresh token mantido em cookie `HttpOnly`
+- o cookie de refresh sempre recebe `Max-Age` com o tempo restante da sessao, para preservar login ao fechar/reabrir a aba dentro das 24h
 
 Fluxo:
 
 1. login gera JWT e refresh token;
-2. UI salva o JWT em sessao local;
+2. UI salva o JWT e `sessaoExpiraEm` em `sessionStorage`;
 3. o cookie de refresh fica restrito ao path `/api/auth`;
-4. ao receber `401`, o frontend tenta `/api/auth/refresh`;
-5. se refresh falhar, a sessao local e descartada.
+4. antes do JWT vencer, o frontend tenta refresh silencioso;
+5. ao receber `401`, o frontend tenta `/api/auth/refresh`;
+6. ao abrir nova aba sem JWT local, o frontend tenta restaurar a sessao via `/api/auth/refresh`;
+7. se refresh falhar por expiracao real, logout manual, revogacao ou inativacao, a sessao local e descartada.
 
 ## Papeis e permissoes
 

@@ -34,6 +34,7 @@ public class MigracaoJsonParaSqlRunner implements ApplicationRunner {
     private final PapelRepository papelRepository;
     private final SetorPermissaoTemplateRepository templateRepository;
     private final UsuarioPapelVinculoRepository papelVinculoRepository;
+    private final PasswordHashService passwordHashService;
     private final Path storagePath;
     private final boolean migrationEnabled;
 
@@ -44,6 +45,7 @@ public class MigracaoJsonParaSqlRunner implements ApplicationRunner {
             PapelRepository papelRepository,
             SetorPermissaoTemplateRepository templateRepository,
             UsuarioPapelVinculoRepository papelVinculoRepository,
+            PasswordHashService passwordHashService,
             @Value("${acl.storage-file:./storage/access-control.json}") String storageFile,
             @Value("${acl.legacy.migration-enabled:false}") boolean migrationEnabled
     ) {
@@ -53,6 +55,7 @@ public class MigracaoJsonParaSqlRunner implements ApplicationRunner {
         this.papelRepository = papelRepository;
         this.templateRepository = templateRepository;
         this.papelVinculoRepository = papelVinculoRepository;
+        this.passwordHashService = passwordHashService;
         this.storagePath = Path.of(storageFile).toAbsolutePath().normalize();
         this.migrationEnabled = migrationEnabled;
     }
@@ -158,6 +161,7 @@ public class MigracaoJsonParaSqlRunner implements ApplicationRunner {
             usuario.setNome(stored.nome);
             usuario.setEmail(stored.email);
             usuario.setSenhaHash(stored.senhaHash);
+            usuario.setAlgoritmoHash(passwordHashService.inferirAlgoritmoMigracaoLegada(stored.senhaHash));
             usuario.setSetor(setor);
             usuario.setAtivo(stored.ativo);
             usuario.setExigeTrocaSenha(true);

@@ -1,16 +1,21 @@
 package com.dashboard.api.controller;
 
+import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.dimensoes.PlanoContasDimDTO;
 import com.dashboard.api.dto.dimensoes.UsuarioDimDTO;
 import com.dashboard.api.dto.dimensoes.VeiculoDimDTO;
+import com.dashboard.api.service.DashboardExportService;
 import com.dashboard.api.service.DimensoesService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -20,9 +25,11 @@ public class DimensoesController {
     private static final Logger log = LoggerFactory.getLogger(DimensoesController.class);
 
     private final DimensoesService dimensoesService;
+    private final DashboardExportService dashboardExportService;
 
-    public DimensoesController(DimensoesService dimensoesService) {
+    public DimensoesController(DimensoesService dimensoesService, DashboardExportService dashboardExportService) {
         this.dimensoesService = dimensoesService;
+        this.dashboardExportService = dashboardExportService;
     }
 
     @GetMapping("/filiais")
@@ -65,5 +72,17 @@ public class DimensoesController {
     public List<UsuarioDimDTO> usuarios() {
         log.info("GET /api/dimensoes/usuarios");
         return dimensoesService.listarUsuarios();
+    }
+
+    @GetMapping("/fretes/status")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('fretes')")
+    public List<String> fretesStatus(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        log.info("GET /api/dimensoes/fretes/status - periodo: {} a {}", dataInicio, dataFim);
+        FiltroConsultaDTO filtro = FiltroRequestMapper.from(dataInicio, dataFim, params);
+        return dashboardExportService.listarStatusFretes(filtro);
     }
 }

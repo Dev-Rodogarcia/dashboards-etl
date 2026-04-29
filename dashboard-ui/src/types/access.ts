@@ -56,6 +56,8 @@ export interface UsuarioAdmin {
   filiaisPermitidasEfetivas: string[];
   permissoesNegadas: PermissionKey[];
   permissoesConcedidas: PermissionKey[];
+  statusSenha: 'segura' | 'migrar_no_login' | 'reset_obrigatorio';
+  algoritmoSenha: string;
 }
 
 export interface UsuarioPayload {

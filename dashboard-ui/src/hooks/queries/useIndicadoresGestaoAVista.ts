@@ -3,19 +3,24 @@ import {
   buscarCubagemMercadoriasOverview,
   buscarCubagemMercadoriasSerie,
   buscarCubagemMercadoriasTabela,
+  buscarCubagemMercadoriasTabelaPaginada,
   buscarHorariosCorteOverview,
   buscarHorariosCorteSerie,
   buscarHorariosCorteTabela,
+  buscarHorariosCorteTabelaPaginada,
   buscarIndenizacaoMercadoriasOverview,
   buscarIndenizacaoMercadoriasSerie,
   buscarIndenizacaoMercadoriasTabela,
+  buscarIndenizacaoMercadoriasTabelaPaginada,
   importarHorariosCorte,
   buscarPerformanceEntregaOverview,
   buscarPerformanceEntregaSerie,
   buscarPerformanceEntregaTabela,
+  buscarPerformanceEntregaTabelaPaginada,
   buscarUtilizacaoColetoresOverview,
   buscarUtilizacaoColetoresSerie,
   buscarUtilizacaoColetoresTabela,
+  buscarUtilizacaoColetoresTabelaPaginada,
 } from '../../api/endpoints/indicadoresGestaoAVistaServico';
 import type { IndicadoresGestaoVistaFiltro } from '../../types/indicadoresGestaoAVista';
 
@@ -48,6 +53,15 @@ export function usePerformanceEntregaTabela(filtro: IndicadoresGestaoVistaFiltro
   });
 }
 
+export function usePerformanceEntregaTabelaPaginada(filtro: IndicadoresGestaoVistaFiltro, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['indicadores-gestao-a-vista', 'performance-entrega', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarPerformanceEntregaTabelaPaginada(filtro, pagina, tamanhoPagina),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
 export function useUtilizacaoColetoresOverview(filtro: IndicadoresGestaoVistaFiltro) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'utilizacao-coletores', 'overview', filtro],
@@ -70,6 +84,15 @@ export function useUtilizacaoColetoresTabela(filtro: IndicadoresGestaoVistaFiltr
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'utilizacao-coletores', 'tabela', filtro, limite],
     queryFn: () => buscarUtilizacaoColetoresTabela(filtro, limite),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useUtilizacaoColetoresTabelaPaginada(filtro: IndicadoresGestaoVistaFiltro, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['indicadores-gestao-a-vista', 'utilizacao-coletores', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarUtilizacaoColetoresTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
     retry: 1,
   });
@@ -102,6 +125,15 @@ export function useCubagemMercadoriasTabela(filtro: IndicadoresGestaoVistaFiltro
   });
 }
 
+export function useCubagemMercadoriasTabelaPaginada(filtro: IndicadoresGestaoVistaFiltro, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['indicadores-gestao-a-vista', 'cubagem-mercadorias', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarCubagemMercadoriasTabelaPaginada(filtro, pagina, tamanhoPagina),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
 export function useIndenizacaoMercadoriasOverview(filtro: IndicadoresGestaoVistaFiltro) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'indenizacao-mercadorias', 'overview', filtro],
@@ -129,6 +161,15 @@ export function useIndenizacaoMercadoriasTabela(filtro: IndicadoresGestaoVistaFi
   });
 }
 
+export function useIndenizacaoMercadoriasTabelaPaginada(filtro: IndicadoresGestaoVistaFiltro, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['indicadores-gestao-a-vista', 'indenizacao-mercadorias', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarIndenizacaoMercadoriasTabelaPaginada(filtro, pagina, tamanhoPagina),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
 export function useHorariosCorteOverview(filtro: IndicadoresGestaoVistaFiltro) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'horarios-corte', 'overview', filtro],
@@ -151,6 +192,15 @@ export function useHorariosCorteTabela(filtro: IndicadoresGestaoVistaFiltro, lim
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'horarios-corte', 'tabela', filtro, limite],
     queryFn: () => buscarHorariosCorteTabela(filtro, limite),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useHorariosCorteTabelaPaginada(filtro: IndicadoresGestaoVistaFiltro, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['indicadores-gestao-a-vista', 'horarios-corte', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarHorariosCorteTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
     retry: 1,
   });

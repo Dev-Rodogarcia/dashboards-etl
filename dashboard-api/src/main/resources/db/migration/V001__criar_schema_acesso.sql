@@ -1,6 +1,6 @@
 -- =============================================================
 -- Schema de controle de acesso (autorizacao + auditoria)
--- Banco: ETL_SISTEMA  |  Schema: acesso
+-- Banco: DASHBOARDS  |  Schema: acesso
 -- =============================================================
 
 CREATE SCHEMA acesso;

@@ -6,7 +6,9 @@ import {
   buscarVeiculos,
   buscarPlanoContas,
   buscarUsuarios,
+  buscarFretesStatus,
 } from '../../api/endpoints/dimensoesServico';
+import type { FretesFiltro } from '../../types/fretes';
 
 const STALE_TIME = 30 * 60 * 1000; // 30 minutos
 
@@ -59,6 +61,15 @@ export function useUsuarios() {
   return useQuery({
     queryKey: ['dim', 'usuarios'],
     queryFn: buscarUsuarios,
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFretesStatus(filtro: FretesFiltro) {
+  return useQuery({
+    queryKey: ['dim', 'fretes', 'status', filtro],
+    queryFn: () => buscarFretesStatus(filtro),
     staleTime: STALE_TIME,
     retry: 1,
   });

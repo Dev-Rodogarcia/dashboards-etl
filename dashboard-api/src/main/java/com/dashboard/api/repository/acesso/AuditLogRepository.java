@@ -5,9 +5,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.Instant;
+
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     Page<AuditLog> findAllByOrderByTimestampUtcDesc(Pageable pageable);
     Page<AuditLog> findByAcaoOrderByTimestampUtcDesc(String acao, Pageable pageable);
     Page<AuditLog> findByUsuarioIdOrderByTimestampUtcDesc(Long usuarioId, Pageable pageable);
     Page<AuditLog> findByAcaoAndUsuarioIdOrderByTimestampUtcDesc(String acao, Long usuarioId, Pageable pageable);
+    long deleteByTimestampUtcBefore(Instant timestampUtc);
 }

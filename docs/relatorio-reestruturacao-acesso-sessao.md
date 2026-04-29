@@ -212,7 +212,8 @@ O frontend deixou de derrubar o usuario apenas pela expiracao do access token.
 
 Agora o fluxo cliente:
 
-- persiste a sessao em `localStorage`
+- persiste o JWT em `sessionStorage`
+- restaura nova aba via cookie `HttpOnly` de refresh enquanto o navegador estiver aberto
 - tenta `refresh` silencioso quando recebe `401`
 - atualiza o token e repete a requisicao original
 - so limpa a sessao se o refresh falhar, o logout for manual ou a conta estiver revogada
@@ -290,6 +291,6 @@ O modulo de acesso foi simplificado e endurecido:
 - usuarios herdam esse acesso e so podem sofrer negacoes individuais
 - cada usuario possui um unico papel administrativo
 - autenticacao passa a usar email
-- a sessao permanece ativa por refresh token ate logout, revogacao ou inativacao
+- a sessao permanece ativa por refresh token ate logout, revogacao, inativacao ou expiracao absoluta de 24 horas
 
 Este documento passa a ser a referencia funcional e tecnica desta reestruturacao.

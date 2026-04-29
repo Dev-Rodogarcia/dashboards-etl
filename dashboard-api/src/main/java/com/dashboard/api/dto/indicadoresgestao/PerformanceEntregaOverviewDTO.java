@@ -4,7 +4,7 @@ public record PerformanceEntregaOverviewDTO(
         String updatedAt,
         int totalEntregas,
         int entregasNoPrazo,
-        int entregasSemDados,
+        int entregasForaDoPrazo,
         double pctNoPrazo
 ) {
 }

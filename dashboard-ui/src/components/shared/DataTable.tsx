@@ -10,6 +10,8 @@ export interface ColunaTabela<T> {
   ordenavel?: boolean;
 }
 
+type ItemPaginacao = number | 'ellipsis-start' | 'ellipsis-end';
+
 interface DataTableProps<T> {
   dados: T[];
   colunas: ColunaTabela<T>[];
@@ -19,6 +21,11 @@ interface DataTableProps<T> {
   mostrarCabecalho?: boolean;
   paginaInicial?: number;
   tamanhoPaginaInicial?: number;
+  totalRegistros?: number;
+  paginaAtual?: number;
+  tamanhoPagina?: number;
+  onPaginaChange?: (pagina: number) => void;
+  onTamanhoPaginaChange?: (tamanhoPagina: number) => void;
 }
 
 export default function DataTable<T>({
@@ -30,12 +37,44 @@ export default function DataTable<T>({
   mostrarCabecalho = true,
   paginaInicial = 1,
   tamanhoPaginaInicial = 10,
+  totalRegistros,
+  paginaAtual: paginaAtualControlada,
+  tamanhoPagina: tamanhoPaginaControlado,
+  onPaginaChange,
+  onTamanhoPaginaChange,
 }: DataTableProps<T>) {
   const [ordenarPor, setOrdenarPor] = useState<string | null>(null);
   const [direcao, setDirecao] = useState<'asc' | 'desc'>('asc');
-  const [paginaAtual, setPaginaAtual] = useState(paginaInicial);
-  const [tamanhoPagina, setTamanhoPagina] = useState(tamanhoPaginaInicial);
+  const [paginaAtualInterna, setPaginaAtualInterna] = useState(paginaInicial);
+  const [tamanhoPaginaInterno, setTamanhoPaginaInterno] = useState(tamanhoPaginaInicial);
   const colunaOrdenada = colunas.find((coluna) => coluna.chave === ordenarPor);
+  const paginaAtual = paginaAtualControlada ?? paginaAtualInterna;
+  const tamanhoPagina = tamanhoPaginaControlado ?? tamanhoPaginaInterno;
+  const paginacaoRemota = Boolean(onPaginaChange || onTamanhoPaginaChange);
+
+  function alterarPagina(proximaPagina: number) {
+    if (onPaginaChange) {
+      onPaginaChange(proximaPagina);
+      return;
+    }
+    setPaginaAtualInterna(proximaPagina);
+  }
+
+  function alterarTamanhoPagina(proximoTamanho: number) {
+    const primeiroRegistroAtual = dadosPaginados.length === 0 ? 1 : inicio + 1;
+    const totalPaginasNovo = Math.max(1, Math.ceil(totalBasePaginacao / proximoTamanho));
+    const proximaPagina = Math.min(
+      totalPaginasNovo,
+      Math.max(1, Math.ceil(primeiroRegistroAtual / proximoTamanho)),
+    );
+
+    if (onTamanhoPaginaChange) {
+      onTamanhoPaginaChange(proximoTamanho);
+    } else {
+      setTamanhoPaginaInterno(proximoTamanho);
+    }
+    alterarPagina(proximaPagina);
+  }
 
   function handleSort(chave: string, ordenavel = true) {
     if (!ordenavel) {
@@ -48,7 +87,7 @@ export default function DataTable<T>({
       setOrdenarPor(chave);
       setDirecao('asc');
     }
-    setPaginaAtual(1);
+    alterarPagina(1);
   }
 
   const dadosOrdenados = useMemo(() => {
@@ -73,10 +112,35 @@ export default function DataTable<T>({
     });
   }, [colunaOrdenada, dados, direcao, ordenarPor]);
 
-  const totalPaginas = Math.max(1, Math.ceil(dadosOrdenados.length / tamanhoPagina));
+  const totalReal = totalRegistros ?? dados.length;
+  const totalBasePaginacao = paginacaoRemota ? totalReal : dadosOrdenados.length;
+  const totalPaginas = Math.max(1, Math.ceil(totalBasePaginacao / tamanhoPagina));
   const paginaSegura = Math.min(paginaAtual, totalPaginas);
   const inicio = (paginaSegura - 1) * tamanhoPagina;
-  const dadosPaginados = dadosOrdenados.slice(inicio, inicio + tamanhoPagina);
+  const dadosPaginados = paginacaoRemota ? dadosOrdenados : dadosOrdenados.slice(inicio, inicio + tamanhoPagina);
+  const fimExibido = paginacaoRemota
+    ? Math.min(inicio + dadosPaginados.length, totalReal)
+    : Math.min(inicio + dadosPaginados.length, dados.length);
+  const resumoRegistros = paginacaoRemota
+    ? `${totalReal} registros encontrados`
+    : totalReal > dados.length
+    ? `${dados.length} de ${totalReal} registros carregados`
+    : `${dados.length} registros carregados`;
+  const itensPaginacao = useMemo<ItemPaginacao[]>(() => {
+    if (totalPaginas <= 7) {
+      return Array.from({ length: totalPaginas }, (_, index) => index + 1);
+    }
+
+    if (paginaSegura <= 4) {
+      return [1, 2, 3, 4, 5, 'ellipsis-end', totalPaginas];
+    }
+
+    if (paginaSegura >= totalPaginas - 3) {
+      return [1, 'ellipsis-start', totalPaginas - 4, totalPaginas - 3, totalPaginas - 2, totalPaginas - 1, totalPaginas];
+    }
+
+    return [1, 'ellipsis-start', paginaSegura - 2, paginaSegura - 1, paginaSegura, paginaSegura + 1, paginaSegura + 2, 'ellipsis-end', totalPaginas];
+  }, [paginaSegura, totalPaginas]);
 
   if (isLoading) {
     return (
@@ -107,17 +171,14 @@ export default function DataTable<T>({
               {titulo ?? 'Tabela analitica'}
             </h3>
             <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {dados.length} registros carregados
+              {resumoRegistros}
             </p>
           </div>
           <label className="flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
             Linhas
             <select
               value={tamanhoPagina}
-              onChange={(event) => {
-                setTamanhoPagina(Number(event.target.value));
-                setPaginaAtual(1);
-              }}
+              onChange={(event) => alterarTamanhoPagina(Number(event.target.value))}
               className="rounded-lg border px-2 py-1 text-xs"
               style={{
                 backgroundColor: 'var(--color-bg)',
@@ -125,7 +186,7 @@ export default function DataTable<T>({
                 color: 'var(--color-text)',
               }}
             >
-              {[10, 20, 50].map((valor) => (
+              {[10, 20, 50, 100].map((valor) => (
                 <option key={valor} value={valor}>
                   {valor}
                 </option>
@@ -210,24 +271,65 @@ export default function DataTable<T>({
       >
         <span>
           Mostrando {dadosPaginados.length === 0 ? 0 : inicio + 1} a{' '}
-          {Math.min(inicio + dadosPaginados.length, dados.length)} de {dados.length}
+          {fimExibido} de {paginacaoRemota ? totalReal : dados.length}
         </span>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
-            onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+            onClick={() => alterarPagina(Math.max(1, paginaSegura - 1))}
             disabled={paginaSegura === 1}
             className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
           >
             Anterior
           </button>
-          <span>
+          <div className="flex flex-wrap items-center justify-center gap-1" aria-label="Páginas da tabela">
+            {itensPaginacao.map((item) => {
+              if (typeof item !== 'number') {
+                return (
+                  <span
+                    key={item}
+                    className="px-1.5 text-xs"
+                    style={{ color: 'var(--color-text-muted)' }}
+                    aria-hidden="true"
+                  >
+                    ...
+                  </span>
+                );
+              }
+
+              const ativo = item === paginaSegura;
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => alterarPagina(item)}
+                  aria-current={ativo ? 'page' : undefined}
+                  className="min-w-8 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed"
+                  style={
+                    ativo
+                      ? {
+                          backgroundColor: 'var(--color-primary)',
+                          borderColor: 'var(--color-primary)',
+                          color: 'white',
+                        }
+                      : {
+                          borderColor: 'var(--color-border)',
+                          color: 'var(--color-text)',
+                        }
+                  }
+                >
+                  {item}
+                </button>
+              );
+            })}
+          </div>
+          <span className="min-w-[92px] text-center">
             Pagina {paginaSegura} de {totalPaginas}
           </span>
           <button
             type="button"
-            onClick={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
+            onClick={() => alterarPagina(Math.min(totalPaginas, paginaSegura + 1))}
             disabled={paginaSegura === totalPaginas}
             className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}

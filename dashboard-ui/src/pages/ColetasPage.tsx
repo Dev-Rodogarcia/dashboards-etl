@@ -10,10 +10,12 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { exportarColetasExcel } from '../api/endpoints/coletasServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useClientes, useFiliais, useUsuarios } from '../hooks/queries/useDimensoes';
-import { useColetasGraficos, useColetasOverview, useColetasSerie, useColetasTabela } from '../hooks/queries/useColetas';
+import { useColetasGraficos, useColetasOverview, useColetasSerie, useColetasTabelaPaginada } from '../hooks/queries/useColetas';
+import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ColetaResumoRow, ColetasFiltro } from '../types/coletas';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
@@ -43,7 +45,8 @@ export default function ColetasPage() {
   const overview = useColetasOverview(filtro);
   const serie = useColetasSerie(filtro);
   const graficos = useColetasGraficos(filtro);
-  const tabela = useColetasTabela(filtro, 120);
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
+  const tabela = useColetasTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
 
   const statusData = graficos.data?.statusDistribuicao ?? [];
   const slaPorFilial = graficos.data?.slaPorFilial ?? [];
@@ -163,9 +166,20 @@ export default function ColetasPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton dados={(tabela.data ?? []) as unknown as Record<string, unknown>[]} nomeArquivo="coletas" />
+        <ExportButton nomeArquivo="coletas" onExport={() => exportarColetasExcel(filtro)} />
       </div>
-      <DataTable titulo="Coletas Analiticas" dados={tabela.data ?? []} colunas={colunas} chaveLinha="id" isLoading={tabela.isLoading} />
+      <DataTable
+        titulo="Coletas Analiticas"
+        dados={tabela.data?.conteudo ?? []}
+        colunas={colunas}
+        chaveLinha="id"
+        isLoading={tabela.isLoading}
+        totalRegistros={tabela.data?.totalElementos}
+        paginaAtual={paginacaoTabela.pagina}
+        tamanhoPagina={paginacaoTabela.tamanhoPagina}
+        onPaginaChange={paginacaoTabela.setPagina}
+        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+      />
     </div>
   );
 }

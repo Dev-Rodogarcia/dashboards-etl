@@ -54,31 +54,29 @@ dashboards-etl/
 
 ## Configuracao local
 
-### Backend (`dashboard-api/.env`)
+### Ambiente central (`.env`)
 
-Use `dashboard-api/.env.example` como base.
+Use `.env.example` como base. Este arquivo fica na raiz de `dashboards-etl` e alimenta backend e frontend.
 
 ```env
-DB_URL=jdbc:sqlserver://HOST:1433;databaseName=ETL_SISTEMA;encrypt=true;trustServerCertificate=true
+API_BASE_URL=http://localhost:5010
+VITE_API_BASE_URL=http://localhost:5010
+SERVER_ADDRESS=127.0.0.1
+DB_URL=jdbc:sqlserver://HOST:1433;databaseName=DASHBOARDS;encrypt=true;trustServerCertificate=true
 DB_USER=seu_usuario
 DB_PASSWORD=sua_senha
 JWT_SECRET=segredo-forte-unico-por-ambiente
 API_KEY=chave-forte-unica-para-rotas-internas
+CORS_ORIGENS_PERMITIDAS=http://localhost:5173,https://analytics.rodogarcia.com.br
 ```
 
 Notas:
 
 - `JWT_SECRET` e `API_KEY` devem ser definidos explicitamente em todos os ambientes.
+- `VITE_API_BASE_URL` é lido pelo Vite a partir do mesmo `.env` central.
 - a migração legada JSON → SQL fica desabilitada por padrão e só deve ser habilitada de forma temporária via `ACL_LEGACY_MIGRATION_ENABLED=true`.
 - não versione usuários reais, hashes de senha ou artefatos de bootstrap no deploy.
-
-### Frontend (`dashboard-ui/.env.development`)
-
-Use `dashboard-ui/.env.example` como base.
-
-```env
-VITE_API_BASE_URL=http://localhost:5010
-```
+- em VM atras de Cloudflare Tunnel, mantenha `SERVER_ADDRESS=127.0.0.1` para a API responder apenas localmente ao `cloudflared`.
 
 ## Como executar
 
@@ -117,15 +115,18 @@ npm run dev
 - o login passa a usar `email + senha`
 - novos usuários exigem senha explícita e política server-side
 - a sessao e renovada silenciosamente por refresh token e so deve cair em logout, revogacao ou inativacao
-- a sessao do frontend e por aba: recarregar a mesma aba preserva a autenticacao, mas abrir nova aba exige novo login
+- a sessao dura 24 horas absolutas desde o login: recarregar, fechar aba e abrir novamente preservam a autenticacao enquanto o refresh cookie persistente ainda estiver valido
 - falha temporaria da API nao deve redirecionar o usuario para `/login`
 - não existe endpoint público para descoberta de contas
 
 ### Observacoes de deploy para o telão
 
+- configure `AUTH_SESSION_EXPIRACAO_HORAS=24` para manter a sessao por 24 horas completas
+- configure `ACESSO_USUARIO_SUPREMO_*` e `VITE_ACESSO_USUARIO_SUPREMO_PAPEL` no ambiente; credenciais privilegiadas nao ficam no codigo
 - se UI e API estiverem no mesmo site, manter `AUTH_REFRESH_COOKIE_SAME_SITE=Lax`
 - se UI e API estiverem em sites diferentes, usar `AUTH_REFRESH_COOKIE_SAME_SITE=None`
-- em deploy cross-site, `AUTH_REFRESH_COOKIE_SECURE=true` e `cors.origem-permitida` devem apontar para a origem exata da UI
+- em deploy cross-site, `AUTH_REFRESH_COOKIE_SECURE=true` e `CORS_ORIGENS_PERMITIDAS` devem apontar para as origens exatas da UI
+- para Cloudflare Tunnel, use `SECURITY_TRUST_FORWARDED_HEADERS=true` somente com a porta da API inacessivel diretamente pela Internet.
 
 ## Rotas principais do frontend
 

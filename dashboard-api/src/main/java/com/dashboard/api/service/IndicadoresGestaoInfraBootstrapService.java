@@ -52,11 +52,8 @@ public class IndicadoresGestaoInfraBootstrapService implements ApplicationRunner
                 "N° Minuta", "Filial Emissora", "Responsável pela Região de Destino", "Data de extracao"
         )));
         inconsistencias.addAll(auditarObjeto("vw_manifestos_powerbi", List.of(
-                "Número", "Filial Emissora", "Local de Descarregamento", "Data criação", "Data de extracao"
-        )));
-        inconsistencias.addAll(auditarObjeto("vw_inventario_powerbi", List.of(
-                "Identificador Único", "N° Ordem", "Nº Minuta", "Filial Emissora do Frete", "Tipo", "Status",
-                "Data/Hora início", "Data de extracao"
+                "Número", "Status", "Classificação", "Filial Emissora", "Local de Descarregamento",
+                "Leitura Móvel/Em", "Itens/Total", "Itens/Finalizados", "Data criação", "Data de extracao"
         )));
         inconsistencias.addAll(auditarObjeto("vw_sinistros_powerbi", List.of(
                 "Identificador Único", "Nº do Sinistro", "Data abertura", "Minuta", "Resultado final",

@@ -43,11 +43,17 @@ interface IndicadoresGestaoSectionProps<T> {
   chartEmpty: boolean;
   chartError?: string | null;
   exportName: string;
+  onExport?: () => Promise<void> | void;
   tableTitle: string;
   tableData: T[];
   tableColumns: ColunaTabela<T>[];
   rowKey: keyof T & string;
   tableLoading: boolean;
+  tableTotal?: number;
+  tablePage?: number;
+  tablePageSize?: number;
+  onTablePageChange?: (pagina: number) => void;
+  onTablePageSizeChange?: (tamanhoPagina: number) => void;
   isExpanded: boolean;
   onToggleTable: () => void;
 }
@@ -67,14 +73,25 @@ export default function IndicadoresGestaoSection<T>({
   chartEmpty,
   chartError,
   exportName,
+  onExport,
   tableTitle,
   tableData,
   tableColumns,
   rowKey,
   tableLoading,
+  tableTotal,
+  tablePage,
+  tablePageSize,
+  onTablePageChange,
+  onTablePageSizeChange,
   isExpanded,
   onToggleTable,
 }: IndicadoresGestaoSectionProps<T>) {
+  const totalTabela = tableTotal ?? tableData.length;
+  const resumoTabela = tableTotal == null
+    ? `${tableData.length} registros carregados`
+    : `${totalTabela} registros encontrados`;
+
   return (
     <section
       className="mb-8 rounded-[24px] border p-5 shadow-sm"
@@ -94,7 +111,7 @@ export default function IndicadoresGestaoSection<T>({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <ExportButton dados={tableData as unknown as Record<string, unknown>[]} nomeArquivo={exportName} />
+          <ExportButton dados={tableData as unknown as Record<string, unknown>[]} nomeArquivo={exportName} onExport={onExport} />
           <button
             type="button"
             onClick={onToggleTable}
@@ -153,7 +170,7 @@ export default function IndicadoresGestaoSection<T>({
               {tableTitle}
             </div>
             <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {tableData.length} registros carregados
+              {resumoTabela}
             </div>
           </div>
           <div className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>
@@ -170,6 +187,11 @@ export default function IndicadoresGestaoSection<T>({
               chaveLinha={rowKey}
               isLoading={tableLoading}
               mostrarCabecalho={false}
+              totalRegistros={tableTotal}
+              paginaAtual={tablePage}
+              tamanhoPagina={tablePageSize}
+              onPaginaChange={onTablePageChange}
+              onTamanhoPaginaChange={onTablePageSizeChange}
             />
           </div>
         ) : null}

@@ -44,7 +44,7 @@ export function classificarErroSessao(error: unknown): TipoErroSessao {
 
   if (error instanceof AxiosError) {
     const status = error.response?.status;
-    if (status === 401 || status === 403) {
+    if (status === 401) {
       return 'sessao_expirada';
     }
   }

@@ -5,6 +5,8 @@ import {
   buscarFaturasPorClienteOverview,
   buscarFaturasPorClienteStatusProcesso,
   buscarFaturasPorClienteTabela,
+  buscarFaturasPorClienteTabelaPaginada,
+  buscarFaturasPorClienteTabelaTotal,
   buscarFaturasPorClienteTopClientes,
 } from '../../api/endpoints/faturasPorClienteServico';
 import type { FaturasPorClienteFiltro } from '../../types/faturasPorCliente';
@@ -60,6 +62,24 @@ export function useFaturasPorClienteTabela(filtro: FaturasPorClienteFiltro, limi
   return useQuery({
     queryKey: ['faturas-por-cliente', 'tabela', filtro, limite],
     queryFn: () => buscarFaturasPorClienteTabela(filtro, limite),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturasPorClienteTabelaTotal(filtro: FaturasPorClienteFiltro) {
+  return useQuery({
+    queryKey: ['faturas-por-cliente', 'tabela-total', filtro],
+    queryFn: () => buscarFaturasPorClienteTabelaTotal(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturasPorClienteTabelaPaginada(filtro: FaturasPorClienteFiltro, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['faturas-por-cliente', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarFaturasPorClienteTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
     retry: 1,
   });

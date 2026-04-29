@@ -11,7 +11,7 @@ public class UsuarioEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "chave_legado", unique = true, length = 80)
+    @Column(name = "chave_legado", length = 80)
     private String chaveLegado;
 
     @Column(nullable = false, unique = true, length = 80)

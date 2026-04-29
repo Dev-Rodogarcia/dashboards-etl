@@ -2,10 +2,9 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaOverviewDTO;
+import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaSeriePointDTO;
 import com.dashboard.api.model.VisaoFretesEntity;
-import com.dashboard.api.model.VisaoLocalizacaoCargasEntity;
 import com.dashboard.api.repository.VisaoFretesRepository;
-import com.dashboard.api.repository.VisaoLocalizacaoCargasRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,9 +27,6 @@ class PerformanceEntregaIndicadorServiceTest {
     @Mock
     private VisaoFretesRepository fretesRepository;
 
-    @Mock
-    private VisaoLocalizacaoCargasRepository localizacaoRepository;
-
     private PerformanceEntregaIndicadorService service;
 
     @BeforeEach
@@ -38,61 +34,90 @@ class PerformanceEntregaIndicadorServiceTest {
         service = new PerformanceEntregaIndicadorService(
                 new ValidadorPeriodoService(),
                 fretesRepository,
-                localizacaoRepository,
                 escopoSemRestricao(),
                 PeriodoOffsetDateTimeHelper.padrao()
         );
     }
 
     @Test
-    void buscarOverviewDeveCalcularPercentualESuportarFallbackDeResponsavel() {
+    void buscarOverviewDeveConsiderarApenasEntregasElegiveisNoKpi() {
         when(fretesRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                frete(101L, "SPO", null, LocalDate.of(2026, 4, 2), "NO PRAZO", 0, LocalDateTime.of(2026, 4, 3, 9, 0)),
-                frete(102L, "SPO", "REC", LocalDate.of(2026, 4, 2), "FORA DO PRAZO", 2, LocalDateTime.of(2026, 4, 3, 9, 0)),
-                frete(103L, "SPO", null, null, null, null, LocalDateTime.of(2026, 4, 3, 9, 0))
-        ));
-        when(localizacaoRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                localizacao(101L, "CWB")
+                frete(101L, "SPO", "CWB", "finalizado", OffsetDateTime.parse("2026-04-02T10:00:00-03:00"), LocalDate.of(2026, 4, 3), "NO PRAZO", 0, LocalDateTime.of(2026, 4, 3, 9, 0)),
+                frete(102L, "SPO", "CWB", "finalizado", OffsetDateTime.parse("2026-04-03T10:00:00-03:00"), LocalDate.of(2026, 4, 4), "FORA DO PRAZO", 2, LocalDateTime.of(2026, 4, 3, 9, 0)),
+                frete(103L, "SPO", "CWB", "em trânsito", OffsetDateTime.parse("2026-04-04T10:00:00-03:00"), LocalDate.of(2026, 4, 5), "NO PRAZO", 0, LocalDateTime.of(2026, 4, 3, 9, 0)),
+                frete(104L, "SPO", "CWB", "finalizado", OffsetDateTime.parse("2026-04-05T10:00:00-03:00"), LocalDate.of(2026, 4, 6), null, null, LocalDateTime.of(2026, 4, 3, 9, 0))
         ));
 
         PerformanceEntregaOverviewDTO overview = service.buscarOverview(
                 new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
         );
 
-        assertThat(overview.totalEntregas()).isEqualTo(3);
+        assertThat(overview.totalEntregas()).isEqualTo(2);
         assertThat(overview.entregasNoPrazo()).isEqualTo(1);
-        assertThat(overview.entregasSemDados()).isEqualTo(1);
-        assertThat(overview.pctNoPrazo()).isEqualTo(33.3);
+        assertThat(overview.entregasForaDoPrazo()).isEqualTo(1);
+        assertThat(overview.pctNoPrazo()).isEqualTo(50.0);
+    }
+
+    @Test
+    void buscarOverviewDeveFiltrarPelaFilialPerformanceEmVezDaFilialEmissora() {
+        when(fretesRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                frete(201L, "SPO", "CWB", "finalizado", OffsetDateTime.parse("2026-04-02T10:00:00-03:00"), LocalDate.of(2026, 4, 3), "NO PRAZO", 0, LocalDateTime.of(2026, 4, 3, 9, 0)),
+                frete(202L, "CWB", "SPO", "finalizado", OffsetDateTime.parse("2026-04-02T10:00:00-03:00"), LocalDate.of(2026, 4, 3), "NO PRAZO", 0, LocalDateTime.of(2026, 4, 3, 9, 0))
+        ));
+
+        PerformanceEntregaOverviewDTO overview = service.buscarOverview(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of("filiais", List.of("CWB")))
+        );
+
+        assertThat(overview.totalEntregas()).isEqualTo(1);
+        assertThat(overview.entregasNoPrazo()).isEqualTo(1);
+        assertThat(overview.entregasForaDoPrazo()).isZero();
+    }
+
+    @Test
+    void buscarSerieDeveUsarDataFreteComoEixoEFilialPerformanceComoAgrupador() {
+        when(fretesRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                frete(301L, "SPO", "REC", "finalizado", OffsetDateTime.parse("2026-04-01T10:00:00-03:00"), LocalDate.of(2026, 4, 5), "NO PRAZO", 0, LocalDateTime.of(2026, 4, 3, 9, 0))
+        ));
+
+        List<PerformanceEntregaSeriePointDTO> serie = service.buscarSerie(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
+        );
+
+        assertThat(serie).singleElement().satisfies(point -> {
+            assertThat(point.date()).isEqualTo("2026-04-01");
+            assertThat(point.filialPerformance()).isEqualTo("REC");
+            assertThat(point.totalEntregas()).isEqualTo(1);
+            assertThat(point.entregasNoPrazo()).isEqualTo(1);
+            assertThat(point.entregasForaDoPrazo()).isZero();
+            assertThat(point.pctNoPrazo()).isEqualTo(100.0);
+        });
     }
 
     private static VisaoFretesEntity frete(
             Long numeroMinuta,
             String filialEmissora,
-            String responsavel,
+            String filialPerformance,
+            String statusFrete,
+            OffsetDateTime dataFrete,
             LocalDate dataFinalizacao,
-            String status,
+            String performanceStatus,
             Integer diferencaDias,
             LocalDateTime dataExtracao
     ) {
         VisaoFretesEntity entity = TestReflectionUtils.novaInstancia(VisaoFretesEntity.class);
         TestReflectionUtils.setField(entity, "id", numeroMinuta);
         TestReflectionUtils.setField(entity, "numeroMinuta", numeroMinuta);
-        TestReflectionUtils.setField(entity, "dataFrete", OffsetDateTime.parse("2026-04-02T10:00:00-03:00"));
+        TestReflectionUtils.setField(entity, "dataFrete", dataFrete);
+        TestReflectionUtils.setField(entity, "filialNome", filialEmissora);
         TestReflectionUtils.setField(entity, "filialEmissora", filialEmissora);
-        TestReflectionUtils.setField(entity, "responsavelRegiaoDestino", responsavel);
+        TestReflectionUtils.setField(entity, "responsavelRegiaoDestino", filialPerformance);
+        TestReflectionUtils.setField(entity, "status", statusFrete);
         TestReflectionUtils.setField(entity, "previsaoEntrega", LocalDate.of(2026, 4, 1));
         TestReflectionUtils.setField(entity, "dataFinalizacao", dataFinalizacao);
-        TestReflectionUtils.setField(entity, "performanceStatus", status);
+        TestReflectionUtils.setField(entity, "performanceStatus", performanceStatus);
         TestReflectionUtils.setField(entity, "performanceDiferencaDias", diferencaDias);
         TestReflectionUtils.setField(entity, "dataExtracao", dataExtracao);
-        return entity;
-    }
-
-    private static VisaoLocalizacaoCargasEntity localizacao(Long minuta, String responsavel) {
-        VisaoLocalizacaoCargasEntity entity = TestReflectionUtils.novaInstancia(VisaoLocalizacaoCargasEntity.class);
-        TestReflectionUtils.setField(entity, "sequenceNumber", minuta);
-        TestReflectionUtils.setField(entity, "responsavelRegiaoDestino", responsavel);
-        TestReflectionUtils.setField(entity, "dataFrete", OffsetDateTime.parse("2026-04-02T10:00:00-03:00"));
         return entity;
     }
 

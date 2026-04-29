@@ -5,25 +5,34 @@
 - Java 17 ou superior
 - Node.js com npm
 - acesso ao SQL Server usado pela API
-- arquivo `dashboard-api/.env`
-- arquivo `dashboard-ui/.env.development`
+- arquivo `.env` na raiz de `dashboards-etl`
 
 ## Configuracao de ambiente
 
-### Backend
+### Arquivo central
 
 Arquivo:
 
-- `dashboard-api/.env`
+- `.env`
 
 Variaveis minimas:
 
 ```env
+API_BASE_URL=http://localhost:5010
+VITE_API_BASE_URL=http://localhost:5010
+SERVER_ADDRESS=127.0.0.1
 DB_URL=jdbc:sqlserver://HOST:1433;databaseName=ETL_SISTEMA;encrypt=true;trustServerCertificate=true
 DB_USER=seu_usuario
 DB_PASSWORD=sua_senha
 JWT_SECRET=segredo-forte
 API_KEY=chave-interna
+AUTH_SESSION_EXPIRACAO_HORAS=24
+ACESSO_USUARIO_SUPREMO_EMAIL=admin-seguro@empresa.com
+ACESSO_USUARIO_SUPREMO_SENHA_INICIAL=senha-forte-fora-do-codigo
+ACESSO_USUARIO_SUPREMO_NOME=Administrador Supremo
+ACESSO_USUARIO_SUPREMO_PAPEL=desenvolvedor
+ACESSO_USUARIO_SUPREMO_NIVEL=1000
+VITE_ACESSO_USUARIO_SUPREMO_PAPEL=desenvolvedor
 ```
 
 Configuracoes importantes no `application.yml`:
@@ -32,18 +41,36 @@ Configuracoes importantes no `application.yml`:
 - timeout JPA `30000`
 - periodo timezone `America/Sao_Paulo`
 - JWT `15 minutos`
+- bind local da API por padrao em `127.0.0.1`
 
-### Frontend
+## Producao com Cloudflare Tunnel
 
-Arquivo:
-
-- `dashboard-ui/.env.development`
-
-Variavel minima:
+Na VM, use as variaveis abaixo junto das credenciais reais:
 
 ```env
-VITE_API_BASE_URL=http://localhost:5010
+SERVER_ADDRESS=127.0.0.1
+SECURITY_TRUST_FORWARDED_HEADERS=true
+AUTH_REFRESH_COOKIE_SECURE=true
+AUTH_REFRESH_COOKIE_SAME_SITE=Lax
+AUTH_SESSION_EXPIRACAO_HORAS=24
+ACESSO_USUARIO_SUPREMO_EMAIL=admin-seguro@empresa.com
+ACESSO_USUARIO_SUPREMO_SENHA_INICIAL=senha-forte-fora-do-codigo
+ACESSO_USUARIO_SUPREMO_NOME=Administrador Supremo
+ACESSO_USUARIO_SUPREMO_PAPEL=desenvolvedor
+ACESSO_USUARIO_SUPREMO_NIVEL=1000
+VITE_ACESSO_USUARIO_SUPREMO_PAPEL=desenvolvedor
+CORS_ORIGENS_PERMITIDAS=https://analytics.rodogarcia.com.br
 ```
+
+Permissoes minimas esperadas para o usuario SQL da API no schema `acesso`:
+
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA :: acesso TO usuario_etl;
+```
+
+Se a tabela `acesso.refresh_tokens` ainda nao existir e voce optar por deixar a aplicacao cria-la no startup, tambem sera necessario `GRANT CREATE TABLE TO usuario_etl;`. A opcao mais controlada e aplicar as migrations no banco antes do deploy.
+
+Para permitir varios usuarios novos sem `chave_legado`, aplique a migration `V009__corrigir_unique_chave_legado_usuarios.sql` no banco de producao antes de validar o cadastro de usuarios. Ela troca a restricao `UNIQUE` comum por um indice unico filtrado que ignora `NULL`.
 
 ## Como subir localmente
 

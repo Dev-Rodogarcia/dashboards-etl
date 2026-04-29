@@ -93,6 +93,7 @@ function criarSessao(): IUsuarioSessao {
     filiaisPermitidasEfetivas: ['SP'],
     exigeTrocaSenha: false,
     token: 'token-inicial',
+    sessaoExpiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   };
 }
 
@@ -112,25 +113,25 @@ beforeEach(() => {
 });
 
 describe('gerenciadorSessao', () => {
-  it('salva a sessao no localStorage e remove legado do sessionStorage', () => {
+  it('salva a sessao no sessionStorage e remove legado do localStorage', () => {
     const sessao = criarSessao();
-    sessionStorage.setItem('dashboard_usuario', JSON.stringify({ legado: true }));
+    localStorage.setItem('dashboard_usuario', JSON.stringify({ legado: true }));
 
     salvarSessao(sessao);
 
-    expect(localStorage.getItem('dashboard_usuario')).toBe(JSON.stringify(sessao));
-    expect(sessionStorage.getItem('dashboard_usuario')).toBeNull();
+    expect(sessionStorage.getItem('dashboard_usuario')).toBe(JSON.stringify(sessao));
+    expect(localStorage.getItem('dashboard_usuario')).toBeNull();
   });
 
-  it('migra a sessao legada do sessionStorage para o localStorage na primeira leitura', () => {
+  it('migra a sessao legada do localStorage para o sessionStorage na primeira leitura', () => {
     const sessao = criarSessao();
-    sessionStorage.setItem('dashboard_usuario', JSON.stringify(sessao));
+    localStorage.setItem('dashboard_usuario', JSON.stringify(sessao));
 
     const resultado = obterSessao();
 
     expect(resultado).toEqual(sessao);
-    expect(localStorage.getItem('dashboard_usuario')).toBe(JSON.stringify(sessao));
-    expect(sessionStorage.getItem('dashboard_usuario')).toBeNull();
+    expect(sessionStorage.getItem('dashboard_usuario')).toBe(JSON.stringify(sessao));
+    expect(localStorage.getItem('dashboard_usuario')).toBeNull();
   });
 
   it('limpa sessionStorage e localStorage ao encerrar a sessao', () => {
@@ -142,6 +143,16 @@ describe('gerenciadorSessao', () => {
 
     expect(localStorage.getItem('dashboard_usuario')).toBeNull();
     expect(sessionStorage.getItem('dashboard_usuario')).toBeNull();
+  });
+
+  it('descarta sessao legada sem expiracao absoluta para forcar restauracao por refresh', () => {
+    localStorage.setItem('dashboard_usuario', JSON.stringify({
+      ...criarSessao(),
+      sessaoExpiraEm: undefined,
+    }));
+
+    expect(obterSessao()).toBeNull();
+    expect(localStorage.getItem('dashboard_usuario')).toBeNull();
   });
 
   it('dispara evento interno quando a sessao e atualizada ou removida', () => {

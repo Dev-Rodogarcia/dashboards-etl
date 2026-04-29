@@ -4,12 +4,12 @@ import java.math.BigDecimal;
 
 public record IndenizacaoMercadoriasRowDTO(
         long numeroSinistro,
-        String dataAbertura,
+        String dataFinalizacao,
         String filial,
         Long minuta,
         BigDecimal resultadoFinalOriginal,
         BigDecimal resultadoFinalAbs,
-        String ocorrencia,
+        String causaRaiz,
         String solucao,
         double pctSobreFaturamentoFilial
 ) {

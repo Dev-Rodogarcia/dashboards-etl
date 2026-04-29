@@ -44,7 +44,7 @@ public class EscopoFilialService {
             return EscopoFilial.semAcesso();
         }
 
-        if (permissaoResolver.ehAdminPlataforma(usuario.getId())) {
+        if (permissaoResolver.ehAdminPlataforma(usuario.getId()) || permissaoResolver.ehDesenvolvedor(usuario.getId())) {
             return EscopoFilial.comAcessoTotal();
         }
 

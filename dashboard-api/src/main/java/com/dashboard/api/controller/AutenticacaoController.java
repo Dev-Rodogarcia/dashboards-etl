@@ -5,6 +5,7 @@ import com.dashboard.api.dto.LoginResponseDTO;
 import com.dashboard.api.dto.SessaoUsuarioDTO;
 import com.dashboard.api.dto.acesso.AlterarSenhaRequestDTO;
 import com.dashboard.api.exception.RespostaErroPadrao;
+import com.dashboard.api.security.IpClienteResolver;
 import com.dashboard.api.security.RateLimitService;
 import com.dashboard.api.service.acesso.AutenticacaoService;
 import com.dashboard.api.service.acesso.CredencialInvalidaException;
@@ -24,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -36,32 +39,32 @@ public class AutenticacaoController {
     private final AutenticacaoService autenticacaoService;
     private final RateLimitService rateLimitService;
     private final RefreshTokenService refreshTokenService;
+    private final IpClienteResolver ipClienteResolver;
     private final String refreshCookieName;
     private final boolean refreshCookieSecure;
     private final String refreshCookieSameSite;
-    private final long refreshTokenExpiracaoDias;
 
     public AutenticacaoController(
             AutenticacaoService autenticacaoService,
             RateLimitService rateLimitService,
             RefreshTokenService refreshTokenService,
+            IpClienteResolver ipClienteResolver,
             @Value("${auth.refresh-cookie-name:dashboard_refresh_token}") String refreshCookieName,
             @Value("${auth.refresh-cookie-secure:false}") boolean refreshCookieSecure,
-            @Value("${auth.refresh-cookie-same-site:Lax}") String refreshCookieSameSite,
-            @Value("${auth.refresh-token-expiracao-dias:30}") long refreshTokenExpiracaoDias
+            @Value("${auth.refresh-cookie-same-site:Lax}") String refreshCookieSameSite
     ) {
         this.autenticacaoService = autenticacaoService;
         this.rateLimitService = rateLimitService;
         this.refreshTokenService = refreshTokenService;
+        this.ipClienteResolver = ipClienteResolver;
         this.refreshCookieName = refreshCookieName;
         this.refreshCookieSecure = refreshCookieSecure;
         this.refreshCookieSameSite = refreshCookieSameSite;
-        this.refreshTokenExpiracaoDias = refreshTokenExpiracaoDias;
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDTO request, HttpServletRequest httpRequest) {
-        String ip = httpRequest.getRemoteAddr();
+        String ip = ipClienteResolver.resolver(httpRequest);
         RateLimitService.RateLimitDecision decisao = rateLimitService.avaliarTentativaLogin(ip, request.email());
         if (!decisao.permitido()) {
             return respostaLimiteExcedido(decisao);
@@ -78,9 +81,16 @@ public class AutenticacaoController {
                     resposta.usuario().papel(),
                     resposta.usuario().setor().nome());
 
+            LoginResponseDTO respostaComSessao = new LoginResponseDTO(
+                    resposta.usuario(),
+                    resposta.token(),
+                    resposta.exigeTrocaSenha(),
+                    refresh.expiraEm()
+            );
+
             return ResponseEntity.ok()
-                    .header("Set-Cookie", criarRefreshCookie(refresh.tokenPlano()))
-                    .body(resposta);
+                    .header("Set-Cookie", criarRefreshCookie(refresh.tokenPlano(), refresh.expiraEm()))
+                    .body(respostaComSessao);
         } catch (CredencialInvalidaException ex) {
             RateLimitService.RateLimitDecision falha = rateLimitService.consumirTentativaLogin(ip, request.email());
             log.warn("Falha de autenticacao para usuario={}", request.email());
@@ -88,11 +98,15 @@ public class AutenticacaoController {
                 return respostaLimiteExcedido(falha);
             }
 
+            String mensagem = ex.getMessage() == null || ex.getMessage().isBlank()
+                    ? "Usuario ou senha invalidos."
+                    : ex.getMessage();
+
             RespostaErroPadrao erro = new RespostaErroPadrao(
                     LocalDateTime.now(),
                     HttpStatus.UNAUTHORIZED.value(),
                     "Unauthorized",
-                    "Usuario ou senha invalidos."
+                    mensagem
             );
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(erro);
         }
@@ -124,13 +138,13 @@ public class AutenticacaoController {
         try {
             RefreshTokenService.RefreshTokenRotacionado rotacao = refreshTokenService.rotacionar(
                     extrairRefreshToken(request),
-                    request.getRemoteAddr(),
+                    ipClienteResolver.resolver(request),
                     request.getHeader("User-Agent")
             );
 
-            LoginResponseDTO resposta = autenticacaoService.gerarSessaoParaUsuario(rotacao.usuario());
+            LoginResponseDTO resposta = autenticacaoService.gerarSessaoParaUsuario(rotacao.usuario(), rotacao.expiraEm());
             return ResponseEntity.ok()
-                    .header("Set-Cookie", criarRefreshCookie(rotacao.tokenPlano()))
+                    .header("Set-Cookie", criarRefreshCookie(rotacao.tokenPlano(), rotacao.expiraEm()))
                     .body(resposta);
         } catch (CredencialInvalidaException ex) {
             RespostaErroPadrao erro = new RespostaErroPadrao(
@@ -169,16 +183,17 @@ public class AutenticacaoController {
                 .body(erro);
     }
 
-    private String criarRefreshCookie(String tokenPlano) {
+    private String criarRefreshCookie(String tokenPlano, Instant expiraEm) {
         String cookieName = Objects.requireNonNull(refreshCookieName, "auth.refresh-cookie-name é obrigatório.");
         String sameSite = Objects.requireNonNull(refreshCookieSameSite, "auth.refresh-cookie-same-site é obrigatório.");
+        long maxAgeSeconds = Math.max(0, Duration.between(Instant.now(), Objects.requireNonNull(expiraEm, "expiraEm é obrigatório.")).getSeconds());
 
         return ResponseCookie.from(cookieName, Objects.requireNonNull(tokenPlano, "refresh token é obrigatório."))
                 .httpOnly(true)
                 .secure(refreshCookieSecure)
                 .sameSite(sameSite)
                 .path("/api/auth")
-                .maxAge(refreshTokenExpiracaoDias * 24 * 60 * 60)
+                .maxAge(maxAgeSeconds)
                 .build()
                 .toString();
     }

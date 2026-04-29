@@ -21,17 +21,23 @@ public class RateLimitService {
     private final int loginWindowSeconds;
     private final int apiMaxRequests;
     private final int apiWindowSeconds;
+    private final int exportMaxRequests;
+    private final int exportWindowSeconds;
 
     public RateLimitService(
             @Value("${security.rate-limit.login.max-attempts:10}") int loginMaxAttempts,
             @Value("${security.rate-limit.login.window-seconds:900}") int loginWindowSeconds,
             @Value("${security.rate-limit.api.max-requests:120}") int apiMaxRequests,
-            @Value("${security.rate-limit.api.window-seconds:60}") int apiWindowSeconds
+            @Value("${security.rate-limit.api.window-seconds:60}") int apiWindowSeconds,
+            @Value("${security.rate-limit.export.max-requests:12}") int exportMaxRequests,
+            @Value("${security.rate-limit.export.window-seconds:60}") int exportWindowSeconds
     ) {
         this.loginMaxAttempts = loginMaxAttempts;
         this.loginWindowSeconds = loginWindowSeconds;
         this.apiMaxRequests = apiMaxRequests;
         this.apiWindowSeconds = apiWindowSeconds;
+        this.exportMaxRequests = exportMaxRequests;
+        this.exportWindowSeconds = exportWindowSeconds;
     }
 
     public RateLimitDecision consumirTentativaLogin(String ip, String loginOuEmail) {
@@ -48,6 +54,10 @@ public class RateLimitService {
 
     public RateLimitDecision consumirChamadaApi(String identificador) {
         return consumir("api:" + normalizar(identificador), apiMaxRequests, apiWindowSeconds);
+    }
+
+    public RateLimitDecision consumirExportacao(String identificador) {
+        return consumir("export:" + normalizar(identificador), exportMaxRequests, exportWindowSeconds);
     }
 
     private RateLimitDecision consumir(String chave, int limite, int janelaSegundos) {

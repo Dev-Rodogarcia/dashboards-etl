@@ -9,6 +9,7 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { exportarFaturasPorClienteExcel } from '../api/endpoints/faturasPorClienteServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useClientes, useFiliais } from '../hooks/queries/useDimensoes';
@@ -17,9 +18,10 @@ import {
   useFaturasPorClienteMensal,
   useFaturasPorClienteOverview,
   useFaturasPorClienteStatusProcesso,
-  useFaturasPorClienteTabela,
+  useFaturasPorClienteTabelaPaginada,
   useFaturasPorClienteTopClientes,
 } from '../hooks/queries/useFaturasPorCliente';
+import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { FaturaPorClienteResumoRow, FaturasPorClienteFiltro } from '../types/faturasPorCliente';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
@@ -48,7 +50,8 @@ export default function FaturasPorClientePage() {
   const aging = useFaturasPorClienteAging(filtro);
   const topClientes = useFaturasPorClienteTopClientes(filtro);
   const statusProcesso = useFaturasPorClienteStatusProcesso(filtro);
-  const tabela = useFaturasPorClienteTabela(filtro, 120);
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
+  const tabela = useFaturasPorClienteTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
 
   const mensalOption: EChartsOption = {
     legend: { bottom: 0 },
@@ -171,14 +174,19 @@ export default function FaturasPorClientePage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton dados={(tabela.data ?? []) as unknown as Record<string, unknown>[]} nomeArquivo="faturas-por-cliente" />
+        <ExportButton nomeArquivo="faturas-por-cliente" onExport={() => exportarFaturasPorClienteExcel(filtro)} />
       </div>
       <DataTable
         titulo="Faturas por Cliente"
-        dados={tabela.data ?? []}
+        dados={tabela.data?.conteudo ?? []}
         colunas={colunasResumo}
         chaveLinha="idUnico"
         isLoading={tabela.isLoading}
+        totalRegistros={tabela.data?.totalElementos}
+        paginaAtual={paginacaoTabela.pagina}
+        tamanhoPagina={paginacaoTabela.tamanhoPagina}
+        onPaginaChange={paginacaoTabela.setPagina}
+        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
       />
     </div>
   );

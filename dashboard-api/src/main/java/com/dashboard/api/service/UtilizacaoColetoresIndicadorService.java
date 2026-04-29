@@ -1,12 +1,12 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresSeriePointDTO;
-import com.dashboard.api.model.VisaoInventarioEntity;
 import com.dashboard.api.model.VisaoManifestosEntity;
-import com.dashboard.api.repository.VisaoInventarioRepository;
+import com.dashboard.api.repository.DimFilialRepository;
 import com.dashboard.api.repository.VisaoManifestosRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +14,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -30,31 +30,41 @@ import java.util.Set;
 @Service
 public class UtilizacaoColetoresIndicadorService {
 
+    private static final String CLASSIFICACAO_DISTRIBUICAO = "DISTRIBUIÇÃO";
+    private static final String CLASSIFICACAO_TRANSFERENCIA = "TRANSFERÊNCIA";
+    private static final String CLASSIFICACAO_NAO_INFORMADA = "Sem classificação";
+
     private final ValidadorPeriodoService validadorPeriodo;
-    private final VisaoInventarioRepository inventarioRepository;
     private final VisaoManifestosRepository manifestosRepository;
+    private final DimFilialRepository dimFilialRepository;
     private final EscopoFilialService escopoFilialService;
     private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
 
     UtilizacaoColetoresIndicadorService(
             ValidadorPeriodoService validadorPeriodo,
-            VisaoInventarioRepository inventarioRepository,
-            VisaoManifestosRepository manifestosRepository
+            VisaoManifestosRepository manifestosRepository,
+            DimFilialRepository dimFilialRepository
     ) {
-        this(validadorPeriodo, inventarioRepository, manifestosRepository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
+        this(
+                validadorPeriodo,
+                manifestosRepository,
+                dimFilialRepository,
+                escopoSemRestricao(),
+                PeriodoOffsetDateTimeHelper.padrao()
+        );
     }
 
     @Autowired
     public UtilizacaoColetoresIndicadorService(
             ValidadorPeriodoService validadorPeriodo,
-            VisaoInventarioRepository inventarioRepository,
             VisaoManifestosRepository manifestosRepository,
+            DimFilialRepository dimFilialRepository,
             EscopoFilialService escopoFilialService,
             PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
         this.validadorPeriodo = validadorPeriodo;
-        this.inventarioRepository = inventarioRepository;
         this.manifestosRepository = manifestosRepository;
+        this.dimFilialRepository = dimFilialRepository;
         this.escopoFilialService = escopoFilialService;
         this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
     }
@@ -70,22 +80,25 @@ public class UtilizacaoColetoresIndicadorService {
                     0,
                     0,
                     0,
+                    0,
                     0.0
             );
         }
 
-        int ordensConferencia = pontos.stream().mapToInt(UtilizacaoColetoresPonto::ordensConferencia).sum();
+        int manifestosBipados = pontos.stream().mapToInt(UtilizacaoColetoresPonto::manifestosBipados).sum();
         int manifestosEmitidos = pontos.stream().mapToInt(UtilizacaoColetoresPonto::manifestosEmitidos).sum();
         int manifestosDescarregamento = pontos.stream().mapToInt(UtilizacaoColetoresPonto::manifestosDescarregamento).sum();
         int totalManifestos = pontos.stream().mapToInt(UtilizacaoColetoresPonto::totalManifestos).sum();
+        int manifestosIncompletos = pontos.stream().mapToInt(UtilizacaoColetoresPonto::manifestosIncompletos).sum();
 
         return new UtilizacaoColetoresOverviewDTO(
                 IndicadoresGestaoMetricasUtils.latestUpdate(pontos, UtilizacaoColetoresPonto::updatedAt),
-                ordensConferencia,
+                manifestosBipados,
                 manifestosEmitidos,
                 manifestosDescarregamento,
                 totalManifestos,
-                IndicadoresGestaoMetricasUtils.percentual(ordensConferencia, totalManifestos)
+                manifestosIncompletos,
+                IndicadoresGestaoMetricasUtils.percentual(manifestosBipados, totalManifestos)
         );
     }
 
@@ -96,14 +109,17 @@ public class UtilizacaoColetoresIndicadorService {
                 .map(ponto -> new UtilizacaoColetoresSeriePointDTO(
                         ponto.data().toString(),
                         ponto.filial(),
-                        ponto.ordensConferencia(),
+                        ponto.classificacao(),
+                        ponto.manifestosBipados(),
                         ponto.manifestosEmitidos(),
                         ponto.manifestosDescarregamento(),
                         ponto.totalManifestos(),
-                        IndicadoresGestaoMetricasUtils.percentual(ponto.ordensConferencia(), ponto.totalManifestos())
+                        ponto.manifestosIncompletos(),
+                        IndicadoresGestaoMetricasUtils.percentual(ponto.manifestosBipados(), ponto.totalManifestos())
                 ))
                 .sorted(Comparator.comparing(UtilizacaoColetoresSeriePointDTO::date)
-                        .thenComparing(UtilizacaoColetoresSeriePointDTO::filial, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                        .thenComparing(UtilizacaoColetoresSeriePointDTO::filial, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                        .thenComparing(UtilizacaoColetoresSeriePointDTO::classificacao, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
                 .toList();
     }
 
@@ -113,121 +129,118 @@ public class UtilizacaoColetoresIndicadorService {
 
         return buscarPontos(filtro).stream()
                 .sorted(Comparator.comparing(UtilizacaoColetoresPonto::data, Comparator.reverseOrder())
-                        .thenComparing(UtilizacaoColetoresPonto::filial, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                        .thenComparing(UtilizacaoColetoresPonto::filial, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                        .thenComparing(UtilizacaoColetoresPonto::classificacao, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
                 .limit(limiteAplicado)
                 .map(ponto -> new UtilizacaoColetoresRowDTO(
-                        chavePonto(ponto.data(), ponto.filial()),
+                        chavePonto(ponto.data(), ponto.filial(), ponto.classificacao()),
                         IndicadoresGestaoMetricasUtils.formatar(ponto.data()),
                         ponto.filial(),
-                        ponto.ordensConferencia(),
+                        ponto.classificacao(),
+                        ponto.manifestosBipados(),
                         ponto.manifestosEmitidos(),
                         ponto.manifestosDescarregamento(),
                         ponto.totalManifestos(),
-                        IndicadoresGestaoMetricasUtils.percentual(ponto.ordensConferencia(), ponto.totalManifestos())
+                        ponto.manifestosIncompletos(),
+                        IndicadoresGestaoMetricasUtils.percentual(ponto.manifestosBipados(), ponto.totalManifestos())
                 ))
                 .toList();
+    }
+
+    public List<UtilizacaoColetoresRowDTO> buscarExportacao(FiltroConsultaDTO filtro) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+
+        return buscarPontos(filtro).stream()
+                .sorted(Comparator.comparing(UtilizacaoColetoresPonto::data, Comparator.reverseOrder())
+                        .thenComparing(UtilizacaoColetoresPonto::filial, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                        .thenComparing(UtilizacaoColetoresPonto::classificacao, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .map(ponto -> new UtilizacaoColetoresRowDTO(
+                        chavePonto(ponto.data(), ponto.filial(), ponto.classificacao()),
+                        IndicadoresGestaoMetricasUtils.formatar(ponto.data()),
+                        ponto.filial(),
+                        ponto.classificacao(),
+                        ponto.manifestosBipados(),
+                        ponto.manifestosEmitidos(),
+                        ponto.manifestosDescarregamento(),
+                        ponto.totalManifestos(),
+                        ponto.manifestosIncompletos(),
+                        IndicadoresGestaoMetricasUtils.percentual(ponto.manifestosBipados(), ponto.totalManifestos())
+                ))
+                .toList();
+    }
+
+    public PaginaDTO<UtilizacaoColetoresRowDTO> buscarTabelaPaginada(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
+        return PaginacaoListaUtils.paginar(buscarExportacao(filtro), pagina, tamanhoPagina);
     }
 
     private List<UtilizacaoColetoresPonto> buscarPontos(FiltroConsultaDTO filtro) {
         JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
-
-        List<VisaoInventarioEntity> inventarios = inventarioRepository.findAll(criarInventarioSpecification(filtro, escopo, janela));
+        Map<String, String> filiaisValidas = carregarFiliaisValidas();
         List<VisaoManifestosEntity> manifestos = manifestosRepository.findAll(criarManifestosSpecification(janela));
 
         Map<String, AcumuladorPonto> pontos = new LinkedHashMap<>();
-        popularOrdensConferencia(pontos, inventarios, filtro, escopo);
-        popularManifestos(pontos, manifestos, filtro, escopo);
-
-        return pontos.values().stream()
-                .map(AcumuladorPonto::toPonto)
-                .filter(ponto -> ponto.totalManifestos() > 0 || ponto.ordensConferencia() > 0)
-                .toList();
-    }
-
-    private void popularOrdensConferencia(
-            Map<String, AcumuladorPonto> pontos,
-            List<VisaoInventarioEntity> inventarios,
-            FiltroConsultaDTO filtro,
-            EscopoFilialService.EscopoFilial escopo
-    ) {
-        Map<Long, InventarioRegistro> ordens = new LinkedHashMap<>();
-        for (VisaoInventarioEntity inventario : inventarios) {
-            Long numeroOrdem = inventario.getNumeroOrdem();
-            if (numeroOrdem == null || !tipoRelevante(inventario.getTipo())) {
-                continue;
-            }
-
-            String filial = primeiroTexto(
-                    inventario.getFilialEmissoraFrete(),
-                    inventario.getFilialOrdemConferencia(),
-                    inventario.getFilial()
-            );
-            if (!permiteFilial(escopo, filtro, filial)) {
-                continue;
-            }
-
-            LocalDate data = dataInventario(inventario);
-            if (data == null) {
-                continue;
-            }
-
-            InventarioRegistro registro = new InventarioRegistro(numeroOrdem, data, filial, inventario.getDataExtracao());
-            ordens.merge(numeroOrdem, registro, this::preferirInventarioMaisAtual);
-        }
-
-        ordens.values().forEach(registro -> ponto(pontos, registro.data(), registro.filial())
-                .registrarOrdem(registro.updatedAt()));
-    }
-
-    private void popularManifestos(
-            Map<String, AcumuladorPonto> pontos,
-            List<VisaoManifestosEntity> manifestos,
-            FiltroConsultaDTO filtro,
-            EscopoFilialService.EscopoFilial escopo
-    ) {
         Set<String> emitidosRegistrados = new LinkedHashSet<>();
         Set<String> descarregamentosRegistrados = new LinkedHashSet<>();
 
         for (VisaoManifestosEntity manifesto : manifestos) {
-            Long numero = manifesto.getNumero();
-            LocalDate data = manifesto.getDataCriacao() != null ? manifesto.getDataCriacao().toLocalDate() : null;
-            if (numero == null || data == null) {
+            ManifestoElegivel registro = analisarManifesto(manifesto, filtro);
+            if (registro == null) {
                 continue;
             }
 
+            boolean manifestoBipado = manifestoBipado(manifesto);
+            boolean conferenciaIncompleta = conferenciaIncompleta(manifesto, manifestoBipado);
             String filialEmissora = primeiroTexto(manifesto.getFilialEmissora(), manifesto.getFilial());
+
             if (permiteFilial(escopo, filtro, filialEmissora)) {
-                String chaveEmitido = numero + "|" + data + "|" + normalizar(filialEmissora);
+                String chaveEmitido = registro.chaveManifesto() + "|saida|" + normalizarTexto(filialEmissora);
                 if (emitidosRegistrados.add(chaveEmitido)) {
-                    ponto(pontos, data, filialEmissora).registrarManifestoEmitido(manifesto.getDataExtracao());
+                    ponto(pontos, registro.data(), filialEmissora, registro.classificacao())
+                            .registrarManifestoEmitido(manifestoBipado, conferenciaIncompleta, manifesto.getDataExtracao());
                 }
             }
 
             for (String filialDescarga : extrairFiliaisDescarregamento(manifesto.getLocalDescarregamento())) {
-                if (!permiteFilial(escopo, filtro, filialDescarga)) {
+                String filialCanonica = filiaisValidas.get(normalizarTexto(filialDescarga));
+                if (filialCanonica == null || !permiteFilial(escopo, filtro, filialCanonica)) {
                     continue;
                 }
-                String chaveDescarga = numero + "|" + data + "|" + normalizar(filialDescarga);
+
+                String chaveDescarga = registro.chaveManifesto() + "|chegada|" + normalizarTexto(filialCanonica);
                 if (descarregamentosRegistrados.add(chaveDescarga)) {
-                    ponto(pontos, data, filialDescarga).registrarManifestoDescarregamento(manifesto.getDataExtracao());
+                    ponto(pontos, registro.data(), filialCanonica, registro.classificacao())
+                            .registrarManifestoDescarregamento(manifestoBipado, conferenciaIncompleta, manifesto.getDataExtracao());
                 }
             }
         }
+
+        return pontos.values().stream()
+                .map(AcumuladorPonto::toPonto)
+                .filter(ponto -> ponto.totalManifestos() > 0 || ponto.manifestosBipados() > 0)
+                .toList();
     }
 
-    @NonNull
-    private Specification<VisaoInventarioEntity> criarInventarioSpecification(
-            FiltroConsultaDTO filtro,
-            EscopoFilialService.EscopoFilial escopo,
-            JanelaOffsetDateTime janela
-    ) {
-        return ConsultaSpecificationUtils.allOf(
-                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataHoraInicio", janela.inicioInclusivo()),
-                ConsultaSpecificationUtils.lessThan("dataHoraInicio", janela.fimExclusivo()),
-                ConsultaSpecificationUtils.escopoFiliais(escopo, "filialEmissoraFrete", "filialOrdemConferencia", "filial"),
-                ConsultaSpecificationUtils.filtroTextoQualquerCampo(filtro, "filiais", "filialEmissoraFrete", "filialOrdemConferencia", "filial")
-        );
+    private ManifestoElegivel analisarManifesto(VisaoManifestosEntity manifesto, FiltroConsultaDTO filtro) {
+        LocalDate data = manifesto.getDataCriacao() != null ? manifesto.getDataCriacao().toLocalDate() : null;
+        if (data == null) {
+            return null;
+        }
+        if (!statusElegivel(manifesto.getStatus()) || classificacaoExcluida(manifesto.getClassificacao())) {
+            return null;
+        }
+
+        String classificacao = rotuloClassificacao(manifesto.getClassificacao());
+        if (!permiteClassificacao(filtro, classificacao)) {
+            return null;
+        }
+
+        String chaveManifesto = chaveManifesto(manifesto.getNumero(), manifesto.getIdentificadorUnico());
+        if (chaveManifesto == null) {
+            return null;
+        }
+
+        return new ManifestoElegivel(chaveManifesto, data, classificacao);
     }
 
     @NonNull
@@ -238,30 +251,27 @@ public class UtilizacaoColetoresIndicadorService {
         );
     }
 
-    private AcumuladorPonto ponto(Map<String, AcumuladorPonto> pontos, LocalDate data, String filial) {
+    private AcumuladorPonto ponto(Map<String, AcumuladorPonto> pontos, LocalDate data, String filial, String classificacao) {
+        String filialNormalizada = textoOuPadrao(filial, "Filial nao informada");
+        String classificacaoNormalizada = textoOuPadrao(classificacao, CLASSIFICACAO_NAO_INFORMADA);
         return pontos.computeIfAbsent(
-                chavePonto(data, filial),
-                chave -> new AcumuladorPonto(data, filial)
+                chavePonto(data, filialNormalizada, classificacaoNormalizada),
+                chave -> new AcumuladorPonto(data, filialNormalizada, classificacaoNormalizada)
         );
     }
 
-    private String chavePonto(LocalDate data, String filial) {
-        return IndicadoresGestaoMetricasUtils.chaveSerie(data, filial);
+    private String chavePonto(LocalDate data, String filial, String classificacao) {
+        return IndicadoresGestaoMetricasUtils.chaveSerie(data, filial) + "|" + normalizarTexto(classificacao);
     }
 
-    private InventarioRegistro preferirInventarioMaisAtual(InventarioRegistro atual, InventarioRegistro candidato) {
-        if (atual.updatedAt() == null) {
-            return candidato;
-        }
-        if (candidato.updatedAt() == null) {
-            return atual;
-        }
-        return candidato.updatedAt().isAfter(atual.updatedAt()) ? candidato : atual;
-    }
-
-    private LocalDate dataInventario(VisaoInventarioEntity inventario) {
-        OffsetDateTime dataHora = inventario.getDataHoraInicio() != null ? inventario.getDataHoraInicio() : inventario.getDataHoraFim();
-        return dataHora != null ? dataHora.toLocalDate() : null;
+    private Map<String, String> carregarFiliaisValidas() {
+        Map<String, String> filiais = new LinkedHashMap<>();
+        dimFilialRepository.findAll().stream()
+                .map(filial -> filial.getNomeFilial())
+                .filter(this::temTexto)
+                .map(String::trim)
+                .forEach(nome -> filiais.putIfAbsent(normalizarTexto(nome), nome));
+        return filiais;
     }
 
     private boolean permiteFilial(
@@ -269,46 +279,116 @@ public class UtilizacaoColetoresIndicadorService {
             FiltroConsultaDTO filtro,
             String filial
     ) {
-        return filial != null
-                && escopo.permiteAlgumaFilial(filial)
-                && filtro.corresponde("filiais", filial);
+        String valor = temTexto(filial) ? filial.trim() : null;
+        return valor != null
+                && escopo.permiteAlgumaFilial(valor)
+                && filtro.corresponde("filiais", valor);
     }
 
-    private boolean tipoRelevante(String tipo) {
-        String normalizado = normalizar(tipo);
-        return normalizado.equals("carregamento")
-                || normalizado.equals("loading")
-                || normalizado.equals("descarregamento")
-                || normalizado.equals("unloading")
-                || normalizado.equals("picking");
+    private boolean permiteClassificacao(FiltroConsultaDTO filtro, String classificacao) {
+        if (!filtro.temFiltro("classificacoes")) {
+            return true;
+        }
+        String classificacaoNormalizada = normalizarTexto(classificacao);
+        return filtro.valores("classificacoes").stream()
+                .map(this::rotuloClassificacao)
+                .map(this::normalizarTexto)
+                .anyMatch(classificacaoNormalizada::equals);
+    }
+
+    private boolean statusElegivel(String status) {
+        String normalizado = normalizarTexto(status);
+        return normalizado.equals("encerrado") || normalizado.equals("closed");
+    }
+
+    private boolean classificacaoExcluida(String classificacao) {
+        String normalizado = normalizarTexto(classificacao);
+        return normalizado.startsWith("carga fechada")
+                || normalizado.startsWith("frete retorno")
+                || normalizado.startsWith("viagem vazia");
+    }
+
+    private boolean manifestoBipado(VisaoManifestosEntity manifesto) {
+        return manifesto.getLeituraMovelEm() != null || inteiro(manifesto.getItensFinalizados()) > 0;
+    }
+
+    private boolean conferenciaIncompleta(VisaoManifestosEntity manifesto, boolean manifestoBipado) {
+        if (!manifestoBipado) {
+            return false;
+        }
+        int itensTotal = inteiro(manifesto.getItensTotal());
+        int itensFinalizados = inteiro(manifesto.getItensFinalizados());
+        return itensTotal > 0 && itensFinalizados < itensTotal;
+    }
+
+    private int inteiro(Integer valor) {
+        return valor == null ? 0 : valor;
     }
 
     private List<String> extrairFiliaisDescarregamento(String localDescarregamento) {
-        if (localDescarregamento == null || localDescarregamento.isBlank()) {
+        if (!temTexto(localDescarregamento)) {
             return List.of();
         }
 
         List<String> filiais = new ArrayList<>();
+        Set<String> registradas = new LinkedHashSet<>();
         for (String parte : localDescarregamento.split("[,;\\n]+")) {
-            String valor = parte == null ? "" : parte.trim();
-            if (!valor.isBlank()) {
+            String valor = textoOuPadrao(parte, "");
+            String normalizado = normalizarTexto(valor);
+            if (normalizado.isBlank() || normalizado.equals("null")) {
+                continue;
+            }
+            if (registradas.add(normalizado)) {
                 filiais.add(valor);
             }
         }
-        return filiais.stream().distinct().toList();
+        return filiais;
+    }
+
+    private String rotuloClassificacao(String classificacao) {
+        String valor = textoOuPadrao(classificacao, CLASSIFICACAO_NAO_INFORMADA);
+        String normalizado = normalizarTexto(valor);
+        if (normalizado.startsWith("distribuicao")) {
+            return CLASSIFICACAO_DISTRIBUICAO;
+        }
+        if (normalizado.startsWith("transferencia")) {
+            return CLASSIFICACAO_TRANSFERENCIA;
+        }
+        return valor;
+    }
+
+    private String textoOuPadrao(String valor, String padrao) {
+        return temTexto(valor) ? valor.trim() : padrao;
     }
 
     private String primeiroTexto(String... valores) {
         for (String valor : valores) {
-            if (valor != null && !valor.isBlank()) {
+            if (temTexto(valor)) {
                 return valor.trim();
             }
         }
         return null;
     }
 
-    private String normalizar(String valor) {
-        return Objects.toString(valor, "").trim().toLowerCase(Locale.ROOT);
+    private String chaveManifesto(Long numero, String identificadorUnico) {
+        String identificador = temTexto(identificadorUnico) ? identificadorUnico.trim() : null;
+        if (numero != null && identificador != null) {
+            return numero + "|" + identificador;
+        }
+        if (numero != null) {
+            return numero.toString();
+        }
+        return identificador;
+    }
+
+    private boolean temTexto(String valor) {
+        return valor != null && !valor.isBlank();
+    }
+
+    private String normalizarTexto(String valor) {
+        String texto = Objects.toString(valor, "").trim().toLowerCase(Locale.ROOT);
+        String semAcento = Normalizer.normalize(texto, Normalizer.Form.NFD).replaceAll("\\p{M}+", "");
+        return semAcento.replaceAll("\\s+", " ");
     }
 
     private static EscopoFilialService escopoSemRestricao() {
@@ -320,20 +400,21 @@ public class UtilizacaoColetoresIndicadorService {
         };
     }
 
-    private record InventarioRegistro(
-            long numeroOrdem,
+    private record ManifestoElegivel(
+            String chaveManifesto,
             LocalDate data,
-            String filial,
-            LocalDateTime updatedAt
+            String classificacao
     ) {
     }
 
     private record UtilizacaoColetoresPonto(
             LocalDate data,
             String filial,
-            int ordensConferencia,
+            String classificacao,
+            int manifestosBipados,
             int manifestosEmitidos,
             int manifestosDescarregamento,
+            int manifestosIncompletos,
             LocalDateTime updatedAt
     ) {
         private int totalManifestos() {
@@ -344,28 +425,36 @@ public class UtilizacaoColetoresIndicadorService {
     private static final class AcumuladorPonto {
         private final LocalDate data;
         private final String filial;
-        private int ordensConferencia;
+        private final String classificacao;
+        private int manifestosBipados;
         private int manifestosEmitidos;
         private int manifestosDescarregamento;
+        private int manifestosIncompletos;
         private LocalDateTime updatedAt;
 
-        private AcumuladorPonto(LocalDate data, String filial) {
+        private AcumuladorPonto(LocalDate data, String filial, String classificacao) {
             this.data = data;
             this.filial = filial;
+            this.classificacao = classificacao;
         }
 
-        private void registrarOrdem(LocalDateTime dataExtracao) {
-            ordensConferencia++;
-            atualizarDataExtracao(dataExtracao);
-        }
-
-        private void registrarManifestoEmitido(LocalDateTime dataExtracao) {
+        private void registrarManifestoEmitido(boolean manifestoBipado, boolean conferenciaIncompleta, LocalDateTime dataExtracao) {
             manifestosEmitidos++;
-            atualizarDataExtracao(dataExtracao);
+            registrarQualidade(manifestoBipado, conferenciaIncompleta, dataExtracao);
         }
 
-        private void registrarManifestoDescarregamento(LocalDateTime dataExtracao) {
+        private void registrarManifestoDescarregamento(boolean manifestoBipado, boolean conferenciaIncompleta, LocalDateTime dataExtracao) {
             manifestosDescarregamento++;
+            registrarQualidade(manifestoBipado, conferenciaIncompleta, dataExtracao);
+        }
+
+        private void registrarQualidade(boolean manifestoBipado, boolean conferenciaIncompleta, LocalDateTime dataExtracao) {
+            if (manifestoBipado) {
+                manifestosBipados++;
+            }
+            if (conferenciaIncompleta) {
+                manifestosIncompletos++;
+            }
             atualizarDataExtracao(dataExtracao);
         }
 
@@ -382,9 +471,11 @@ public class UtilizacaoColetoresIndicadorService {
             return new UtilizacaoColetoresPonto(
                     data,
                     filial,
-                    ordensConferencia,
+                    classificacao,
+                    manifestosBipados,
                     manifestosEmitidos,
                     manifestosDescarregamento,
+                    manifestosIncompletos,
                     updatedAt
             );
         }

@@ -8,9 +8,11 @@ import FilterBar from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { exportarEtlSaudeExcel } from '../api/endpoints/etlSaudeServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
-import { useEtlSaudeGraficos, useEtlSaudeOverview, useEtlSaudeSerie, useEtlSaudeTabela } from '../hooks/queries/useEtlSaude';
+import { useEtlSaudeGraficos, useEtlSaudeOverview, useEtlSaudeSerie, useEtlSaudeTabelaPaginada } from '../hooks/queries/useEtlSaude';
+import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { EtlExecucaoRow } from '../types/etlSaude';
 
 export default function EtlSaudePage() {
@@ -20,7 +22,8 @@ export default function EtlSaudePage() {
   const overview = useEtlSaudeOverview(filtro);
   const serie = useEtlSaudeSerie(filtro);
   const graficos = useEtlSaudeGraficos(filtro);
-  const tabela = useEtlSaudeTabela(filtro, 120);
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
+  const tabela = useEtlSaudeTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
 
   const categorias = graficos.data?.categoriasErro ?? [];
 
@@ -75,9 +78,20 @@ export default function EtlSaudePage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton dados={(tabela.data ?? []) as unknown as Record<string, unknown>[]} nomeArquivo="etl-saude" />
+        <ExportButton nomeArquivo="etl-saude" onExport={() => exportarEtlSaudeExcel(filtro)} />
       </div>
-      <DataTable titulo="Execucoes do ETL" dados={tabela.data ?? []} colunas={colunas} chaveLinha="id" isLoading={tabela.isLoading} />
+      <DataTable
+        titulo="Execucoes do ETL"
+        dados={tabela.data?.conteudo ?? []}
+        colunas={colunas}
+        chaveLinha="id"
+        isLoading={tabela.isLoading}
+        totalRegistros={tabela.data?.totalElementos}
+        paginaAtual={paginacaoTabela.pagina}
+        tamanhoPagina={paginacaoTabela.tamanhoPagina}
+        onPaginaChange={paginacaoTabela.setPagina}
+        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+      />
     </div>
   );
 }

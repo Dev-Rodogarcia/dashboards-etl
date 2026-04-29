@@ -33,4 +33,5 @@ export interface PaginacaoResponse<T> {
   totalElementos: number;
   totalPaginas: number;
   paginaAtual: number;
+  tamanhoPagina: number;
 }

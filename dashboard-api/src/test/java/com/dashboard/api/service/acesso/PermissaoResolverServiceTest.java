@@ -11,9 +11,9 @@ import com.dashboard.api.repository.acesso.PermissaoRepository;
 import com.dashboard.api.repository.acesso.SetorPermissaoTemplateRepository;
 import com.dashboard.api.repository.acesso.UsuarioPapelVinculoRepository;
 import com.dashboard.api.repository.acesso.UsuarioPermissaoOverrideRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -31,7 +31,18 @@ class PermissaoResolverServiceTest {
     @Mock private UsuarioPapelVinculoRepository papelVinculoRepository;
     @Mock private UsuarioPermissaoOverrideRepository overrideRepository;
 
-    @InjectMocks private PermissaoResolverService service;
+    private PermissaoResolverService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new PermissaoResolverService(
+                permissaoRepository,
+                templateRepository,
+                papelVinculoRepository,
+                overrideRepository,
+                new UsuarioSupremo("supremo@empresa.com", "Senha@123456", "Supremo", "desenvolvedor", 1000, false)
+        );
+    }
 
     @Test
     void negacaoDoUsuarioDeveVencerPermissaoDoSetor() {

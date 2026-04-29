@@ -27,24 +27,27 @@ public class PermissaoResolverService {
     private final SetorPermissaoTemplateRepository templateRepository;
     private final UsuarioPapelVinculoRepository papelVinculoRepository;
     private final UsuarioPermissaoOverrideRepository overrideRepository;
+    private final UsuarioSupremo usuarioSupremo;
 
     public PermissaoResolverService(
             PermissaoRepository permissaoRepository,
             SetorPermissaoTemplateRepository templateRepository,
             UsuarioPapelVinculoRepository papelVinculoRepository,
-            UsuarioPermissaoOverrideRepository overrideRepository
+            UsuarioPermissaoOverrideRepository overrideRepository,
+            UsuarioSupremo usuarioSupremo
     ) {
         this.permissaoRepository = permissaoRepository;
         this.templateRepository = templateRepository;
         this.papelVinculoRepository = papelVinculoRepository;
         this.overrideRepository = overrideRepository;
+        this.usuarioSupremo = usuarioSupremo;
     }
 
     public Map<String, Boolean> permissoesEfetivas(UsuarioEntity usuario) {
         Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
         List<PermissaoEntity> catalogo = permissaoRepository.findAllByAtivoTrue();
 
-        if (ehAdminPlataforma(usuarioId)) {
+        if (ehAdminPlataforma(usuarioId) || ehDesenvolvedor(usuarioId)) {
             return catalogoCompleto(catalogo, true);
         }
 
@@ -77,9 +80,15 @@ public class PermissaoResolverService {
         return PAPEL_ADMIN_PLATAFORMA.equals(papel(usuarioId));
     }
 
+    public boolean ehDesenvolvedor(Long usuarioId) {
+        return usuarioSupremo.papel().equals(papel(usuarioId));
+    }
+
     public boolean ehAdminAcesso(Long usuarioId) {
         String papel = papel(usuarioId);
-        return PAPEL_ADMIN_PLATAFORMA.equals(papel) || PAPEL_ADMIN_ACESSO.equals(papel);
+        return usuarioSupremo.papel().equals(papel)
+                || PAPEL_ADMIN_PLATAFORMA.equals(papel)
+                || PAPEL_ADMIN_ACESSO.equals(papel);
     }
 
     public boolean ehAdmin(Long usuarioId) {

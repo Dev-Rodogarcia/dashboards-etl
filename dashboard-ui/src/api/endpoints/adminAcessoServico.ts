@@ -140,3 +140,7 @@ export async function atualizarUsuario(id: string, payload: UsuarioPayload): Pro
 export async function excluirUsuario(id: string): Promise<void> {
   await clienteAxios.delete(`/api/admin/acesso/usuarios/${id}`);
 }
+
+export async function excluirUsuarioDefinitivamente(id: string): Promise<void> {
+  await clienteAxios.delete(`/api/admin/acesso/usuarios/${id}/hard-delete`);
+}

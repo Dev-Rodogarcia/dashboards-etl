@@ -91,10 +91,10 @@ describe('normalizarPeriodo', () => {
     expect(result).toEqual({ dataInicio: '2026-03-01', dataFim: '2026-03-26' });
   });
 
-  it('trunca dataFim quando o período excede maxDias (padrão 366)', () => {
+  it('trunca dataFim quando o período excede maxDias (padrão 365)', () => {
     const result = normalizarPeriodo('2026-01-01', '2028-01-01'); // 2 anos
     expect(result.dataInicio).toBe('2026-01-01');
-    expect(result.dataFim).toBe(adicionarDias('2026-01-01', 366));
+    expect(result.dataFim).toBe(adicionarDias('2026-01-01', 365));
   });
 
   it('respeita maxDias personalizado', () => {

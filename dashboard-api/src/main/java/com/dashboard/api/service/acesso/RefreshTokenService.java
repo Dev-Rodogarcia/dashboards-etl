@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
@@ -20,25 +21,34 @@ import java.util.UUID;
 @Service
 public class RefreshTokenService {
 
+    private static final Duration REPLAY_ROTACAO_TOLERADO = Duration.ofSeconds(30);
+
     private final RefreshTokenSessionRepository refreshTokenRepository;
-    private final long expiracaoDias;
+    private final Duration sessaoDuracao;
 
     public RefreshTokenService(
             RefreshTokenSessionRepository refreshTokenRepository,
-            @Value("${auth.refresh-token-expiracao-dias:30}") long expiracaoDias
+            @Value("${auth.session-expiracao-horas:24}") long sessaoExpiracaoHoras
     ) {
         this.refreshTokenRepository = refreshTokenRepository;
-        this.expiracaoDias = expiracaoDias;
+        if (sessaoExpiracaoHoras <= 0) {
+            throw new IllegalArgumentException("auth.session-expiracao-horas deve ser maior que zero.");
+        }
+        this.sessaoDuracao = Duration.ofHours(sessaoExpiracaoHoras);
     }
 
     @Transactional
     public RefreshTokenEmitido emitir(UsuarioEntity usuario, String ipAddress, String userAgent) {
+        return emitir(usuario, ipAddress, userAgent, Instant.now().plus(sessaoDuracao));
+    }
+
+    private RefreshTokenEmitido emitir(UsuarioEntity usuario, String ipAddress, String userAgent, Instant expiraEm) {
         String tokenPlano = UUID.randomUUID() + "." + UUID.randomUUID();
 
         RefreshTokenSession sessao = new RefreshTokenSession();
         sessao.setUsuario(usuario);
         sessao.setTokenHash(hash(tokenPlano));
-        sessao.setExpiraEm(Instant.now().plusSeconds(expiracaoDias * 24 * 60 * 60));
+        sessao.setExpiraEm(Objects.requireNonNull(expiraEm, "expiraEm é obrigatório."));
         sessao.setCriadoIp(truncar(ipAddress, 45));
         sessao.setUserAgent(truncar(userAgent, 500));
         refreshTokenRepository.save(sessao);
@@ -48,7 +58,7 @@ public class RefreshTokenService {
 
     @Transactional
     public RefreshTokenRotacionado rotacionar(String tokenPlano, String ipAddress, String userAgent) {
-        RefreshTokenSession atual = buscarSessaoValida(tokenPlano);
+        RefreshTokenSession atual = buscarSessaoParaRotacao(tokenPlano, ipAddress, userAgent);
         UsuarioEntity usuario = atual.getUsuario();
 
         if (!usuario.isAtivo()) {
@@ -56,8 +66,10 @@ public class RefreshTokenService {
             throw new CredencialInvalidaException("Sessão expirada.");
         }
 
-        RefreshTokenEmitido novo = emitir(usuario, ipAddress, userAgent);
-        atual.setRevogadoEm(Instant.now());
+        RefreshTokenEmitido novo = emitir(usuario, ipAddress, userAgent, atual.getExpiraEm());
+        if (atual.getRevogadoEm() == null) {
+            atual.setRevogadoEm(Instant.now());
+        }
         atual.setSubstituidoPorHash(hash(novo.tokenPlano()));
         refreshTokenRepository.save(atual);
 
@@ -111,6 +123,32 @@ public class RefreshTokenService {
 
         Instant agora = Instant.now();
         if (sessao.getRevogadoEm() != null) {
+            throw new CredencialInvalidaException("Sessão expirada.");
+        }
+
+        if (sessao.getExpiraEm().isBefore(agora)) {
+            sessao.setRevogadoEm(agora);
+            refreshTokenRepository.save(sessao);
+            throw new CredencialInvalidaException("Sessão expirada.");
+        }
+
+        return sessao;
+    }
+
+    private RefreshTokenSession buscarSessaoParaRotacao(String tokenPlano, String ipAddress, String userAgent) {
+        if (tokenPlano == null || tokenPlano.isBlank()) {
+            throw new CredencialInvalidaException("Sessão expirada.");
+        }
+
+        RefreshTokenSession sessao = refreshTokenRepository.findByTokenHash(hash(tokenPlano))
+                .orElseThrow(() -> new CredencialInvalidaException("Sessão expirada."));
+
+        Instant agora = Instant.now();
+        if (sessao.getRevogadoEm() != null) {
+            if (replayDeRotacaoRecente(sessao, agora, ipAddress, userAgent)) {
+                return sessao;
+            }
+
             if (sessao.getSubstituidoPorHash() != null) {
                 revogarTodosDoUsuario(Objects.requireNonNull(sessao.getUsuario().getId(), "usuario.id é obrigatório."));
             }
@@ -124,6 +162,20 @@ public class RefreshTokenService {
         }
 
         return sessao;
+    }
+
+    private boolean replayDeRotacaoRecente(RefreshTokenSession sessao, Instant agora, String ipAddress, String userAgent) {
+        if (sessao.getSubstituidoPorHash() == null || sessao.getRevogadoEm() == null) {
+            return false;
+        }
+
+        return !sessao.getRevogadoEm().plus(REPLAY_ROTACAO_TOLERADO).isBefore(agora)
+                && mesmoContextoCliente(sessao.getCriadoIp(), ipAddress)
+                && mesmoContextoCliente(sessao.getUserAgent(), truncar(userAgent, 500));
+    }
+
+    private boolean mesmoContextoCliente(String esperado, String atual) {
+        return esperado == null || atual == null || esperado.equals(atual);
     }
 
     private String hash(String tokenPlano) {

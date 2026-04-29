@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import FretesClienteRanking from '../components/domain/fretes/FretesClienteRanking';
 import FretesDocumentMix from '../components/domain/fretes/FretesDocumentMix';
@@ -13,17 +12,19 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { exportarFretesExcel } from '../api/endpoints/fretesServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
-import { useClientes, useFiliais } from '../hooks/queries/useDimensoes';
+import { useClientes, useFiliais, useFretesStatus } from '../hooks/queries/useDimensoes';
 import {
   useFretesGraficos,
   useFretesMixDocumental,
   useFretesOverview,
   useFretesSerie,
-  useFretesTabela,
+  useFretesTabelaPaginada,
   useFretesTopClientes,
 } from '../hooks/queries/useFretes';
+import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { FreteResumoRow, FretesFiltro } from '../types/fretes';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
@@ -52,16 +53,11 @@ export default function FretesPage() {
   const graficos = useFretesGraficos(filtro);
   const topClientes = useFretesTopClientes(filtro);
   const mixDoc = useFretesMixDocumental(filtro);
-  const tabela = useFretesTabela(filtro, 120);
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
+  const tabela = useFretesTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
 
-  // Query de status sem o filtro de status aplicado — evita filtro circular onde
-  // selecionar um status remove os demais do dropdown de opções.
   const filtroParaStatus: FretesFiltro = { dataInicio, dataFim, filiais: filtros.filiais, pagadores: filtros.pagadores };
-  const tabelaStatus = useFretesTabela(filtroParaStatus, 500);
-  const opcoesStatus = useMemo(
-    () => Array.from(new Set((tabelaStatus.data ?? []).map((r) => r.status))).filter(Boolean).sort(),
-    [tabelaStatus.data],
-  );
+  const statusFretes = useFretesStatus(filtroParaStatus);
 
   const previsaoEntries = graficos.data?.previsaoPorStatus ?? [];
   const origemDestinoEntries = graficos.data?.topRotasPorReceita ?? [];
@@ -155,10 +151,10 @@ export default function FretesPage() {
         />
         <AsyncMultiSelect
           label="Status"
-          opcoes={opcoesStatus}
+          opcoes={statusFretes.data ?? []}
           selecionados={filtros.status ?? []}
           onChange={(valores) => setFiltro('status', valores)}
-          isLoading={tabelaStatus.isLoading}
+          isLoading={statusFretes.isLoading}
         />
       </FilterBar>
 
@@ -177,14 +173,19 @@ export default function FretesPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton dados={(tabela.data ?? []) as unknown as Record<string, unknown>[]} nomeArquivo="fretes" />
+        <ExportButton nomeArquivo="fretes" onExport={() => exportarFretesExcel(filtro)} />
       </div>
       <DataTable
         titulo="Fretes Analiticos"
-        dados={tabela.data ?? []}
+        dados={tabela.data?.conteudo ?? []}
         colunas={colunas}
         chaveLinha="id"
         isLoading={tabela.isLoading}
+        totalRegistros={tabela.data?.totalElementos}
+        paginaAtual={paginacaoTabela.pagina}
+        tamanhoPagina={paginacaoTabela.tamanhoPagina}
+        onPaginaChange={paginacaoTabela.setPagina}
+        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
       />
     </div>
   );

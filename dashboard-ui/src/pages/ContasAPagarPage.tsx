@@ -9,10 +9,12 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { exportarContasAPagarExcel } from '../api/endpoints/contasAPagarServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { useFiliais, usePlanoContas } from '../hooks/queries/useDimensoes';
-import { useContasAPagarGraficos, useContasAPagarOverview, useContasAPagarSerie, useContasAPagarTabela } from '../hooks/queries/useContasAPagar';
+import { useContasAPagarGraficos, useContasAPagarOverview, useContasAPagarSerie, useContasAPagarTabelaPaginada } from '../hooks/queries/useContasAPagar';
+import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ContaPagarResumoRow, ContasAPagarFiltro } from '../types/contasAPagar';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
@@ -40,7 +42,8 @@ export default function ContasAPagarPage() {
   const overview = useContasAPagarOverview(filtro);
   const serie = useContasAPagarSerie(filtro);
   const graficos = useContasAPagarGraficos(filtro);
-  const tabela = useContasAPagarTabela(filtro, 120);
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
+  const tabela = useContasAPagarTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
 
   const rankingFornecedor = graficos.data?.topFornecedores ?? [];
   const centroCusto = graficos.data?.centroCusto ?? [];
@@ -130,9 +133,20 @@ export default function ContasAPagarPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton dados={(tabela.data ?? []) as unknown as Record<string, unknown>[]} nomeArquivo="contas-a-pagar" />
+        <ExportButton nomeArquivo="contas-a-pagar" onExport={() => exportarContasAPagarExcel(filtro)} />
       </div>
-      <DataTable titulo="Lançamentos Analiticos" dados={tabela.data ?? []} colunas={colunas} chaveLinha="lancamentoNumero" isLoading={tabela.isLoading} />
+      <DataTable
+        titulo="Lançamentos Analiticos"
+        dados={tabela.data?.conteudo ?? []}
+        colunas={colunas}
+        chaveLinha="lancamentoNumero"
+        isLoading={tabela.isLoading}
+        totalRegistros={tabela.data?.totalElementos}
+        paginaAtual={paginacaoTabela.pagina}
+        tamanhoPagina={paginacaoTabela.tamanhoPagina}
+        onPaginaChange={paginacaoTabela.setPagina}
+        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+      />
     </div>
   );
 }

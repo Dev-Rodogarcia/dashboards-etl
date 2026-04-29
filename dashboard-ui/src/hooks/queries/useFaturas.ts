@@ -6,6 +6,8 @@ import {
   buscarFaturasReconciliacao,
   buscarFaturasStatusProcesso,
   buscarFaturasTabela,
+  buscarFaturasTabelaPaginada,
+  buscarFaturasTabelaTotal,
   buscarFaturasTopClientes,
 } from '../../api/endpoints/faturasServico';
 import type { FaturasFiltro } from '../../types/faturas';
@@ -70,6 +72,24 @@ export function useFaturasTabela(filtro: FaturasFiltro, limite = 100) {
   return useQuery({
     queryKey: ['faturas', 'tabela', filtro, limite],
     queryFn: () => buscarFaturasTabela(filtro, limite),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturasTabelaTotal(filtro: FaturasFiltro) {
+  return useQuery({
+    queryKey: ['faturas', 'tabela-total', filtro],
+    queryFn: () => buscarFaturasTabelaTotal(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturasTabelaPaginada(filtro: FaturasFiltro, pagina: number, tamanhoPagina: number) {
+  return useQuery({
+    queryKey: ['faturas', 'tabela-paginada', filtro, pagina, tamanhoPagina],
+    queryFn: () => buscarFaturasTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
     retry: 1,
   });

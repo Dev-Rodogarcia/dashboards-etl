@@ -1,5 +1,8 @@
 import clienteAxios from '../clienteAxios';
+import { baixarExcel } from '../downloadExcel';
+import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
+import type { PaginacaoResponse } from '../../types/common';
 import type {
   ContaPagarResumoRow,
   ContasAPagarCharts,
@@ -37,4 +40,23 @@ export async function buscarContasAPagarTabela(
   params.set('limite', String(limite));
   const { data } = await clienteAxios.get<ContaPagarResumoRow[]>('/api/painel/contas-a-pagar/tabela', { params });
   return data;
+}
+
+export async function buscarContasAPagarTabelaTotal(filtro: ContasAPagarFiltro): Promise<number> {
+  const { data } = await clienteAxios.get<{ total: number }>('/api/painel/contas-a-pagar/tabela/total', {
+    params: montarQueryParams(filtro),
+  });
+  return data.total;
+}
+
+export async function buscarContasAPagarTabelaPaginada(
+  filtro: ContasAPagarFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+): Promise<PaginacaoResponse<ContaPagarResumoRow>> {
+  return buscarTabelaPaginada('/api/painel/contas-a-pagar/tabela/paginada', filtro, pagina, tamanhoPagina);
+}
+
+export async function exportarContasAPagarExcel(filtro: ContasAPagarFiltro): Promise<void> {
+  await baixarExcel('/api/painel/contas-a-pagar/exportacao', filtro, 'contas-a-pagar');
 }
