@@ -257,7 +257,7 @@ export function aggregateUtilizacaoRanking(points: UtilizacaoColetoresSeriePoint
   for (const point of points) {
     const filial = groupLabel(point.filial, 'Filial nao informada');
     const classificacao = groupLabel(point.classificacao, 'Sem classificacao');
-    const key = `${filial} · ${classificacao}`;
+    const key = classificacao.toLocaleLowerCase('pt-BR') === 'geral' ? filial : `${filial} · ${classificacao}`;
     const current = grouped.get(key) ?? {
       group: key,
       manifestosBipados: 0,

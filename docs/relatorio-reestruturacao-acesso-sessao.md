@@ -80,10 +80,10 @@ Foram ajustados os DTOs para refletir o modelo novo:
 
 Arquivos centrais:
 
-- `dashboard-api/src/main/java/com/dashboard/api/dto/LoginRequestDTO.java`
-- `dashboard-api/src/main/java/com/dashboard/api/dto/SessaoUsuarioDTO.java`
-- `dashboard-api/src/main/java/com/dashboard/api/dto/acesso/UsuarioRequestDTO.java`
-- `dashboard-api/src/main/java/com/dashboard/api/dto/acesso/UsuarioAcessoDTO.java`
+- `backend/src/main/java/com/dashboard/api/dto/LoginRequestDTO.java`
+- `backend/src/main/java/com/dashboard/api/dto/SessaoUsuarioDTO.java`
+- `backend/src/main/java/com/dashboard/api/dto/acesso/UsuarioRequestDTO.java`
+- `backend/src/main/java/com/dashboard/api/dto/acesso/UsuarioAcessoDTO.java`
 
 ### 3.2 Gestao transacional de usuarios
 
@@ -101,7 +101,7 @@ O service agora:
 
 Arquivo central:
 
-- `dashboard-api/src/main/java/com/dashboard/api/service/acesso/GestaoUsuarioService.java`
+- `backend/src/main/java/com/dashboard/api/service/acesso/GestaoUsuarioService.java`
 
 ### 3.3 Autorizacao por papel e setor
 
@@ -114,7 +114,7 @@ O resolvedor de permissao foi simplificado para o modelo:
 
 Arquivo central:
 
-- `dashboard-api/src/main/java/com/dashboard/api/service/acesso/PermissaoResolverService.java`
+- `backend/src/main/java/com/dashboard/api/service/acesso/PermissaoResolverService.java`
 
 ### 3.4 Sessao persistente com refresh token
 
@@ -137,10 +137,10 @@ Endpoints envolvidos:
 
 Arquivos centrais:
 
-- `dashboard-api/src/main/java/com/dashboard/api/controller/AutenticacaoController.java`
-- `dashboard-api/src/main/java/com/dashboard/api/service/acesso/AutenticacaoService.java`
-- `dashboard-api/src/main/java/com/dashboard/api/service/acesso/RefreshTokenService.java`
-- `dashboard-api/src/main/java/com/dashboard/api/model/acesso/RefreshTokenSession.java`
+- `backend/src/main/java/com/dashboard/api/controller/AutenticacaoController.java`
+- `backend/src/main/java/com/dashboard/api/service/acesso/AutenticacaoService.java`
+- `backend/src/main/java/com/dashboard/api/service/acesso/RefreshTokenService.java`
+- `backend/src/main/java/com/dashboard/api/model/acesso/RefreshTokenSession.java`
 
 Complemento operacional aplicado depois da primeira rodada:
 
@@ -158,7 +158,7 @@ Foi criada uma migracao para consolidar o modelo novo:
 
 Arquivo central:
 
-- `dashboard-api/src/main/resources/db/migration/V005__papel_unico_refresh_tokens_e_email_login.sql`
+- `backend/src/main/resources/db/migration/V005__papel_unico_refresh_tokens_e_email_login.sql`
 
 ### 3.6 Ajustes administrativos
 
@@ -171,7 +171,7 @@ O modulo `/api/admin/acesso` foi alinhado ao novo fluxo:
 
 Arquivo central:
 
-- `dashboard-api/src/main/java/com/dashboard/api/controller/AdminAcessoController.java`
+- `backend/src/main/java/com/dashboard/api/controller/AdminAcessoController.java`
 
 ## 4. O que foi alterado no frontend
 
@@ -187,7 +187,7 @@ Agora ela define:
 
 Arquivo central:
 
-- `dashboard-ui/src/pages/AdminSetoresPage.tsx`
+- `frontend/src/pages/AdminSetoresPage.tsx`
 
 ### 4.2 Tela de usuarios
 
@@ -204,7 +204,7 @@ A tela de usuarios foi reestruturada para:
 
 Arquivo central:
 
-- `dashboard-ui/src/pages/AdminUsuariosPage.tsx`
+- `frontend/src/pages/AdminUsuariosPage.tsx`
 
 ### 4.3 Sessao persistente no cliente
 
@@ -220,10 +220,10 @@ Agora o fluxo cliente:
 
 Arquivos centrais:
 
-- `dashboard-ui/src/api/clienteAxios.ts`
-- `dashboard-ui/src/contexts/AutenticacaoContext.tsx`
-- `dashboard-ui/src/utils/gerenciadorSessao.ts`
-- `dashboard-ui/src/api/endpoints/authServico.ts`
+- `frontend/src/api/clienteAxios.ts`
+- `frontend/src/contexts/AutenticacaoContext.tsx`
+- `frontend/src/utils/gerenciadorSessao.ts`
+- `frontend/src/api/endpoints/authServico.ts`
 
 Complemento operacional aplicado depois da primeira rodada:
 
@@ -242,17 +242,17 @@ Os tipos do frontend foram alinhados ao backend para refletir:
 
 Arquivos centrais:
 
-- `dashboard-ui/src/types/access.ts`
-- `dashboard-ui/src/types/auth.ts`
-- `dashboard-ui/src/utils/accessControl.ts`
+- `frontend/src/types/access.ts`
+- `frontend/src/types/auth.ts`
+- `frontend/src/utils/accessControl.ts`
 
 ## 5. Validacoes executadas
 
 Validacoes realizadas ao final da implementacao:
 
-- `dashboard-api`: `./mvnw.cmd test`
-- `dashboard-api`: `./mvnw.cmd -q -DskipTests compile`
-- `dashboard-ui`: `npm run build`
+- `backend`: `./mvnw.cmd test`
+- `backend`: `./mvnw.cmd -q -DskipTests compile`
+- `frontend`: `npm run build`
 
 Resultado:
 

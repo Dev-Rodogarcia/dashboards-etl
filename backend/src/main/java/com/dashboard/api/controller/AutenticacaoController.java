@@ -57,9 +57,9 @@ public class AutenticacaoController {
         this.rateLimitService = rateLimitService;
         this.refreshTokenService = refreshTokenService;
         this.ipClienteResolver = ipClienteResolver;
-        this.refreshCookieName = refreshCookieName;
+        this.refreshCookieName = Objects.requireNonNull(refreshCookieName, "auth.refresh-cookie-name é obrigatório.").trim();
         this.refreshCookieSecure = refreshCookieSecure;
-        this.refreshCookieSameSite = refreshCookieSameSite;
+        this.refreshCookieSameSite = normalizarSameSite(refreshCookieSameSite, refreshCookieSecure);
     }
 
     @PostMapping("/login")
@@ -135,9 +135,10 @@ public class AutenticacaoController {
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest request) {
+        String refreshToken = extrairRefreshToken(request);
         try {
             RefreshTokenService.RefreshTokenRotacionado rotacao = refreshTokenService.rotacionar(
-                    extrairRefreshToken(request),
+                    refreshToken,
                     ipClienteResolver.resolver(request),
                     request.getHeader("User-Agent")
             );
@@ -152,6 +153,13 @@ public class AutenticacaoController {
                     HttpStatus.UNAUTHORIZED.value(),
                     "Unauthorized",
                     "Sessao expirada."
+            );
+            log.warn(
+                    "Refresh de sessao recusado: motivo={} origin={} referer={} ip={}",
+                    refreshToken == null || refreshToken.isBlank() ? "cookie_ausente" : "token_invalido_ou_revogado",
+                    request.getHeader("Origin"),
+                    request.getHeader("Referer"),
+                    ipClienteResolver.resolver(request)
             );
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .header("Set-Cookie", limparRefreshCookie())
@@ -183,9 +191,33 @@ public class AutenticacaoController {
                 .body(erro);
     }
 
+    private static String normalizarSameSite(String valor, boolean secure) {
+        String sameSite = Objects.requireNonNull(valor, "auth.refresh-cookie-same-site é obrigatório.").trim();
+        if (sameSite.isBlank()) {
+            throw new IllegalArgumentException("auth.refresh-cookie-same-site é obrigatório.");
+        }
+
+        if ("lax".equalsIgnoreCase(sameSite)) {
+            return "Lax";
+        }
+        if ("strict".equalsIgnoreCase(sameSite)) {
+            return "Strict";
+        }
+        if ("none".equalsIgnoreCase(sameSite)) {
+            if (!secure) {
+                throw new IllegalArgumentException(
+                        "auth.refresh-cookie-secure deve ser true quando auth.refresh-cookie-same-site=None."
+                );
+            }
+            return "None";
+        }
+
+        throw new IllegalArgumentException("auth.refresh-cookie-same-site deve ser Lax, Strict ou None.");
+    }
+
     private String criarRefreshCookie(String tokenPlano, Instant expiraEm) {
-        String cookieName = Objects.requireNonNull(refreshCookieName, "auth.refresh-cookie-name é obrigatório.");
-        String sameSite = Objects.requireNonNull(refreshCookieSameSite, "auth.refresh-cookie-same-site é obrigatório.");
+        String cookieName = refreshCookieName;
+        String sameSite = refreshCookieSameSite;
         long maxAgeSeconds = Math.max(0, Duration.between(Instant.now(), Objects.requireNonNull(expiraEm, "expiraEm é obrigatório.")).getSeconds());
 
         return ResponseCookie.from(cookieName, Objects.requireNonNull(tokenPlano, "refresh token é obrigatório."))
@@ -199,8 +231,8 @@ public class AutenticacaoController {
     }
 
     private String limparRefreshCookie() {
-        String cookieName = Objects.requireNonNull(refreshCookieName, "auth.refresh-cookie-name é obrigatório.");
-        String sameSite = Objects.requireNonNull(refreshCookieSameSite, "auth.refresh-cookie-same-site é obrigatório.");
+        String cookieName = refreshCookieName;
+        String sameSite = refreshCookieSameSite;
 
         return ResponseCookie.from(cookieName, "")
                 .httpOnly(true)

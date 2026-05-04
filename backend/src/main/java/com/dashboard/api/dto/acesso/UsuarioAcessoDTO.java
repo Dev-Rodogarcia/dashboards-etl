@@ -12,6 +12,8 @@ public record UsuarioAcessoDTO(
         String setorNome,
         String papel,
         Map<String, Boolean> permissoesEfetivas,
+        String escopoFiliaisTipo,
+        List<String> filiaisPermitidasUsuario,
         List<String> filiaisPermitidasEfetivas,
         List<String> permissoesNegadas,
         List<String> permissoesConcedidas,

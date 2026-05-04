@@ -2,6 +2,8 @@ package com.dashboard.api.model.acesso;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "usuarios", schema = "acesso")
@@ -54,6 +56,12 @@ public class UsuarioEntity {
     @JoinColumn(name = "setor_id", nullable = false)
     private SetorEntity setor;
 
+    @Transient
+    private String escopoFiliaisTipo = "HERDAR_SETOR";
+
+    @Transient
+    private Set<String> filiaisPermitidasUsuario = new LinkedHashSet<>();
+
     @Column(nullable = false)
     private boolean ativo = true;
 
@@ -105,6 +113,12 @@ public class UsuarioEntity {
     public void setMfaStatus(String mfaStatus) { this.mfaStatus = mfaStatus; }
     public SetorEntity getSetor() { return setor; }
     public void setSetor(SetorEntity setor) { this.setor = setor; }
+    public String getEscopoFiliaisTipo() { return escopoFiliaisTipo; }
+    public void setEscopoFiliaisTipo(String escopoFiliaisTipo) { this.escopoFiliaisTipo = escopoFiliaisTipo; }
+    public Set<String> getFiliaisPermitidasUsuario() { return filiaisPermitidasUsuario; }
+    public void setFiliaisPermitidasUsuario(Set<String> filiaisPermitidasUsuario) {
+        this.filiaisPermitidasUsuario = filiaisPermitidasUsuario != null ? new LinkedHashSet<>(filiaisPermitidasUsuario) : new LinkedHashSet<>();
+    }
     public boolean isAtivo() { return ativo; }
     public void setAtivo(boolean ativo) { this.ativo = ativo; }
     public Instant getCriadoEm() { return criadoEm; }

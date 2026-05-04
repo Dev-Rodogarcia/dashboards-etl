@@ -26,31 +26,31 @@ import java.util.stream.Collectors;
 @Service
 public class PerformanceEntregaIndicadorService {
 
-    private static final String STATUS_FINALIZADO = "finalizado";
+    private static final String STATUS_CANCELADO = "cancelado";
+    private static final String PERFORMANCE_EM_ABERTO = "EM ABERTO";
+    private static final String PERFORMANCE_NO_PRAZO = "NO PRAZO";
+    private static final String PERFORMANCE_FORA_DO_PRAZO = "FORA DO PRAZO";
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoFretesRepository fretesRepository;
     private final EscopoFilialService escopoFilialService;
-    private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
 
     PerformanceEntregaIndicadorService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoFretesRepository fretesRepository
     ) {
-        this(validadorPeriodo, fretesRepository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
+        this(validadorPeriodo, fretesRepository, escopoSemRestricao());
     }
 
     @Autowired
     public PerformanceEntregaIndicadorService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoFretesRepository fretesRepository,
-            EscopoFilialService escopoFilialService,
-            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
+            EscopoFilialService escopoFilialService
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.fretesRepository = fretesRepository;
         this.escopoFilialService = escopoFilialService;
-        this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
     }
 
     public PerformanceEntregaOverviewDTO buscarOverview(FiltroConsultaDTO filtro) {
@@ -71,7 +71,9 @@ public class PerformanceEntregaIndicadorService {
         int entregasNoPrazo = (int) registros.stream()
                 .filter(PerformanceEntregaRegistro::noPrazo)
                 .count();
-        int entregasForaDoPrazo = Math.max(totalEntregas - entregasNoPrazo, 0);
+        int entregasForaDoPrazo = (int) registros.stream()
+                .filter(PerformanceEntregaRegistro::foraDoPrazo)
+                .count();
 
         return new PerformanceEntregaOverviewDTO(
                 IndicadoresGestaoMetricasUtils.latestUpdate(registros, PerformanceEntregaRegistro::updatedAt),
@@ -93,7 +95,7 @@ public class PerformanceEntregaIndicadorService {
                     PerformanceEntregaRegistro amostra = grupo.get(0);
                     int totalEntregas = grupo.size();
                     int entregasNoPrazo = (int) grupo.stream().filter(PerformanceEntregaRegistro::noPrazo).count();
-                    int entregasForaDoPrazo = Math.max(totalEntregas - entregasNoPrazo, 0);
+                    int entregasForaDoPrazo = (int) grupo.stream().filter(PerformanceEntregaRegistro::foraDoPrazo).count();
                     return new PerformanceEntregaSeriePointDTO(
                             amostra.dataReferencia().toString(),
                             amostra.filialPerformance(),
@@ -113,7 +115,8 @@ public class PerformanceEntregaIndicadorService {
         int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 100, 500);
 
         return buscarRegistros(filtro).stream()
-                .sorted(Comparator.comparing(PerformanceEntregaRegistro::dataFrete, Comparator.nullsLast(Comparator.reverseOrder()))
+                .sorted(Comparator.comparing(PerformanceEntregaRegistro::previsaoEntrega, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(PerformanceEntregaRegistro::dataFrete, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(PerformanceEntregaRegistro::dataFinalizacao, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(PerformanceEntregaRegistro::numeroMinuta, Comparator.reverseOrder()))
                 .limit(limiteAplicado)
@@ -134,7 +137,8 @@ public class PerformanceEntregaIndicadorService {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
         return buscarRegistros(filtro).stream()
-                .sorted(Comparator.comparing(PerformanceEntregaRegistro::dataFrete, Comparator.nullsLast(Comparator.reverseOrder()))
+                .sorted(Comparator.comparing(PerformanceEntregaRegistro::previsaoEntrega, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(PerformanceEntregaRegistro::dataFrete, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(PerformanceEntregaRegistro::dataFinalizacao, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(PerformanceEntregaRegistro::numeroMinuta, Comparator.reverseOrder()))
                 .map(registro -> new PerformanceEntregaRowDTO(
@@ -155,17 +159,19 @@ public class PerformanceEntregaIndicadorService {
     }
 
     private List<PerformanceEntregaRegistro> buscarRegistros(FiltroConsultaDTO filtro) {
-        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
-        List<VisaoFretesEntity> fretes = fretesRepository.findAll(criarFretesSpecification(filtro, escopo, janela));
+        List<VisaoFretesEntity> fretes = fretesRepository.findAll(criarFretesSpecification(filtro, escopo));
         Map<Long, PerformanceEntregaRegistro> porMinuta = new LinkedHashMap<>();
         for (VisaoFretesEntity frete : fretes) {
             Long numeroMinuta = frete.getNumeroMinuta();
-            String performanceStatus = textoOuNulo(frete.getPerformanceStatus());
-            if (numeroMinuta == null || !statusFinalizado(frete.getStatus()) || performanceStatus == null) {
+            if (numeroMinuta == null
+                    || frete.getPrevisaoEntrega() == null
+                    || statusCancelado(frete.getStatus())
+                    || !IndicadoresGestaoMetricasUtils.freteOperacionalElegivel(frete)) {
                 continue;
             }
+            String performanceStatus = textoStatusOuAberto(frete.getPerformanceStatus());
 
             String filialEmissora = primeiroTexto(frete.getFilialEmissora(), frete.getFilialNome());
             String filialPerformance = primeiroTexto(
@@ -197,13 +203,15 @@ public class PerformanceEntregaIndicadorService {
     @NonNull
     private Specification<VisaoFretesEntity> criarFretesSpecification(
             FiltroConsultaDTO filtro,
-            EscopoFilialService.EscopoFilial escopo,
-            JanelaOffsetDateTime janela
+            EscopoFilialService.EscopoFilial escopo
     ) {
         return ConsultaSpecificationUtils.allOf(
-                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataFrete", janela.inicioInclusivo()),
-                ConsultaSpecificationUtils.lessThan("dataFrete", janela.fimExclusivo()),
-                ConsultaSpecificationUtils.valoresIgnoreCase("status", List.of(STATUS_FINALIZADO)),
+                ConsultaSpecificationUtils.greaterThanOrEqualTo("previsaoEntrega", filtro.dataInicio()),
+                ConsultaSpecificationUtils.lessThan("previsaoEntrega", filtro.dataFim().plusDays(1)),
+                (root, query, cb) -> cb.or(
+                        cb.isNull(root.get("status")),
+                        cb.notEqual(cb.lower(root.get("status")), STATUS_CANCELADO)
+                ),
                 ConsultaSpecificationUtils.escopoFiliaisCoalesce(escopo, "responsavelRegiaoDestino", "filialEmissora"),
                 ConsultaSpecificationUtils.filtroTextoCoalesce(filtro, "filiais", "responsavelRegiaoDestino", "filialEmissora")
         );
@@ -257,8 +265,8 @@ public class PerformanceEntregaIndicadorService {
                 && filtro.corresponde("filiais", filialPerformance);
     }
 
-    private static boolean statusFinalizado(String status) {
-        return status != null && STATUS_FINALIZADO.equalsIgnoreCase(status.trim());
+    private static boolean statusCancelado(String status) {
+        return status != null && STATUS_CANCELADO.equalsIgnoreCase(status.trim());
     }
 
     private static String primeiroTexto(String... valores) {
@@ -270,8 +278,8 @@ public class PerformanceEntregaIndicadorService {
         return null;
     }
 
-    private static String textoOuNulo(String valor) {
-        return valor == null || valor.isBlank() ? null : valor.trim().toUpperCase(Locale.ROOT);
+    private static String textoStatusOuAberto(String valor) {
+        return valor == null || valor.isBlank() ? PERFORMANCE_EM_ABERTO : valor.trim().toUpperCase(Locale.ROOT);
     }
 
     private static EscopoFilialService escopoSemRestricao() {
@@ -295,11 +303,15 @@ public class PerformanceEntregaIndicadorService {
             LocalDateTime updatedAt
     ) {
         private LocalDate dataReferencia() {
-            return dataFrete != null ? dataFrete.toLocalDate() : null;
+            return previsaoEntrega;
         }
 
         private boolean noPrazo() {
-            return "NO PRAZO".equalsIgnoreCase(performanceStatus);
+            return PERFORMANCE_NO_PRAZO.equalsIgnoreCase(performanceStatus);
+        }
+
+        private boolean foraDoPrazo() {
+            return PERFORMANCE_FORA_DO_PRAZO.equalsIgnoreCase(performanceStatus);
         }
     }
 }

@@ -186,7 +186,7 @@ O frontend foi reorganizado em torno de:
 - `RotaProtegida`
 - paginas por dominio
 
-As rotas estao centralizadas em `dashboard-ui/src/App.tsx` e agora usam permissao por rota, nao listas hardcoded de setores.
+As rotas estao centralizadas em `frontend/src/App.tsx` e agora usam permissao por rota, nao listas hardcoded de setores.
 
 ### 4.2 Dashboards protegidos
 
@@ -293,32 +293,32 @@ Foram eliminados artefatos do modelo legado, incluindo:
 
 Arquivos principais para consulta:
 
-- `dashboard-ui/src/App.tsx`
-- `dashboard-ui/src/contexts/AutenticacaoContext.tsx`
-- `dashboard-ui/src/contexts/FiltroContext.tsx`
-- `dashboard-ui/src/components/layout/RotaProtegida.tsx`
-- `dashboard-ui/src/components/layout/BarraLateral.tsx`
-- `dashboard-ui/src/components/PermissionGate.tsx`
-- `dashboard-ui/src/pages/LoginPage.tsx`
-- `dashboard-ui/src/pages/AdminSetoresPage.tsx`
-- `dashboard-ui/src/pages/AdminUsuariosPage.tsx`
-- `dashboard-ui/src/utils/accessControl.ts`
-- `dashboard-ui/src/types/access.ts`
-- `dashboard-api/src/main/java/com/dashboard/api/security/PermissaoCatalogo.java`
-- `dashboard-api/src/main/java/com/dashboard/api/security/AcessoSeguranca.java`
-- `dashboard-api/src/main/java/com/dashboard/api/security/FiltroValidacaoJwt.java`
-- `dashboard-api/src/main/java/com/dashboard/api/controller/AutenticacaoController.java`
-- `dashboard-api/src/main/java/com/dashboard/api/controller/AdminAcessoController.java`
-- `dashboard-api/src/main/java/com/dashboard/api/service/ControleAcessoService.java`
+- `frontend/src/App.tsx`
+- `frontend/src/contexts/AutenticacaoContext.tsx`
+- `frontend/src/contexts/FiltroContext.tsx`
+- `frontend/src/components/layout/RotaProtegida.tsx`
+- `frontend/src/components/layout/BarraLateral.tsx`
+- `frontend/src/components/PermissionGate.tsx`
+- `frontend/src/pages/LoginPage.tsx`
+- `frontend/src/pages/AdminSetoresPage.tsx`
+- `frontend/src/pages/AdminUsuariosPage.tsx`
+- `frontend/src/utils/accessControl.ts`
+- `frontend/src/types/access.ts`
+- `backend/src/main/java/com/dashboard/api/security/PermissaoCatalogo.java`
+- `backend/src/main/java/com/dashboard/api/security/AcessoSeguranca.java`
+- `backend/src/main/java/com/dashboard/api/security/FiltroValidacaoJwt.java`
+- `backend/src/main/java/com/dashboard/api/controller/AutenticacaoController.java`
+- `backend/src/main/java/com/dashboard/api/controller/AdminAcessoController.java`
+- `backend/src/main/java/com/dashboard/api/service/ControleAcessoService.java`
 
 ## 7. Validacoes realizadas
 
 Validacoes de qualidade executadas na etapa final:
 
-- `dashboard-ui`: `npm run lint`
-- `dashboard-ui`: `npm run build`
-- `dashboard-api`: `./mvnw -q compile`
-- `dashboard-api`: `./mvnw test`
+- `frontend`: `npm run lint`
+- `frontend`: `npm run build`
+- `backend`: `./mvnw -q compile`
+- `backend`: `./mvnw test`
 
 Validacoes realizadas ao longo da refatoracao de dados:
 

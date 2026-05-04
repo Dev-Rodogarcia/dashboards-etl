@@ -144,6 +144,8 @@ class UsuarioImportacaoServiceTest {
                 "Logística",
                 "usuario_comum",
                 Map.of(),
+                EscopoFiliaisUsuarioPolicy.HERDAR_SETOR,
+                List.of(),
                 List.of("Matriz"),
                 List.of(),
                 List.of(),
@@ -164,6 +166,8 @@ class UsuarioImportacaoServiceTest {
         assertThat(gestaoUsuarioService.ultimoRequest).isNotNull();
         assertThat(gestaoUsuarioService.ultimoRequest.papel()).isEqualTo(PermissaoResolverService.PAPEL_USUARIO_COMUM);
         assertThat(gestaoUsuarioService.ultimoRequest.setorId()).isEqualTo("1");
+        assertThat(gestaoUsuarioService.ultimoRequest.escopoFiliaisTipo()).isEqualTo(EscopoFiliaisUsuarioPolicy.HERDAR_SETOR);
+        assertThat(gestaoUsuarioService.ultimoRequest.filiaisPermitidasUsuario()).isEmpty();
     }
 
     private static SetorEntity criarSetor(Long id, String nome) {
@@ -244,7 +248,8 @@ class UsuarioImportacaoServiceTest {
                     new PoliticaSenhaService(),
                     new RefreshTokenService(mock(RefreshTokenSessionRepository.class), 24),
                     mock(UsuarioDependenciaCleanup.class),
-                    new UsuarioSupremo("supremo@empresa.com", "Senha@123456", "Supremo", "desenvolvedor", 1000, false)
+                    new UsuarioSupremo("supremo@empresa.com", "Senha@123456", "Supremo", "desenvolvedor", 1000, false),
+                    new StubEscopoFiliaisUsuarioStore()
             );
         }
 
@@ -252,6 +257,20 @@ class UsuarioImportacaoServiceTest {
         public UsuarioAcessoDTO criarUsuario(com.dashboard.api.dto.acesso.UsuarioRequestDTO request) {
             this.ultimoRequest = request;
             return resposta;
+        }
+    }
+
+    private static final class StubEscopoFiliaisUsuarioStore extends EscopoFiliaisUsuarioStore {
+        private StubEscopoFiliaisUsuarioStore() {
+            super(null);
+        }
+
+        @Override
+        public void carregarNoUsuario(com.dashboard.api.model.acesso.UsuarioEntity usuario) {
+        }
+
+        @Override
+        public void salvar(com.dashboard.api.model.acesso.UsuarioEntity usuario) {
         }
     }
 }

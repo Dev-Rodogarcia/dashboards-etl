@@ -45,6 +45,7 @@ public class GestaoUsuarioService {
     private final RefreshTokenService refreshTokenService;
     private final UsuarioDependenciaCleanup dependenciaCleanupService;
     private final UsuarioSupremo usuarioSupremo;
+    private final EscopoFiliaisUsuarioStore escopoFiliaisUsuarioStore;
 
     public GestaoUsuarioService(
             UsuarioRepository usuarioRepository,
@@ -59,7 +60,8 @@ public class GestaoUsuarioService {
             PoliticaSenhaService politicaSenhaService,
             RefreshTokenService refreshTokenService,
             UsuarioDependenciaCleanup dependenciaCleanupService,
-            UsuarioSupremo usuarioSupremo
+            UsuarioSupremo usuarioSupremo,
+            EscopoFiliaisUsuarioStore escopoFiliaisUsuarioStore
     ) {
         this.usuarioRepository = usuarioRepository;
         this.setorRepository = setorRepository;
@@ -74,6 +76,7 @@ public class GestaoUsuarioService {
         this.refreshTokenService = refreshTokenService;
         this.dependenciaCleanupService = dependenciaCleanupService;
         this.usuarioSupremo = usuarioSupremo;
+        this.escopoFiliaisUsuarioStore = escopoFiliaisUsuarioStore;
     }
 
     @Transactional(readOnly = true)
@@ -107,7 +110,9 @@ public class GestaoUsuarioService {
         usuario.setExigeTrocaSenha(true);
         usuario.setSetor(setor);
         usuario.setAtivo(request.ativo() == null || request.ativo());
+        aplicarEscopoFiliais(usuario, request);
         usuario = usuarioRepository.save(usuario);
+        escopoFiliaisUsuarioStore.salvar(usuario);
 
         salvarPapelUnico(usuario, papel);
         salvarOverrides(usuario, request.permissoesNegadas(), request.permissoesConcedidas());
@@ -142,6 +147,7 @@ public class GestaoUsuarioService {
         usuario.setLogin(normalizarEmail(request.email()));
         usuario.setSetor(setor);
         usuario.setAtivo(novoAtivo);
+        aplicarEscopoFiliais(usuario, request);
 
         boolean senhaAlterada = false;
         if (request.senha() != null && !request.senha().isBlank()) {
@@ -156,6 +162,7 @@ public class GestaoUsuarioService {
         }
 
         usuario = usuarioRepository.save(usuario);
+        escopoFiliaisUsuarioStore.salvar(usuario);
 
         boolean papelAlterado = !Objects.equals(papelAtual, novoPapel.getNome());
         if (papelAlterado) {
@@ -239,6 +246,7 @@ public class GestaoUsuarioService {
 
     private UsuarioAcessoDTO mapearUsuario(UsuarioEntity usuario) {
         Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
+        escopoFiliaisUsuarioStore.carregarNoUsuario(usuario);
         Map<String, Boolean> permissoesEfetivas = permissaoResolver.permissoesEfetivas(usuario);
         String papel = permissaoResolver.papel(usuarioId);
         List<UsuarioPermissaoOverride> todosOverrides = overrideRepository.findAllByUsuarioId(usuarioId);
@@ -256,10 +264,11 @@ public class GestaoUsuarioService {
                         : override.getPermissao().getChave())
                 .sorted()
                 .toList();
-        List<String> filiaisPermitidas = usuario.getSetor().getFiliaisPermitidas().stream()
-                .filter(valor -> valor != null && !valor.isBlank())
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
+        String escopoFiliaisTipo = EscopoFiliaisUsuarioPolicy.normalizarTipo(usuario.getEscopoFiliaisTipo());
+        List<String> filiaisPermitidasUsuario = EscopoFiliaisUsuarioPolicy.listarFiliaisUsuario(usuario);
+        EscopoFilialService.EscopoFilial escopoFilial = permissaoResolver.ehAdminPlataforma(usuarioId) || permissaoResolver.ehDesenvolvedor(usuarioId)
+                ? EscopoFilialService.EscopoFilial.comAcessoTotal()
+                : EscopoFiliaisUsuarioPolicy.resolverSemPapelElevado(usuario);
 
         return new UsuarioAcessoDTO(
                 String.valueOf(usuario.getId()),
@@ -270,13 +279,21 @@ public class GestaoUsuarioService {
                 usuario.getSetor().getNome(),
                 papel,
                 permissoesEfetivas,
-                permissaoResolver.ehAdminPlataforma(usuarioId) || permissaoResolver.ehDesenvolvedor(usuarioId)
-                        ? List.of()
-                        : filiaisPermitidas,
+                escopoFiliaisTipo,
+                filiaisPermitidasUsuario,
+                escopoFilial.acessoTotal() ? List.of() : escopoFilial.filiaisOrdenadas(),
                 permissoesNegadas,
                 permissoesConcedidas,
                 passwordHashService.statusAdministrativo(usuario).valor(),
                 passwordHashService.algoritmoExibicao(usuario)
+        );
+    }
+
+    private void aplicarEscopoFiliais(UsuarioEntity usuario, UsuarioRequestDTO request) {
+        String tipo = EscopoFiliaisUsuarioPolicy.normalizarTipo(request.escopoFiliaisTipo());
+        usuario.setEscopoFiliaisTipo(tipo);
+        usuario.setFiliaisPermitidasUsuario(
+                EscopoFiliaisUsuarioPolicy.normalizarFiliaisSelecionadas(tipo, request.filiaisPermitidasUsuario())
         );
     }
 

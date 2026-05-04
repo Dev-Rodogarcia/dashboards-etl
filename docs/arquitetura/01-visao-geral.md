@@ -8,8 +8,8 @@ O monorepo `dashboards-etl` entrega uma plataforma de dashboards operacionais, f
 
 ```text
 dashboards-etl/
-|-- dashboard-api/     -> Spring Boot 3.2, JPA, SQL Server, JWT, ACL
-|-- dashboard-ui/      -> React 19, TypeScript, Vite, React Query
+|-- backend/     -> Spring Boot 3.2, JPA, SQL Server, JWT, ACL
+|-- frontend/      -> React 19, TypeScript, Vite, React Query
 |-- docs/              -> referencia tecnica e operacional
 |-- scripts/           -> automacao de validacao BI
 |-- reports/           -> artefatos gerados pelas validacoes

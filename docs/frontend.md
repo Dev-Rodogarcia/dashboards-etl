@@ -20,7 +20,7 @@ Estilização: Tailwind CSS (Permite criar o layout via classes utilitárias, ev
 A topologia segue o padrão de isolamento por responsabilidade (separação de conceitos). Nomes de pastas estruturais em inglês; regras de negócio e componentes visuais em português.
 
 Plaintext
-/dashboard-ui
+/frontend
 ├── package.json                    # Declaração das dependências (React, Vite, ECharts, Axios).
 ├── tsconfig.json                   # Regras de compilação do TypeScript. Deve operar em modo "strict".
 ├── tailwind.config.js              # Configuração de temas, cores da empresa e espaçamentos.

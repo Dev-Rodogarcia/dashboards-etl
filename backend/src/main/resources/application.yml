@@ -67,6 +67,7 @@ dashboard:
     fail-on-schema-mismatch: ${DASHBOARD_INDICADORES_FAIL_ON_SCHEMA_MISMATCH:false}
     cubagem:
       remetente-docs-excluidos: ${DASHBOARD_INDICADORES_CUBAGEM_REMETENTE_DOCS_EXCLUIDOS:}
+      pagador-docs-excluidos: ${DASHBOARD_INDICADORES_CUBAGEM_PAGADOR_DOCS_EXCLUIDOS:}
 
 # API Key para rotas internas (ETL/RPA)
 api:

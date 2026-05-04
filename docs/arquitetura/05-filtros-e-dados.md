@@ -80,7 +80,7 @@ Padrao obrigatorio:
 
 Arquivo:
 
-- `dashboard-api/src/main/java/com/dashboard/api/service/PeriodoOffsetDateTimeHelper.java`
+- `backend/src/main/java/com/dashboard/api/service/PeriodoOffsetDateTimeHelper.java`
 
 Responsabilidade:
 

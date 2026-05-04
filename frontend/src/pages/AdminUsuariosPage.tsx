@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import PermissionOverrideMatrix from '../components/admin/PermissionOverrideMatrix';
 import UsuariosImportacaoModal from '../components/admin/UsuariosImportacaoModal';
+import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import {
   useAtualizarUsuario,
@@ -13,6 +14,7 @@ import {
   useSetoresAdmin,
   useUsuariosAdmin,
 } from '../hooks/queries/useAdminAcesso';
+import { useFiliais } from '../hooks/queries/useDimensoes';
 import { usePermissions } from '../hooks/usePermissions';
 import type {
   PapelAdmin,
@@ -50,8 +52,20 @@ const FORM_INICIAL: UsuarioPayload = {
   papel: 'usuario_comum',
   permissoesNegadas: [],
   permissoesConcedidas: [],
+  escopoFiliaisTipo: 'HERDAR_SETOR',
+  filiaisPermitidasUsuario: [],
   ativo: true,
 };
+
+const ESCOPO_FILIAIS_OPTIONS: Array<{
+  value: UsuarioPayload['escopoFiliaisTipo'];
+  label: string;
+  description: string;
+}> = [
+  { value: 'HERDAR_SETOR', label: 'Herdar do setor', description: 'Usa as filiais configuradas no setor selecionado.' },
+  { value: 'TODAS', label: 'Todas as filiais', description: 'Libera dados de todas as filiais.' },
+  { value: 'SELECIONADAS', label: 'Somente selecionadas', description: 'Usa uma lista específica para este usuário.' },
+];
 
 const SURFACE_STYLE = {
   backgroundColor: 'var(--color-card)',
@@ -151,6 +165,11 @@ function formatRoleName(nome: string): string {
     .split('_')
     .map((parte) => parte.charAt(0).toUpperCase() + parte.slice(1))
     .join(' ');
+}
+
+function formatFiliaisResumo(filiais: string[], acessoTotal: boolean): string {
+  if (acessoTotal) return 'Acesso total';
+  return filiais.join(', ') || 'Nenhuma';
 }
 
 function mapOverridesToState(permissoesNegadas: string[], permissoesConcedidas: string[]): PermissionOverrideStateMap {
@@ -309,6 +328,7 @@ export default function AdminUsuariosPage() {
   const catalogo = useCatalogoPermissoes();
   const papeis = usePapeisAdmin();
   const setores = useSetoresAdmin();
+  const filiais = useFiliais();
   const usuarios = useUsuariosAdmin();
   const criarUsuario = useCriarUsuario();
   const atualizarUsuario = useAtualizarUsuario();
@@ -324,6 +344,7 @@ export default function AdminUsuariosPage() {
   const [confirmacaoExclusao, setConfirmacaoExclusao] = useState('');
   const isMobileUsersTable = useIsMobileUsersTable();
   const podeOperarPapelElevado = isAdminPlataforma || isDesenvolvedor;
+  const filiaisDisponiveis = filiais.data ?? [];
   const senhaEmEdicao = form.senha ?? '';
   const senhaPolicyErrors = useMemo(
     () => (senhaEmEdicao.trim() ? getPasswordPolicyErrors(senhaEmEdicao) : []),
@@ -336,6 +357,22 @@ export default function AdminUsuariosPage() {
   );
 
   const baseline = setorSelecionado?.templatePermissoes ?? createEmptyPermissionMap();
+  const papelComAcessoTotal = form.papel === PAPEL_ADMIN_PLATAFORMA
+    || (Boolean(PAPEL_DESENVOLVEDOR) && form.papel === PAPEL_DESENVOLVEDOR);
+  const escopoComAcessoTotal = papelComAcessoTotal || form.escopoFiliaisTipo === 'TODAS';
+  const filiaisEfetivasPreview = useMemo(() => {
+    if (escopoComAcessoTotal) {
+      return [];
+    }
+
+    if (form.escopoFiliaisTipo === 'SELECIONADAS') {
+      return [...form.filiaisPermitidasUsuario].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    }
+
+    return setorSelecionado?.filiaisPermitidas ?? [];
+  }, [escopoComAcessoTotal, form.escopoFiliaisTipo, form.filiaisPermitidasUsuario, setorSelecionado?.filiaisPermitidas]);
+  const todasFiliaisUsuarioSelecionadas = filiaisDisponiveis.length > 0
+    && filiaisDisponiveis.every((filial) => form.filiaisPermitidasUsuario.includes(filial));
 
   const permissoesEfetivasPreview = useMemo<PermissionMap>(() => {
     if (form.papel === PAPEL_ADMIN_PLATAFORMA) {
@@ -380,7 +417,7 @@ export default function AdminUsuariosPage() {
         negacoesResumo: usuario.permissoesNegadas
           .map((chave) => catalogo.data?.find((item) => item.chave === chave)?.nome ?? chave)
           .join(', '),
-        filiaisResumo: usuario.filiaisPermitidasEfetivas.join(', '),
+        filiaisResumo: formatFiliaisResumo(usuario.filiaisPermitidasEfetivas, usuario.filiaisPermitidasEfetivas.length === 0),
         senhaResumo: `${formatPasswordStatus(usuario.statusSenha)} • ${usuario.algoritmoSenha}`,
         acoes: usuario.id,
       })),
@@ -421,10 +458,17 @@ export default function AdminUsuariosPage() {
       papel: usuario.papel,
       permissoesNegadas: [...usuario.permissoesNegadas],
       permissoesConcedidas: [...usuario.permissoesConcedidas],
+      escopoFiliaisTipo: usuario.escopoFiliaisTipo,
+      filiaisPermitidasUsuario: [...usuario.filiaisPermitidasUsuario],
       ativo: usuario.ativo,
     });
     setOverrideState(mapOverridesToState(usuario.permissoesNegadas, usuario.permissoesConcedidas));
     setErro('');
+  }
+
+  function selecionarTodasFiliaisUsuario() {
+    if (filiaisDisponiveis.length === 0) return;
+    setForm((atual) => ({ ...atual, filiaisPermitidasUsuario: [...filiaisDisponiveis] }));
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -439,12 +483,18 @@ export default function AdminUsuariosPage() {
       }
     }
 
+    if (form.escopoFiliaisTipo === 'SELECIONADAS' && form.filiaisPermitidasUsuario.length === 0) {
+      setErro('Selecione ao menos uma filial para o usuário.');
+      return;
+    }
+
     const payload: UsuarioPayload = {
       ...form,
       senha: form.senha?.trim() ? form.senha : undefined,
       confirmacaoSenha: form.confirmacaoSenha?.trim() ? form.confirmacaoSenha : undefined,
       permissoesNegadas: mapStateToNegacoes(overrideState),
       permissoesConcedidas: mapStateToConcedidas(overrideState),
+      filiaisPermitidasUsuario: form.escopoFiliaisTipo === 'SELECIONADAS' ? form.filiaisPermitidasUsuario : [],
     };
 
     try {
@@ -499,7 +549,8 @@ export default function AdminUsuariosPage() {
     criarUsuario.isPending
     || atualizarUsuario.isPending
     || papeis.isLoading
-    || setores.isLoading;
+    || setores.isLoading
+    || (form.escopoFiliaisTipo === 'SELECIONADAS' && filiais.isLoading);
 
   function renderActionButtons(row: UsuarioRow, compacto = false) {
     const usuarioSupremo = row.papel === PAPEL_DESENVOLVEDOR;
@@ -619,7 +670,7 @@ export default function AdminUsuariosPage() {
           <div>
             <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Gestão de usuários</h1>
             <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
-              O usuário herda o acesso do setor, pode receber apenas negações individuais e agora também suporta importação guiada via Excel.
+              O usuário herda o acesso do setor, pode ter escopo próprio de filiais e também suporta importação guiada via Excel.
             </p>
           </div>
 
@@ -733,6 +784,71 @@ export default function AdminUsuariosPage() {
             </div>
           </div>
 
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Escopo de filiais do usuário</h2>
+              <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>
+                Defina se este usuário herda o setor ou usa uma regra própria de filiais.
+              </p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {ESCOPO_FILIAIS_OPTIONS.map((opcao) => (
+                <label
+                  key={opcao.value}
+                  className="flex items-start gap-3 rounded-2xl border px-4 py-3"
+                  style={
+                    form.escopoFiliaisTipo === opcao.value
+                      ? {
+                          backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, var(--color-card))',
+                          borderColor: 'color-mix(in srgb, var(--color-primary) 34%, var(--color-border))',
+                        }
+                      : SOFT_PANEL_STYLE
+                  }
+                >
+                  <input
+                    type="radio"
+                    name="escopoFiliaisTipo"
+                    checked={form.escopoFiliaisTipo === opcao.value}
+                    onChange={() => setForm((atual) => ({
+                      ...atual,
+                      escopoFiliaisTipo: opcao.value,
+                      filiaisPermitidasUsuario: opcao.value === 'SELECIONADAS' ? atual.filiaisPermitidasUsuario : [],
+                    }))}
+                    className="mt-1 h-4 w-4 border-gray-300"
+                    style={{ accentColor: 'var(--color-primary)' }}
+                  />
+                  <div>
+                    <div className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{opcao.label}</div>
+                    <div className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>{opcao.description}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {form.escopoFiliaisTipo === 'SELECIONADAS' && (
+              <div className="flex flex-wrap items-start gap-3">
+                <AsyncMultiSelect
+                  label="Filiais do usuário"
+                  opcoes={filiaisDisponiveis}
+                  selecionados={form.filiaisPermitidasUsuario}
+                  onChange={(filiaisPermitidasUsuario) => setForm((atual) => ({ ...atual, filiaisPermitidasUsuario }))}
+                  placeholder="Selecione ao menos uma filial"
+                  isLoading={filiais.isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={selecionarTodasFiliaisUsuario}
+                  disabled={filiais.isLoading || filiaisDisponiveis.length === 0 || todasFiliaisUsuarioSelecionadas}
+                  className="rounded-xl border px-4 py-2.5 text-sm font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={SECONDARY_BUTTON_STYLE}
+                >
+                  {todasFiliaisUsuarioSelecionadas ? 'Todas selecionadas' : 'Selecionar todas'}
+                </button>
+              </div>
+            )}
+          </div>
+
           {senhaPolicyErrors.length > 0 && (
             <div
               className="rounded-2xl border px-4 py-3 text-sm"
@@ -787,9 +903,9 @@ export default function AdminUsuariosPage() {
 
           <div className="space-y-3">
             <div>
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Negações individuais</h2>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Permissões individuais</h2>
               <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>
-                O usuário herda o setor. Aqui você só nega dashboards específicos.
+                Ajuste exceções de dashboards sobre o baseline herdado do setor.
               </p>
             </div>
 
@@ -814,7 +930,7 @@ export default function AdminUsuariosPage() {
                 </div>
                 <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
                   <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Filiais efetivas</div>
-                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{setorSelecionado?.filiaisPermitidas.join(', ') || 'Nenhuma'}</div>
+                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{formatFiliaisResumo(filiaisEfetivasPreview, escopoComAcessoTotal)}</div>
                 </div>
                 <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
                   <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Baseline herdado</div>

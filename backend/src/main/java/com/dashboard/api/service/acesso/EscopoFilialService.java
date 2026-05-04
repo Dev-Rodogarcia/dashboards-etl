@@ -2,6 +2,7 @@ package com.dashboard.api.service.acesso;
 
 import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -20,13 +21,24 @@ public class EscopoFilialService {
 
     private final UsuarioRepository usuarioRepository;
     private final PermissaoResolverService permissaoResolver;
+    private final EscopoFiliaisUsuarioStore escopoFiliaisUsuarioStore;
+
+    @Autowired
+    public EscopoFilialService(
+            UsuarioRepository usuarioRepository,
+            PermissaoResolverService permissaoResolver,
+            EscopoFiliaisUsuarioStore escopoFiliaisUsuarioStore
+    ) {
+        this.usuarioRepository = usuarioRepository;
+        this.permissaoResolver = permissaoResolver;
+        this.escopoFiliaisUsuarioStore = escopoFiliaisUsuarioStore;
+    }
 
     public EscopoFilialService(
             UsuarioRepository usuarioRepository,
             PermissaoResolverService permissaoResolver
     ) {
-        this.usuarioRepository = usuarioRepository;
-        this.permissaoResolver = permissaoResolver;
+        this(usuarioRepository, permissaoResolver, null);
     }
 
     @Transactional(readOnly = true)
@@ -48,13 +60,10 @@ public class EscopoFilialService {
             return EscopoFilial.comAcessoTotal();
         }
 
-        List<String> filiais = usuario.getSetor().getFiliaisPermitidas().stream()
-                .filter(valor -> valor != null && !valor.isBlank())
-                .map(String::trim)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
-
-        return new EscopoFilial(false, filiais);
+        if (escopoFiliaisUsuarioStore != null) {
+            escopoFiliaisUsuarioStore.carregarNoUsuario(usuario);
+        }
+        return EscopoFiliaisUsuarioPolicy.resolverSemPapelElevado(usuario);
     }
 
     public record EscopoFilial(boolean acessoTotal, List<String> filiaisPermitidas) {

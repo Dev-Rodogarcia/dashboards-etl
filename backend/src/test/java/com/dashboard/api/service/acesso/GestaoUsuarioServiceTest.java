@@ -97,7 +97,8 @@ class GestaoUsuarioServiceTest {
                 politicaSenhaService,
                 refreshTokenService,
                 dependenciaCleanupService,
-                usuarioSupremo
+                usuarioSupremo,
+                new StubEscopoFiliaisUsuarioStore()
         );
     }
 
@@ -116,6 +117,8 @@ class GestaoUsuarioServiceTest {
                 "1",
                 "usuario_comum",
                 List.of(),
+                List.of(),
+                EscopoFiliaisUsuarioPolicy.HERDAR_SETOR,
                 List.of(),
                 true
         );
@@ -159,6 +162,8 @@ class GestaoUsuarioServiceTest {
                 "admin_plataforma",
                 List.of(),
                 List.of(),
+                EscopoFiliaisUsuarioPolicy.HERDAR_SETOR,
+                List.of(),
                 true
         );
 
@@ -194,6 +199,8 @@ class GestaoUsuarioServiceTest {
                 "1",
                 PermissaoResolverService.PAPEL_USUARIO_COMUM,
                 List.of("coletas"),
+                List.of(),
+                EscopoFiliaisUsuarioPolicy.HERDAR_SETOR,
                 List.of(),
                 true
         );
@@ -241,6 +248,8 @@ class GestaoUsuarioServiceTest {
                 PermissaoResolverService.PAPEL_USUARIO_COMUM,
                 List.of(),
                 List.of(),
+                EscopoFiliaisUsuarioPolicy.HERDAR_SETOR,
+                List.of(),
                 true
         );
 
@@ -282,6 +291,8 @@ class GestaoUsuarioServiceTest {
                 PermissaoResolverService.PAPEL_ADMIN_ACESSO,
                 List.of(),
                 List.of(),
+                EscopoFiliaisUsuarioPolicy.HERDAR_SETOR,
+                List.of(),
                 true
         );
 
@@ -315,6 +326,8 @@ class GestaoUsuarioServiceTest {
                 PermissaoResolverService.PAPEL_USUARIO_COMUM,
                 List.of("faturas"),
                 List.of("faturas"),
+                EscopoFiliaisUsuarioPolicy.HERDAR_SETOR,
+                List.of(),
                 true
         );
 
@@ -323,6 +336,34 @@ class GestaoUsuarioServiceTest {
         assertFalse(foiChamado(overrideRepository, "deleteAllByUsuarioId"));
         assertFalse(foiChamado(overrideRepository, "flush"));
         assertFalse(foiChamado(overrideRepository, "save"));
+    }
+
+    @Test
+    void deveRejeitarEscopoSelecionadasSemFiliais() {
+        ContextoAtualizacao contexto = prepararContextoAtualizacao(PermissaoResolverService.PAPEL_USUARIO_COMUM);
+        UsuarioEntity alvo = Objects.requireNonNull(contexto.alvo());
+        PapelEntity papelSolicitado = Objects.requireNonNull(contexto.papelSolicitado());
+
+        when(papelRepository.findByNome(PermissaoResolverService.PAPEL_USUARIO_COMUM))
+                .thenReturn(Optional.of(papelSolicitado));
+        clearInvocations(usuarioRepository);
+
+        UsuarioRequestDTO request = new UsuarioRequestDTO(
+                "Usuário Teste Atualizado",
+                "teste@empresa.com",
+                null,
+                null,
+                "1",
+                PermissaoResolverService.PAPEL_USUARIO_COMUM,
+                List.of(),
+                List.of(),
+                EscopoFiliaisUsuarioPolicy.SELECIONADAS,
+                List.of(),
+                true
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> service.atualizarUsuario(alvo.getId(), request));
+        assertFalse(foiChamado(usuarioRepository, "save"));
     }
 
     @Test
@@ -488,5 +529,19 @@ class GestaoUsuarioServiceTest {
             SetorEntity setor,
             PapelEntity papelSolicitado
     ) {
+    }
+
+    private static final class StubEscopoFiliaisUsuarioStore extends EscopoFiliaisUsuarioStore {
+        private StubEscopoFiliaisUsuarioStore() {
+            super(null);
+        }
+
+        @Override
+        public void carregarNoUsuario(UsuarioEntity usuario) {
+        }
+
+        @Override
+        public void salvar(UsuarioEntity usuario) {
+        }
     }
 }

@@ -8,7 +8,7 @@ A seguranca da plataforma combina autenticacao por JWT, refresh token rotativo, 
 
 Arquivo principal:
 
-- `dashboard-api/src/main/java/com/dashboard/api/config/SegurancaWebConfig.java`
+- `backend/src/main/java/com/dashboard/api/config/SegurancaWebConfig.java`
 
 Filtros relevantes:
 

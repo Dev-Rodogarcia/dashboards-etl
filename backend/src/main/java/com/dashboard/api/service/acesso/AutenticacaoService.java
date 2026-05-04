@@ -9,6 +9,7 @@ import com.dashboard.api.security.GerenciadorTokenJwt;
 import com.dashboard.api.security.PermissaoCatalogo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,6 +35,28 @@ public class AutenticacaoService {
     private final AuditService auditService;
     private final PoliticaSenhaService politicaSenhaService;
     private final RefreshTokenService refreshTokenService;
+    private final EscopoFiliaisUsuarioStore escopoFiliaisUsuarioStore;
+
+    @Autowired
+    public AutenticacaoService(
+            UsuarioRepository usuarioRepository,
+            PasswordHashService passwordHashService,
+            GerenciadorTokenJwt gerenciadorToken,
+            PermissaoResolverService permissaoResolver,
+            AuditService auditService,
+            PoliticaSenhaService politicaSenhaService,
+            RefreshTokenService refreshTokenService,
+            EscopoFiliaisUsuarioStore escopoFiliaisUsuarioStore
+    ) {
+        this.usuarioRepository = usuarioRepository;
+        this.passwordHashService = passwordHashService;
+        this.gerenciadorToken = gerenciadorToken;
+        this.permissaoResolver = permissaoResolver;
+        this.auditService = auditService;
+        this.politicaSenhaService = politicaSenhaService;
+        this.refreshTokenService = refreshTokenService;
+        this.escopoFiliaisUsuarioStore = escopoFiliaisUsuarioStore;
+    }
 
     public AutenticacaoService(
             UsuarioRepository usuarioRepository,
@@ -45,13 +67,16 @@ public class AutenticacaoService {
             PoliticaSenhaService politicaSenhaService,
             RefreshTokenService refreshTokenService
     ) {
-        this.usuarioRepository = usuarioRepository;
-        this.passwordHashService = passwordHashService;
-        this.gerenciadorToken = gerenciadorToken;
-        this.permissaoResolver = permissaoResolver;
-        this.auditService = auditService;
-        this.politicaSenhaService = politicaSenhaService;
-        this.refreshTokenService = refreshTokenService;
+        this(
+                usuarioRepository,
+                passwordHashService,
+                gerenciadorToken,
+                permissaoResolver,
+                auditService,
+                politicaSenhaService,
+                refreshTokenService,
+                null
+        );
     }
 
     @Transactional
@@ -186,12 +211,14 @@ public class AutenticacaoService {
 
     private SessaoUsuarioDTO mapearSessao(UsuarioEntity usuario) {
         Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
+        if (escopoFiliaisUsuarioStore != null) {
+            escopoFiliaisUsuarioStore.carregarNoUsuario(usuario);
+        }
         Map<String, Boolean> permissoes = permissaoResolver.permissoesEfetivas(usuario);
         String papel = permissaoResolver.papel(usuarioId);
-        List<String> filiaisPermitidas = usuario.getSetor().getFiliaisPermitidas().stream()
-                .filter(valor -> valor != null && !valor.isBlank())
-                .sorted(Comparator.comparing(String::toLowerCase))
-                .toList();
+        EscopoFilialService.EscopoFilial escopoFilial = permissaoResolver.ehAdminPlataforma(usuarioId) || permissaoResolver.ehDesenvolvedor(usuarioId)
+                ? EscopoFilialService.EscopoFilial.comAcessoTotal()
+                : EscopoFiliaisUsuarioPolicy.resolverSemPapelElevado(usuario);
 
         return new SessaoUsuarioDTO(
                 String.valueOf(usuario.getId()),
@@ -200,9 +227,7 @@ public class AutenticacaoService {
                 papel,
                 new SetorSessaoDTO(String.valueOf(usuario.getSetor().getId()), usuario.getSetor().getNome()),
                 permissoes,
-                permissaoResolver.ehAdminPlataforma(usuarioId) || permissaoResolver.ehDesenvolvedor(usuarioId)
-                        ? List.of()
-                        : filiaisPermitidas,
+                escopoFilial.acessoTotal() ? List.of() : escopoFilial.filiaisOrdenadas(),
                 usuario.isExigeTrocaSenha()
         );
     }

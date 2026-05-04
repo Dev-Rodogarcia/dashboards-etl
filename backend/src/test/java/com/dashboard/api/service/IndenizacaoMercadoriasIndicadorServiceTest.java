@@ -48,16 +48,27 @@ class IndenizacaoMercadoriasIndicadorServiceTest {
     }
 
     @Test
-    void buscarOverviewDeveDeduplicarAntesDoRecorteIgnorarNaoFinalizadosEUsarAbsDoSaldo() {
+    void buscarOverviewDeveDeduplicarPorSinistroEUsarValorAPagarAoClientePorDataAbertura() {
+        VisaoFretesEntity cortesia = frete(9003L, "SPO", new BigDecimal("9999.99"), "EMITIDO", OffsetDateTime.parse("2026-04-06T10:00:00-03:00"), LocalDateTime.of(2026, 4, 6, 9, 0));
+        TestReflectionUtils.setField(cortesia, "cortesiaFlag", true);
+
+        VisaoFretesEntity pendente = frete(9004L, "SPO", new BigDecimal("7777.77"), "EMITIDO", OffsetDateTime.parse("2026-04-07T10:00:00-03:00"), LocalDateTime.of(2026, 4, 7, 9, 0));
+        TestReflectionUtils.setField(pendente, "documentoOficialTipo", "Pendente/Não Emitido");
+
+        VisaoFretesEntity semValor = frete(9005L, "SPO", new BigDecimal("0.01"), "EMITIDO", OffsetDateTime.parse("2026-04-08T10:00:00-03:00"), LocalDateTime.of(2026, 4, 8, 9, 0));
+
         when(fretesRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
                 frete(9001L, "SPO", new BigDecimal("10000.00"), "EMITIDO", OffsetDateTime.parse("2026-04-02T10:00:00-03:00"), LocalDateTime.of(2026, 4, 3, 9, 0)),
-                frete(9002L, "SPO", new BigDecimal("5000.00"), "cancelado", OffsetDateTime.parse("2026-04-04T10:00:00-03:00"), LocalDateTime.of(2026, 4, 4, 9, 0))
+                frete(9002L, "SPO", new BigDecimal("5000.00"), "cancelado", OffsetDateTime.parse("2026-04-04T10:00:00-03:00"), LocalDateTime.of(2026, 4, 4, 9, 0)),
+                cortesia,
+                pendente,
+                semValor
         ));
         when(sinistrosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                sinistro(701L, 9001L, new BigDecimal("-100.00"), "SPO", LocalDate.of(2026, 4, 2), LocalDateTime.of(2026, 4, 3, 10, 0), "Avaria Parcial", "RESPONSAVEL ANTIGO"),
-                sinistro(701L, 9001L, new BigDecimal("-100.00"), "SPO", LocalDate.of(2026, 5, 1), LocalDateTime.of(2026, 4, 4, 10, 0), "Avaria Parcial", "RESPONSAVEL NOVO"),
-                sinistro(702L, 9001L, new BigDecimal("-50.00"), "SPO", null, LocalDateTime.of(2026, 4, 5, 10, 0), "Extravio Parcial", "SEM FINALIZACAO"),
-                sinistro(703L, 9001L, new BigDecimal("-200.00"), "SPO", LocalDate.of(2026, 4, 10), LocalDateTime.of(2026, 4, 10, 10, 0), "Avaria Total", "FECHADO"),
+                sinistro(701L, 9001L, new BigDecimal("100.00"), "SPO", LocalDate.of(2026, 4, 2), LocalDateTime.of(2026, 4, 3, 10, 0), "Avaria Parcial", "RESPONSAVEL ANTIGO"),
+                sinistro(701L, 9001L, new BigDecimal("100.00"), "SPO", LocalDate.of(2026, 4, 2), LocalDateTime.of(2026, 4, 4, 10, 0), "Avaria Parcial", "RESPONSAVEL NOVO"),
+                sinistro(702L, 9001L, new BigDecimal("50.00"), "SPO", LocalDate.of(2026, 4, 5), LocalDateTime.of(2026, 4, 5, 10, 0), "Extravio Parcial", "EM ABERTO"),
+                sinistro(703L, 9001L, new BigDecimal("200.00"), "SPO", LocalDate.of(2026, 4, 10), LocalDateTime.of(2026, 4, 10, 10, 0), "Avaria Total", "FECHADO"),
                 sinistro(704L, 9001L, new BigDecimal("50.00"), "SPO", LocalDate.of(2026, 4, 11), LocalDateTime.of(2026, 4, 11, 10, 0), "Crédito", "AJUSTE")
         ));
 
@@ -65,11 +76,11 @@ class IndenizacaoMercadoriasIndicadorServiceTest {
                 new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of("filiais", List.of("SPO")))
         );
 
-        assertThat(overview.totalSinistros()).isEqualTo(2);
-        assertThat(overview.valorIndenizadoOriginal()).isEqualByComparingTo("-150.00");
-        assertThat(overview.valorIndenizadoAbs()).isEqualByComparingTo("150.00");
-        assertThat(overview.faturamentoBase()).isEqualByComparingTo("10000.00");
-        assertThat(overview.pctIndenizacao()).isEqualTo(1.5);
+        assertThat(overview.totalSinistros()).isEqualTo(4);
+        assertThat(overview.valorIndenizadoOriginal()).isEqualByComparingTo("400.00");
+        assertThat(overview.valorIndenizadoAbs()).isEqualByComparingTo("400.00");
+        assertThat(overview.faturamentoBase()).isEqualByComparingTo("22777.77");
+        assertThat(overview.pctIndenizacao()).isEqualTo(1.756);
     }
 
     @Test
@@ -79,7 +90,7 @@ class IndenizacaoMercadoriasIndicadorServiceTest {
                 frete(9002L, "RJR", new BigDecimal("5000.00"), "EMITIDO", OffsetDateTime.parse("2026-04-05T10:00:00-03:00"), LocalDateTime.of(2026, 4, 5, 9, 0))
         ));
         when(sinistrosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                sinistro(701L, 9001L, new BigDecimal("-100.00"), "RJR", LocalDate.of(2026, 4, 2), LocalDateTime.of(2026, 4, 3, 10, 0), "Extravio Total", "FECHADO")
+                sinistro(701L, 9001L, new BigDecimal("100.00"), "RJR", LocalDate.of(2026, 4, 2), LocalDateTime.of(2026, 4, 3, 10, 0), "Extravio Total", "FECHADO")
         ));
 
         FiltroConsultaDTO filtro = new FiltroConsultaDTO(
@@ -105,16 +116,16 @@ class IndenizacaoMercadoriasIndicadorServiceTest {
     }
 
     @Test
-    void buscarSerieDeveAgruparPorMesDeFinalizacao() {
+    void buscarSerieDeveAgruparPorMesDeAbertura() {
         when(fretesRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
                 frete(9001L, "SPO", new BigDecimal("3000.00"), "EMITIDO", OffsetDateTime.parse("2026-04-02T10:00:00-03:00"), LocalDateTime.of(2026, 4, 3, 9, 0)),
                 frete(9002L, "SPO", new BigDecimal("2000.00"), "EMITIDO", OffsetDateTime.parse("2026-04-12T10:00:00-03:00"), LocalDateTime.of(2026, 4, 12, 9, 0)),
                 frete(9003L, "SPO", new BigDecimal("7000.00"), "EMITIDO", OffsetDateTime.parse("2026-05-07T10:00:00-03:00"), LocalDateTime.of(2026, 5, 7, 9, 0))
         ));
         when(sinistrosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                sinistro(701L, 9001L, new BigDecimal("-50.00"), "SPO", LocalDate.of(2026, 4, 2), LocalDateTime.of(2026, 4, 3, 10, 0), "Avaria Parcial", "FECHADO"),
-                sinistro(702L, 9002L, new BigDecimal("-30.00"), "SPO", LocalDate.of(2026, 4, 20), LocalDateTime.of(2026, 4, 20, 10, 0), "Extravio Parcial", "FECHADO"),
-                sinistro(703L, 9003L, new BigDecimal("-70.00"), "SPO", LocalDate.of(2026, 5, 8), LocalDateTime.of(2026, 5, 8, 10, 0), "Avaria Total", "FECHADO")
+                sinistro(701L, 9001L, new BigDecimal("50.00"), "SPO", LocalDate.of(2026, 4, 2), LocalDateTime.of(2026, 4, 3, 10, 0), "Avaria Parcial", "FECHADO"),
+                sinistro(702L, 9002L, new BigDecimal("30.00"), "SPO", LocalDate.of(2026, 4, 20), LocalDateTime.of(2026, 4, 20, 10, 0), "Extravio Parcial", "FECHADO"),
+                sinistro(703L, 9003L, new BigDecimal("70.00"), "SPO", LocalDate.of(2026, 5, 8), LocalDateTime.of(2026, 5, 8, 10, 0), "Avaria Total", "FECHADO")
         ));
 
         List<IndenizacaoMercadoriasSeriePointDTO> serie = service.buscarSerie(
@@ -124,7 +135,7 @@ class IndenizacaoMercadoriasIndicadorServiceTest {
         assertThat(serie).hasSize(2);
         assertThat(serie.get(0).date()).isEqualTo("2026-04-01");
         assertThat(serie.get(0).totalSinistros()).isEqualTo(2);
-        assertThat(serie.get(0).valorIndenizadoOriginal()).isEqualByComparingTo("-80.00");
+        assertThat(serie.get(0).valorIndenizadoOriginal()).isEqualByComparingTo("80.00");
         assertThat(serie.get(0).valorIndenizadoAbs()).isEqualByComparingTo("80.00");
         assertThat(serie.get(0).faturamentoBase()).isEqualByComparingTo("5000.00");
         assertThat(serie.get(0).faturamentoPeriodoFilial()).isEqualByComparingTo("12000.00");
@@ -134,12 +145,12 @@ class IndenizacaoMercadoriasIndicadorServiceTest {
     }
 
     @Test
-    void buscarTabelaDeveExporDataFinalizacaoECausaRaizCorreta() {
+    void buscarTabelaDeveExporDataAberturaECausaRaizCorretaNoCampoCompativel() {
         when(fretesRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
                 frete(9001L, "RJR", new BigDecimal("5000.00"), "EMITIDO", OffsetDateTime.parse("2026-04-15T10:00:00-03:00"), LocalDateTime.of(2026, 4, 15, 9, 0))
         ));
         when(sinistrosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                sinistro(701L, 9001L, new BigDecimal("-125.55"), "RJR", LocalDate.of(2026, 4, 15), LocalDateTime.of(2026, 4, 15, 10, 0), "Avaria Parcial", "JOSE CLAUDIO DA SILVA")
+                sinistro(701L, 9001L, new BigDecimal("125.55"), "RJR", LocalDate.of(2026, 4, 15), LocalDateTime.of(2026, 4, 15, 10, 0), "Avaria Parcial", "JOSE CLAUDIO DA SILVA")
         ));
 
         List<IndenizacaoMercadoriasRowDTO> tabela = service.buscarTabela(
@@ -171,6 +182,8 @@ class IndenizacaoMercadoriasIndicadorServiceTest {
         TestReflectionUtils.setField(entity, "filialEmissora", filialEmissora);
         TestReflectionUtils.setField(entity, "valorTotal", valorTotal);
         TestReflectionUtils.setField(entity, "status", status);
+        TestReflectionUtils.setField(entity, "documentoOficialTipo", "CT-e");
+        TestReflectionUtils.setField(entity, "cortesiaFlag", false);
         TestReflectionUtils.setField(entity, "dataFrete", dataFrete);
         TestReflectionUtils.setField(entity, "dataExtracao", dataExtracao);
         return entity;
@@ -179,9 +192,9 @@ class IndenizacaoMercadoriasIndicadorServiceTest {
     private static VisaoSinistrosEntity sinistro(
             Long numeroSinistro,
             Long minuta,
-            BigDecimal resultadoFinal,
+            BigDecimal valorAPagarCliente,
             String pessoaNomeFantasia,
-            LocalDate dataFinalizacao,
+            LocalDate dataAbertura,
             LocalDateTime dataExtracao,
             String ocorrenciaDescricao,
             String solucao
@@ -190,9 +203,10 @@ class IndenizacaoMercadoriasIndicadorServiceTest {
         TestReflectionUtils.setField(entity, "identificadorUnico", "sin-" + numeroSinistro + "-" + dataExtracao);
         TestReflectionUtils.setField(entity, "numeroSinistro", numeroSinistro);
         TestReflectionUtils.setField(entity, "minuta", minuta);
-        TestReflectionUtils.setField(entity, "resultadoFinal", resultadoFinal);
-        TestReflectionUtils.setField(entity, "dataAbertura", LocalDate.of(2026, 4, 2));
-        TestReflectionUtils.setField(entity, "dataFinalizacao", dataFinalizacao);
+        TestReflectionUtils.setField(entity, "valorAPagarCliente", valorAPagarCliente);
+        TestReflectionUtils.setField(entity, "resultadoFinal", valorAPagarCliente.negate());
+        TestReflectionUtils.setField(entity, "dataAbertura", dataAbertura);
+        TestReflectionUtils.setField(entity, "dataFinalizacao", dataAbertura);
         TestReflectionUtils.setField(entity, "pessoaNomeFantasia", pessoaNomeFantasia);
         TestReflectionUtils.setField(entity, "ocorrencia", solucao);
         TestReflectionUtils.setField(entity, "ocorrenciaDescricao", ocorrenciaDescricao);

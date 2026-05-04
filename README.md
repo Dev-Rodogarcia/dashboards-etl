@@ -9,14 +9,14 @@ Monorepo com backend Spring Boot e frontend React para dashboards operacionais, 
 - backend com JWT, refresh token rotativo, ACL em banco e endpoints por dominio em `/api/painel/*`
 - dimensoes compartilhadas em `/api/dimensoes/*`
 - healthchecks publicos minimos em `/actuator/health/liveness` e `/actuator/health/readiness`
-- logs locais da API em `dashboard-api/logs/`
+- logs locais da API em `backend/logs/`
 
 ## Estrutura do repositorio
 
 ```text
 dashboards-etl/
-|-- dashboard-api/      # Spring Boot 3.2 / Java 17
-|-- dashboard-ui/       # React 19 / TypeScript / Vite
+|-- backend/      # Spring Boot 3.2 / Java 17
+|-- frontend/       # React 19 / TypeScript / Vite
 |-- docs/               # documentacao funcional e tecnica
 |-- public/             # ativos compartilhados
 |-- .vscode/            # configuracoes compartilhadas do workspace
@@ -96,14 +96,14 @@ O script abre duas janelas separadas e inicia:
 Backend:
 
 ```powershell
-cd .\dashboard-api
+cd .\backend
 .\mvnw.cmd spring-boot:run
 ```
 
 Frontend:
 
 ```powershell
-cd .\dashboard-ui
+cd .\frontend
 npm install
 npm run dev
 ```
@@ -156,13 +156,13 @@ npm run dev
 
 - filtros compartilhados sao serializados na URL como `f.<chave>`
 - o periodo maximo aceito por frontend e backend e de `365 dias`
-- logs da API sao gravados em `dashboard-api/logs/dashboard-api.log`
+- logs da API sao gravados em `backend/logs/dashboard-api.log`
 
 ## Correcao manual de encoding da ACL local
 
 Se a area administrativa exibir textos quebrados no modulo de acesso, aplique o script:
 
-- `dashboard-api/src/main/resources/db/migration/V004__corrigir_mojibake_acesso.sql`
+- `backend/src/main/resources/db/migration/V004__corrigir_mojibake_acesso.sql`
 
 Depois valide que nao restaram registros corrompidos em `setores`, `papeis` e `permissoes`:
 

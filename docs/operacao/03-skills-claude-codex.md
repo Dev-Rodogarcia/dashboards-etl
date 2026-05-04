@@ -44,7 +44,7 @@ npx ai-agent-skills install code-documentation -p
 ## Exemplo de pedido no chat
 
 ```text
-Use a skill frontend-design para melhorar a tela de filtros do dashboard-ui.
+Use a skill frontend-design para melhorar a tela de filtros do frontend.
 
 Contexto:
 - projeto React + Vite + Tailwind

@@ -7,7 +7,7 @@ O backend e uma API Spring Boot 3.2 que consolida dados do SQL Server para dashb
 ## Estrutura de pacotes
 
 ```text
-dashboard-api/src/main/java/com/dashboard/api/
+backend/src/main/java/com/dashboard/api/
 |-- config/
 |-- controller/
 |-- dto/

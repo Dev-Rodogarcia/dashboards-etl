@@ -19,6 +19,7 @@ export type PermissionMap = Record<PermissionKey, boolean>;
 export type OverrideTipo = 'DENY' | 'GRANT';
 export type PermissionOverrideMode = 'inherit' | 'deny' | 'grant';
 export type PermissionOverrideStateMap = Record<PermissionKey, PermissionOverrideMode>;
+export type EscopoFiliaisTipo = 'HERDAR_SETOR' | 'TODAS' | 'SELECIONADAS';
 
 export interface PermissionCatalogItem {
   chave: PermissionKey;
@@ -53,6 +54,8 @@ export interface UsuarioAdmin {
   setorNome: string;
   papel: string;
   permissoesEfetivas: PermissionMap;
+  escopoFiliaisTipo: EscopoFiliaisTipo;
+  filiaisPermitidasUsuario: string[];
   filiaisPermitidasEfetivas: string[];
   permissoesNegadas: PermissionKey[];
   permissoesConcedidas: PermissionKey[];
@@ -69,6 +72,8 @@ export interface UsuarioPayload {
   papel: string;
   permissoesNegadas: PermissionKey[];
   permissoesConcedidas: PermissionKey[];
+  escopoFiliaisTipo: EscopoFiliaisTipo;
+  filiaisPermitidasUsuario: string[];
   ativo: boolean;
 }
 

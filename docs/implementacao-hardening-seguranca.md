@@ -27,12 +27,12 @@ Este documento registra o que foi implementado na rodada de hardening de seguran
 
 ### 1. Bootstrap legado e credenciais versionadas
 
-Foi removido do fluxo versionado o uso direto de `dashboard-api/storage/access-control.json` com usuarios reais.
+Foi removido do fluxo versionado o uso direto de `backend/storage/access-control.json` com usuarios reais.
 
 Mudancas aplicadas:
 
-- `dashboard-api/storage/access-control.json` deixou de ser parte esperada do repositorio
-- `dashboard-api/storage/access-control.sample.json` foi mantido como referencia vazia
+- `backend/storage/access-control.json` deixou de ser parte esperada do repositorio
+- `backend/storage/access-control.sample.json` foi mantido como referencia vazia
 - `.gitignore` da raiz passou a bloquear o arquivo real e permitir apenas o sample
 - `MigracaoJsonParaSqlRunner` agora exige habilitacao explicita por `acl.legacy.migration-enabled`
 - `application-dev.yml` deixou de carregar segredos hardcoded
@@ -183,7 +183,7 @@ Impacto:
 Mudancas aplicadas:
 
 - `AdminSetoresPage.tsx` passou a exigir selecao de filiais permitidas
-- `dashboard-ui/src/types/access.ts` foi atualizado para transportar `filiaisPermitidas`
+- `frontend/src/types/access.ts` foi atualizado para transportar `filiaisPermitidas`
 - a tela mostra o resumo das filiais configuradas por setor
 
 Impacto:
@@ -209,7 +209,7 @@ Coberturas adicionadas:
 
 Tambem foi adicionado:
 
-- script `audit:prod` em `dashboard-ui/package.json`
+- script `audit:prod` em `frontend/package.json`
 
 Impacto:
 
@@ -251,21 +251,21 @@ Observacao:
 
 Backend:
 
-- `dashboard-api/src/main/java/com/dashboard/api/service/acesso/*`
-- `dashboard-api/src/main/java/com/dashboard/api/security/*`
-- `dashboard-api/src/main/java/com/dashboard/api/service/*`
-- `dashboard-api/src/main/java/com/dashboard/api/controller/DimensoesController.java`
-- `dashboard-api/src/main/java/com/dashboard/api/model/acesso/SetorEntity.java`
-- `dashboard-api/src/main/java/com/dashboard/api/repository/*`
-- `dashboard-api/src/main/resources/application.yml`
-- `dashboard-api/src/main/resources/application-dev.yml`
-- `dashboard-api/src/main/resources/db/migration/*`
+- `backend/src/main/java/com/dashboard/api/service/acesso/*`
+- `backend/src/main/java/com/dashboard/api/security/*`
+- `backend/src/main/java/com/dashboard/api/service/*`
+- `backend/src/main/java/com/dashboard/api/controller/DimensoesController.java`
+- `backend/src/main/java/com/dashboard/api/model/acesso/SetorEntity.java`
+- `backend/src/main/java/com/dashboard/api/repository/*`
+- `backend/src/main/resources/application.yml`
+- `backend/src/main/resources/application-dev.yml`
+- `backend/src/main/resources/db/migration/*`
 
 Frontend:
 
-- `dashboard-ui/src/pages/AdminSetoresPage.tsx`
-- `dashboard-ui/src/types/access.ts`
-- `dashboard-ui/package.json`
+- `frontend/src/pages/AdminSetoresPage.tsx`
+- `frontend/src/types/access.ts`
+- `frontend/package.json`
 
 Infra e repositorio:
 

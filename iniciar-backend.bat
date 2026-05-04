@@ -16,7 +16,7 @@ if /i not "%DASHBOARD_BACKEND_WINDOW%"=="1" (
 )
 
 set "ROOT_DIR=%CD%"
-set "BACKEND_DIR=%ROOT_DIR%\dashboard-api"
+set "BACKEND_DIR=%ROOT_DIR%\backend"
 set "ENV_FILE=%ROOT_DIR%\.env"
 set "BACKEND_PORT=5010"
 
@@ -27,7 +27,7 @@ echo ============================================
 echo.
 
 if not exist "%BACKEND_DIR%\mvnw.cmd" (
-    echo [ERRO] Arquivo nao encontrado: dashboard-api\mvnw.cmd
+    echo [ERRO] Arquivo nao encontrado: backend\mvnw.cmd
     pause
     exit /b 1
 )

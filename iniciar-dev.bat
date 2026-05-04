@@ -12,8 +12,8 @@ chcp 65001 >nul
 cd /d "%~dp0"
 
 set "ROOT_DIR=%CD%"
-set "BACKEND_DIR=%ROOT_DIR%\dashboard-api"
-set "FRONTEND_DIR=%ROOT_DIR%\dashboard-ui"
+set "BACKEND_DIR=%ROOT_DIR%\backend"
+set "FRONTEND_DIR=%ROOT_DIR%\frontend"
 set "BACKEND_SCRIPT=%ROOT_DIR%\iniciar-backend.bat"
 set "FRONTEND_SCRIPT=%ROOT_DIR%\iniciar-front.bat"
 set "BACKEND_PORT=5010"

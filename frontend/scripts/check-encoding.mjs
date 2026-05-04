@@ -16,13 +16,13 @@ const scanRoots = [
   resolve(repoRoot, '.gitattributes'),
   resolve(repoRoot, '.vscode'),
   resolve(repoRoot, 'README.md'),
-  resolve(repoRoot, 'dashboard-api', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'controller'),
-  resolve(repoRoot, 'dashboard-api', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'dto', 'acesso'),
-  resolve(repoRoot, 'dashboard-api', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'model', 'acesso'),
-  resolve(repoRoot, 'dashboard-api', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'repository', 'acesso'),
-  resolve(repoRoot, 'dashboard-api', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'security'),
-  resolve(repoRoot, 'dashboard-api', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'service', 'acesso'),
-  resolve(repoRoot, 'dashboard-api', 'src', 'main', 'resources', 'db', 'migration'),
+  resolve(repoRoot, 'backend', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'controller'),
+  resolve(repoRoot, 'backend', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'dto', 'acesso'),
+  resolve(repoRoot, 'backend', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'model', 'acesso'),
+  resolve(repoRoot, 'backend', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'repository', 'acesso'),
+  resolve(repoRoot, 'backend', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'security'),
+  resolve(repoRoot, 'backend', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'service', 'acesso'),
+  resolve(repoRoot, 'backend', 'src', 'main', 'resources', 'db', 'migration'),
 ];
 
 const allowedExtensions = new Set([

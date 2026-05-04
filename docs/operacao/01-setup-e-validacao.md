@@ -90,14 +90,14 @@ Resultado esperado:
 Backend:
 
 ```powershell
-cd .\dashboard-api
+cd .\backend
 .\mvnw.cmd spring-boot:run
 ```
 
 Frontend:
 
 ```powershell
-cd .\dashboard-ui
+cd .\frontend
 npm install
 npm run dev
 ```
@@ -121,14 +121,14 @@ Acao recomendada:
 Backend:
 
 ```powershell
-cd .\dashboard-api
+cd .\backend
 .\mvnw.cmd test
 ```
 
 Frontend:
 
 ```powershell
-cd .\dashboard-ui
+cd .\frontend
 npm test -- --run
 npx tsc --noEmit
 npm run lint

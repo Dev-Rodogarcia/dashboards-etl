@@ -46,7 +46,7 @@ public class IndicadoresGestaoInfraBootstrapService implements ApplicationRunner
         List<String> inconsistencias = new ArrayList<>();
         inconsistencias.addAll(auditarObjeto("vw_fretes_powerbi", List.of(
                 "ID", "Nº Minuta", "Filial Emissora", "Responsável pela Região de Destino", "Previsão de Entrega",
-                "Data de Finalização", "Performance Status", "Peso Cubado", "Total M3", "Data de extracao"
+                "Data de Finalização", "Performance Status", "Pagador Doc", "Peso Cubado", "Total M3", "Data de extracao"
         )));
         inconsistencias.addAll(auditarObjeto("vw_localizacao_cargas_powerbi", List.of(
                 "N° Minuta", "Filial Emissora", "Responsável pela Região de Destino", "Data de extracao"
@@ -55,9 +55,13 @@ public class IndicadoresGestaoInfraBootstrapService implements ApplicationRunner
                 "Número", "Status", "Classificação", "Filial Emissora", "Local de Descarregamento",
                 "Leitura Móvel/Em", "Itens/Total", "Itens/Finalizados", "Data criação", "Data de extracao"
         )));
+        inconsistencias.addAll(auditarObjeto("vw_inventario_powerbi", List.of(
+                "Identificador Único", "N° Ordem", "Filial", "Filial da Ordem de Conferência",
+                "Tipo", "Data/Hora início", "Data/Hora fim", "Data de extracao"
+        )));
         inconsistencias.addAll(auditarObjeto("vw_sinistros_powerbi", List.of(
-                "Identificador Único", "Nº do Sinistro", "Data abertura", "Minuta", "Resultado final",
-                "Pessoa/Nome fantasia", "Data de extracao"
+                "Identificador Único", "Nº do Sinistro", "Data abertura", "Minuta", "valor a pagar ao cliente",
+                "Resultado final", "Pessoa/Nome fantasia", "Data de extracao"
         )));
         inconsistencias.addAll(auditarObjeto("horarios_corte", List.of(
                 "data_operacao", "linha_ou_operacao_original", "linha_ou_operacao_chave", "filial_canonica",

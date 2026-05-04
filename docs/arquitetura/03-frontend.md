@@ -7,7 +7,7 @@ O frontend organiza a experiencia do usuario, aplica protecao de rotas, controla
 ## Estrutura principal
 
 ```text
-dashboard-ui/src/
+frontend/src/
 |-- api/
 |   |-- clienteAxios.ts
 |   `-- endpoints/

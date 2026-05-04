@@ -78,8 +78,6 @@ const GOALS: Record<SectionId, GoalConfig> = {
   horarios: { threshold: 90, mode: 'atLeast', label: 'Meta 90%' },
 };
 
-const COLETORES_CLASSIFICACOES = ['DISTRIBUIÇÃO', 'TRANSFERÊNCIA'];
-
 function StatusImportacao({ titulo, mensagens, cor }: { titulo: string; mensagens: HorariosCorteImportacaoMensagem[]; cor: 'warn' | 'error' }) {
   if (mensagens.length === 0) return null;
   const style = cor === 'warn'
@@ -130,10 +128,7 @@ export default function IndicadoresGestaoAVistaPage() {
   const [arquivoSelecionado, setArquivoSelecionado] = useState<File | null>(null);
   const arquivoInputRef = useRef<HTMLInputElement | null>(null);
   const filtroBase: IndicadoresGestaoVistaFiltro = { dataInicio, dataFim, filiais: filtros.filiais };
-  const filtroColetores: IndicadoresGestaoVistaFiltro = {
-    ...filtroBase,
-    classificacoes: filtros.classificacoes,
-  };
+  const filtroColetores: IndicadoresGestaoVistaFiltro = filtroBase;
   const filtroBaseKey = JSON.stringify(filtroBase);
   const filtroColetoresKey = JSON.stringify(filtroColetores);
   const performancePaginacao = useTabelaPaginadaState(`${filtroBaseKey}|performance`);
@@ -143,7 +138,6 @@ export default function IndicadoresGestaoAVistaPage() {
   const horariosPaginacao = useTabelaPaginadaState(`${filtroBaseKey}|horarios`);
   const activeFilters: ActiveFilter[] = [
     { label: 'Filial base', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
-    { label: 'Classificação coletores', count: filtros.classificacoes?.length ?? 0, onRemove: () => setFiltro('classificacoes', []) },
   ].filter((item) => item.count > 0);
 
   const performanceOverview = usePerformanceEntregaOverview(filtroBase);
@@ -270,11 +264,11 @@ export default function IndicadoresGestaoAVistaPage() {
           mode: GOALS.coletores.mode,
           thresholdLabel: GOALS.coletores.label,
           tooltipLines: (item) => [
-            `Manifestos bipados: ${formatarNumero(item.manifestosBipados)}`,
-            `Emitidos: ${formatarNumero(item.manifestosEmitidos)}`,
+            `Ordens de conferência: ${formatarNumero(item.manifestosBipados)}`,
+            `Manifestos criados: ${formatarNumero(item.manifestosEmitidos)}`,
             `Descarregamento: ${formatarNumero(item.manifestosDescarregamento)}`,
-            `Incompletos: ${formatarNumero(item.manifestosIncompletos)}`,
-            `Total: ${formatarNumero(item.totalManifestos)}`,
+            `Ordens incompletas: ${formatarNumero(item.manifestosIncompletos)}`,
+            `Manifestos bipáveis: ${formatarNumero(item.totalManifestos)}`,
           ],
         })
   ), [coletoresRanking, coletoresOverview.data?.pctUtilizacao]);
@@ -369,11 +363,11 @@ export default function IndicadoresGestaoAVistaPage() {
     { chave: 'date', label: 'Data', formato: (v) => v ? formatarData(String(v)) : '—' },
     { chave: 'filial', label: 'Filial', fixo: true },
     { chave: 'classificacao', label: 'Classificação' },
-    { chave: 'manifestosBipados', label: 'Manifestos Bipados', formato: (v) => formatarNumero(Number(v ?? 0)) },
-    { chave: 'manifestosEmitidos', label: 'Emitidos', formato: (v) => formatarNumero(Number(v ?? 0)) },
+    { chave: 'manifestosBipados', label: 'Ordens de Conferência', formato: (v) => formatarNumero(Number(v ?? 0)) },
+    { chave: 'manifestosEmitidos', label: 'Manifestos Criados', formato: (v) => formatarNumero(Number(v ?? 0)) },
     { chave: 'manifestosDescarregamento', label: 'Descarreg.', formato: (v) => formatarNumero(Number(v ?? 0)) },
-    { chave: 'totalManifestos', label: 'Total Manifestos', formato: (v) => formatarNumero(Number(v ?? 0)) },
-    { chave: 'manifestosIncompletos', label: 'Conferências Incompletas', formato: (v) => formatarNumero(Number(v ?? 0)) },
+    { chave: 'totalManifestos', label: 'Manifestos Bipáveis', formato: (v) => formatarNumero(Number(v ?? 0)) },
+    { chave: 'manifestosIncompletos', label: 'Ordens Incompletas', formato: (v) => formatarNumero(Number(v ?? 0)) },
     { chave: 'pctUtilizacao', label: '% Utilização', formato: (v) => formatarPorcentagem(Number(v ?? 0)) },
   ];
   const cubagemColumns: ColunaTabela<CubagemMercadoriasRow>[] = [
@@ -381,7 +375,7 @@ export default function IndicadoresGestaoAVistaPage() {
     { chave: 'dataFrete', label: 'Data Frete', formato: (v) => v ? formatarData(String(v)) : '—' },
     { chave: 'filialEmissora', label: 'Filial Emissora' },
     { chave: 'pagador', label: 'Pagador', largura: '220px' },
-    { chave: 'remetenteDocumento', label: 'Remetente Doc', largura: '160px' },
+    { chave: 'remetenteDocumento', label: 'Pagador Doc', largura: '160px' },
     { chave: 'destino', label: 'Destino' },
     { chave: 'pesoTaxado', label: 'Peso Taxado', formato: (v) => formatarNumero(Number(v ?? 0), 2) },
     { chave: 'pesoReal', label: 'Peso Real', formato: (v) => formatarNumero(Number(v ?? 0), 2) },
@@ -391,10 +385,10 @@ export default function IndicadoresGestaoAVistaPage() {
   ];
   const indenizacaoColumns: ColunaTabela<IndenizacaoMercadoriasRow>[] = [
     { chave: 'numeroSinistro', label: 'Sinistro', fixo: true },
-    { chave: 'dataFinalizacao', label: 'Data Finalização', formato: (v) => v ? formatarData(String(v)) : '—' },
+    { chave: 'dataFinalizacao', label: 'Data Abertura', formato: (v) => v ? formatarData(String(v)) : '—' },
     { chave: 'filial', label: 'Filial Indenização' },
     { chave: 'minuta', label: 'Minuta', formato: (v) => v == null ? '—' : formatarNumero(Number(v)) },
-    { chave: 'resultadoFinalOriginal', label: 'Resultado Original', formato: (v) => formatarMoeda(Number(v ?? 0)) },
+    { chave: 'resultadoFinalOriginal', label: 'Valor a Pagar Cliente', formato: (v) => formatarMoeda(Number(v ?? 0)) },
     { chave: 'resultadoFinalAbs', label: 'Valor Indenizado', formato: (v) => formatarMoeda(Number(v ?? 0)) },
     { chave: 'pctSobreFaturamentoFilial', label: '% Fat. Filial', formato: (v) => formatarPorcentagem(Number(v ?? 0), 2) },
     { chave: 'causaRaiz', label: 'Causa Raiz', largura: '220px' },
@@ -500,18 +494,10 @@ export default function IndicadoresGestaoAVistaPage() {
   const coletoresFilterBox = (
     <div className="mb-4 rounded-[20px] border px-4 py-3" style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
       <div className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
-        Diagnóstico operacional
+        Regra operacional
       </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <AsyncMultiSelect
-          label="Classificação"
-          opcoes={COLETORES_CLASSIFICACOES}
-          selecionados={filtros.classificacoes ?? []}
-          onChange={(valores) => setFiltro('classificacoes', valores)}
-        />
-        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          Quando vazio, o gráfico separa automaticamente `DISTRIBUIÇÃO` e `TRANSFERÊNCIA` por filial.
-        </div>
+      <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+        Ordens de conferência distintas sobre manifestos bipáveis do período.
       </div>
     </div>
   );
@@ -539,8 +525,8 @@ export default function IndicadoresGestaoAVistaPage() {
       statusLabel: coletoresAssessment.label,
       tone: coletoresAssessment.tone,
       progressPct: coletoresAssessment.progressPct,
-      detail: `${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} bipados / ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos · ${GOALS.coletores.label}`,
-      alertDetail: `${formatarGap(coletoresGap, GOALS.coletores.mode)} · ${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} bipados sobre ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos`,
+      detail: `${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} ordens / ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos bipáveis · ${GOALS.coletores.label}`,
+      alertDetail: `${formatarGap(coletoresGap, GOALS.coletores.mode)} · ${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} ordens sobre ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos bipáveis`,
       severityScore: calcularDistanciaRelativaMeta(coletoresOverview.data?.pctUtilizacao ?? 0, GOALS.coletores.threshold, GOALS.coletores.mode),
       icon: <Boxes size={16} />,
     },
@@ -599,7 +585,7 @@ export default function IndicadoresGestaoAVistaPage() {
       <div className="mb-5 grid grid-cols-1 gap-3 xl:grid-cols-5">
         <IndicadoresGestaoSummaryCard
           title="Performance de Entrega"
-          description="Pontualidade consolidada das entregas finalizadas por minuta no período."
+          description="Pontualidade por previsão de entrega, incluindo registros em aberto no denominador."
           value={formatarPorcentagem(performanceOverview.data?.pctNoPrazo ?? 0)}
           detail={`${formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0)} no prazo de ${formatarNumero(performanceOverview.data?.totalEntregas ?? 0)} · ${formatarGap(performanceGap, GOALS.performance.mode)}`}
           goalLabel={GOALS.performance.label}
@@ -612,7 +598,7 @@ export default function IndicadoresGestaoAVistaPage() {
           title="Utilização dos Coletores"
           description="Aderência operacional da conferência."
           value={formatarPorcentagem(coletoresOverview.data?.pctUtilizacao ?? 0)}
-          detail={`${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} manifestos bipados sobre ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos · ${formatarGap(coletoresGap, GOALS.coletores.mode)}`}
+          detail={`${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} ordens sobre ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos bipáveis · ${formatarGap(coletoresGap, GOALS.coletores.mode)}`}
           goalLabel={GOALS.coletores.label}
           statusLabel={coletoresAssessment.label}
           tone={coletoresAssessment.tone}
@@ -632,7 +618,7 @@ export default function IndicadoresGestaoAVistaPage() {
         />
         <IndicadoresGestaoSummaryCard
           title="Indenização de Mercadorias"
-          description="Peso da indenização finalizada sobre o faturamento da filial."
+          description="Valor a pagar ao cliente por abertura do sinistro sobre o faturamento da filial."
           value={formatarPorcentagem(indenizacaoOverview.data?.pctIndenizacao ?? 0, 2)}
           detail={`${formatarMoeda(indenizacaoOverview.data?.valorIndenizadoAbs ?? 0)} indenizados · ${formatarGap(indenizacaoGap, GOALS.indenizacao.mode, 2)}`}
           goalLabel={GOALS.indenizacao.label}
@@ -658,7 +644,7 @@ export default function IndicadoresGestaoAVistaPage() {
 
       <IndicadoresGestaoSection
         title="Performance de Entrega"
-        description="Piores filiais performance por pontualidade, usando a regra oficial de entregas finalizadas por minuta."
+        description="Piores filiais performance por pontualidade, usando previsão de entrega e registros em aberto no denominador."
         goalLabel={GOALS.performance.label}
         goalTone={performanceAssessment.tone}
         error={performanceOverview.error}
@@ -691,25 +677,25 @@ export default function IndicadoresGestaoAVistaPage() {
 
       <IndicadoresGestaoSection
         title="Utilização dos Coletores"
-        description="Filiais e classificações com menor utilização operacional de coletores no período."
+        description="Filiais com menor utilização operacional de coletores no período."
         goalLabel={GOALS.coletores.label}
         goalTone={coletoresAssessment.tone}
         error={coletoresOverview.error}
         extra={coletoresFilterBox}
         kpis={[
-          { label: 'Manifestos Bipados', value: formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0), icon: <Boxes size={16} />, progressPct: coletoresAssessment.progressPct },
-          { label: 'Total de Manifestos', value: formatarNumero(coletoresOverview.data?.totalManifestos ?? 0), icon: <BarChart3 size={16} />, progressPct: coletoresAssessment.progressPct },
+          { label: 'Ordens de Conferência', value: formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0), icon: <Boxes size={16} />, progressPct: coletoresAssessment.progressPct },
+          { label: 'Manifestos Bipáveis', value: formatarNumero(coletoresOverview.data?.totalManifestos ?? 0), icon: <BarChart3 size={16} />, progressPct: coletoresAssessment.progressPct },
           { label: 'Descarregamentos', value: formatarNumero(coletoresOverview.data?.manifestosDescarregamento ?? 0), icon: <Truck size={16} />, progressPct: coletoresAssessment.progressPct },
-          { label: 'Conferências Incompletas', value: formatarNumero(coletoresOverview.data?.manifestosIncompletos ?? 0), icon: <AlertCircle size={16} />, progressPct: coletoresAssessment.progressPct },
+          { label: 'Ordens Incompletas', value: formatarNumero(coletoresOverview.data?.manifestosIncompletos ?? 0), icon: <AlertCircle size={16} />, progressPct: coletoresAssessment.progressPct },
         ]}
-        chartTitle={coletoresRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais e classificações com menor utilização'}
+        chartTitle={coletoresRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais com menor utilização'}
         chartOption={coletoresChartOption}
         chartLoading={coletoresSerie.isLoading}
         chartEmpty={coletoresRanking.length === 0}
         chartError={coletoresSerie.isError ? getApiErrorMessage(coletoresSerie.error, 'Erro ao carregar gráfico.') : null}
         exportName="indicadores-gestao-a-vista-utilizacao-coletores"
         onExport={() => exportarUtilizacaoColetoresExcel(filtroColetores)}
-        tableTitle="Coletores por Data, Filial e Classificação"
+        tableTitle="Coletores por Data e Filial"
         tableData={coletoresTabela.data?.conteudo ?? []}
         tableColumns={coletoresColumns}
         rowKey="chave"
@@ -729,7 +715,7 @@ export default function IndicadoresGestaoAVistaPage() {
         goalLabel={GOALS.cubagem.label}
         goalTone={cubagemAssessment.tone}
         error={cubagemOverview.error}
-        alert={<div className="mb-4 rounded-xl border border-dashed px-3 py-3 text-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>A regra oficial ja considera `Status != CANCELADO` e cubagem apenas por `Total M3` ou `Peso Cubado`. A lista oficial de exclusao por documento do remetente continua parametrizavel e vazia por padrao; no historico antigo, meses sem `Nº Minuta` podem perder cobertura.</div>}
+        alert={<div className="mb-4 rounded-xl border border-dashed px-3 py-3 text-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>A regra oficial considera `Status != CANCELADO`, cubagem por `Total M3` ou `Peso Cubado` e exclusão pela lista oficial de `Pagador Doc`.</div>}
         kpis={[
           { label: 'Minutas Cubadas', value: formatarNumero(cubagemOverview.data?.fretesCubados ?? 0), icon: <PackageCheck size={16} />, progressPct: cubagemAssessment.progressPct },
           { label: 'Minutas Sem Cubagem', value: formatarNumero(cubagemNaoCubados), icon: <AlertCircle size={16} />, progressPct: cubagemAssessment.progressPct },
@@ -759,25 +745,25 @@ export default function IndicadoresGestaoAVistaPage() {
 
       <IndicadoresGestaoSection
         title="Indenização de Mercadorias"
-        description="Filiais com maior impacto percentual por data de finalização do sinistro."
+        description="Filiais com maior impacto percentual por data de abertura do sinistro."
         goalLabel={GOALS.indenizacao.label}
         goalTone={indenizacaoAssessment.tone}
         error={indenizacaoOverview.error}
-        alert={<div className="mb-4 rounded-xl border border-dashed px-3 py-3 text-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>A competência do custo agora segue `Data finalização`, ignora sinistros sem finalização e usa `Pessoa/Nome fantasia` como filial de indenização. O faturamento base continua vindo de `Valor Total do Serviço`, proxy publicado hoje para o `Total a Receber` do documento do gestor.</div>}
+        alert={<div className="mb-4 rounded-xl border border-dashed px-3 py-3 text-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>A competência do custo segue `Data abertura` e o numerador usa `valor a pagar ao cliente`. O faturamento base continua vindo de `Valor Total do Serviço`.</div>}
         kpis={[
           { label: 'Valor Indenizado', value: formatarMoeda(indenizacaoOverview.data?.valorIndenizadoAbs ?? 0), icon: <ShieldAlert size={16} />, progressPct: indenizacaoAssessment.progressPct },
           { label: 'Total de Sinistros', value: formatarNumero(indenizacaoOverview.data?.totalSinistros ?? 0), icon: <ShieldAlert size={16} />, progressPct: indenizacaoAssessment.progressPct },
           { label: 'Faturamento Base', value: formatarMoeda(indenizacaoOverview.data?.faturamentoBase ?? 0), icon: <BarChart3 size={16} />, progressPct: indenizacaoAssessment.progressPct },
           { label: 'Acima do limite 0,2%', value: formatarGap(indenizacaoGap, GOALS.indenizacao.mode, 2), icon: <Gauge size={16} />, progressPct: indenizacaoAssessment.progressPct },
         ]}
-        chartTitle={indenizacaoRanking.length <= 1 ? 'Comparativo contra limite' : 'Filiais com maior impacto por indenização finalizada'}
+        chartTitle={indenizacaoRanking.length <= 1 ? 'Comparativo contra limite' : 'Filiais com maior impacto por abertura de sinistro'}
         chartOption={indenizacaoChartOption}
         chartLoading={indenizacaoSerie.isLoading}
         chartEmpty={indenizacaoRanking.length === 0}
         chartError={indenizacaoSerie.isError ? getApiErrorMessage(indenizacaoSerie.error, 'Erro ao carregar gráfico.') : null}
         exportName="indicadores-gestao-a-vista-indenizacao-mercadorias"
         onExport={() => exportarIndenizacaoMercadoriasExcel(filtroBase)}
-        tableTitle="Sinistros Analíticos por Finalização"
+        tableTitle="Sinistros Analíticos por Abertura"
         tableData={indenizacaoTabela.data?.conteudo ?? []}
         tableColumns={indenizacaoColumns}
         rowKey="numeroSinistro"

@@ -183,6 +183,8 @@ public class UsuarioImportacaoService {
                 PermissaoResolverService.PAPEL_USUARIO_COMUM,
                 List.of(),
                 List.of(),
+                EscopoFiliaisUsuarioPolicy.HERDAR_SETOR,
+                List.of(),
                 true
         );
 

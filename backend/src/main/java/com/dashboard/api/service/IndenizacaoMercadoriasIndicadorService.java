@@ -28,8 +28,6 @@ import java.util.stream.Collectors;
 @Service
 public class IndenizacaoMercadoriasIndicadorService {
 
-    private static final String STATUS_CANCELADO = "cancelado";
-
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoSinistrosRepository sinistrosRepository;
     private final VisaoFretesRepository fretesRepository;
@@ -64,7 +62,7 @@ public class IndenizacaoMercadoriasIndicadorService {
 
         IndenizacaoContexto contexto = buscarContexto(filtro);
         BigDecimal valorIndenizadoOriginal = contexto.registros().stream()
-                .map(IndenizacaoRegistro::resultadoFinalOriginal)
+                .map(IndenizacaoRegistro::valorAPagarCliente)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
         BigDecimal valorIndenizadoAbs = IndicadoresGestaoMetricasUtils.abs(valorIndenizadoOriginal)
@@ -88,14 +86,14 @@ public class IndenizacaoMercadoriasIndicadorService {
 
         IndenizacaoContexto contexto = buscarContexto(filtro);
         return contexto.registros().stream()
-                .filter(registro -> registro.dataFinalizacao() != null)
-                .collect(Collectors.groupingBy(registro -> chaveMensal(primeiroDiaMes(registro.dataFinalizacao()), registro.filial())))
+                .filter(registro -> registro.dataAbertura() != null)
+                .collect(Collectors.groupingBy(registro -> chaveMensal(primeiroDiaMes(registro.dataAbertura()), registro.filial())))
                 .values().stream()
                 .map(grupo -> {
                     IndenizacaoRegistro amostra = grupo.get(0);
-                    LocalDate mesRef = primeiroDiaMes(amostra.dataFinalizacao());
+                    LocalDate mesRef = primeiroDiaMes(amostra.dataAbertura());
                     BigDecimal valorIndenizadoOriginal = grupo.stream()
-                            .map(IndenizacaoRegistro::resultadoFinalOriginal)
+                            .map(IndenizacaoRegistro::valorAPagarCliente)
                             .reduce(BigDecimal.ZERO, BigDecimal::add)
                             .setScale(2, RoundingMode.HALF_UP);
                     BigDecimal valorIndenizadoAbs = IndicadoresGestaoMetricasUtils.abs(valorIndenizadoOriginal)
@@ -126,21 +124,21 @@ public class IndenizacaoMercadoriasIndicadorService {
 
         IndenizacaoContexto contexto = buscarContexto(filtro);
         return contexto.registros().stream()
-                .sorted(Comparator.comparing(IndenizacaoRegistro::dataFinalizacao, Comparator.nullsLast(Comparator.reverseOrder()))
-                        .thenComparing(IndenizacaoRegistro::resultadoFinalAbs, Comparator.reverseOrder()))
+                .sorted(Comparator.comparing(IndenizacaoRegistro::dataAbertura, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(IndenizacaoRegistro::valorAPagarClienteAbs, Comparator.reverseOrder()))
                 .limit(limiteAplicado)
                 .map(registro -> {
                     BigDecimal faturamentoFilial = contexto.faturamentoPeriodoPorFilial().getOrDefault(registro.filial(), BigDecimal.ZERO);
                     return new IndenizacaoMercadoriasRowDTO(
                             registro.numeroSinistro(),
-                            IndicadoresGestaoMetricasUtils.formatar(registro.dataFinalizacao()),
+                            IndicadoresGestaoMetricasUtils.formatar(registro.dataAbertura()),
                             registro.filial(),
                             registro.minuta(),
-                            registro.resultadoFinalOriginal().setScale(2, RoundingMode.HALF_UP),
-                            registro.resultadoFinalAbs().setScale(2, RoundingMode.HALF_UP),
+                            registro.valorAPagarCliente().setScale(2, RoundingMode.HALF_UP),
+                            registro.valorAPagarClienteAbs().setScale(2, RoundingMode.HALF_UP),
                             registro.causaRaiz(),
                             registro.solucao(),
-                            IndicadoresGestaoMetricasUtils.percentual(registro.resultadoFinalAbs(), faturamentoFilial)
+                            IndicadoresGestaoMetricasUtils.percentual(registro.valorAPagarClienteAbs(), faturamentoFilial)
                     );
                 })
                 .toList();
@@ -151,20 +149,20 @@ public class IndenizacaoMercadoriasIndicadorService {
 
         IndenizacaoContexto contexto = buscarContexto(filtro);
         return contexto.registros().stream()
-                .sorted(Comparator.comparing(IndenizacaoRegistro::dataFinalizacao, Comparator.nullsLast(Comparator.reverseOrder()))
-                        .thenComparing(IndenizacaoRegistro::resultadoFinalAbs, Comparator.reverseOrder()))
+                .sorted(Comparator.comparing(IndenizacaoRegistro::dataAbertura, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(IndenizacaoRegistro::valorAPagarClienteAbs, Comparator.reverseOrder()))
                 .map(registro -> {
                     BigDecimal faturamentoFilial = contexto.faturamentoPeriodoPorFilial().getOrDefault(registro.filial(), BigDecimal.ZERO);
                     return new IndenizacaoMercadoriasRowDTO(
                             registro.numeroSinistro(),
-                            IndicadoresGestaoMetricasUtils.formatar(registro.dataFinalizacao()),
+                            IndicadoresGestaoMetricasUtils.formatar(registro.dataAbertura()),
                             registro.filial(),
                             registro.minuta(),
-                            registro.resultadoFinalOriginal().setScale(2, RoundingMode.HALF_UP),
-                            registro.resultadoFinalAbs().setScale(2, RoundingMode.HALF_UP),
+                            registro.valorAPagarCliente().setScale(2, RoundingMode.HALF_UP),
+                            registro.valorAPagarClienteAbs().setScale(2, RoundingMode.HALF_UP),
                             registro.causaRaiz(),
                             registro.solucao(),
-                            IndicadoresGestaoMetricasUtils.percentual(registro.resultadoFinalAbs(), faturamentoFilial)
+                            IndicadoresGestaoMetricasUtils.percentual(registro.valorAPagarClienteAbs(), faturamentoFilial)
                     );
                 })
                 .toList();
@@ -184,7 +182,7 @@ public class IndenizacaoMercadoriasIndicadorService {
         LocalDateTime updatedAtFretes = null;
 
         for (VisaoFretesEntity frete : fretes) {
-            if (statusCancelado(frete.getStatus())) {
+            if (!IndicadoresGestaoMetricasUtils.freteComValorOperacionalElegivel(frete)) {
                 continue;
             }
 
@@ -217,14 +215,14 @@ public class IndenizacaoMercadoriasIndicadorService {
                 continue;
             }
 
-            BigDecimal resultadoOriginal = IndicadoresGestaoMetricasUtils.zero(sinistro.getResultadoFinal());
+            BigDecimal valorAPagarCliente = IndicadoresGestaoMetricasUtils.zero(sinistro.getValorAPagarCliente());
             IndenizacaoRegistro registro = new IndenizacaoRegistro(
                     numeroSinistro,
-                    sinistro.getDataFinalizacao(),
+                    sinistro.getDataAbertura(),
                     filial,
                     sinistro.getMinuta(),
-                    resultadoOriginal,
-                    IndicadoresGestaoMetricasUtils.abs(resultadoOriginal),
+                    valorAPagarCliente,
+                    IndicadoresGestaoMetricasUtils.abs(valorAPagarCliente),
                     sinistro.getOcorrenciaDescricao(),
                     sinistro.getSolucao(),
                     sinistro.getDataExtracao()
@@ -236,7 +234,7 @@ public class IndenizacaoMercadoriasIndicadorService {
 
         return new IndenizacaoContexto(
                 porSinistro.values().stream()
-                        .filter(registro -> dataNoPeriodo(registro.dataFinalizacao(), filtro.dataInicio(), filtro.dataFim()))
+                        .filter(registro -> dataNoPeriodo(registro.dataAbertura(), filtro.dataInicio(), filtro.dataFim()))
                         .toList(),
                 faturamentoPeriodoPorFilial,
                 faturamentoMensalPorFilial,
@@ -253,10 +251,6 @@ public class IndenizacaoMercadoriasIndicadorService {
         return ConsultaSpecificationUtils.allOf(
                 ConsultaSpecificationUtils.greaterThanOrEqualTo("dataFrete", janela.inicioInclusivo()),
                 ConsultaSpecificationUtils.lessThan("dataFrete", janela.fimExclusivo()),
-                (root, query, cb) -> cb.or(
-                        cb.isNull(root.get("status")),
-                        cb.notEqual(cb.lower(root.get("status")), STATUS_CANCELADO)
-                ),
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "filialEmissora", "filialNome"),
                 ConsultaSpecificationUtils.filtroTextoQualquerCampo(filtro, "filiais", "filialEmissora", "filialNome")
         );
@@ -268,6 +262,7 @@ public class IndenizacaoMercadoriasIndicadorService {
             EscopoFilialService.EscopoFilial escopo
     ) {
         return ConsultaSpecificationUtils.allOf(
+                ConsultaSpecificationUtils.between("dataAbertura", filtro.dataInicio(), filtro.dataFim()),
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "pessoaNomeFantasia"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filiais", "pessoaNomeFantasia")
         );
@@ -281,10 +276,6 @@ public class IndenizacaoMercadoriasIndicadorService {
             return atual;
         }
         return candidato.updatedAt().isAfter(atual.updatedAt()) ? candidato : atual;
-    }
-
-    private static boolean statusCancelado(String status) {
-        return status != null && status.trim().equalsIgnoreCase(STATUS_CANCELADO);
     }
 
     private static String chaveMensal(LocalDate data, String filial) {
@@ -329,11 +320,11 @@ public class IndenizacaoMercadoriasIndicadorService {
 
     private record IndenizacaoRegistro(
             long numeroSinistro,
-            LocalDate dataFinalizacao,
+            LocalDate dataAbertura,
             String filial,
             Long minuta,
-            BigDecimal resultadoFinalOriginal,
-            BigDecimal resultadoFinalAbs,
+            BigDecimal valorAPagarCliente,
+            BigDecimal valorAPagarClienteAbs,
             String causaRaiz,
             String solucao,
             LocalDateTime updatedAt

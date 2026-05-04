@@ -2,10 +2,13 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresOverviewDTO;
+import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresSeriePointDTO;
 import com.dashboard.api.model.DimFilialEntity;
+import com.dashboard.api.model.VisaoInventarioEntity;
 import com.dashboard.api.model.VisaoManifestosEntity;
 import com.dashboard.api.model.VisaoManifestosId;
 import com.dashboard.api.repository.DimFilialRepository;
+import com.dashboard.api.repository.VisaoInventarioRepository;
 import com.dashboard.api.repository.VisaoManifestosRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +34,9 @@ class UtilizacaoColetoresIndicadorServiceTest {
     private VisaoManifestosRepository manifestosRepository;
 
     @Mock
+    private VisaoInventarioRepository inventarioRepository;
+
+    @Mock
     private DimFilialRepository dimFilialRepository;
 
     private UtilizacaoColetoresIndicadorService service;
@@ -40,6 +46,7 @@ class UtilizacaoColetoresIndicadorServiceTest {
         service = new UtilizacaoColetoresIndicadorService(
                 new ValidadorPeriodoService(),
                 manifestosRepository,
+                inventarioRepository,
                 dimFilialRepository,
                 escopoSemRestricao(),
                 PeriodoOffsetDateTimeHelper.padrao()
@@ -47,132 +54,77 @@ class UtilizacaoColetoresIndicadorServiceTest {
     }
 
     @Test
-    void buscarOverviewDeveCalcularManifestosBipadosEIncompletosPorPernaOperacional() {
+    void buscarOverviewDeveUsarOrdensDistintasSobreManifestosBipaveis() {
         when(dimFilialRepository.findAll()).thenReturn(List.of(filial("SPO"), filial("REC")));
         when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                manifesto(10L, "SPO", "REC", "encerrado", "DISTRIBUIÇÃO", null, 4, 2),
-                manifesto(11L, "SPO", "SPO, REC", "closed", "TRANSFERÊNCIA", OffsetDateTime.parse("2026-04-02T08:30:00-03:00"), 2, 2)
+                manifesto(10L, "SPO", "REC", "encerrado", "DISTRIBUIÇÃO"),
+                manifesto(10L, "REC", "REC", "encerrado", "DISTRIBUIÇÃO"),
+                manifesto(11L, "SPO", "SPO, REC", "pendente", "TRANSFERÊNCIA"),
+                manifesto(13L, "SPO", "REC", "encerrado", "ACERTO DE MOTORISTA"),
+                manifesto(12L, "SPO", "REC", "encerrado", "CARGA FECHADA (TRÁFEGO)")
+        ));
+        when(inventarioRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                ordem(100L, "SPO", "picking", OffsetDateTime.parse("2026-04-02T08:00:00-03:00"), OffsetDateTime.parse("2026-04-02T08:30:00-03:00")),
+                ordem(100L, "SPO", "picking", OffsetDateTime.parse("2026-04-02T08:05:00-03:00"), OffsetDateTime.parse("2026-04-02T08:35:00-03:00")),
+                ordem(101L, "REC", "descarregamento", OffsetDateTime.parse("2026-04-02T09:00:00-03:00"), null),
+                ordem(103L, null, "retorno", OffsetDateTime.parse("2026-04-02T09:30:00-03:00"), OffsetDateTime.parse("2026-04-02T09:50:00-03:00")),
+                ordem(102L, "SPO", "inventario", OffsetDateTime.parse("2026-04-02T10:00:00-03:00"), null)
         ));
 
         UtilizacaoColetoresOverviewDTO overview = service.buscarOverview(
                 new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
         );
 
-        assertThat(overview.manifestosBipados()).isEqualTo(5);
+        assertThat(overview.manifestosBipados()).isEqualTo(3);
         assertThat(overview.manifestosEmitidos()).isEqualTo(2);
-        assertThat(overview.manifestosDescarregamento()).isEqualTo(3);
-        assertThat(overview.totalManifestos()).isEqualTo(5);
-        assertThat(overview.manifestosIncompletos()).isEqualTo(2);
-        assertThat(overview.pctUtilizacao()).isEqualTo(100.0);
-    }
-
-    @Test
-    void buscarOverviewDeveAplicarStatusExclusoesEPorFilial() {
-        when(dimFilialRepository.findAll()).thenReturn(List.of(filial("SPO"), filial("REC")));
-        when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                manifesto(10L, "SPO", "REC", "encerrado", "DISTRIBUIÇÃO", null, 0, 0),
-                manifesto(11L, "SPO", "REC", "encerrado", "CARGA FECHADA (TRÁFEGO)", OffsetDateTime.parse("2026-04-02T08:30:00-03:00"), 2, 2),
-                manifesto(12L, "SPO", "REC", "pendente", "DISTRIBUIÇÃO", OffsetDateTime.parse("2026-04-02T08:30:00-03:00"), 2, 2),
-                manifesto(13L, "REC", "REC", "encerrado", "TRANSFERÊNCIA", OffsetDateTime.parse("2026-04-02T08:30:00-03:00"), 2, 2)
-        ));
-
-        UtilizacaoColetoresOverviewDTO overview = service.buscarOverview(
-                new FiltroConsultaDTO(
-                        LocalDate.of(2026, 4, 1),
-                        LocalDate.of(2026, 4, 30),
-                        Map.of("filiais", List.of("SPO"))
-                )
-        );
-
-        assertThat(overview.manifestosBipados()).isZero();
-        assertThat(overview.manifestosEmitidos()).isEqualTo(1);
-        assertThat(overview.manifestosDescarregamento()).isZero();
-        assertThat(overview.totalManifestos()).isEqualTo(1);
-        assertThat(overview.manifestosIncompletos()).isZero();
-        assertThat(overview.pctUtilizacao()).isZero();
-    }
-
-    @Test
-    void buscarOverviewDeveContarManifestosDistintosQuandoIdentificadorUnicoEhReutilizado() {
-        when(dimFilialRepository.findAll()).thenReturn(List.of(filial("SPO")));
-        when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                manifesto(10L, "seq-1", OffsetDateTime.parse("2026-04-02T07:00:00-03:00"), "SPO", null, "encerrado", "DISTRIBUIÇÃO", null, 3, 2),
-                manifesto(11L, "seq-1", OffsetDateTime.parse("2026-04-03T07:00:00-03:00"), "SPO", null, "encerrado", "DISTRIBUIÇÃO", OffsetDateTime.parse("2026-04-03T08:30:00-03:00"), 4, 4)
-        ));
-
-        UtilizacaoColetoresOverviewDTO overview = service.buscarOverview(
-                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
-        );
-
-        assertThat(overview.manifestosEmitidos()).isEqualTo(2);
-        assertThat(overview.manifestosBipados()).isEqualTo(2);
+        assertThat(overview.manifestosDescarregamento()).isEqualTo(2);
+        assertThat(overview.totalManifestos()).isEqualTo(4);
         assertThat(overview.manifestosIncompletos()).isEqualTo(1);
-        assertThat(overview.totalManifestos()).isEqualTo(2);
+        assertThat(overview.pctUtilizacao()).isEqualTo(75.0);
     }
 
     @Test
-    void buscarOverviewDeveIgnorarDescarregamentosSemCorrespondenciaNaDimensaoEONullLiteral() {
+    void buscarOverviewDeveAplicarFiltroDeFilialEmManifestosEOrdens() {
         when(dimFilialRepository.findAll()).thenReturn(List.of(filial("SPO")));
         when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                manifesto(10L, "SPO", "null, PARCEIRO X", "encerrado", "DISTRIBUIÇÃO", OffsetDateTime.parse("2026-04-02T08:30:00-03:00"), 3, 3)
+                manifesto(20L, "SPO", "null, PARCEIRO X", "encerrado", "DISTRIBUIÇÃO"),
+                manifesto(21L, "REC", "SPO", "encerrado", "DISTRIBUIÇÃO")
+        ));
+        when(inventarioRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                ordem(200L, "SPO", "recebimento", OffsetDateTime.parse("2026-04-02T08:00:00-03:00"), OffsetDateTime.parse("2026-04-02T08:30:00-03:00")),
+                ordem(201L, "REC", "recebimento", OffsetDateTime.parse("2026-04-02T08:00:00-03:00"), OffsetDateTime.parse("2026-04-02T08:30:00-03:00"))
         ));
 
-        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
-                LocalDate.of(2026, 4, 1),
-                LocalDate.of(2026, 4, 30),
-                Map.of()
+        UtilizacaoColetoresOverviewDTO overview = service.buscarOverview(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of("filiais", List.of("SPO")))
         );
 
-        UtilizacaoColetoresOverviewDTO overview = service.buscarOverview(filtro);
-
+        assertThat(overview.manifestosBipados()).isEqualTo(1);
         assertThat(overview.manifestosEmitidos()).isEqualTo(1);
-        assertThat(overview.manifestosDescarregamento()).isZero();
-        assertThat(overview.totalManifestos()).isEqualTo(1);
-        assertThat(service.buscarSerie(filtro))
-                .extracting("filial")
-                .containsExactly("SPO");
+        assertThat(overview.manifestosDescarregamento()).isEqualTo(1);
+        assertThat(overview.totalManifestos()).isEqualTo(2);
+        assertThat(overview.pctUtilizacao()).isEqualTo(50.0);
     }
 
     @Test
-    void buscarSerieDeveSegregarEClassificarDistribuicaoETransferencia() {
-        when(dimFilialRepository.findAll()).thenReturn(List.of(filial("SPO"), filial("REC")));
-        when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                manifesto(10L, "SPO", "REC", "encerrado", "distribuicao", OffsetDateTime.parse("2026-04-02T08:30:00-03:00"), 1, 1),
-                manifesto(11L, "SPO", "REC", "encerrado", "TRANSFERÊNCIA", OffsetDateTime.parse("2026-04-02T08:30:00-03:00"), 1, 1)
-        ));
-
-        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
-                LocalDate.of(2026, 4, 1),
-                LocalDate.of(2026, 4, 30),
-                Map.of("classificacoes", List.of("DISTRIBUIÇÃO"))
-        );
-
-        assertThat(service.buscarSerie(filtro))
-                .extracting("classificacao")
-                .containsOnly("DISTRIBUIÇÃO");
-
-        assertThat(service.buscarTabela(filtro, 100))
-                .extracting("classificacao")
-                .containsOnly("DISTRIBUIÇÃO");
-    }
-
-    @Test
-    void buscarSerieDeveManterManifestosEmDatasSeparadasQuandoIdentificadorUnicoEhReutilizado() {
+    void buscarSerieDeveAgruparPorDataFilialEClassificacaoGeral() {
         when(dimFilialRepository.findAll()).thenReturn(List.of(filial("SPO")));
         when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
-                manifesto(10L, "seq-1", OffsetDateTime.parse("2026-04-02T07:00:00-03:00"), "SPO", null, "encerrado", "DISTRIBUIÇÃO", null, 3, 2),
-                manifesto(11L, "seq-1", OffsetDateTime.parse("2026-04-03T07:00:00-03:00"), "SPO", null, "encerrado", "DISTRIBUIÇÃO", OffsetDateTime.parse("2026-04-03T08:30:00-03:00"), 4, 4)
+                manifesto(30L, "SPO", null, "encerrado", "DISTRIBUIÇÃO")
+        ));
+        when(inventarioRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                ordem(300L, "SPO", "carregamento", OffsetDateTime.parse("2026-04-03T08:00:00-03:00"), OffsetDateTime.parse("2026-04-03T08:30:00-03:00"))
         ));
 
-        assertThat(service.buscarSerie(new FiltroConsultaDTO(
-                LocalDate.of(2026, 4, 1),
-                LocalDate.of(2026, 4, 30),
-                Map.of()
-        )))
-                .extracting("date", "manifestosEmitidos", "manifestosBipados", "manifestosIncompletos")
+        List<UtilizacaoColetoresSeriePointDTO> serie = service.buscarSerie(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
+        );
+
+        assertThat(serie)
+                .extracting(UtilizacaoColetoresSeriePointDTO::date, UtilizacaoColetoresSeriePointDTO::filial, UtilizacaoColetoresSeriePointDTO::classificacao)
                 .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple("2026-04-02", 1, 1, 1),
-                        org.assertj.core.groups.Tuple.tuple("2026-04-03", 1, 1, 0)
+                        org.assertj.core.groups.Tuple.tuple("2026-04-02", "SPO", "Geral"),
+                        org.assertj.core.groups.Tuple.tuple("2026-04-03", "SPO", "Geral")
                 );
     }
 
@@ -181,48 +133,35 @@ class UtilizacaoColetoresIndicadorServiceTest {
             String filialEmissora,
             String localDescarregamento,
             String status,
-            String classificacao,
-            OffsetDateTime leituraMovelEm,
-            Integer itensTotal,
-            Integer itensFinalizados
-    ) {
-        return manifesto(
-                numero,
-                "uid-" + numero,
-                OffsetDateTime.parse("2026-04-02T07:00:00-03:00"),
-                filialEmissora,
-                localDescarregamento,
-                status,
-                classificacao,
-                leituraMovelEm,
-                itensTotal,
-                itensFinalizados
-        );
-    }
-
-    private static VisaoManifestosEntity manifesto(
-            Long numero,
-            String identificadorUnico,
-            OffsetDateTime dataCriacao,
-            String filialEmissora,
-            String localDescarregamento,
-            String status,
-            String classificacao,
-            OffsetDateTime leituraMovelEm,
-            Integer itensTotal,
-            Integer itensFinalizados
+            String classificacao
     ) {
         VisaoManifestosEntity entity = TestReflectionUtils.novaInstancia(VisaoManifestosEntity.class);
-        TestReflectionUtils.setField(entity, "id", manifestoId(numero, identificadorUnico));
+        TestReflectionUtils.setField(entity, "id", manifestoId(numero, "uid-" + numero));
         TestReflectionUtils.setField(entity, "filialEmissora", filialEmissora);
         TestReflectionUtils.setField(entity, "filial", filialEmissora);
         TestReflectionUtils.setField(entity, "localDescarregamento", localDescarregamento);
         TestReflectionUtils.setField(entity, "status", status);
         TestReflectionUtils.setField(entity, "classificacao", classificacao);
-        TestReflectionUtils.setField(entity, "leituraMovelEm", leituraMovelEm);
-        TestReflectionUtils.setField(entity, "itensTotal", itensTotal);
-        TestReflectionUtils.setField(entity, "itensFinalizados", itensFinalizados);
-        TestReflectionUtils.setField(entity, "dataCriacao", dataCriacao);
+        TestReflectionUtils.setField(entity, "dataCriacao", OffsetDateTime.parse("2026-04-02T07:00:00-03:00"));
+        TestReflectionUtils.setField(entity, "dataExtracao", LocalDateTime.of(2026, 4, 3, 9, 0));
+        return entity;
+    }
+
+    private static VisaoInventarioEntity ordem(
+            Long numeroOrdem,
+            String filial,
+            String tipo,
+            OffsetDateTime dataHoraInicio,
+            OffsetDateTime dataHoraFim
+    ) {
+        VisaoInventarioEntity entity = TestReflectionUtils.novaInstancia(VisaoInventarioEntity.class);
+        TestReflectionUtils.setField(entity, "identificadorUnico", "ordem-" + numeroOrdem + "-" + dataHoraInicio);
+        TestReflectionUtils.setField(entity, "numeroOrdem", numeroOrdem);
+        TestReflectionUtils.setField(entity, "filial", filial);
+        TestReflectionUtils.setField(entity, "filialOrdemConferencia", filial);
+        TestReflectionUtils.setField(entity, "tipo", tipo);
+        TestReflectionUtils.setField(entity, "dataHoraInicio", dataHoraInicio);
+        TestReflectionUtils.setField(entity, "dataHoraFim", dataHoraFim);
         TestReflectionUtils.setField(entity, "dataExtracao", LocalDateTime.of(2026, 4, 3, 9, 0));
         return entity;
     }

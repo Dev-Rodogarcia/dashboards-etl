@@ -1,11 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ENTITIES } from './dashboard-validation/entities.mjs';
 
 const ROOT_DIR = process.cwd();
-const API_ENV_PATH = path.join(ROOT_DIR, 'dashboard-api', '.env');
+const ENV_PATHS = [
+  path.join(ROOT_DIR, 'backend', '.env'),
+  path.join(ROOT_DIR, '.env'),
+];
 const REPORTS_DIR = path.join(ROOT_DIR, 'reports');
 
 const DEFAULT_TOLERANCES = {
@@ -31,6 +34,10 @@ function parseArgs(argv) {
 }
 
 function parseDotEnv(filePath) {
+  if (!existsSync(filePath)) {
+    return {};
+  }
+
   const content = readFileSync(filePath, 'utf8');
   return content
     .split(/\r?\n/u)
@@ -526,7 +533,10 @@ function buildArtifactBaseName(period) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const env = parseDotEnv(API_ENV_PATH);
+  const env = {
+    ...ENV_PATHS.reduce((acc, envPath) => ({ ...acc, ...parseDotEnv(envPath) }), {}),
+    ...process.env,
+  };
   const connection = sqlConnectionFromEnv(env, args);
   const period = {
     dataInicio: args.dataInicio ?? '2026-03-01',
@@ -537,11 +547,11 @@ async function main() {
   const jwtSecret = args.jwtSecret ?? env.JWT_SECRET;
 
   if (!connection.user || !connection.password) {
-    throw new Error('Credenciais de banco não encontradas em dashboard-api/.env.');
+    throw new Error('Credenciais de banco não encontradas em backend/.env ou .env da raiz.');
   }
 
   if (!jwtSecret) {
-    throw new Error('JWT_SECRET não encontrado em dashboard-api/.env.');
+    throw new Error('JWT_SECRET não encontrado em backend/.env ou .env da raiz.');
   }
 
   await ensureApiUp(apiBaseUrl);

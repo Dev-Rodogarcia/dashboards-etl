@@ -41,6 +41,9 @@ public class VisaoSinistrosEntity {
     @Column(name = "[Minuta]")
     private Long minuta;
 
+    @Column(name = "[valor a pagar ao cliente]")
+    private BigDecimal valorAPagarCliente;
+
     @Column(name = "[Resultado final]")
     private BigDecimal resultadoFinal;
 
@@ -92,6 +95,10 @@ public class VisaoSinistrosEntity {
 
     public Long getMinuta() {
         return minuta;
+    }
+
+    public BigDecimal getValorAPagarCliente() {
+        return valorAPagarCliente;
     }
 
     public BigDecimal getResultadoFinal() {

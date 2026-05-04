@@ -98,6 +98,15 @@ public class IndicadoresGestaoAVistaController {
         return ResponseEntity.ok(performanceEntregaService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
     }
 
+    @GetMapping("/performance-entrega/diagnostico")
+    public ResponseEntity<List<PerformanceEntregaRowDTO>> performanceDiagnostico(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        return ResponseEntity.ok(performanceEntregaService.buscarExportacao(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
     @GetMapping("/performance-entrega/tabela/paginada")
     public ResponseEntity<PaginaDTO<PerformanceEntregaRowDTO>> performanceTabelaPaginada(
             @RequestParam LocalDate dataInicio,
@@ -135,6 +144,15 @@ public class IndicadoresGestaoAVistaController {
             @RequestParam MultiValueMap<String, String> params
     ) {
         return ResponseEntity.ok(utilizacaoColetoresService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
+    }
+
+    @GetMapping("/utilizacao-coletores/diagnostico")
+    public ResponseEntity<List<UtilizacaoColetoresRowDTO>> utilizacaoColetoresDiagnostico(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        return ResponseEntity.ok(utilizacaoColetoresService.buscarExportacao(FiltroRequestMapper.from(dataInicio, dataFim, params)));
     }
 
     @GetMapping("/utilizacao-coletores/tabela/paginada")
@@ -176,6 +194,15 @@ public class IndicadoresGestaoAVistaController {
         return ResponseEntity.ok(cubagemMercadoriasService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
     }
 
+    @GetMapping("/cubagem-mercadorias/diagnostico")
+    public ResponseEntity<List<CubagemMercadoriasRowDTO>> cubagemDiagnostico(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        return ResponseEntity.ok(cubagemMercadoriasService.buscarExportacao(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
     @GetMapping("/cubagem-mercadorias/tabela/paginada")
     public ResponseEntity<PaginaDTO<CubagemMercadoriasRowDTO>> cubagemTabelaPaginada(
             @RequestParam LocalDate dataInicio,
@@ -213,6 +240,15 @@ public class IndicadoresGestaoAVistaController {
             @RequestParam MultiValueMap<String, String> params
     ) {
         return ResponseEntity.ok(indenizacaoMercadoriasService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
+    }
+
+    @GetMapping("/indenizacao-mercadorias/diagnostico")
+    public ResponseEntity<List<IndenizacaoMercadoriasRowDTO>> indenizacaoDiagnostico(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        return ResponseEntity.ok(indenizacaoMercadoriasService.buscarExportacao(FiltroRequestMapper.from(dataInicio, dataFim, params)));
     }
 
     @GetMapping("/indenizacao-mercadorias/tabela/paginada")

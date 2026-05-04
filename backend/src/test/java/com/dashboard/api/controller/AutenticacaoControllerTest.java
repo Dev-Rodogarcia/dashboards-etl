@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 class AutenticacaoControllerTest {
@@ -89,9 +90,48 @@ class AutenticacaoControllerTest {
         assertThat(setCookie).contains("Secure");
         assertThat(setCookie).contains("Max-Age=");
         assertThat(setCookie).contains("Path=/api/auth");
+        assertThat(setCookie).contains("SameSite=Lax");
         Object body = Objects.requireNonNull(response.getBody());
         assertThat(body).isInstanceOf(LoginResponseDTO.class);
         assertThat(((LoginResponseDTO) body).sessaoExpiraEm()).isNotNull();
+    }
+
+    @Test
+    void loginPermiteCookieCrossSiteQuandoSameSiteNoneEstaSeguro() {
+        AutenticacaoController controller = new AutenticacaoController(
+                new StubAutenticacaoServiceSucesso(),
+                new RateLimitService(10, 900, 120, 60, 12, 60),
+                new RefreshTokenService(mock(RefreshTokenSessionRepository.class), 24),
+                new IpClienteResolver(false),
+                "dashboard_refresh_token",
+                true,
+                "None"
+        );
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
+        request.setRemoteAddr("127.0.0.1");
+        request.addHeader("User-Agent", "JUnit");
+
+        ResponseEntity<?> response = controller.login(new LoginRequestDTO("admin@empresa.com", "senha"), request);
+
+        String setCookie = response.getHeaders().getFirst("Set-Cookie");
+        assertThat(setCookie).contains("Secure");
+        assertThat(setCookie).contains("SameSite=None");
+    }
+
+    @Test
+    void configuracaoCrossSiteSemSecureFalhaNoStartup() {
+        assertThatThrownBy(() -> new AutenticacaoController(
+                new StubAutenticacaoServiceSucesso(),
+                new RateLimitService(10, 900, 120, 60, 12, 60),
+                new RefreshTokenService(mock(RefreshTokenSessionRepository.class), 24),
+                new IpClienteResolver(false),
+                "dashboard_refresh_token",
+                false,
+                "None"
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("auth.refresh-cookie-secure deve ser true quando auth.refresh-cookie-same-site=None.");
     }
 
     private static final class StubAutenticacaoService extends AutenticacaoService {

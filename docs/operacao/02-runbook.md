@@ -16,7 +16,7 @@ Verificacoes:
 
 ```powershell
 java -version
-cd .\dashboard-api
+cd .\backend
 .\mvnw.cmd -v
 ```
 
@@ -104,9 +104,9 @@ Verificacoes:
 
 Pontos de codigo:
 
-- `dashboard-ui/src/utils/apiError.ts`
-- `dashboard-ui/src/components/ui/MensagemErro.tsx`
-- `dashboard-api/src/main/java/com/dashboard/api/exception/ManipuladorGlobalExcecoes.java`
+- `frontend/src/utils/apiError.ts`
+- `frontend/src/components/ui/MensagemErro.tsx`
+- `backend/src/main/java/com/dashboard/api/exception/ManipuladorGlobalExcecoes.java`
 
 ## 7. Usuario autenticado recebe `403`
 

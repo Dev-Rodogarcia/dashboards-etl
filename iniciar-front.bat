@@ -16,7 +16,7 @@ if /i not "%DASHBOARD_FRONTEND_WINDOW%"=="1" (
 )
 
 set "ROOT_DIR=%CD%"
-set "FRONTEND_DIR=%ROOT_DIR%\dashboard-ui"
+set "FRONTEND_DIR=%ROOT_DIR%\frontend"
 set "ENV_FILE=%ROOT_DIR%\.env"
 set "FRONTEND_PORT=5173"
 
@@ -27,7 +27,7 @@ echo ============================================
 echo.
 
 if not exist "%FRONTEND_DIR%\package.json" (
-    echo [ERRO] Arquivo nao encontrado: dashboard-ui\package.json
+    echo [ERRO] Arquivo nao encontrado: frontend\package.json
     pause
     exit /b 1
 )

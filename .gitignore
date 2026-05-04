@@ -5,7 +5,7 @@
 !**/.env.sample
 !**/.env.*.example
 !**/.env.*.sample
-!dashboard-api/src/main/resources/.env.properties
+!backend/src/main/resources/.env.properties
 .envrc
 .direnv/
 **/*.local.json
@@ -126,7 +126,7 @@ Ai-Agent-Skills-main/
 **/*.psv
 **/*.xls
 **/*.xlsx
-!dashboard-ui/public/templates/horarios-corte-modelo.xlsx
+!frontend/public/templates/horarios-corte-modelo.xlsx
 **/*.parquet
 **/*.feather
 **/*.orc
@@ -175,5 +175,5 @@ Desktop.ini
 ehthumbs.db
 
 # Runtime local do backend nunca deve ser versionado
-dashboard-api/storage/*
-!dashboard-api/storage/access-control.sample.json
+backend/storage/*
+!backend/storage/access-control.sample.json

@@ -143,6 +143,12 @@ public class VisaoFretesEntity {
     @Column(name = "[Status]")
     private String status;
 
+    @Column(name = "[Documento Oficial/Tipo]")
+    private String documentoOficialTipo;
+
+    @Column(name = "[Cortesia Flag]")
+    private Boolean cortesiaFlag;
+
     @Column(name = "[Tipo Frete]")
     private String tipoFrete;
 
@@ -351,6 +357,14 @@ public class VisaoFretesEntity {
 
     public String getStatus() {
         return status;
+    }
+
+    public String getDocumentoOficialTipo() {
+        return documentoOficialTipo;
+    }
+
+    public Boolean getCortesiaFlag() {
+        return cortesiaFlag;
     }
 
     public String getTipoFrete() {

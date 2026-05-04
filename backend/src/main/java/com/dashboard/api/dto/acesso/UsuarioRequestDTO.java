@@ -21,6 +21,8 @@ public record UsuarioRequestDTO(
         @NotNull(message = "A lista de permissões negadas é obrigatória")
         List<String> permissoesNegadas,
         List<String> permissoesConcedidas,
+        String escopoFiliaisTipo,
+        List<String> filiaisPermitidasUsuario,
         Boolean ativo
 ) {
 }

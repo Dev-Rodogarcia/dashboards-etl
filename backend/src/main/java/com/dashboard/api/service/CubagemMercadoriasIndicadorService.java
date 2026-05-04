@@ -29,12 +29,21 @@ import java.util.stream.Collectors;
 public class CubagemMercadoriasIndicadorService {
 
     private static final String STATUS_CANCELADO = "cancelado";
+    private static final String PAGADOR_DOCS_EXCLUIDOS_PADRAO = """
+            44699346000103;07668944000180;13190609000546;13190609000384;13190609000627;46928552000165;\
+            14675270007381;56643018010390;14675270000450;14675270000298;05396883001510;05396883000386;\
+            51602373000173;43829282000651;43829282000147;43829282000490;03944724000696;03944724000777;\
+            03944724000262;03944724000939;03944724000858;44381747000102;01459630000272;43996693003061;\
+            43996693000631;43996693000208;43996693002766;43996693002928;43996693002847;43996693000801;\
+            43996693000127;92599901000160;33064262000250;08862530000827;08862530000231;08862530000150;\
+            33064262000179;08862530000746;08862530001122;08862530001203
+            """;
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoFretesRepository fretesRepository;
     private final EscopoFilialService escopoFilialService;
     private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
-    private final Set<String> remetenteDocsExcluidos;
+    private final Set<String> pagadorDocsExcluidos;
 
     CubagemMercadoriasIndicadorService(
             ValidadorPeriodoService validadorPeriodo,
@@ -49,13 +58,13 @@ public class CubagemMercadoriasIndicadorService {
             VisaoFretesRepository fretesRepository,
             EscopoFilialService escopoFilialService,
             PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper,
-            @Value("${dashboard.indicadores.cubagem.remetente-docs-excluidos:}") String remetenteDocsExcluidosConfigurados
+            @Value("${dashboard.indicadores.cubagem.pagador-docs-excluidos:}") String pagadorDocsExcluidosConfigurados
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.fretesRepository = fretesRepository;
         this.escopoFilialService = escopoFilialService;
         this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
-        this.remetenteDocsExcluidos = normalizarDocumentosConfigurados(remetenteDocsExcluidosConfigurados);
+        this.pagadorDocsExcluidos = normalizarDocumentosConfigurados(textoConfiguracaoOuPadrao(pagadorDocsExcluidosConfigurados));
     }
 
     public CubagemMercadoriasOverviewDTO buscarOverview(FiltroConsultaDTO filtro) {
@@ -168,7 +177,10 @@ public class CubagemMercadoriasIndicadorService {
         Map<Long, CubagemRegistro> porMinuta = new LinkedHashMap<>();
         for (VisaoFretesEntity frete : fretesRepository.findAll(criarSpecification(filtro, escopo, janela))) {
             Long numeroMinuta = frete.getNumeroMinuta();
-            if (numeroMinuta == null || statusCancelado(frete.getStatus()) || remetenteDocumentoExcluido(frete.getRemetenteDocumento())) {
+            if (numeroMinuta == null
+                    || statusCancelado(frete.getStatus())
+                    || !IndicadoresGestaoMetricasUtils.freteComValorOperacionalElegivel(frete)
+                    || pagadorDocumentoExcluido(frete.getPagadorDocumento())) {
                 continue;
             }
 
@@ -177,7 +189,7 @@ public class CubagemMercadoriasIndicadorService {
                     frete.getDataFrete(),
                     textoOuPadrao(frete.getFilialEmissora(), frete.getFilialNome()),
                     frete.getPagadorNome(),
-                    normalizarDocumento(frete.getRemetenteDocumento()),
+                    normalizarDocumento(frete.getPagadorDocumento()),
                     frete.getDestinoCidade(),
                     frete.getPesoTaxado(),
                     frete.getPesoReal(),
@@ -220,9 +232,9 @@ public class CubagemMercadoriasIndicadorService {
         return candidato.updatedAt().isAfter(atual.updatedAt()) ? candidato : atual;
     }
 
-    private boolean remetenteDocumentoExcluido(String remetenteDocumento) {
-        String documentoNormalizado = normalizarDocumento(remetenteDocumento);
-        return documentoNormalizado != null && remetenteDocsExcluidos.contains(documentoNormalizado);
+    private boolean pagadorDocumentoExcluido(String pagadorDocumento) {
+        String documentoNormalizado = normalizarDocumento(pagadorDocumento);
+        return documentoNormalizado != null && pagadorDocsExcluidos.contains(documentoNormalizado);
     }
 
     private static String textoOuPadrao(String valor, String fallback) {
@@ -245,6 +257,10 @@ public class CubagemMercadoriasIndicadorService {
                 .map(CubagemMercadoriasIndicadorService::normalizarDocumento)
                 .filter(documento -> documento != null && !documento.isBlank())
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private static String textoConfiguracaoOuPadrao(String configuracao) {
+        return configuracao == null || configuracao.isBlank() ? PAGADOR_DOCS_EXCLUIDOS_PADRAO : configuracao;
     }
 
     private static String normalizarDocumento(String documento) {
@@ -278,8 +294,7 @@ public class CubagemMercadoriasIndicadorService {
             LocalDateTime updatedAt
     ) {
         private boolean cubado() {
-            return IndicadoresGestaoMetricasUtils.zero(totalM3).compareTo(BigDecimal.ZERO) > 0
-                    || IndicadoresGestaoMetricasUtils.zero(pesoCubado).compareTo(BigDecimal.ZERO) > 0;
+            return IndicadoresGestaoMetricasUtils.zero(totalM3).compareTo(BigDecimal.ZERO) != 0;
         }
     }
 }
