@@ -7,12 +7,12 @@ import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
-import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
 import { exportarColetasExcel } from '../api/endpoints/coletasServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useClientes, useFiliais, useUsuarios } from '../hooks/queries/useDimensoes';
 import { useColetasGraficos, useColetasOverview, useColetasSerie, useColetasTabelaPaginada } from '../hooks/queries/useColetas';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
@@ -47,6 +47,12 @@ export default function ColetasPage() {
   const graficos = useColetasGraficos(filtro);
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
   const tabela = useColetasTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+
+  usePageHeader({
+    title: 'Coletas',
+    description: 'SLA operacional, distribuicao por status e aging de abertas.',
+    updatedAt: overview.data?.updatedAt ?? null,
+  });
 
   const statusData = graficos.data?.statusDistribuicao ?? [];
   const slaPorFilial = graficos.data?.slaPorFilial ?? [];
@@ -112,14 +118,6 @@ export default function ColetasPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Coletas</h1>
-          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>SLA operacional, distribuicao por status e aging de abertas.</p>
-        </div>
-        <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
-      </div>
-
       <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker
           dataInicio={dataInicio}

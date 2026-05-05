@@ -6,12 +6,12 @@ import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
-import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
 import { exportarFaturasPorClienteExcel } from '../api/endpoints/faturasPorClienteServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useClientes, useFiliais } from '../hooks/queries/useDimensoes';
 import {
   useFaturasPorClienteAging,
@@ -52,6 +52,12 @@ export default function FaturasPorClientePage() {
   const statusProcesso = useFaturasPorClienteStatusProcesso(filtro);
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
   const tabela = useFaturasPorClienteTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+
+  usePageHeader({
+    title: 'Faturas por Cliente',
+    description: 'Visão operacional de faturamento por cliente baseada em `ID Único`.',
+    updatedAt: overview.data?.updatedAt ?? null,
+  });
 
   const mensalOption: EChartsOption = {
     legend: { bottom: 0 },
@@ -122,14 +128,6 @@ export default function FaturasPorClientePage() {
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Faturas por Cliente</h1>
-          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Visão operacional de faturamento por cliente baseada em `ID Único`.</p>
-        </div>
-        <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
-      </div>
-
       <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker
           dataInicio={dataInicio}

@@ -9,12 +9,12 @@ import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
-import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
 import { exportarFretesExcel } from '../api/endpoints/fretesServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useClientes, useFiliais, useFretesStatus } from '../hooks/queries/useDimensoes';
 import {
   useFretesGraficos,
@@ -58,6 +58,12 @@ export default function FretesPage() {
 
   const filtroParaStatus: FretesFiltro = { dataInicio, dataFim, filiais: filtros.filiais, pagadores: filtros.pagadores };
   const statusFretes = useFretesStatus(filtroParaStatus);
+
+  usePageHeader({
+    title: 'Fretes',
+    description: 'Receita operacional, mix documental e carteira ativa por rota.',
+    updatedAt: overview.data?.updatedAt ?? null,
+  });
 
   const previsaoEntries = graficos.data?.previsaoPorStatus ?? [];
   const origemDestinoEntries = graficos.data?.topRotasPorReceita ?? [];
@@ -119,14 +125,6 @@ export default function FretesPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Fretes</h1>
-          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Receita operacional, mix documental e carteira ativa por rota.</p>
-        </div>
-        <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
-      </div>
-
       <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker
           dataInicio={dataInicio}

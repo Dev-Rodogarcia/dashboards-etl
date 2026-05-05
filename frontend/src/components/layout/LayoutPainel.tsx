@@ -5,7 +5,7 @@ export default function LayoutPainel() {
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--color-bg)' }}>
       <TopNav />
-      <main className="flex-1 w-full px-4 py-4 overflow-auto">
+      <main className="flex-1 w-full overflow-auto px-3 py-3 sm:px-5 sm:py-4">
         <Outlet />
       </main>
       <footer

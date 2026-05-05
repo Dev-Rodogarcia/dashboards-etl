@@ -5,7 +5,6 @@ import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import type { ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
-import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
 import IndicadoresGestaoPanoramaSection, { type PanoramaOperacionalItem } from '../components/indicadores-gestao/IndicadoresGestaoPanoramaSection';
@@ -19,6 +18,7 @@ import {
   exportarUtilizacaoColetoresExcel,
 } from '../api/endpoints/indicadoresGestaoAVistaServico';
 import { useFiltro } from '../contexts/FiltroContext';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useFiliais } from '../hooks/queries/useDimensoes';
 import {
   useCubagemMercadoriasOverview,
@@ -164,6 +164,11 @@ export default function IndicadoresGestaoAVistaPage() {
     indenizacaoOverview.data?.updatedAt,
     horariosOverview.data?.updatedAt,
   ]);
+  usePageHeader({
+    title: 'Indicadores de Gestão à Vista',
+    description: 'Painel operacional diário com leitura rápida por filial e tabela analítica sob demanda.',
+    updatedAt,
+  });
   const performanceRanking = useMemo(() => aggregatePerformanceRanking(performanceSerie.data ?? []), [performanceSerie.data]);
   const coletoresRanking = useMemo(() => aggregateUtilizacaoRanking(coletoresSerie.data ?? []), [coletoresSerie.data]);
   const cubagemRanking = useMemo(() => aggregateCubagemRanking(cubagemSerie.data ?? []), [cubagemSerie.data]);
@@ -570,13 +575,6 @@ export default function IndicadoresGestaoAVistaPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Indicadores de Gestão à Vista</h1>
-          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Painel operacional diário com leitura rápida por filial e tabela analítica sob demanda.</p>
-        </div>
-        <LastUpdated dataExtracao={updatedAt} />
-      </div>
       <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
         <AsyncMultiSelect label="Filial base" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />

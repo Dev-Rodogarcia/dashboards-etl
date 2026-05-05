@@ -1,111 +1,60 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import type { ComponentType } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
-import { ShieldCheck, ChevronDown, Menu, X } from 'lucide-react';
+import {
+  Activity,
+  BarChart3,
+  Building2,
+  ChevronDown,
+  ChevronUp,
+  ClipboardList,
+  CreditCard,
+  FileText,
+  HeartPulse,
+  LayoutDashboard,
+  LogOut,
+  MapPinned,
+  Menu,
+  Moon,
+  Sun,
+  Truck,
+  UserCog,
+  Users,
+  X,
+} from 'lucide-react';
 import { useAutenticacao } from '../../contexts/AutenticacaoContext';
+import { usePageHeader } from '../../contexts/PageHeaderContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { ADMIN_NAV_ITEMS, DASHBOARD_NAV_ITEMS } from '../../utils/accessControl';
 import type { NavItem } from '../../utils/accessControl';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from '../ui/dropdown-menu';
+import { formatarDataHora } from '../../utils/formatadores';
 
-const focusRingClass = 'outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]';
-const DESKTOP_NAV_ITEM_GAP = 4;
-const DESKTOP_NAV_TOGGLE_GAP = 8;
+const focusRingClass = 'outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-primary)_34%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
 
-type DesktopNavEntry =
-  | {
-      key: string;
-      type: 'dashboard';
-      item: NavItem;
-    }
-  | {
-      key: 'admin';
-      type: 'admin';
-    };
+const NAV_ICON_BY_PATH: Record<string, ComponentType<{ size?: number; className?: string }>> = {
+  '/coletas': ClipboardList,
+  '/manifestos': LayoutDashboard,
+  '/fretes': Truck,
+  '/tracking': MapPinned,
+  '/faturas': FileText,
+  '/faturas-por-cliente': Users,
+  '/contas-a-pagar': CreditCard,
+  '/cotacoes': ClipboardList,
+  '/indicadores-gestao-a-vista': BarChart3,
+  '/executivo': Activity,
+  '/etl-saude': HeartPulse,
+  '/admin/setores': Building2,
+  '/admin/usuarios': UserCog,
+};
 
-function measureDesktopNavWidth(entries: DesktopNavEntry[], itemWidths: Record<string, number>) {
-  return entries.reduce((total, entry, index) => {
-    const width = itemWidths[entry.key] ?? 0;
-    return total + width + (index > 0 ? DESKTOP_NAV_ITEM_GAP : 0);
-  }, 0);
+function getNavIcon(item: NavItem) {
+  return NAV_ICON_BY_PATH[item.path] ?? LayoutDashboard;
 }
 
-function buildCollapsedDesktopNavEntries(
-  entries: DesktopNavEntry[],
-  activeEntryKey: string | null,
-  itemWidths: Record<string, number>,
-  availableWidth: number,
-) {
-  if (entries.length === 0 || availableWidth <= 0) {
-    return entries.slice(0, 1);
-  }
-
-  const visibleEntries: DesktopNavEntry[] = [];
-
-  for (const entry of entries) {
-    const nextEntries = [...visibleEntries, entry];
-    if (measureDesktopNavWidth(nextEntries, itemWidths) > availableWidth && visibleEntries.length > 0) {
-      break;
-    }
-
-    visibleEntries.push(entry);
-  }
-
-  if (activeEntryKey == null || visibleEntries.some((entry) => entry.key === activeEntryKey)) {
-    return visibleEntries;
-  }
-
-  const activeEntry = entries.find((entry) => entry.key === activeEntryKey);
-  if (!activeEntry) {
-    return visibleEntries;
-  }
-
-  const pinnedEntries = [...visibleEntries];
-  while (pinnedEntries.length > 0) {
-    const candidateEntries = [...pinnedEntries.slice(0, -1), activeEntry];
-    if (measureDesktopNavWidth(candidateEntries, itemWidths) <= availableWidth) {
-      return candidateEntries;
-    }
-
-    pinnedEntries.pop();
-  }
-
-  return [activeEntry];
-}
-
-function SunIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="5" />
-      <line x1="12" y1="1" x2="12" y2="3" />
-      <line x1="12" y1="21" x2="12" y2="23" />
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-      <line x1="1" y1="12" x2="3" y2="12" />
-      <line x1="21" y1="12" x2="23" y2="12" />
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  );
-}
-
-function MobileNavSection({
+function DrawerNavSection({
   title,
   items,
   onNavigate,
@@ -120,52 +69,70 @@ function MobileNavSection({
     <section aria-labelledby={headingId}>
       <h2
         id={headingId}
-        className="mb-3 px-1 text-[11px] font-semibold uppercase tracking-[0.16em]"
+        className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.16em]"
         style={{ color: 'var(--color-text-muted)' }}
       >
         {title}
       </h2>
 
-      <div className="space-y-2">
-        {items.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              `block rounded-2xl border px-4 py-3 transition-all duration-150 hover:bg-[var(--color-bg)] ${focusRingClass} ${
-                isActive ? 'shadow-sm' : ''
-              }`
-            }
-            style={({ isActive }) => ({
-              backgroundColor: isActive ? 'var(--color-bg)' : 'transparent',
-              borderColor: isActive ? 'var(--color-primary)' : 'var(--color-border)',
-              color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
-            })}
-          >
-            {({ isActive }) => (
-              <>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold">{item.label}</span>
-                  {isActive && (
-                    <span
-                      className="rounded-full px-2 py-0.5 text-[10px] font-bold leading-none text-white"
-                      style={{ backgroundColor: 'var(--color-primary)' }}
-                    >
-                      Atual
-                    </span>
-                  )}
-                </div>
+      <div className="space-y-1.5">
+        {items.map((item) => {
+          const Icon = getNavIcon(item);
 
-                {item.description && (
-                  <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
-                    {item.description}
-                  </p>
-                )}
-              </>
-            )}
-          </NavLink>
-        ))}
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                `group flex items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-all duration-150 ${focusRingClass} ${
+                  isActive ? 'shadow-sm' : 'hover:-translate-y-px hover:bg-[var(--color-bg)]'
+                }`
+              }
+              style={({ isActive }) => ({
+                backgroundColor: isActive
+                  ? 'color-mix(in srgb, var(--color-primary) 12%, var(--color-card))'
+                  : 'transparent',
+                borderColor: isActive
+                  ? 'color-mix(in srgb, var(--color-primary) 40%, var(--color-border))'
+                  : 'transparent',
+                color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
+              })}
+            >
+              {({ isActive }) => (
+                <>
+                  <span
+                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-150"
+                    style={{
+                      backgroundColor: isActive ? 'var(--color-primary)' : 'var(--color-bg)',
+                      color: isActive ? '#FFFFFF' : 'var(--color-text-muted)',
+                    }}
+                  >
+                    <Icon size={16} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="truncate text-sm font-semibold">{item.label}</span>
+                      {isActive && (
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[10px] font-bold leading-none text-white"
+                          style={{ backgroundColor: 'var(--color-primary)' }}
+                        >
+                          Atual
+                        </span>
+                      )}
+                    </span>
+                    {item.description && (
+                      <span className="mt-0.5 block text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+                        {item.description}
+                      </span>
+                    )}
+                  </span>
+                </>
+              )}
+            </NavLink>
+          );
+        })}
       </div>
     </section>
   );
@@ -177,16 +144,12 @@ export default function TopNav() {
   const currentLocation = useLocation();
   const { theme, setTheme } = useTheme();
   const { canAccess, isAdminAcesso, isAdminPlataforma } = usePermissions();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [desktopNavHasOverflow, setDesktopNavHasOverflow] = useState(false);
-  const [desktopNavItemWidths, setDesktopNavItemWidths] = useState<Record<string, number>>({});
-  const [desktopNavToggleWidth, setDesktopNavToggleWidth] = useState(0);
-  const [desktopNavCollapsedWidth, setDesktopNavCollapsedWidth] = useState(0);
+  const pageHeader = usePageHeader();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [drawerScrollState, setDrawerScrollState] = useState({ canScrollUp: false, canScrollDown: false });
   const hamburgerButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const desktopNavShellRef = useRef<HTMLDivElement>(null);
-  const desktopNavMeasureRef = useRef<HTMLDivElement>(null);
-  const desktopNavToggleMeasureRef = useRef<HTMLButtonElement>(null);
+  const drawerNavRef = useRef<HTMLElement>(null);
   const wasMenuOpenRef = useRef(false);
   const previousPathnameRef = useRef(currentLocation.pathname);
   const panelId = useId();
@@ -196,16 +159,7 @@ export default function TopNav() {
     item.permission ? canAccess(item.permission) : true,
   );
   const adminItems = isAdminAcesso ? ADMIN_NAV_ITEMS : [];
-  const desktopNavEntries: DesktopNavEntry[] = [
-    ...dashboardsVisiveis.map((item) => ({
-      key: item.path,
-      type: 'dashboard' as const,
-      item,
-    })),
-    ...(isAdminAcesso ? [{ key: 'admin' as const, type: 'admin' as const }] : []),
-  ];
-  const desktopNavMeasurementKey = desktopNavEntries.map((entry) => entry.key).join('|');
-  const mobileSections = [
+  const navSections = [
     { title: 'Dashboards', items: dashboardsVisiveis },
     ...(adminItems.length > 0 ? [{ title: 'Administração', items: adminItems }] : []),
   ].filter((section) => section.items.length > 0);
@@ -215,216 +169,44 @@ export default function TopNav() {
     : isAdminAcesso
       ? 'Admin Acesso'
       : null;
-  const isAdminRoute = currentLocation.pathname.startsWith('/admin');
   const isDarkTheme = theme === 'dark';
   const themeToggleLabel = isDarkTheme ? 'Alternar para modo claro' : 'Alternar para modo escuro';
-  const hamburgerLabel = isMobileMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação';
-  const activeDesktopNavEntryKey = isAdminRoute ? 'admin' : currentLocation.pathname;
-  const desktopNavVisibleEntries = desktopNavHasOverflow
-    ? buildCollapsedDesktopNavEntries(
-        desktopNavEntries,
-        activeDesktopNavEntryKey,
-        desktopNavItemWidths,
-        desktopNavCollapsedWidth,
-      )
-    : desktopNavEntries;
-  const desktopNavVisibleKeys = new Set(desktopNavVisibleEntries.map((entry) => entry.key));
-  const desktopNavOverflowEntries = desktopNavEntries.filter((entry) => !desktopNavVisibleKeys.has(entry.key));
-  const desktopNavHasHiddenAdmin = desktopNavOverflowEntries.some((entry) => entry.type === 'admin');
-  const desktopNavOverflowDashboards = desktopNavOverflowEntries.filter((entry) => entry.type === 'dashboard');
+  const hamburgerLabel = isMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação';
+  const updatedAtLabel = pageHeader.updatedAt ? `Atualizado em ${formatarDataHora(pageHeader.updatedAt)}` : null;
 
-  function renderDesktopNavEntry(entry: DesktopNavEntry, measureOnly = false) {
-    if (entry.type === 'dashboard') {
-      if (measureOnly) {
-        return (
-          <span
-            key={entry.key}
-            data-desktop-nav-measure-item="true"
-            data-desktop-nav-key={entry.key}
-            className="inline-flex whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium"
-          >
-            {entry.item.label}
-          </span>
-        );
-      }
-
-      return (
-        <NavLink
-          key={entry.key}
-          to={entry.item.path}
-          className={({ isActive }) =>
-            `whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${focusRingClass} ${
-              isActive ? 'text-white' : 'hover:bg-[var(--color-bg)]'
-            }`
-          }
-          style={({ isActive }) =>
-            isActive
-              ? { backgroundColor: 'var(--color-primary)' }
-              : { color: 'var(--color-text-muted)' }
-          }
-        >
-          {entry.item.label}
-        </NavLink>
-      );
+  const updateDrawerScrollState = useCallback(() => {
+    const element = drawerNavRef.current;
+    if (!element) {
+      setDrawerScrollState({ canScrollUp: false, canScrollDown: false });
+      return;
     }
 
-    if (measureOnly) {
-      return (
-        <span
-          key={entry.key}
-          data-desktop-nav-measure-item="true"
-          data-desktop-nav-key={entry.key}
-          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium"
-        >
-          <ShieldCheck size={14} />
-          Admin
-          <ChevronDown size={12} />
-        </span>
-      );
-    }
-
-    return (
-      <DropdownMenu key={entry.key}>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
-            style={isAdminRoute
-              ? {
-                  backgroundColor: 'var(--color-primary)',
-                  color: '#FFFFFF',
-                }
-              : {
-                  color: 'var(--color-text-muted)',
-                }}
-          >
-            <ShieldCheck size={14} />
-            Admin
-            <ChevronDown size={12} />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {ADMIN_NAV_ITEMS.map((item) => (
-            <DropdownMenuItem key={item.path} asChild>
-              <NavLink
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex w-full flex-col ${isActive ? 'font-semibold' : ''}`
-                }
-                style={({ isActive }) => ({
-                  color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
-                })}
-              >
-                <span className="font-medium">{item.label}</span>
-                {item.description && (
-                  <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                    {item.description}
-                  </span>
-                )}
-              </NavLink>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-  }
-
-  useLayoutEffect(() => {
-    const shell = desktopNavShellRef.current;
-    const measure = desktopNavMeasureRef.current;
-    const toggle = desktopNavToggleMeasureRef.current;
-
-    if (!shell || !measure || desktopNavMeasurementKey.length === 0) {
-      const frame = window.requestAnimationFrame(() => {
-        setDesktopNavHasOverflow(false);
-        setDesktopNavItemWidths({});
-        setDesktopNavToggleWidth(0);
-        setDesktopNavCollapsedWidth(0);
-      });
-
-      return () => {
-        window.cancelAnimationFrame(frame);
-      };
-    }
-
-    const shellElement = shell;
-    const measureElement = measure;
-    let frame = 0;
-
-    function measureDesktopNav() {
-      const shellWidth = Math.ceil(shellElement.getBoundingClientRect().width);
-      const toggleWidth = toggle ? Math.ceil(toggle.getBoundingClientRect().width) : 0;
-      const itemElements = Array.from(measureElement.querySelectorAll<HTMLElement>('[data-desktop-nav-measure-item="true"]'));
-      const measuredWidths = Object.fromEntries(
-        itemElements.map((element) => [
-          element.dataset.desktopNavKey ?? '',
-          Math.ceil(element.getBoundingClientRect().width),
-        ]),
-      );
-      const totalWidth = itemElements.reduce((total, element, index) => {
-        return total + Math.ceil(element.getBoundingClientRect().width) + (index > 0 ? DESKTOP_NAV_ITEM_GAP : 0);
-      }, 0);
-
-      setDesktopNavItemWidths(measuredWidths);
-      setDesktopNavToggleWidth(toggleWidth);
-      setDesktopNavCollapsedWidth(Math.max(shellWidth - toggleWidth - DESKTOP_NAV_TOGGLE_GAP, 0));
-      setDesktopNavHasOverflow(shellWidth > 0 && totalWidth > shellWidth);
-    }
-
-    function scheduleMeasure() {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(measureDesktopNav);
-    }
-
-    scheduleMeasure();
-
-    const observer = new ResizeObserver(scheduleMeasure);
-    observer.observe(shellElement);
-    observer.observe(measureElement);
-    if (toggle) {
-      observer.observe(toggle);
-    }
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [desktopNavMeasurementKey]);
+    const maxScroll = element.scrollHeight - element.clientHeight;
+    setDrawerScrollState({
+      canScrollUp: element.scrollTop > 4,
+      canScrollDown: maxScroll > 4 && element.scrollTop < maxScroll - 4,
+    });
+  }, []);
 
   useEffect(() => {
     const previousPathname = previousPathnameRef.current;
     previousPathnameRef.current = currentLocation.pathname;
 
-    if (!isMobileMenuOpen || previousPathname === currentLocation.pathname) {
+    if (!isMenuOpen || previousPathname === currentLocation.pathname) {
       return;
     }
 
     const frame = window.requestAnimationFrame(() => {
-      setIsMobileMenuOpen(false);
+      setIsMenuOpen(false);
     });
 
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [currentLocation.pathname, isMobileMenuOpen]);
+  }, [currentLocation.pathname, isMenuOpen]);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 860px)');
-
-    function handleMediaChange(event: MediaQueryListEvent) {
-      if (!event.matches) {
-        setIsMobileMenuOpen(false);
-      }
-    }
-
-    mediaQuery.addEventListener('change', handleMediaChange);
-    return () => {
-      mediaQuery.removeEventListener('change', handleMediaChange);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isMobileMenuOpen) {
+    if (!isMenuOpen) {
       return;
     }
 
@@ -434,16 +216,16 @@ export default function TopNav() {
     return () => {
       document.body.style.overflow = originalOverflow;
     };
-  }, [isMobileMenuOpen]);
+  }, [isMenuOpen, updateDrawerScrollState]);
 
   useEffect(() => {
-    if (!isMobileMenuOpen) {
+    if (!isMenuOpen) {
       return;
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        setIsMobileMenuOpen(false);
+        setIsMenuOpen(false);
       }
     }
 
@@ -451,13 +233,14 @@ export default function TopNav() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isMobileMenuOpen]);
+  }, [isMenuOpen]);
 
   useEffect(() => {
-    if (isMobileMenuOpen) {
+    if (isMenuOpen) {
       wasMenuOpenRef.current = true;
       const frame = window.requestAnimationFrame(() => {
         closeButtonRef.current?.focus();
+        updateDrawerScrollState();
       });
 
       return () => {
@@ -469,10 +252,40 @@ export default function TopNav() {
       hamburgerButtonRef.current?.focus();
       wasMenuOpenRef.current = false;
     }
-  }, [isMobileMenuOpen]);
+  }, [isMenuOpen, updateDrawerScrollState]);
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    const element = drawerNavRef.current;
+    if (!element) return;
+
+    let frame = 0;
+    const scheduleUpdate = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(updateDrawerScrollState);
+    };
+
+    scheduleUpdate();
+
+    const observer = new ResizeObserver(scheduleUpdate);
+    observer.observe(element);
+    if (element.firstElementChild) {
+      observer.observe(element.firstElementChild);
+    }
+    window.addEventListener('resize', scheduleUpdate);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', scheduleUpdate);
+    };
+  }, [isMenuOpen, navSections.length, updateDrawerScrollState]);
 
   async function handleLogout() {
-    setIsMobileMenuOpen(false);
+    setIsMenuOpen(false);
     await logout();
     navigate('/login', { replace: true });
   }
@@ -481,18 +294,18 @@ export default function TopNav() {
     setTheme(isDarkTheme ? 'light' : 'dark');
   }
 
-  const mobileDrawer = typeof document !== 'undefined'
+  const drawer = typeof document !== 'undefined'
     ? createPortal(
         <AnimatePresence>
-          {isMobileMenuOpen && (
+          {isMenuOpen && (
             <>
               <motion.div
-                className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
+                className="top-nav__drawer-backdrop fixed inset-0 z-[55]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                onClick={() => setIsMobileMenuOpen(false)}
+                transition={{ duration: 0.24, ease: 'easeOut' }}
+                onClick={() => setIsMenuOpen(false)}
                 aria-hidden="true"
               />
 
@@ -501,7 +314,7 @@ export default function TopNav() {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={drawerTitleId}
-                className="top-nav__drawer-panel fixed inset-y-0 right-0 z-50 flex flex-col overflow-hidden border-l shadow-2xl"
+                className="top-nav__drawer-panel fixed inset-y-0 right-0 z-[60] flex flex-col overflow-hidden border-l shadow-2xl"
                 initial={{ x: '100%' }}
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
@@ -512,71 +325,129 @@ export default function TopNav() {
                 }}
               >
                 <div
-                  className="flex items-center justify-between gap-3 border-b px-5 py-4"
+                  className="border-b px-5 py-4"
                   style={{ borderColor: 'var(--color-border)' }}
                 >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border"
-                      style={{
-                        backgroundColor: 'var(--color-bg)',
-                        borderColor: 'var(--color-border)',
-                      }}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="top-nav__drawer-logo-mark flex h-10 shrink-0 items-center justify-center">
+                        <img
+                          src="/logo.png"
+                          alt=""
+                          className="h-7 max-w-[7.5rem] object-contain transition-all duration-200 dark:brightness-0 dark:invert"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p id={drawerTitleId} className="truncate text-sm font-bold" style={{ color: 'var(--color-text)' }}>
+                          Menu do painel
+                        </p>
+                        <p className="mt-0.5 truncate text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                          {usuario?.nome ?? 'Dashboards ETL'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      ref={closeButtonRef}
+                      type="button"
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
+                      style={{ color: 'var(--color-text-muted)' }}
+                      aria-label="Fechar menu de navegação"
                     >
-                      <img
-                        src="/logo.png"
-                        alt=""
-                        className="h-5 w-auto object-contain transition-all duration-200 dark:brightness-0 dark:invert"
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <p id={drawerTitleId} className="truncate text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                        Navegação
-                      </p>
-                      <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                        Links disponíveis para o seu acesso
-                      </p>
-                    </div>
+                      <X size={18} />
+                    </button>
                   </div>
 
-                  <button
-                    ref={closeButtonRef}
-                    type="button"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
-                    style={{ color: 'var(--color-text-muted)' }}
-                    aria-label="Fechar menu de navegação"
+                  <div
+                    className="mt-4 rounded-xl border px-3 py-2.5"
+                    style={{
+                      backgroundColor: 'color-mix(in srgb, var(--color-text) 4%, var(--color-card))',
+                      borderColor: 'var(--color-border)',
+                    }}
                   >
-                    <X size={18} />
-                  </button>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
+                          {usuario?.setor.nome ?? 'Perfil ativo'}
+                        </p>
+                        <p className="truncate text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                          {usuario?.email ?? 'Sessão ativa'}
+                        </p>
+                      </div>
+                      {adminBadge && (
+                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                          {adminBadge}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex flex-1 flex-col overflow-hidden px-5 pb-5 pt-5">
-                  <nav className="top-nav__drawer-nav flex-1" aria-label="Navegação principal do painel">
+                <div className="relative flex flex-1 overflow-hidden">
+                  <nav
+                    ref={drawerNavRef}
+                    className="top-nav__drawer-nav flex-1 px-5 py-5"
+                    aria-label="Navegação principal do painel"
+                    onScroll={updateDrawerScrollState}
+                  >
                     <div className="space-y-6 pr-1">
-                      {mobileSections.map((section) => (
-                        <MobileNavSection
+                      {navSections.map((section) => (
+                        <DrawerNavSection
                           key={section.title}
                           title={section.title}
                           items={section.items}
-                          onNavigate={() => setIsMobileMenuOpen(false)}
+                          onNavigate={() => setIsMenuOpen(false)}
                         />
                       ))}
+
+                      <section aria-labelledby={`${panelId}-account-heading`}>
+                        <h2
+                          id={`${panelId}-account-heading`}
+                          className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.16em]"
+                          style={{ color: 'var(--color-text-muted)' }}
+                        >
+                          Conta
+                        </h2>
+                        <button
+                          type="button"
+                          onClick={() => void handleLogout()}
+                          className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold text-red-500 transition-all duration-150 hover:-translate-y-px hover:bg-red-500 hover:text-white ${focusRingClass}`}
+                          style={{
+                            borderColor: 'color-mix(in srgb, #ef4444 26%, var(--color-border))',
+                          }}
+                        >
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">
+                            <LogOut size={16} />
+                          </span>
+                          Sair
+                        </button>
+                      </section>
                     </div>
                   </nav>
 
-                  <div
-                    className="top-nav__drawer-footer mt-5 border-t pt-4"
-                    style={{ borderColor: 'var(--color-border)' }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => void handleLogout()}
-                      className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold text-red-500 transition-all duration-150 hover:bg-red-500 hover:text-white ${focusRingClass}`}
-                    >
-                      Sair
-                    </button>
-                  </div>
+                  <AnimatePresence>
+                    {drawerScrollState.canScrollUp && (
+                      <motion.div
+                        className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pb-8 pt-3 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--top"
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                      >
+                        <ChevronUp size={18} />
+                      </motion.div>
+                    )}
+                    {drawerScrollState.canScrollDown && (
+                      <motion.div
+                        className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-3 pt-8 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--bottom"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                      >
+                        <ChevronDown size={18} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.aside>
             </>
@@ -589,165 +460,77 @@ export default function TopNav() {
   return (
     <>
       <header
-        className="top-nav sticky top-0 z-50 flex h-14 items-center justify-between gap-4 border-b px-5 shadow-sm"
+        className="top-nav sticky top-0 z-50 border-b px-4 py-3 shadow-sm sm:px-5"
         style={{
-          backgroundColor: 'var(--color-card)',
+          backgroundColor: 'color-mix(in srgb, var(--color-card) 96%, var(--color-bg))',
           borderColor: 'var(--color-border)',
         }}
       >
-        <div
-          className="top-nav__logo-wrap flex shrink-0 items-center border-r pr-4"
-          style={{ borderColor: 'var(--color-border)' }}
-        >
-          <img
-            src="/logo.png"
-            alt="Logo da empresa"
-            className="top-nav__logo h-7 w-auto object-contain transition-all duration-200 dark:brightness-0 dark:invert"
-          />
-        </div>
-
-        <div ref={desktopNavShellRef} className="top-nav__desktop-nav relative flex min-w-0 flex-1 items-center gap-2">
-          <nav
-            className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden"
-            aria-label="Navegação principal"
-          >
-            {desktopNavVisibleEntries.map((entry) => renderDesktopNavEntry(entry))}
-          </nav>
-
-          {desktopNavHasOverflow && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
-                  style={{
-                    color: 'var(--color-text-muted)',
-                    minWidth: desktopNavToggleWidth > 0 ? `${desktopNavToggleWidth}px` : undefined,
-                  }}
-                >
-                  Mostrar mais
-                  <ChevronDown size={12} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {desktopNavOverflowDashboards.map((entry) => (
-                  <DropdownMenuItem key={entry.key} asChild>
-                    <NavLink
-                      to={entry.item.path}
-                      className={({ isActive }) =>
-                        `flex w-full flex-col ${isActive ? 'font-semibold' : ''}`
-                      }
-                      style={({ isActive }) => ({
-                        color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
-                      })}
-                    >
-                      <span className="font-medium">{entry.item.label}</span>
-                    </NavLink>
-                  </DropdownMenuItem>
-                ))}
-
-                {desktopNavHasHiddenAdmin && desktopNavOverflowDashboards.length > 0 && (
-                  <DropdownMenuSeparator
-                    className="mx-2 my-1 h-px"
-                    style={{ backgroundColor: 'var(--color-border)' }}
-                  />
-                )}
-
-                {desktopNavHasHiddenAdmin && ADMIN_NAV_ITEMS.map((item) => (
-                  <DropdownMenuItem key={item.path} asChild>
-                    <NavLink
-                      to={item.path}
-                      className={({ isActive }) =>
-                        `flex w-full flex-col ${isActive ? 'font-semibold' : ''}`
-                      }
-                      style={({ isActive }) => ({
-                        color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
-                      })}
-                    >
-                      <span className="font-medium">{item.label}</span>
-                      {item.description && (
-                        <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                          {item.description}
-                        </span>
-                      )}
-                    </NavLink>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          <div
-            ref={desktopNavMeasureRef}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-0 -z-10 flex items-center gap-1 opacity-0"
-          >
-            {desktopNavEntries.map((entry) => renderDesktopNavEntry(entry, true))}
-          </div>
-
-          <button
-            ref={desktopNavToggleMeasureRef}
-            type="button"
-            aria-hidden="true"
-            tabIndex={-1}
-            className="pointer-events-none absolute left-0 top-0 -z-10 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium opacity-0"
-          >
-            Mostrar mais
-            <ChevronDown size={12} />
-          </button>
-        </div>
-
-        <div className="top-nav__right flex shrink-0 items-center gap-3">
-          <div className="top-nav__desktop-info flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                {usuario?.setor.nome}
-              </span>
-              {adminBadge && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                  {adminBadge}
-                </span>
-              )}
+        <div className="flex w-full items-center justify-between gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
+            <div
+              className="top-nav__logo-wrap flex shrink-0 items-center border-r pr-4"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
+              <img
+                src="/logo.png"
+                alt="Logo da empresa"
+                className="top-nav__logo h-8 w-auto object-contain transition-all duration-200 dark:brightness-0 dark:invert"
+              />
             </div>
 
-            <div className="top-nav__divider h-5 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
+            <div className="top-nav__page-copy min-w-0">
+              <h1 className="truncate text-lg font-bold leading-tight sm:text-xl" style={{ color: 'var(--color-text)' }}>
+                {pageHeader.title}
+              </h1>
+              {pageHeader.description && (
+                <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed sm:text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  {pageHeader.description}
+                </p>
+              )}
+              {updatedAtLabel && (
+                <p className="mt-1 text-[11px] sm:hidden" style={{ color: 'var(--color-text-subtle)' }}>
+                  {updatedAtLabel}
+                </p>
+              )}
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={toggleTheme}
-            title={themeToggleLabel}
-            aria-label={themeToggleLabel}
-            className={`top-nav__theme-button flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
-            style={{ color: 'var(--color-text-muted)' }}
-          >
-            {isDarkTheme ? <SunIcon /> : <MoonIcon />}
-          </button>
+          <div className="top-nav__right flex shrink-0 items-center gap-2">
+            {updatedAtLabel && (
+              <span className="top-nav__updated hidden max-w-[12rem] text-right text-xs leading-relaxed md:block" style={{ color: 'var(--color-text-subtle)' }}>
+                {updatedAtLabel}
+              </span>
+            )}
 
-          <button
-            type="button"
-            onClick={() => void handleLogout()}
-            className={`top-nav__desktop-logout rounded-lg px-3 py-1.5 text-sm font-medium text-red-500 transition-all duration-150 hover:bg-red-500 hover:text-white ${focusRingClass}`}
-          >
-            Sair
-          </button>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={themeToggleLabel}
+              aria-label={themeToggleLabel}
+              className={`top-nav__theme-button flex h-9 w-9 items-center justify-center rounded-xl transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              {isDarkTheme ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
 
-          <button
-            ref={hamburgerButtonRef}
-            type="button"
-            onClick={() => setIsMobileMenuOpen((current) => !current)}
-            aria-label={hamburgerLabel}
-            aria-expanded={isMobileMenuOpen}
-            aria-controls={panelId}
-            className={`top-nav__mobile-menu-button flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
-            style={{ color: 'var(--color-text-muted)' }}
-          >
-            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
+            <button
+              ref={hamburgerButtonRef}
+              type="button"
+              onClick={() => setIsMenuOpen((current) => !current)}
+              aria-label={hamburgerLabel}
+              aria-expanded={isMenuOpen}
+              aria-controls={panelId}
+              className={`top-nav__menu-button flex h-9 w-9 items-center justify-center rounded-xl transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              {isMenuOpen ? <X size={19} /> : <Menu size={19} />}
+            </button>
+          </div>
         </div>
       </header>
 
-      {mobileDrawer}
+      {drawer}
     </>
   );
 }

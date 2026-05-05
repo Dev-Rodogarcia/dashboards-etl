@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
+import { Eye, MoreHorizontal, Pencil, Trash2, Upload, UserX } from 'lucide-react';
 import PermissionOverrideMatrix from '../components/admin/PermissionOverrideMatrix';
 import UsuariosImportacaoModal from '../components/admin/UsuariosImportacaoModal';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import {
   useAtualizarUsuario,
   useCatalogoPermissoes,
@@ -33,12 +35,22 @@ import {
 } from '../utils/accessControl';
 import { getApiErrorMessage } from '../utils/apiError';
 import { getPasswordPolicyErrors, PASSWORD_POLICY_HINT } from '../utils/passwordPolicy';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 
 interface UsuarioRow extends UsuarioAdmin {
   acoes: string;
+  detalhes: string;
   papelResumo: string;
   permissoesResumo: string;
   negacoesResumo: string;
+  concessoesResumo: string;
   filiaisResumo: string;
   senhaResumo: string;
 }
@@ -93,6 +105,8 @@ const EDIT_DANGER_STYLE = {
   borderColor: 'color-mix(in srgb, #ef4444 30%, var(--color-border))',
   color: 'color-mix(in srgb, #ef4444 78%, var(--color-text))',
 };
+
+const FOCUS_RING_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-primary)_34%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
 
 const ACTIVE_BADGE_STYLE = {
   backgroundColor: 'color-mix(in srgb, #10b981 14%, var(--color-card))',
@@ -149,11 +163,11 @@ function renderPasswordStatusBadge(status: UsuarioAdmin['statusSenha'], algoritm
 
 function SummaryCard({ label, value, accent }: { label: string; value: number; accent: string }) {
   return (
-    <div className="rounded-2xl border px-4 py-3" style={SURFACE_STYLE}>
+    <div className="rounded-xl border px-3 py-2.5" style={SURFACE_STYLE}>
       <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
         {label}
       </div>
-      <div className="mt-1 text-2xl font-bold" style={{ color: accent }}>
+      <div className="mt-1 text-xl font-bold" style={{ color: accent }}>
         {value}
       </div>
     </div>
@@ -222,41 +236,10 @@ function useIsMobileUsersTable() {
   return isMobile;
 }
 
-function ExpandableMobileText({
-  value,
-  fallback,
-  maxLength = 72,
-}: {
-  value: string;
-  fallback: string;
-  maxLength?: number;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const text = value.trim() || fallback;
-  const canExpand = text.length > maxLength;
-  const content = canExpand && !expanded ? `${text.slice(0, maxLength).trimEnd()}...` : text;
-
-  return (
-    <div className="space-y-1">
-      <span style={{ color: 'var(--color-text)' }}>{content}</span>
-      {canExpand && (
-        <button
-          type="button"
-          onClick={() => setExpanded((current) => !current)}
-          className="inline-flex rounded-md text-[11px] font-semibold transition-opacity hover:opacity-75"
-          style={{ color: 'var(--color-primary)' }}
-        >
-          {expanded ? 'Ver menos' : 'Ver mais'}
-        </button>
-      )}
-    </div>
-  );
-}
-
 function renderStatusBadge(ativo: boolean) {
   return (
     <span
-      className="inline-flex w-fit rounded-full px-2 py-1 text-xs font-medium"
+      className="inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium"
       style={ativo ? ACTIVE_BADGE_STYLE : INACTIVE_BADGE_STYLE}
     >
       {ativo ? 'Ativo' : 'Inativo'}
@@ -279,7 +262,7 @@ function renderMobileUsuarioCell(row: UsuarioRow) {
 
 function renderMobileAccessCell(row: UsuarioRow) {
   return (
-    <div className="min-w-[16rem] space-y-2 whitespace-normal text-xs leading-relaxed">
+    <div className="min-w-[14rem] space-y-2 whitespace-normal text-xs leading-relaxed">
       <div className="flex flex-wrap items-center gap-2">
         {renderStatusBadge(row.ativo)}
         <span className="font-medium" style={{ color: 'var(--color-text)' }}>
@@ -287,39 +270,136 @@ function renderMobileAccessCell(row: UsuarioRow) {
         </span>
       </div>
 
-      <div className="space-y-2 break-words">
-        <div>
-          <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
-            Papel
-          </span>
-          <span style={{ color: 'var(--color-text)' }}>{row.papelResumo || 'Sem papel'}</span>
-        </div>
-        <div>
-          <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
-            Filiais
-          </span>
-          <ExpandableMobileText value={row.filiaisResumo} fallback="Acesso total" maxLength={52} />
-        </div>
-        <div>
-          <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
-            Permissões
-          </span>
-          <ExpandableMobileText value={row.permissoesResumo} fallback="Sem permissões" maxLength={56} />
-        </div>
-        <div>
-          <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
-            Negações
-          </span>
-          <span style={{ color: 'var(--color-text)' }}>{row.negacoesResumo || 'Nenhuma'}</span>
-        </div>
-        <div>
-          <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
-            Senha
-          </span>
-          {renderPasswordStatusBadge(row.statusSenha, row.algoritmoSenha)}
-        </div>
+      <div className="space-y-1 break-words">
+        <p style={{ color: 'var(--color-text)' }}>{row.papelResumo || 'Sem papel'}</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>{row.senhaResumo}</p>
       </div>
     </div>
+  );
+}
+
+function formatEscopoFiliaisTipo(value: UsuarioAdmin['escopoFiliaisTipo']) {
+  switch (value) {
+    case 'HERDAR_SETOR':
+      return 'Herdar do setor';
+    case 'TODAS':
+      return 'Todas as filiais';
+    case 'SELECIONADAS':
+      return 'Somente selecionadas';
+    default:
+      return value;
+  }
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border px-3 py-2" style={SOFT_PANEL_STYLE}>
+      <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
+        {label}
+      </div>
+      <div className="mt-1 break-words text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+        {value || 'Nenhuma'}
+      </div>
+    </div>
+  );
+}
+
+function DetailTextBlock({ label, value, fallback }: { label: string; value: string; fallback: string }) {
+  return (
+    <div className="space-y-1">
+      <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
+        {label}
+      </div>
+      <div
+        className="max-h-24 overflow-y-auto rounded-xl border px-3 py-2 text-xs leading-relaxed"
+        style={{
+          backgroundColor: 'var(--color-bg)',
+          borderColor: 'var(--color-border)',
+          color: 'var(--color-text)',
+        }}
+      >
+        {value || fallback}
+      </div>
+    </div>
+  );
+}
+
+function renderUsuarioIdentityCell(row: UsuarioRow) {
+  return (
+    <div className="min-w-[14rem] whitespace-normal">
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--color-text)' }}>
+          {row.nome}
+        </p>
+        {renderStatusBadge(row.ativo)}
+      </div>
+      <p className="mt-1 break-all text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+        {row.email}
+      </p>
+    </div>
+  );
+}
+
+function renderPapelCell(row: UsuarioRow) {
+  return (
+    <div className="max-w-[15rem] whitespace-normal text-sm leading-relaxed" style={{ color: 'var(--color-text)' }}>
+      {row.papelResumo || 'Sem papel'}
+    </div>
+  );
+}
+
+function renderUsuarioDetailsPopover(row: UsuarioRow) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 hover:-translate-y-px hover:bg-[var(--color-bg)] ${FOCUS_RING_CLASS}`}
+          style={SECONDARY_BUTTON_STYLE}
+          aria-label={`Ver detalhes de ${row.nome}`}
+        >
+          <Eye size={14} />
+          Ver mais
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        className="max-h-[min(34rem,calc(100vh-5rem))] overflow-y-auto p-4"
+        style={{ width: 'min(30rem, calc(100vw - 24px))' }}
+      >
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-bold" style={{ color: 'var(--color-text)' }}>
+                {row.nome}
+              </h3>
+              <p className="break-all text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                {row.email}
+              </p>
+            </div>
+            {renderStatusBadge(row.ativo)}
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <DetailItem label="Setor" value={row.setorNome} />
+            <DetailItem label="Papel" value={row.papelResumo || 'Sem papel'} />
+            <DetailItem label="Escopo" value={formatEscopoFiliaisTipo(row.escopoFiliaisTipo)} />
+            <DetailItem label="Senha" value={row.senhaResumo} />
+          </div>
+
+          <DetailTextBlock label="Filiais efetivas" value={row.filiaisResumo} fallback="Acesso total" />
+          <DetailTextBlock
+            label="Filiais próprias"
+            value={formatFiliaisResumo(row.filiaisPermitidasUsuario, row.escopoFiliaisTipo === 'TODAS')}
+            fallback="Nenhuma"
+          />
+          <DetailTextBlock label="Permissões efetivas" value={row.permissoesResumo} fallback="Sem permissões" />
+          <DetailTextBlock label="Concessões individuais" value={row.concessoesResumo} fallback="Nenhuma" />
+          <DetailTextBlock label="Negações individuais" value={row.negacoesResumo} fallback="Nenhuma" />
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -374,6 +454,11 @@ export default function AdminUsuariosPage() {
   const todasFiliaisUsuarioSelecionadas = filiaisDisponiveis.length > 0
     && filiaisDisponiveis.every((filial) => form.filiaisPermitidasUsuario.includes(filial));
 
+  usePageHeader({
+    title: 'Gestão de usuários',
+    description: 'Herança por setor, escopo de filiais e exceções individuais de acesso.',
+  });
+
   const permissoesEfetivasPreview = useMemo<PermissionMap>(() => {
     if (form.papel === PAPEL_ADMIN_PLATAFORMA) {
       const completo = buildPermissionMapFromCatalog(catalogo.data ?? []);
@@ -412,9 +497,13 @@ export default function AdminUsuariosPage() {
     () =>
       (usuarios.data ?? []).map((usuario) => ({
         ...usuario,
+        detalhes: usuario.id,
         papelResumo: papeis.data?.find((papel) => papel.nome === usuario.papel)?.descricao ?? formatRoleName(usuario.papel),
         permissoesResumo: permissionSummary(usuario.permissoesEfetivas, catalogo.data ?? []),
         negacoesResumo: usuario.permissoesNegadas
+          .map((chave) => catalogo.data?.find((item) => item.chave === chave)?.nome ?? chave)
+          .join(', '),
+        concessoesResumo: usuario.permissoesConcedidas
           .map((chave) => catalogo.data?.find((item) => item.chave === chave)?.nome ?? chave)
           .join(', '),
         filiaisResumo: formatFiliaisResumo(usuario.filiaisPermitidasEfetivas, usuario.filiaisPermitidasEfetivas.length === 0),
@@ -552,63 +641,77 @@ export default function AdminUsuariosPage() {
     || setores.isLoading
     || (form.escopoFiliaisTipo === 'SELECIONADAS' && filiais.isLoading);
 
-  function renderActionButtons(row: UsuarioRow, compacto = false) {
+  function renderActionMenu(row: UsuarioRow) {
     const usuarioSupremo = row.papel === PAPEL_DESENVOLVEDOR;
     const bloqueado = usuarioSupremo || (!podeOperarPapelElevado && row.papel !== 'usuario_comum');
     const podeExcluirDefinitivamente = canHardDeleteUsers && !usuarioSupremo;
 
     return (
-      <div className={compacto ? 'flex min-w-[8.5rem] flex-col gap-2' : 'flex flex-wrap gap-2'}>
-        <button
-          type="button"
-          onClick={() => startEdit(row)}
-          disabled={bloqueado}
-          className={`rounded-lg border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40 ${compacto ? 'w-full text-center' : ''}`}
-          style={SECONDARY_BUTTON_STYLE}
-        >
-          Editar
-        </button>
-        <button
-          type="button"
-          onClick={() => handleInativar(row)}
-          disabled={bloqueado}
-          className={`rounded-lg border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40 ${compacto ? 'w-full text-center' : ''}`}
-          style={EDIT_DANGER_STYLE}
-        >
-          Inativar
-        </button>
-        {podeExcluirDefinitivamente && (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <button
             type="button"
-            onClick={() => abrirModalExclusao(row)}
-            disabled={excluirUsuarioDefinitivamente.isPending}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${compacto ? 'w-full text-center' : ''}`}
-            style={{
-              backgroundColor: 'color-mix(in srgb, #dc2626 12%, var(--color-card))',
-              borderColor: 'color-mix(in srgb, #dc2626 42%, var(--color-border))',
-              color: 'color-mix(in srgb, #dc2626 86%, var(--color-text))',
-            }}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-all duration-150 hover:-translate-y-px hover:bg-[var(--color-bg)] ${FOCUS_RING_CLASS}`}
+            style={SECONDARY_BUTTON_STYLE}
+            aria-label={`Abrir ações de ${row.nome}`}
           >
-            Excluir
+            <MoreHorizontal size={17} />
           </button>
-        )}
-      </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[12rem]">
+          <DropdownMenuItem
+            disabled={bloqueado}
+            onSelect={() => startEdit(row)}
+            className="gap-2"
+          >
+            <Pencil size={14} />
+            Editar
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={bloqueado}
+            onSelect={() => void handleInativar(row)}
+            className="gap-2"
+            style={EDIT_DANGER_STYLE}
+          >
+            <UserX size={14} />
+            Inativar
+          </DropdownMenuItem>
+          {podeExcluirDefinitivamente && (
+            <>
+              <DropdownMenuSeparator
+                className="mx-2 my-1 h-px"
+                style={{ backgroundColor: 'var(--color-border)' }}
+              />
+              <DropdownMenuItem
+                disabled={excluirUsuarioDefinitivamente.isPending}
+                onSelect={() => abrirModalExclusao(row)}
+                className="gap-2 font-semibold"
+                style={{ color: 'color-mix(in srgb, #dc2626 86%, var(--color-text))' }}
+              >
+                <Trash2 size={14} />
+                Excluir definitivamente
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     );
   }
 
   const colunasUsuariosDesktop: ColunaTabela<UsuarioRow>[] = [
-    { chave: 'nome', label: 'Nome', fixo: true },
-    { chave: 'email', label: 'E-mail' },
-    { chave: 'setorNome', label: 'Setor' },
+    {
+      chave: 'nome',
+      label: 'Usuário',
+      fixo: true,
+      largura: '260px',
+      formato: (_, row) => renderUsuarioIdentityCell(row),
+    },
+    { chave: 'setorNome', label: 'Setor', largura: '180px' },
     {
       chave: 'papelResumo',
       label: 'Papel',
-      formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Sem papel')}</span>,
-    },
-    {
-      chave: 'ativo',
-      label: 'Ativo',
-      formato: (valor) => renderStatusBadge(Boolean(valor)),
+      largura: '240px',
+      formato: (_, row) => renderPapelCell(row),
     },
     {
       chave: 'senhaResumo',
@@ -618,25 +721,18 @@ export default function AdminUsuariosPage() {
       formato: (_, row) => renderPasswordStatusBadge(row.statusSenha, row.algoritmoSenha),
     },
     {
-      chave: 'filiaisResumo',
-      label: 'Filiais',
-      formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Acesso total')}</span>,
-    },
-    {
-      chave: 'permissoesResumo',
-      label: 'Permissões efetivas',
-      formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Sem permissões')}</span>,
-    },
-    {
-      chave: 'negacoesResumo',
-      label: 'Negações',
-      formato: (valor) => <span className="max-w-xs whitespace-normal">{String(valor || 'Nenhuma')}</span>,
+      chave: 'detalhes',
+      label: 'Detalhes',
+      largura: '120px',
+      ordenavel: false,
+      formato: (_, row) => renderUsuarioDetailsPopover(row),
     },
     {
       chave: 'acoes',
       label: 'Ações',
+      largura: '80px',
       ordenavel: false,
-      formato: (_, row) => renderActionButtons(row),
+      formato: (_, row) => renderActionMenu(row),
     },
   ];
 
@@ -657,42 +753,31 @@ export default function AdminUsuariosPage() {
     {
       chave: 'acoes',
       label: 'Ações',
-      largura: '160px',
+      largura: '180px',
       ordenavel: false,
-      formato: (_, row) => renderActionButtons(row, true),
+      formato: (_, row) => (
+        <div className="flex items-center gap-2">
+          {renderUsuarioDetailsPopover(row)}
+          {renderActionMenu(row)}
+        </div>
+      ),
     },
   ];
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-3xl border p-6 shadow-sm" style={SURFACE_STYLE}>
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Gestão de usuários</h1>
-            <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
-              O usuário herda o acesso do setor, pode ter escopo próprio de filiais e também suporta importação guiada via Excel.
-            </p>
+    <div className="space-y-5">
+      <section className="rounded-[20px] border p-4 shadow-sm sm:p-5" style={SURFACE_STYLE}>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard label="Usuários monitorados" value={resumoStatusSenha.total} accent="var(--color-text)" />
+            <SummaryCard label="Hash seguro" value={resumoStatusSenha.segura} accent="#10b981" />
+            <SummaryCard label="Migra no login" value={resumoStatusSenha.migrar_no_login} accent="#f59e0b" />
+            <SummaryCard label="Reset obrigatório" value={resumoStatusSenha.reset_obrigatorio} accent="#ef4444" />
           </div>
-
-          <button
-            type="button"
-            onClick={() => setIsImportModalOpen(true)}
-            className="rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
-            style={{ backgroundColor: 'var(--color-primary)' }}
-          >
-            Importar usuários (Excel)
-          </button>
         </div>
 
-        <div className="mb-6 grid gap-4 md:grid-cols-4">
-          <SummaryCard label="Usuários monitorados" value={resumoStatusSenha.total} accent="var(--color-text)" />
-          <SummaryCard label="Hash seguro" value={resumoStatusSenha.segura} accent="#10b981" />
-          <SummaryCard label="Migra no login" value={resumoStatusSenha.migrar_no_login} accent="#f59e0b" />
-          <SummaryCard label="Reset obrigatório" value={resumoStatusSenha.reset_obrigatorio} accent="#ef4444" />
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid w-full gap-4 xl:grid-cols-4">
             <label className="space-y-1">
               <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>Nome</span>
               <input
@@ -729,11 +814,26 @@ export default function AdminUsuariosPage() {
                 minLength={12}
                 required={!editing}
               />
-              <span className="text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
+              <span className="block text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
                 {PASSWORD_POLICY_HINT}
               </span>
             </label>
 
+            <div className="flex w-full flex-col space-y-1">
+              <span className="block text-sm font-medium opacity-0" aria-hidden="true">Importar usuários</span>
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(true)}
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:opacity-90 ${FOCUS_RING_CLASS}`}
+                style={{ backgroundColor: 'var(--color-primary)' }}
+              >
+                <Upload size={16} />
+                Importar usuários (Excel)
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-3">
             <label className="space-y-1">
               <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>
                 Confirmar senha {editing ? '(opcional)' : '(obrigatória)'}

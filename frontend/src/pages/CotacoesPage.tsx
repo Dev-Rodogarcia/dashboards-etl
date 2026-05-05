@@ -6,12 +6,12 @@ import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
-import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
 import { exportarCotacoesExcel } from '../api/endpoints/cotacoesServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useClientes, useFiliais } from '../hooks/queries/useDimensoes';
 import { useCotacoesGraficos, useCotacoesOverview, useCotacoesSerie, useCotacoesTabelaPaginada } from '../hooks/queries/useCotacoes';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
@@ -64,6 +64,12 @@ export default function CotacoesPage() {
   const graficos = useCotacoesGraficos(filtro);
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
   const tabela = useCotacoesTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+
+  usePageHeader({
+    title: 'Cotações',
+    description: 'Funil comercial, corredores mais valiosos e motivos de perda.',
+    updatedAt: overview.data?.updatedAt ?? null,
+  });
 
   const funil = graficos.data?.funil ?? [];
   const corredores = graficos.data?.corredoresMaisValiosos ?? [];
@@ -187,14 +193,6 @@ export default function CotacoesPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Cotações</h1>
-          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Funil comercial, corredores mais valiosos e motivos de perda.</p>
-        </div>
-        <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
-      </div>
-
       <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
         <AsyncMultiSelect label="Filiais" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />

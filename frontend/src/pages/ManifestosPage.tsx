@@ -7,12 +7,12 @@ import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
-import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
 import { exportarManifestosExcel } from '../api/endpoints/manifestosServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useFiliais, useMotoristas, useVeiculos } from '../hooks/queries/useDimensoes';
 import { useManifestosGraficos, useManifestosOverview, useManifestosSerie, useManifestosTabelaPaginada } from '../hooks/queries/useManifestos';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
@@ -46,6 +46,12 @@ export default function ManifestosPage() {
   const graficos = useManifestosGraficos(filtro);
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
   const tabela = useManifestosTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+
+  usePageHeader({
+    title: 'Manifestos',
+    description: 'Custos, ocupacao de carga e performance por motorista.',
+    updatedAt: overview.data?.updatedAt ?? null,
+  });
 
   const custoPorFilial = graficos.data?.custoPorFilial ?? [];
   const rankingMotorista = graficos.data?.rankingMotorista ?? [];
@@ -114,14 +120,6 @@ export default function ManifestosPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Manifestos</h1>
-          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Custos, ocupacao de carga e performance por motorista.</p>
-        </div>
-        <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
-      </div>
-
       <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker
           dataInicio={dataInicio}

@@ -6,12 +6,12 @@ import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
-import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
 import { exportarContasAPagarExcel } from '../api/endpoints/contasAPagarServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useFiliais, usePlanoContas } from '../hooks/queries/useDimensoes';
 import { useContasAPagarGraficos, useContasAPagarOverview, useContasAPagarSerie, useContasAPagarTabelaPaginada } from '../hooks/queries/useContasAPagar';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
@@ -44,6 +44,12 @@ export default function ContasAPagarPage() {
   const graficos = useContasAPagarGraficos(filtro);
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
   const tabela = useContasAPagarTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+
+  usePageHeader({
+    title: 'Contas a Pagar',
+    description: 'Fluxo mensal, fornecedores relevantes e conciliação financeira.',
+    updatedAt: overview.data?.updatedAt ?? null,
+  });
 
   const rankingFornecedor = graficos.data?.topFornecedores ?? [];
   const centroCusto = graficos.data?.centroCusto ?? [];
@@ -104,14 +110,6 @@ export default function ContasAPagarPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Contas a Pagar</h1>
-          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Fluxo mensal, fornecedores relevantes e conciliação financeira.</p>
-        </div>
-        <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
-      </div>
-
       <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
         <AsyncMultiSelect label="Filiais" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />

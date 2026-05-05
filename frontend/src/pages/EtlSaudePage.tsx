@@ -5,12 +5,12 @@ import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar from '../components/shared/FilterBar';
-import LastUpdated from '../components/shared/LastUpdated';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
 import { exportarEtlSaudeExcel } from '../api/endpoints/etlSaudeServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useEtlSaudeGraficos, useEtlSaudeOverview, useEtlSaudeSerie, useEtlSaudeTabelaPaginada } from '../hooks/queries/useEtlSaude';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { EtlExecucaoRow } from '../types/etlSaude';
@@ -24,6 +24,12 @@ export default function EtlSaudePage() {
   const graficos = useEtlSaudeGraficos(filtro);
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
   const tabela = useEtlSaudeTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+
+  usePageHeader({
+    title: 'Saúde do ETL',
+    description: 'Execuções, volume processado e distribuição de erros.',
+    updatedAt: overview.data?.updatedAt ?? null,
+  });
 
   const categorias = graficos.data?.categoriasErro ?? [];
 
@@ -57,14 +63,6 @@ export default function EtlSaudePage() {
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Saúde do ETL</h1>
-          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>Execuções, volume processado e distribuição de erros.</p>
-        </div>
-        <LastUpdated dataExtracao={overview.data?.updatedAt ?? null} />
-      </div>
-
       <FilterBar onClear={limparFiltros} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
       </FilterBar>
