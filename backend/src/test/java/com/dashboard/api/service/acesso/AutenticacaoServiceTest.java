@@ -109,6 +109,21 @@ class AutenticacaoServiceTest {
         assertThat(auditLog.getDetalhesJson()).contains("hash_legado_reset_obrigatorio");
     }
 
+    @Test
+    void gerarSessaoParaUsuarioPorEmailDeveRecarregarUsuarioGerenciado() {
+        UsuarioEntity usuario = criarUsuarioBase();
+        when(usuarioRepository.findByEmailIgnoreCase("maria@empresa.com")).thenReturn(Optional.of(usuario));
+        permissaoResolverService.permissoes = Map.of("coletas", true);
+        permissaoResolverService.papel = PermissaoResolverService.PAPEL_USUARIO_COMUM;
+
+        var resposta = service.gerarSessaoParaUsuario("maria@empresa.com", java.time.Instant.now().plusSeconds(3600));
+
+        verify(usuarioRepository).findByEmailIgnoreCase("maria@empresa.com");
+        assertThat(resposta.usuario().email()).isEqualTo("maria@empresa.com");
+        assertThat(resposta.token()).isNotBlank();
+        assertThat(resposta.sessaoExpiraEm()).isNotNull();
+    }
+
     private UsuarioEntity criarUsuarioBase() {
         SetorEntity setor = new SetorEntity();
         setor.setId(2L);

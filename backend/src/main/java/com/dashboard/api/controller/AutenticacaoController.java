@@ -143,7 +143,10 @@ public class AutenticacaoController {
                     request.getHeader("User-Agent")
             );
 
-            LoginResponseDTO resposta = autenticacaoService.gerarSessaoParaUsuario(rotacao.usuario(), rotacao.expiraEm());
+            LoginResponseDTO resposta = autenticacaoService.gerarSessaoParaUsuario(
+                    rotacao.usuario().getEmail(),
+                    rotacao.expiraEm()
+            );
             return ResponseEntity.ok()
                     .header("Set-Cookie", criarRefreshCookie(rotacao.tokenPlano(), rotacao.expiraEm()))
                     .body(resposta);

@@ -9,7 +9,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.io.UncheckedIOException;
 import java.sql.SQLException;
@@ -24,12 +27,29 @@ public class ManipuladorGlobalExcecoes {
     public ResponseEntity<RespostaErroPadrao> handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Requisição inválida: {}", ex.getMessage());
 
-        RespostaErroPadrao resposta = new RespostaErroPadrao(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                "Bad Request",
-                ex.getMessage()
-        );
+        RespostaErroPadrao resposta = criarResposta(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(resposta);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<RespostaErroPadrao> handleMissingServletRequestParameter(
+            MissingServletRequestParameterException ex
+    ) {
+        log.warn("Parâmetro obrigatório ausente: {}", ex.getParameterName());
+
+        String mensagem = "Parâmetro obrigatório ausente: " + ex.getParameterName() + ".";
+        RespostaErroPadrao resposta = criarResposta(HttpStatus.BAD_REQUEST, "Bad Request", mensagem);
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(resposta);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<RespostaErroPadrao> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        log.warn("Parâmetro inválido: {}={}", ex.getName(), ex.getValue());
+
+        String mensagem = "Parâmetro inválido: " + ex.getName() + ".";
+        RespostaErroPadrao resposta = criarResposta(HttpStatus.BAD_REQUEST, "Bad Request", mensagem);
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(resposta);
     }
@@ -38,12 +58,7 @@ public class ManipuladorGlobalExcecoes {
     public ResponseEntity<RespostaErroPadrao> handleIllegalState(IllegalStateException ex) {
         log.warn("Conflito de regra de negócio: {}", ex.getMessage());
 
-        RespostaErroPadrao resposta = new RespostaErroPadrao(
-                LocalDateTime.now(),
-                HttpStatus.CONFLICT.value(),
-                "Conflict",
-                ex.getMessage()
-        );
+        RespostaErroPadrao resposta = criarResposta(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(resposta);
     }
@@ -66,14 +81,26 @@ public class ManipuladorGlobalExcecoes {
     public ResponseEntity<RespostaErroPadrao> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
         log.warn("Método HTTP não permitido: {}", ex.getMessage());
 
-        RespostaErroPadrao resposta = new RespostaErroPadrao(
-                LocalDateTime.now(),
-                HttpStatus.METHOD_NOT_ALLOWED.value(),
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.METHOD_NOT_ALLOWED,
                 "Method Not Allowed",
                 "Método HTTP não permitido para este endpoint."
         );
 
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(resposta);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<RespostaErroPadrao> handleNoResourceFound(NoResourceFoundException ex) {
+        log.warn("Recurso não encontrado: {}", ex.getResourcePath());
+
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.NOT_FOUND,
+                "Not Found",
+                "Recurso não encontrado."
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(resposta);
     }
 
     @ExceptionHandler({
@@ -139,13 +166,21 @@ public class ManipuladorGlobalExcecoes {
     public ResponseEntity<RespostaErroPadrao> handleGeneric(Exception ex) {
         log.error("Erro interno não tratado: {}", ex.getMessage(), ex);
 
-        RespostaErroPadrao resposta = new RespostaErroPadrao(
-                LocalDateTime.now(),
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.INTERNAL_SERVER_ERROR,
                 "Internal Server Error",
                 "Erro interno no servidor."
         );
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resposta);
+    }
+
+    private RespostaErroPadrao criarResposta(HttpStatus status, String erro, String mensagem) {
+        return new RespostaErroPadrao(
+                LocalDateTime.now(),
+                status.value(),
+                erro,
+                mensagem
+        );
     }
 }

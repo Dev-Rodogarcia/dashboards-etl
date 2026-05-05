@@ -200,6 +200,11 @@ public class AutenticacaoService {
     }
 
     @Transactional(readOnly = true)
+    public LoginResponseDTO gerarSessaoParaUsuario(String email, Instant sessaoExpiraEm) {
+        return gerarSessaoParaUsuario(carregarUsuarioAtivoPorEmail(email), sessaoExpiraEm);
+    }
+
+    @Transactional(readOnly = true)
     public LoginResponseDTO gerarSessaoParaUsuario(UsuarioEntity usuario, Instant sessaoExpiraEm) {
         return new LoginResponseDTO(
                 mapearSessao(usuario),

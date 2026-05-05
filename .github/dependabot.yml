@@ -1,12 +1,12 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
-    directory: "/dashboard-ui"
+    directory: "/frontend"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "maven"
-    directory: "/dashboard-api"
+    directory: "/backend"
     schedule:
       interval: "weekly"
 
