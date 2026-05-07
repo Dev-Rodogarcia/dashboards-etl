@@ -46,6 +46,13 @@ public class DimensoesController {
         return dimensoesService.listarClientes();
     }
 
+    @GetMapping("/faturas-por-cliente/clientes-cnpj")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('faturasPorCliente')")
+    public List<String> faturasPorClienteClientesCnpj() {
+        log.info("GET /api/dimensoes/faturas-por-cliente/clientes-cnpj");
+        return dimensoesService.listarClientesCnpjFaturasPorCliente();
+    }
+
     @GetMapping("/motoristas")
     @PreAuthorize("@acessoSeguranca.podeAcessarDimensaoMotoristas()")
     public List<String> motoristas() {

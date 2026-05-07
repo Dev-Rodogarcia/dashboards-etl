@@ -8,7 +8,7 @@ import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
-import { exportarContasAPagarExcel } from '../api/endpoints/contasAPagarServico';
+import { exportarContasAPagarCsv } from '../api/endpoints/contasAPagarServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -131,7 +131,7 @@ export default function ContasAPagarPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="contas-a-pagar" onExport={() => exportarContasAPagarExcel(filtro)} />
+        <ExportButton nomeArquivo="contas-a-pagar" onExport={() => exportarContasAPagarCsv(filtro)} />
       </div>
       <DataTable
         titulo="Lançamentos Analiticos"

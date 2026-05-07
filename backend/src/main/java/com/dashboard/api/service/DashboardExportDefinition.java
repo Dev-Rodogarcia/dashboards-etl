@@ -123,7 +123,8 @@ public enum DashboardExportDefinition {
             List.of("[Filial]"),
             Map.of(
                     "filiais", List.of("[Filial]"),
-                    "pagadores", List.of("[Pagador do frete/Nome]")
+                    "pagadores", List.of("[Pagador do frete/Nome]"),
+                    "clientesCnpj", List.of("[Cliente/CNPJ]")
             ),
             List.of("[CT-e/Data de emissão] DESC", "[ID Único] DESC"),
             new DedupConfig("[ID Único]", List.of("[Data da Última Atualização] DESC", "[CT-e/Data de emissão] DESC"))
@@ -137,7 +138,8 @@ public enum DashboardExportDefinition {
             List.of("[Filial]"),
             Map.of(
                     "filiais", List.of("[Filial]"),
-                    "pagadores", List.of("[Pagador do frete/Nome]")
+                    "pagadores", List.of("[Pagador do frete/Nome]"),
+                    "clientesCnpj", List.of("[Cliente/CNPJ]")
             ),
             List.of("[CT-e/Data de emissão] DESC", "[ID Único] DESC"),
             new DedupConfig("[ID Único]", List.of("[Data da Última Atualização] DESC", "[CT-e/Data de emissão] DESC"))

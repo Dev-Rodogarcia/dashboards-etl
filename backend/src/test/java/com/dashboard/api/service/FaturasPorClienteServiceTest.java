@@ -4,6 +4,7 @@ import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.faturascliente.FaturaPorClienteResumoDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteOverviewDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteStatusProcessoDTO;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteTopClienteDTO;
 import com.dashboard.api.model.VisaoFaturasClienteEntity;
 import com.dashboard.api.repository.VisaoFaturasClienteRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -109,19 +110,72 @@ class FaturasPorClienteServiceTest {
     }
 
     @Test
-    void buscarTabelaDeveUsarIdUnicoComoChaveDaLinha() {
-        when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of(
-                linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",
-                        LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
-                        LocalDateTime.of(2026, 3, 23, 8, 0))
+    void buscarTopClientesDeveAgruparPorCnpjQuandoDisponivel() {
+        VisaoFaturasClienteEntity primeira = linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",
+                LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
+                LocalDateTime.of(2026, 3, 23, 8, 0));
+        VisaoFaturasClienteEntity segunda = linha("uid-2", "DOC-2", "200.00", null, null, "Cliente A Matriz", "Filial 1",
+                LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
+                LocalDateTime.of(2026, 3, 23, 8, 0));
+        ReflectionTestUtils.setField(primeira, "clienteCnpj", "12.345.678/0001-90");
+        ReflectionTestUtils.setField(segunda, "clienteCnpj", "12345678000190");
+        when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of(primeira, segunda));
+
+        List<FaturasPorClienteTopClienteDTO> topClientes = service.buscarTopClientes(filtroPadrao(), 10);
+
+        assertThat(topClientes).containsExactly(new FaturasPorClienteTopClienteDTO(
+                "Cliente A",
+                "12.345.678/0001-90",
+                new BigDecimal("300.00")
         ));
+    }
+
+    @Test
+    void buscarTopClientesDeveUsarDocumentoDoPagadorQuandoClienteCnpjEstiverVazio() {
+        VisaoFaturasClienteEntity row = linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",
+                LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
+                LocalDateTime.of(2026, 3, 23, 8, 0));
+        ReflectionTestUtils.setField(row, "pagadorDocumento", "12.345.678/0001-90");
+        when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of(row));
+
+        List<FaturasPorClienteTopClienteDTO> topClientes = service.buscarTopClientes(filtroPadrao(), 10);
+
+        assertThat(topClientes).containsExactly(new FaturasPorClienteTopClienteDTO(
+                "Cliente A",
+                "12345678000190",
+                new BigDecimal("100.00")
+        ));
+    }
+
+    @Test
+    void buscarTabelaDeveUsarIdUnicoComoChaveDaLinha() {
+        VisaoFaturasClienteEntity row = linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",
+                LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
+                LocalDateTime.of(2026, 3, 23, 8, 0));
+        ReflectionTestUtils.setField(row, "clienteCnpj", "12.345.678/0001-90");
+        when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of(row));
 
         List<FaturaPorClienteResumoDTO> tabela = service.buscarTabela(filtroPadrao(), 10);
 
         assertThat(tabela).hasSize(1);
         assertThat(tabela.get(0).idUnico()).isEqualTo("uid-1");
         assertThat(tabela.get(0).documentoFatura()).isEqualTo("DOC-1");
+        assertThat(tabela.get(0).clienteCnpj()).isEqualTo("12.345.678/0001-90");
         assertThat(tabela.get(0).statusProcesso()).isEqualTo("Faturado");
+    }
+
+    @Test
+    void buscarTabelaDeveIgnorarDataInvalidaDaView() {
+        VisaoFaturasClienteEntity row = linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",
+                LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
+                LocalDateTime.of(2026, 3, 23, 8, 0));
+        ReflectionTestUtils.setField(row, "dataVencimentoFatura", "sem data");
+        when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of(row));
+
+        List<FaturaPorClienteResumoDTO> tabela = service.buscarTabela(filtroPadrao(), 10);
+
+        assertThat(tabela).hasSize(1);
+        assertThat(tabela.get(0).vencimento()).isNull();
     }
 
     @Test
@@ -165,9 +219,9 @@ class FaturasPorClienteServiceTest {
         ReflectionTestUtils.setField(entity, "valorFrete", valorFrete != null ? new BigDecimal(valorFrete) : null);
         ReflectionTestUtils.setField(entity, "pagadorNome", pagadorNome);
         ReflectionTestUtils.setField(entity, "filial", filial);
-        ReflectionTestUtils.setField(entity, "emissaoFatura", emissaoFatura);
-        ReflectionTestUtils.setField(entity, "dataVencimentoFatura", vencimento);
-        ReflectionTestUtils.setField(entity, "dataBaixaFatura", baixa);
+        ReflectionTestUtils.setField(entity, "emissaoFatura", dataTexto(emissaoFatura));
+        ReflectionTestUtils.setField(entity, "dataVencimentoFatura", dataTexto(vencimento));
+        ReflectionTestUtils.setField(entity, "dataBaixaFatura", dataTexto(baixa));
         ReflectionTestUtils.setField(entity, "dataExtracao", dataExtracao);
         ReflectionTestUtils.setField(entity, "dataEmissaoCte", OffsetDateTime.of(2026, 3, 5, 10, 0, 0, 0, ZoneOffset.UTC));
         ReflectionTestUtils.setField(entity, "numeroCte", 12345L);
@@ -182,5 +236,9 @@ class FaturasPorClienteServiceTest {
         } catch (ReflectiveOperationException ex) {
             throw new IllegalStateException("Nao foi possivel instanciar " + type.getSimpleName(), ex);
         }
+    }
+
+    private static String dataTexto(LocalDate data) {
+        return data != null ? data.toString() : null;
     }
 }

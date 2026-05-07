@@ -16,16 +16,22 @@ import com.dashboard.api.repository.VisaoFaturasClienteRepository;
 import com.dashboard.api.repository.VisaoFretesRepository;
 import com.dashboard.api.repository.VisaoManifestosRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
 public class DimensoesService {
+
+    private static final Logger log = LoggerFactory.getLogger(DimensoesService.class);
 
     private final DimFilialRepository dimFilialRepository;
     private final DimUsuarioRepository dimUsuarioRepository;
@@ -97,14 +103,41 @@ public class DimensoesService {
                 .flatMap(row -> textoStream(row.getClientePagador(), row.getCliente()))
                 .forEach(clientes::add);
 
-        faturasClienteRepository.findAll().stream()
-                .filter(row -> escopo.permiteAlgumaFilial(row.getFilial()))
-                .flatMap(row -> textoStream(row.getPagadorNome(), row.getRemetenteNome(), row.getDestinatarioNome()))
-                .forEach(clientes::add);
+        try {
+            faturasClienteRepository.findAll().stream()
+                    .filter(row -> escopo.permiteAlgumaFilial(row.getFilial()))
+                    .flatMap(row -> textoStream(row.getPagadorNome(), row.getRemetenteNome(), row.getDestinatarioNome()))
+                    .forEach(clientes::add);
+        } catch (DataAccessException ex) {
+            log.warn("Dimensão de clientes ignorou faturas_por_cliente temporariamente. Verifique a view vw_faturas_por_cliente_powerbi. Causa: {}",
+                    ex.getMostSpecificCause().getMessage());
+        }
 
         return clientes.stream()
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .toList();
+    }
+
+    public List<String> listarClientesCnpjFaturasPorCliente() {
+        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        try {
+            if (escopo.acessoTotal()) {
+                return faturasClienteRepository.findDistinctClienteCnpj();
+            }
+
+            List<String> filiais = escopo.filiaisOrdenadas().stream()
+                    .filter(this::temTexto)
+                    .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
+                    .toList();
+            if (filiais.isEmpty()) {
+                return List.of();
+            }
+            return faturasClienteRepository.findDistinctClienteCnpjByFilialIn(filiais);
+        } catch (DataAccessException ex) {
+            log.warn("Dimensão Cliente/CNPJ indisponível. Verifique se a view vw_faturas_por_cliente_powerbi expõe [Cliente/CNPJ]. Causa: {}",
+                    ex.getMostSpecificCause().getMessage());
+            return List.of();
+        }
     }
 
     public List<String> listarMotoristas() {

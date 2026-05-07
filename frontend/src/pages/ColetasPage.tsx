@@ -9,7 +9,7 @@ import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
-import { exportarColetasExcel } from '../api/endpoints/coletasServico';
+import { exportarColetasCsv } from '../api/endpoints/coletasServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -164,7 +164,7 @@ export default function ColetasPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="coletas" onExport={() => exportarColetasExcel(filtro)} />
+        <ExportButton nomeArquivo="coletas" onExport={() => exportarColetasCsv(filtro)} />
       </div>
       <DataTable
         titulo="Coletas Analiticas"

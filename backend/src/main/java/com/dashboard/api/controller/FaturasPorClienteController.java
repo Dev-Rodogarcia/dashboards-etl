@@ -7,6 +7,8 @@ import com.dashboard.api.dto.faturascliente.FaturasPorClienteMensalDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteOverviewDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteStatusProcessoDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteTopClienteDTO;
+import com.dashboard.api.service.ConsultaLimiteUtils;
+import com.dashboard.api.service.DashboardTabelaPaginadaService;
 import com.dashboard.api.service.FaturasPorClienteService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,9 +30,14 @@ public class FaturasPorClienteController {
 
     private static final Logger log = LoggerFactory.getLogger(FaturasPorClienteController.class);
     private final FaturasPorClienteService service;
+    private final DashboardTabelaPaginadaService tabelaPaginadaService;
 
-    public FaturasPorClienteController(FaturasPorClienteService service) {
+    public FaturasPorClienteController(
+            FaturasPorClienteService service,
+            DashboardTabelaPaginadaService tabelaPaginadaService
+    ) {
         this.service = service;
+        this.tabelaPaginadaService = tabelaPaginadaService;
     }
 
     @GetMapping
@@ -82,6 +89,8 @@ public class FaturasPorClienteController {
             @RequestParam LocalDate dataFim,
             @RequestParam(defaultValue = "100") int limite,
             @RequestParam MultiValueMap<String, String> params) {
-        return ResponseEntity.ok(service.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
+        FiltroConsultaDTO filtro = FiltroRequestMapper.from(dataInicio, dataFim, params);
+        int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 100, 100);
+        return ResponseEntity.ok(tabelaPaginadaService.buscarFaturasPorCliente(filtro, 1, limiteAplicado).conteudo());
     }
 }

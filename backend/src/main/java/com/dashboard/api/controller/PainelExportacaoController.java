@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.time.LocalDate;
 
@@ -48,7 +49,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/coletas/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('coletas')")
-    public ResponseEntity<byte[]> exportarColetas(
+    public ResponseEntity<StreamingResponseBody> exportarColetas(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -68,7 +69,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/fretes/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('fretes')")
-    public ResponseEntity<byte[]> exportarFretes(
+    public ResponseEntity<StreamingResponseBody> exportarFretes(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -88,7 +89,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/tracking/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('tracking')")
-    public ResponseEntity<byte[]> exportarTracking(
+    public ResponseEntity<StreamingResponseBody> exportarTracking(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -108,7 +109,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/manifestos/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('manifestos')")
-    public ResponseEntity<byte[]> exportarManifestos(
+    public ResponseEntity<StreamingResponseBody> exportarManifestos(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -128,7 +129,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/cotacoes/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('cotacoes')")
-    public ResponseEntity<byte[]> exportarCotacoes(
+    public ResponseEntity<StreamingResponseBody> exportarCotacoes(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -148,7 +149,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/contas-a-pagar/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('contasAPagar')")
-    public ResponseEntity<byte[]> exportarContasAPagar(
+    public ResponseEntity<StreamingResponseBody> exportarContasAPagar(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -168,7 +169,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/faturas/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('faturas')")
-    public ResponseEntity<byte[]> exportarFaturasProcessos(
+    public ResponseEntity<StreamingResponseBody> exportarFaturasProcessos(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -178,7 +179,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/faturas/exportacao-financeira")
     @PreAuthorize("@acessoSeguranca.podeAcessar('faturas')")
-    public ResponseEntity<byte[]> exportarFaturasFinanceiro(
+    public ResponseEntity<StreamingResponseBody> exportarFaturasFinanceiro(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -198,7 +199,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/faturas-por-cliente/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('faturasPorCliente')")
-    public ResponseEntity<byte[]> exportarFaturasPorCliente(
+    public ResponseEntity<StreamingResponseBody> exportarFaturasPorCliente(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -218,7 +219,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/etl-saude/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('etlSaude')")
-    public ResponseEntity<byte[]> exportarEtlSaude(
+    public ResponseEntity<StreamingResponseBody> exportarEtlSaude(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -238,7 +239,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/indicadores-gestao-a-vista/performance-entrega/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('indicadoresGestaoAVista')")
-    public ResponseEntity<byte[]> exportarPerformanceEntrega(
+    public ResponseEntity<StreamingResponseBody> exportarPerformanceEntrega(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -253,7 +254,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/indicadores-gestao-a-vista/utilizacao-coletores/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('indicadoresGestaoAVista')")
-    public ResponseEntity<byte[]> exportarUtilizacaoColetores(
+    public ResponseEntity<StreamingResponseBody> exportarUtilizacaoColetores(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -268,7 +269,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/indicadores-gestao-a-vista/cubagem-mercadorias/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('indicadoresGestaoAVista')")
-    public ResponseEntity<byte[]> exportarCubagemMercadorias(
+    public ResponseEntity<StreamingResponseBody> exportarCubagemMercadorias(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -283,7 +284,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/indicadores-gestao-a-vista/indenizacao-mercadorias/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('indicadoresGestaoAVista')")
-    public ResponseEntity<byte[]> exportarIndenizacaoMercadorias(
+    public ResponseEntity<StreamingResponseBody> exportarIndenizacaoMercadorias(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -298,7 +299,7 @@ public class PainelExportacaoController {
 
     @GetMapping("/indicadores-gestao-a-vista/horarios-corte/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('indicadoresGestaoAVista')")
-    public ResponseEntity<byte[]> exportarHorariosCorte(
+    public ResponseEntity<StreamingResponseBody> exportarHorariosCorte(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
@@ -311,7 +312,7 @@ public class PainelExportacaoController {
         );
     }
 
-    private ResponseEntity<byte[]> exportar(
+    private ResponseEntity<StreamingResponseBody> exportar(
             DashboardExportDefinition definition,
             LocalDate dataInicio,
             LocalDate dataFim,

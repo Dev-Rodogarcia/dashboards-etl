@@ -11,11 +11,11 @@ import IndicadoresGestaoPanoramaSection, { type PanoramaOperacionalItem } from '
 import IndicadoresGestaoSection from '../components/indicadores-gestao/IndicadoresGestaoSection';
 import IndicadoresGestaoSummaryCard from '../components/indicadores-gestao/IndicadoresGestaoSummaryCard';
 import {
-  exportarCubagemMercadoriasExcel,
-  exportarHorariosCorteExcel,
-  exportarIndenizacaoMercadoriasExcel,
-  exportarPerformanceEntregaExcel,
-  exportarUtilizacaoColetoresExcel,
+  exportarCubagemMercadoriasCsv,
+  exportarHorariosCorteCsv,
+  exportarIndenizacaoMercadoriasCsv,
+  exportarPerformanceEntregaCsv,
+  exportarUtilizacaoColetoresCsv,
 } from '../api/endpoints/indicadoresGestaoAVistaServico';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -658,7 +658,7 @@ export default function IndicadoresGestaoAVistaPage() {
         chartEmpty={performanceRanking.length === 0}
         chartError={performanceSerie.isError ? getApiErrorMessage(performanceSerie.error, 'Erro ao carregar gráfico.') : null}
         exportName="indicadores-gestao-a-vista-performance-entrega"
-        onExport={() => exportarPerformanceEntregaExcel(filtroBase)}
+        onExport={() => exportarPerformanceEntregaCsv(filtroBase)}
         tableTitle="Entregas Analíticas por Minuta"
         tableData={performanceTabela.data?.conteudo ?? []}
         tableColumns={performanceColumns}
@@ -692,7 +692,7 @@ export default function IndicadoresGestaoAVistaPage() {
         chartEmpty={coletoresRanking.length === 0}
         chartError={coletoresSerie.isError ? getApiErrorMessage(coletoresSerie.error, 'Erro ao carregar gráfico.') : null}
         exportName="indicadores-gestao-a-vista-utilizacao-coletores"
-        onExport={() => exportarUtilizacaoColetoresExcel(filtroColetores)}
+        onExport={() => exportarUtilizacaoColetoresCsv(filtroColetores)}
         tableTitle="Coletores por Data e Filial"
         tableData={coletoresTabela.data?.conteudo ?? []}
         tableColumns={coletoresColumns}
@@ -726,7 +726,7 @@ export default function IndicadoresGestaoAVistaPage() {
         chartEmpty={cubagemRanking.length === 0}
         chartError={cubagemSerie.isError ? getApiErrorMessage(cubagemSerie.error, 'Erro ao carregar gráfico.') : null}
         exportName="indicadores-gestao-a-vista-cubagem-mercadorias"
-        onExport={() => exportarCubagemMercadoriasExcel(filtroBase)}
+        onExport={() => exportarCubagemMercadoriasCsv(filtroBase)}
         tableTitle="Cubagem Analítica por Minuta"
         tableData={cubagemTabela.data?.conteudo ?? []}
         tableColumns={cubagemColumns}
@@ -760,7 +760,7 @@ export default function IndicadoresGestaoAVistaPage() {
         chartEmpty={indenizacaoRanking.length === 0}
         chartError={indenizacaoSerie.isError ? getApiErrorMessage(indenizacaoSerie.error, 'Erro ao carregar gráfico.') : null}
         exportName="indicadores-gestao-a-vista-indenizacao-mercadorias"
-        onExport={() => exportarIndenizacaoMercadoriasExcel(filtroBase)}
+        onExport={() => exportarIndenizacaoMercadoriasCsv(filtroBase)}
         tableTitle="Sinistros Analíticos por Abertura"
         tableData={indenizacaoTabela.data?.conteudo ?? []}
         tableColumns={indenizacaoColumns}
@@ -794,7 +794,7 @@ export default function IndicadoresGestaoAVistaPage() {
         chartEmpty={horariosRanking.length === 0}
         chartError={horariosSerie.isError ? getApiErrorMessage(horariosSerie.error, 'Erro ao carregar gráfico.') : null}
         exportName="indicadores-gestao-a-vista-horarios-corte"
-        onExport={() => exportarHorariosCorteExcel(filtroBase)}
+        onExport={() => exportarHorariosCorteCsv(filtroBase)}
         tableTitle="Horários de Corte Analíticos"
         tableData={horariosTabela.data?.conteudo ?? []}
         tableColumns={horariosColumns}

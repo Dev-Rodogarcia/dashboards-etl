@@ -178,7 +178,7 @@ class FaturasServiceTest {
         ReflectionTestUtils.setField(entity, "pagadorNome", pagadorNome);
         ReflectionTestUtils.setField(entity, "filial", filial);
         ReflectionTestUtils.setField(entity, "valorFitAnt", new BigDecimal(valorFitAnt));
-        ReflectionTestUtils.setField(entity, "emissaoFatura", LocalDate.of(2026, 3, 1));
+        ReflectionTestUtils.setField(entity, "emissaoFatura", LocalDate.of(2026, 3, 1).toString());
         ReflectionTestUtils.setField(entity, "dataEmissaoCte", OffsetDateTime.of(2026, 3, 5, 10, 0, 0, 0, ZoneOffset.UTC));
         ReflectionTestUtils.setField(entity, "dataExtracao", LocalDateTime.of(2026, 3, 23, 10, 0));
         return entity;

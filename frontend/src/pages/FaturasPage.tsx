@@ -9,7 +9,7 @@ import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
-import { exportarFaturasFinanceirasExcel, exportarFaturasProcessosExcel } from '../api/endpoints/faturasServico';
+import { exportarFaturasFinanceirasCsv, exportarFaturasProcessosCsv } from '../api/endpoints/faturasServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -190,12 +190,12 @@ export default function FaturasPage() {
             <ExportButton
               nomeArquivo="faturas-processos"
               label="Exportar processos"
-              onExport={() => exportarFaturasProcessosExcel(filtro)}
+              onExport={() => exportarFaturasProcessosCsv(filtro)}
             />
             <ExportButton
               nomeArquivo="faturas-titulos-financeiros"
               label="Exportar titulos financeiros"
-              onExport={() => exportarFaturasFinanceirasExcel(filtro)}
+              onExport={() => exportarFaturasFinanceirasCsv(filtro)}
             />
           </div>
           <DataTable

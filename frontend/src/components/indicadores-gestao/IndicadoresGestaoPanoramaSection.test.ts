@@ -44,7 +44,7 @@ describe('IndicadoresGestaoPanoramaSection', () => {
     expect(html).toContain('Gap 87,0 p.p. · 137 no prazo de 1.716');
     expect(html).not.toContain('Mostrar tabela');
     expect(html).not.toContain('Ocultar tabela');
-    expect(html).not.toContain('Exportar Excel');
+    expect(html).not.toContain('Exportar CSV');
   });
 
   it('mostra mensagem neutra quando nao ha alertas ativos no panorama', () => {

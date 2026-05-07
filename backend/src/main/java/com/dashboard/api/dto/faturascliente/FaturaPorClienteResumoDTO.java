@@ -10,6 +10,7 @@ public record FaturaPorClienteResumoDTO(
         String baixa,
         String filial,
         String clientePagador,
+        String clienteCnpj,
         Long numeroCte,
         BigDecimal valorFaturado,
         String statusProcesso

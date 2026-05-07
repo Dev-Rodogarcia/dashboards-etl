@@ -22,6 +22,7 @@ export interface FaturasPorClienteAgingBucket {
 
 export interface FaturasPorClienteTopCliente {
   cliente: string;
+  clienteCnpj: string | null;
   valorFaturado: number;
 }
 
@@ -38,6 +39,7 @@ export interface FaturaPorClienteResumoRow {
   baixa: string | null;
   filial: string | null;
   clientePagador: string | null;
+  clienteCnpj: string | null;
   numeroCte: number | null;
   valorFaturado: number;
   statusProcesso: string;
@@ -48,5 +50,6 @@ export interface FaturasPorClienteFiltro {
   dataFim: string;
   filiais?: string[];
   pagadores?: string[];
+  clientesCnpj?: string[];
   statusProcesso?: string[];
 }

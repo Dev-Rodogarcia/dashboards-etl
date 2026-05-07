@@ -8,6 +8,7 @@ import LayoutPainel from './components/layout/LayoutPainel';
 import LoginPage from './pages/LoginPage';
 import AcessoNegadoPage from './pages/AcessoNegadoPage';
 import AlterarSenhaPage from './pages/AlterarSenhaPage';
+import HomePage from './pages/HomePage';
 import ColetasPage from './pages/ColetasPage';
 import ManifestosPage from './pages/ManifestosPage';
 import FretesPage from './pages/FretesPage';
@@ -74,7 +75,7 @@ export default function App() {
 
                 <Route element={<RotaProtegida />}>
                   <Route element={<LayoutPainel />}>
-                    <Route path="/" element={<RedirecionamentoInicial />} />
+                    <Route path="/" element={<HomePage />} />
 
                     <Route element={<RotaProtegida permissao="coletas" />}>
                       <Route path="/coletas" element={<ColetasPage />} />

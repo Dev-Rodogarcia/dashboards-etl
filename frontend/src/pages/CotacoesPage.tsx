@@ -8,7 +8,7 @@ import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
-import { exportarCotacoesExcel } from '../api/endpoints/cotacoesServico';
+import { exportarCotacoesCsv } from '../api/endpoints/cotacoesServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -220,7 +220,7 @@ export default function CotacoesPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="cotacoes" onExport={() => exportarCotacoesExcel(filtro)} />
+        <ExportButton nomeArquivo="cotacoes" onExport={() => exportarCotacoesCsv(filtro)} />
       </div>
       <DataTable
         titulo="Cotacoes Analiticas"

@@ -9,7 +9,7 @@ import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
-import { exportarManifestosExcel } from '../api/endpoints/manifestosServico';
+import { exportarManifestosCsv } from '../api/endpoints/manifestosServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -166,7 +166,7 @@ export default function ManifestosPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="manifestos" onExport={() => exportarManifestosExcel(filtro)} />
+        <ExportButton nomeArquivo="manifestos" onExport={() => exportarManifestosCsv(filtro)} />
       </div>
       <DataTable
         titulo="Manifestos Analiticos"

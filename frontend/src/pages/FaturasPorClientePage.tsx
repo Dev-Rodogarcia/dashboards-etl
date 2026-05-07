@@ -8,11 +8,11 @@ import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
-import { exportarFaturasPorClienteExcel } from '../api/endpoints/faturasPorClienteServico';
+import { exportarFaturasPorClienteCsv } from '../api/endpoints/faturasPorClienteServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
-import { useClientes, useFiliais } from '../hooks/queries/useDimensoes';
+import { useClientes, useFaturasPorClienteClientesCnpj, useFiliais } from '../hooks/queries/useDimensoes';
 import {
   useFaturasPorClienteAging,
   useFaturasPorClienteMensal,
@@ -22,26 +22,33 @@ import {
   useFaturasPorClienteTopClientes,
 } from '../hooks/queries/useFaturasPorCliente';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
-import type { FaturaPorClienteResumoRow, FaturasPorClienteFiltro } from '../types/faturasPorCliente';
+import type { FaturaPorClienteResumoRow, FaturasPorClienteFiltro, FaturasPorClienteTopCliente } from '../types/faturasPorCliente';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
+
+function rotuloTopCliente(item: FaturasPorClienteTopCliente): string {
+  return item.clienteCnpj ? `${item.cliente} - ${item.clienteCnpj}` : item.cliente;
+}
 
 export default function FaturasPorClientePage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
   const clientes = useClientes();
+  const clientesCnpj = useFaturasPorClienteClientesCnpj();
 
   const filtro: FaturasPorClienteFiltro = {
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
     pagadores: filtros.pagadores,
+    clientesCnpj: filtros.clientesCnpj,
     statusProcesso: filtros.statusProcesso,
   };
 
   const activeFilters: ActiveFilter[] = [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
     { label: 'Pagadores', count: filtros.pagadores?.length ?? 0, onRemove: () => setFiltro('pagadores', []) },
+    { label: 'CNPJs', count: filtros.clientesCnpj?.length ?? 0, onRemove: () => setFiltro('clientesCnpj', []) },
     { label: 'Status Processo', count: filtros.statusProcesso?.length ?? 0, onRemove: () => setFiltro('statusProcesso', []) },
   ];
 
@@ -92,7 +99,7 @@ export default function FaturasPorClientePage() {
   const topClientesOption: EChartsOption = {
     grid: { left: 10, containLabel: true },
     xAxis: { type: 'value' },
-    yAxis: { type: 'category', data: (topClientes.data ?? []).map((item) => item.cliente).reverse() },
+    yAxis: { type: 'category', data: (topClientes.data ?? []).map(rotuloTopCliente).reverse() },
     series: [
       {
         type: 'bar',
@@ -121,6 +128,7 @@ export default function FaturasPorClientePage() {
     { chave: 'baixa', label: 'Baixa' },
     { chave: 'filial', label: 'Filial' },
     { chave: 'clientePagador', label: 'Cliente', largura: '220px' },
+    { chave: 'clienteCnpj', label: 'CNPJ', largura: '160px' },
     { chave: 'numeroCte', label: 'CT-e' },
     { chave: 'valorFaturado', label: 'Valor Faturado', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'statusProcesso', label: 'Status Processo', formato: (valor) => <StatusBadge status={String(valor)} /> },
@@ -151,6 +159,13 @@ export default function FaturasPorClientePage() {
           isLoading={clientes.isLoading}
         />
         <AsyncMultiSelect
+          label="CNPJs"
+          opcoes={clientesCnpj.data ?? []}
+          selecionados={filtros.clientesCnpj ?? []}
+          onChange={(valores) => setFiltro('clientesCnpj', valores)}
+          isLoading={clientesCnpj.isLoading}
+        />
+        <AsyncMultiSelect
           label="Status Processo"
           opcoes={['Faturado', 'Aguardando Faturamento']}
           selecionados={filtros.statusProcesso ?? []}
@@ -172,7 +187,7 @@ export default function FaturasPorClientePage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="faturas-por-cliente" onExport={() => exportarFaturasPorClienteExcel(filtro)} />
+        <ExportButton nomeArquivo="faturas-por-cliente" onExport={() => exportarFaturasPorClienteCsv(filtro)} />
       </div>
       <DataTable
         titulo="Faturas por Cliente"

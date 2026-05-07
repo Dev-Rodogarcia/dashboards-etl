@@ -7,12 +7,12 @@ interface ExportButtonProps {
   label?: string;
 }
 
-export default function ExportButton({ onExport, label = 'Exportar Excel' }: ExportButtonProps) {
+export default function ExportButton({ onExport, label = 'Exportar CSV' }: ExportButtonProps) {
   const [exportando, setExportando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const podeExportar = Boolean(onExport);
 
-  async function exportarExcel() {
+  async function exportarCsv() {
     if (!podeExportar || exportando) return;
 
     setErro(null);
@@ -22,7 +22,7 @@ export default function ExportButton({ onExport, label = 'Exportar Excel' }: Exp
         await onExport();
       }
     } catch (error) {
-      console.error('Falha ao exportar Excel', error);
+      console.error('Falha ao exportar CSV', error);
       setErro('Nao foi possivel exportar agora.');
     } finally {
       setExportando(false);
@@ -33,7 +33,7 @@ export default function ExportButton({ onExport, label = 'Exportar Excel' }: Exp
     <span className="inline-flex flex-col items-end gap-1">
       <button
         type="button"
-        onClick={exportarExcel}
+        onClick={exportarCsv}
         disabled={!podeExportar || exportando}
         className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50"
       >

@@ -1,5 +1,5 @@
 import clienteAxios from '../clienteAxios';
-import { baixarExcel } from '../downloadExcel';
+import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
@@ -76,6 +76,6 @@ export async function buscarFretesTabelaPaginada(
   return buscarTabelaPaginada('/api/painel/fretes/tabela/paginada', filtro, pagina, tamanhoPagina);
 }
 
-export async function exportarFretesExcel(filtro: FretesFiltro): Promise<void> {
-  await baixarExcel('/api/painel/fretes/exportacao', filtro, 'fretes');
+export async function exportarFretesCsv(filtro: FretesFiltro): Promise<void> {
+  await baixarCsv('/api/painel/fretes/exportacao', filtro, 'fretes');
 }

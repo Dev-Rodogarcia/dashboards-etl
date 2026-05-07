@@ -31,7 +31,9 @@ import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,6 +49,9 @@ public class FaturasPorClienteService {
             "61+ dias",
             "Sem vencimento"
     );
+
+    private record ClienteResumo(String chave, String nome, String cnpj) {
+    }
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoFaturasClienteRepository repository;
@@ -115,8 +120,9 @@ public class FaturasPorClienteService {
         int aguardandoFaturamento = (int) linhas.stream().filter(row -> !temDocumentoFatura(row)).count();
         int titulosEmAtraso = (int) faturadas.stream().filter(this::isTituloEmAtraso).count();
         int clientesAtivos = (int) linhas.stream()
-                .map(VisaoFaturasClienteEntity::getPagadorNome)
-                .filter(this::temTexto)
+                .map(this::clienteResumo)
+                .filter(Objects::nonNull)
+                .map(ClienteResumo::chave)
                 .distinct()
                 .count();
 
@@ -184,15 +190,20 @@ public class FaturasPorClienteService {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
         int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 10, 50);
 
-        return buscarLinhas(filtro).stream()
+        Map<String, List<VisaoFaturasClienteEntity>> agrupado = buscarLinhas(filtro).stream()
                 .filter(this::temDocumentoFatura)
-                .filter(row -> temTexto(row.getPagadorNome()))
-                .collect(Collectors.groupingBy(VisaoFaturasClienteEntity::getPagadorNome))
-                .entrySet().stream()
-                .map(entry -> new FaturasPorClienteTopClienteDTO(
-                        entry.getKey(),
-                        somarValorOperacional(entry.getValue())
-                ))
+                .filter(row -> clienteResumo(row) != null)
+                .collect(Collectors.groupingBy(row -> Objects.requireNonNull(clienteResumo(row)).chave()));
+
+        return agrupado.values().stream()
+                .map(rows -> {
+                    ClienteResumo cliente = clienteRepresentante(rows);
+                    return new FaturasPorClienteTopClienteDTO(
+                            cliente.nome(),
+                            cliente.cnpj(),
+                            somarValorOperacional(rows)
+                    );
+                })
                 .sorted(Comparator.comparing(FaturasPorClienteTopClienteDTO::valorFaturado).reversed())
                 .limit(limiteAplicado)
                 .toList();
@@ -222,6 +233,7 @@ public class FaturasPorClienteService {
                         formatarData(row.getDataBaixaFatura()),
                         row.getFilial(),
                         row.getPagadorNome(),
+                        clienteCnpj(row),
                         row.getNumeroCte(),
                         valorOperacional(row),
                         statusProcesso(row)
@@ -289,6 +301,58 @@ public class FaturasPorClienteService {
 
     private boolean temTexto(String valor) {
         return valor != null && !valor.isBlank();
+    }
+
+    private String textoLimpo(String valor) {
+        return temTexto(valor) ? valor.trim() : null;
+    }
+
+    private String clienteCnpj(VisaoFaturasClienteEntity row) {
+        String cnpj = textoLimpo(row.getClienteCnpj());
+        if (temTexto(cnpj)) {
+            return cnpj;
+        }
+
+        String documentoPagador = normalizarDocumento(row.getPagadorDocumento());
+        return documentoPagador != null
+                && documentoPagador.length() == 14
+                && documentoPagador.chars().allMatch(Character::isDigit)
+                ? documentoPagador
+                : null;
+    }
+
+    private ClienteResumo clienteResumo(VisaoFaturasClienteEntity row) {
+        String cnpj = clienteCnpj(row);
+        String chaveCnpj = normalizarDocumento(cnpj);
+        String nome = textoLimpo(row.getPagadorNome());
+
+        if (temTexto(chaveCnpj)) {
+            return new ClienteResumo("cnpj:" + chaveCnpj, temTexto(nome) ? nome : cnpj, cnpj);
+        }
+        if (temTexto(nome)) {
+            return new ClienteResumo("nome:" + nome.toLowerCase(Locale.ROOT), nome, null);
+        }
+        return null;
+    }
+
+    private ClienteResumo clienteRepresentante(List<VisaoFaturasClienteEntity> rows) {
+        return rows.stream()
+                .map(this::clienteResumo)
+                .filter(Objects::nonNull)
+                .filter(cliente -> temTexto(cliente.nome()))
+                .findFirst()
+                .orElseGet(() -> Objects.requireNonNull(clienteResumo(rows.get(0))));
+    }
+
+    private String normalizarDocumento(String valor) {
+        if (!temTexto(valor)) {
+            return null;
+        }
+        String normalizado = valor.chars()
+                .filter(Character::isDigit)
+                .mapToObj(Character::toString)
+                .collect(Collectors.joining());
+        return normalizado.isBlank() ? valor.trim().toLowerCase(Locale.ROOT) : normalizado;
     }
 
     private String statusProcesso(VisaoFaturasClienteEntity row) {
@@ -438,6 +502,7 @@ public class FaturasPorClienteService {
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filiais", "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "pagadores", "pagadorNome"),
+                ConsultaSpecificationUtils.filtroTexto(filtro, "clientesCnpj", "clienteCnpj"),
                 criarSpecificationStatusProcesso(filtro)
         );
     }

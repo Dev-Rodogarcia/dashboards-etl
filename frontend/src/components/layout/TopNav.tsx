@@ -35,6 +35,7 @@ import { formatarDataHora } from '../../utils/formatadores';
 const focusRingClass = 'outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-primary)_34%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
 
 const NAV_ICON_BY_PATH: Record<string, ComponentType<{ size?: number; className?: string }>> = {
+  '/': LayoutDashboard,
   '/coletas': ClipboardList,
   '/manifestos': LayoutDashboard,
   '/fretes': Truck,
@@ -48,6 +49,12 @@ const NAV_ICON_BY_PATH: Record<string, ComponentType<{ size?: number; className?
   '/etl-saude': HeartPulse,
   '/admin/setores': Building2,
   '/admin/usuarios': UserCog,
+};
+
+const HOME_NAV_ITEM: NavItem = {
+  label: 'Home',
+  path: '/',
+  description: 'Central de dashboards e comunicados',
 };
 
 function getNavIcon(item: NavItem) {
@@ -160,6 +167,7 @@ export default function TopNav() {
   );
   const adminItems = isAdminAcesso ? ADMIN_NAV_ITEMS : [];
   const navSections = [
+    { title: 'Principal', items: [HOME_NAV_ITEM] },
     { title: 'Dashboards', items: dashboardsVisiveis },
     ...(adminItems.length > 0 ? [{ title: 'Administração', items: adminItems }] : []),
   ].filter((section) => section.items.length > 0);
@@ -330,13 +338,19 @@ export default function TopNav() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="top-nav__drawer-logo-mark flex h-10 shrink-0 items-center justify-center">
+                      <NavLink
+                        to="/"
+                        onClick={() => setIsMenuOpen(false)}
+                        className={`top-nav__drawer-logo-mark flex h-10 shrink-0 items-center justify-center ${focusRingClass}`}
+                        aria-label="Ir para Home"
+                        title="Ir para Home"
+                      >
                         <img
                           src="/logo.png"
-                          alt=""
+                          alt="Logo da empresa"
                           className="h-7 max-w-[7.5rem] object-contain transition-all duration-200 dark:brightness-0 dark:invert"
                         />
-                      </div>
+                      </NavLink>
                       <div className="min-w-0">
                         <p id={drawerTitleId} className="truncate text-sm font-bold" style={{ color: 'var(--color-text)' }}>
                           Menu do painel
@@ -429,6 +443,7 @@ export default function TopNav() {
                   <AnimatePresence>
                     {drawerScrollState.canScrollUp && (
                       <motion.div
+                        key="scroll-up"
                         className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pb-8 pt-3 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--top"
                         initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -439,6 +454,7 @@ export default function TopNav() {
                     )}
                     {drawerScrollState.canScrollDown && (
                       <motion.div
+                        key="scroll-down"
                         className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-3 pt-8 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--bottom"
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -468,16 +484,19 @@ export default function TopNav() {
       >
         <div className="flex w-full items-center justify-between gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-4">
-            <div
-              className="top-nav__logo-wrap flex shrink-0 items-center border-r pr-4"
+            <NavLink
+              to="/"
+              className={`top-nav__logo-wrap flex shrink-0 items-center border-r pr-4 ${focusRingClass}`}
               style={{ borderColor: 'var(--color-border)' }}
+              aria-label="Ir para Home"
+              title="Ir para Home"
             >
               <img
                 src="/logo.png"
                 alt="Logo da empresa"
                 className="top-nav__logo h-8 w-auto object-contain transition-all duration-200 dark:brightness-0 dark:invert"
               />
-            </div>
+            </NavLink>
 
             <div className="top-nav__page-copy min-w-0">
               <h1 className="truncate text-lg font-bold leading-tight sm:text-xl" style={{ color: 'var(--color-text)' }}>

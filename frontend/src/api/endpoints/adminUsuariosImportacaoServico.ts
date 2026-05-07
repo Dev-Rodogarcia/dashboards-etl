@@ -1,5 +1,5 @@
 import clienteAxios from '../clienteAxios';
-import { extrairNomeArquivo, salvarBlobComoArquivo } from '../downloadExcel';
+import { extrairNomeArquivo, salvarBlobComoArquivo } from '../downloadArquivo';
 import type { UserImportBatchRequest, UserImportPreviewResponse, UserImportResult } from '../../types/userImport';
 
 const BASE = '/api/admin/acesso/usuarios/importacao';

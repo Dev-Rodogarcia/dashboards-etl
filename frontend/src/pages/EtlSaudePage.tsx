@@ -7,7 +7,7 @@ import ExportButton from '../components/shared/ExportButton';
 import FilterBar from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
-import { exportarEtlSaudeExcel } from '../api/endpoints/etlSaudeServico';
+import { exportarEtlSaudeCsv } from '../api/endpoints/etlSaudeServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -76,7 +76,7 @@ export default function EtlSaudePage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="etl-saude" onExport={() => exportarEtlSaudeExcel(filtro)} />
+        <ExportButton nomeArquivo="etl-saude" onExport={() => exportarEtlSaudeCsv(filtro)} />
       </div>
       <DataTable
         titulo="Execucoes do ETL"

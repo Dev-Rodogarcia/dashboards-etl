@@ -112,15 +112,7 @@ export function firstAccessibleRoute(
   if (!user) return '/login';
   if (user.exigeTrocaSenha) return '/alterar-senha';
 
-  const match = DASHBOARD_NAV_ITEMS.find((item) =>
-    item.permission ? isDesenvolvedor(user) || isAdminPlataforma(user) || user.permissoesEfetivas[item.permission] : false,
-  );
-
-  if (match) {
-    return match.path;
-  }
-
-  return isAdminAcesso(user) ? '/admin/usuarios' : '/acesso-negado';
+  return '/';
 }
 
 export function buildPermissionMapFromCatalog(catalog: PermissionCatalogItem[]): PermissionMap {

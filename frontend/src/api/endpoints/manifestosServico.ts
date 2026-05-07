@@ -1,5 +1,5 @@
 import clienteAxios from '../clienteAxios';
-import { baixarExcel } from '../downloadExcel';
+import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
@@ -51,6 +51,6 @@ export async function buscarManifestosTabelaPaginada(
   return buscarTabelaPaginada('/api/painel/manifestos/tabela/paginada', filtro, pagina, tamanhoPagina);
 }
 
-export async function exportarManifestosExcel(filtro: ManifestosFiltro): Promise<void> {
-  await baixarExcel('/api/painel/manifestos/exportacao', filtro, 'manifestos');
+export async function exportarManifestosCsv(filtro: ManifestosFiltro): Promise<void> {
+  await baixarCsv('/api/painel/manifestos/exportacao', filtro, 'manifestos');
 }

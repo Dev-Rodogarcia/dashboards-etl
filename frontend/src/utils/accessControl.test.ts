@@ -8,7 +8,7 @@ describe('accessControl', () => {
     });
   });
 
-  it('redireciona para o novo dashboard quando for a primeira permissão disponível', () => {
+  it('redireciona usuários autenticados para a Home', () => {
     expect(firstAccessibleRoute({
       papel: 'usuario_comum',
       exigeTrocaSenha: false,
@@ -16,6 +16,18 @@ describe('accessControl', () => {
         ...createEmptyPermissionMap(),
         indicadoresGestaoAVista: true,
       },
-    })).toBe('/indicadores-gestao-a-vista');
+    })).toBe('/');
+  });
+
+  it('mantém troca obrigatória de senha antes da Home', () => {
+    expect(firstAccessibleRoute({
+      papel: 'usuario_comum',
+      exigeTrocaSenha: true,
+      permissoesEfetivas: createEmptyPermissionMap(),
+    })).toBe('/alterar-senha');
+  });
+
+  it('redireciona sessão ausente para login', () => {
+    expect(firstAccessibleRoute(null)).toBe('/login');
   });
 });

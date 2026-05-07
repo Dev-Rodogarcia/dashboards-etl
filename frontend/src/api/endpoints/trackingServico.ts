@@ -1,5 +1,5 @@
 import clienteAxios from '../clienteAxios';
-import { baixarExcel } from '../downloadExcel';
+import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
@@ -83,6 +83,6 @@ export async function buscarTrackingTabelaPaginada(
   };
 }
 
-export async function exportarTrackingExcel(filtro: TrackingFiltro): Promise<void> {
-  await baixarExcel('/api/painel/tracking/exportacao', filtro, 'localizacao-cargas');
+export async function exportarTrackingCsv(filtro: TrackingFiltro): Promise<void> {
+  await baixarCsv('/api/painel/tracking/exportacao', filtro, 'localizacao-cargas');
 }

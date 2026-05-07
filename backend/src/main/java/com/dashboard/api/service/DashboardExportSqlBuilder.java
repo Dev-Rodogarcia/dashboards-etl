@@ -122,14 +122,16 @@ class DashboardExportSqlBuilder {
             LocalDate dataFim
     ) {
         if (definition.dateMode() == DashboardExportDefinition.DateMode.LOCAL_DATE) {
-            where.add(definition.dateColumn() + " BETWEEN :dataInicio AND :dataFim");
+            String colunaData = "TRY_CONVERT(date, " + definition.dateColumn() + ")";
+            where.add(colunaData + " BETWEEN :dataInicio AND :dataFim");
             params.addValue("dataInicio", dataInicio);
             params.addValue("dataFim", dataFim);
             return;
         }
 
         JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(dataInicio, dataFim);
-        where.add(definition.dateColumn() + " >= :inicioOffset AND " + definition.dateColumn() + " < :fimOffset");
+        String colunaData = "TRY_CONVERT(datetimeoffset, " + definition.dateColumn() + ")";
+        where.add(colunaData + " >= :inicioOffset AND " + colunaData + " < :fimOffset");
         params.addValue("inicioOffset", janela.inicioInclusivo());
         params.addValue("fimOffset", janela.fimExclusivo());
     }

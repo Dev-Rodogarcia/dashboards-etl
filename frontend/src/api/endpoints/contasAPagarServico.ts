@@ -1,5 +1,5 @@
 import clienteAxios from '../clienteAxios';
-import { baixarExcel } from '../downloadExcel';
+import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
@@ -57,6 +57,6 @@ export async function buscarContasAPagarTabelaPaginada(
   return buscarTabelaPaginada('/api/painel/contas-a-pagar/tabela/paginada', filtro, pagina, tamanhoPagina);
 }
 
-export async function exportarContasAPagarExcel(filtro: ContasAPagarFiltro): Promise<void> {
-  await baixarExcel('/api/painel/contas-a-pagar/exportacao', filtro, 'contas-a-pagar');
+export async function exportarContasAPagarCsv(filtro: ContasAPagarFiltro): Promise<void> {
+  await baixarCsv('/api/painel/contas-a-pagar/exportacao', filtro, 'contas-a-pagar');
 }

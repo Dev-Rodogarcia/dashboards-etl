@@ -9,10 +9,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
@@ -21,34 +26,33 @@ import java.util.Set;
 @Service
 public class DashboardExportService {
 
-    private static final MediaType XLSX = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    private static final MediaType CSV = MediaType.parseMediaType("text/csv;charset=UTF-8");
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final DashboardExportSqlBuilder sqlBuilder;
-    private final ExcelExportWriter excelExportWriter;
+    private final CsvExportWriter csvExportWriter;
     private final ValidadorPeriodoService validadorPeriodoService;
     private final EscopoFilialService escopoFilialService;
 
     public DashboardExportService(
             NamedParameterJdbcTemplate jdbcTemplate,
             DashboardExportSqlBuilder sqlBuilder,
-            ExcelExportWriter excelExportWriter,
+            CsvExportWriter csvExportWriter,
             ValidadorPeriodoService validadorPeriodoService,
             EscopoFilialService escopoFilialService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.sqlBuilder = sqlBuilder;
-        this.excelExportWriter = excelExportWriter;
+        this.csvExportWriter = csvExportWriter;
         this.validadorPeriodoService = validadorPeriodoService;
         this.escopoFilialService = escopoFilialService;
     }
 
-    public ResponseEntity<byte[]> exportar(DashboardExportDefinition definition, FiltroConsultaDTO filtro) {
+    public ResponseEntity<StreamingResponseBody> exportar(DashboardExportDefinition definition, FiltroConsultaDTO filtro) {
         validadorPeriodoService.validar(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         DashboardExportSqlBuilder.ExportSql query = sqlBuilder.buildSelect(definition, filtro, escopo, Set.of());
-        byte[] conteudo = gerarXlsx(query);
-        return respostaExcel(nomeArquivo(definition.nomeArquivo(), filtro), conteudo);
+        return respostaCsv(nomeArquivo(definition.nomeArquivo(), filtro), gerarArquivoCsv(outputStream -> gerarCsv(query, outputStream)));
     }
 
     public long total(DashboardExportDefinition definition, FiltroConsultaDTO filtro) {
@@ -76,57 +80,81 @@ public class DashboardExportService {
         return jdbcTemplate.queryForList(sql, params, String.class);
     }
 
-    public ResponseEntity<byte[]> exportarBeans(
+    public ResponseEntity<StreamingResponseBody> exportarBeans(
             String nomeArquivoBase,
             FiltroConsultaDTO filtro,
             List<?> rows
     ) {
         validadorPeriodoService.validar(filtro.dataInicio(), filtro.dataFim());
-        return respostaExcel(nomeArquivo(nomeArquivoBase, filtro), gerarXlsx(rows));
+        return respostaCsv(nomeArquivo(nomeArquivoBase, filtro), gerarArquivoCsv(outputStream -> csvExportWriter.escreverBeans(outputStream, rows)));
     }
 
-    private byte[] gerarXlsx(DashboardExportSqlBuilder.ExportSql query) {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    private void gerarCsv(DashboardExportSqlBuilder.ExportSql query, OutputStream outputStream) throws IOException {
         try {
             String sql = Objects.requireNonNull(query.sql(), "sql");
             MapSqlParameterSource params = Objects.requireNonNull(query.params(), "params");
             jdbcTemplate.query(sql, params, resultSet -> {
                 try {
-                    excelExportWriter.escreverResultSet(outputStream, resultSet);
+                    csvExportWriter.escreverResultSet(outputStream, resultSet);
                 } catch (IOException ex) {
                     throw new UncheckedIOException(ex);
                 }
                 return null;
             });
-            return outputStream.toByteArray();
         } catch (UncheckedIOException ex) {
-            throw ex;
+            throw ex.getCause();
         }
     }
 
-    private byte[] gerarXlsx(List<?> rows) {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    private Path gerarArquivoCsv(StreamingResponseBody writer) {
         try {
-            excelExportWriter.escreverBeans(outputStream, rows);
-            return outputStream.toByteArray();
+            Path arquivo = Files.createTempFile("dashboard-export-", ".csv");
+            try (OutputStream outputStream = Files.newOutputStream(
+                    arquivo,
+                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE
+            )) {
+                writer.writeTo(outputStream);
+            } catch (Exception ex) {
+                Files.deleteIfExists(arquivo);
+                throw ex;
+            }
+            return arquivo;
         } catch (IOException ex) {
-            throw new UncheckedIOException(ex);
+            throw new UncheckedIOException("Nao foi possivel gerar arquivo CSV temporario", ex);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Nao foi possivel gerar arquivo CSV", ex);
         }
     }
 
-    private ResponseEntity<byte[]> respostaExcel(String nomeArquivo, byte[] conteudo) {
+    private ResponseEntity<StreamingResponseBody> respostaCsv(String nomeArquivo, Path arquivo) {
+        long tamanho;
+        try {
+            tamanho = Files.size(arquivo);
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Nao foi possivel medir arquivo CSV temporario", ex);
+        }
+
+        StreamingResponseBody body = outputStream -> {
+            try (InputStream inputStream = Files.newInputStream(arquivo, StandardOpenOption.READ)) {
+                inputStream.transferTo(outputStream);
+            } finally {
+                Files.deleteIfExists(arquivo);
+            }
+        };
+
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(XLSX);
+        headers.setContentType(CSV);
         headers.setContentDisposition(ContentDisposition.attachment()
                 .filename(nomeArquivo, StandardCharsets.UTF_8)
                 .build());
         return ResponseEntity.ok()
                 .headers(headers)
-                .contentLength(conteudo.length)
-                .body(conteudo);
+                .contentLength(tamanho)
+                .body(body);
     }
 
     private String nomeArquivo(String base, FiltroConsultaDTO filtro) {
-        return "%s_%s_%s.xlsx".formatted(base, filtro.dataInicio(), filtro.dataFim());
+        return "%s_%s_%s.csv".formatted(base, filtro.dataInicio(), filtro.dataFim());
     }
 }

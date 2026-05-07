@@ -119,7 +119,7 @@ public class UsuarioSupremoBootstrapService implements ApplicationRunner {
     private SetorEntity garantirSetorAdmin() {
         SetorEntity setor = setorRepository.findByChave("setor-admin").orElseGet(SetorEntity::new);
         setor.setChave("setor-admin");
-        setor.setNome("Administração");
+        setor.setNome("TI - Admin");
         setor.setDescricao("Área com acesso total ao sistema");
         setor.setSistema(true);
         setor.setAtivo(true);

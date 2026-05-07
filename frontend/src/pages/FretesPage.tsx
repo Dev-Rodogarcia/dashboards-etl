@@ -11,7 +11,7 @@ import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
-import { exportarFretesExcel } from '../api/endpoints/fretesServico';
+import { exportarFretesCsv } from '../api/endpoints/fretesServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -171,7 +171,7 @@ export default function FretesPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="fretes" onExport={() => exportarFretesExcel(filtro)} />
+        <ExportButton nomeArquivo="fretes" onExport={() => exportarFretesCsv(filtro)} />
       </div>
       <DataTable
         titulo="Fretes Analiticos"

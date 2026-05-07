@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { criarConfigDownloadExcel, extrairNomeArquivo } from './downloadExcel';
+import { criarConfigDownloadCsv, extrairNomeArquivo } from './downloadCsv';
 
-describe('downloadExcel', () => {
+describe('downloadCsv', () => {
   it('cria config axios com responseType blob e filtros f.*', () => {
-    const config = criarConfigDownloadExcel({
+    const config = criarConfigDownloadCsv({
       dataInicio: '2026-03-17',
       dataFim: '2026-04-16',
       filiais: ['SP', 'RJ'],
@@ -15,7 +15,7 @@ describe('downloadExcel', () => {
   });
 
   it('extrai filename normal e filename UTF-8 do header', () => {
-    expect(extrairNomeArquivo('attachment; filename="fretes.xlsx"', 'fallback.xlsx')).toBe('fretes.xlsx');
-    expect(extrairNomeArquivo("attachment; filename*=UTF-8''faturas%20abril.xlsx", 'fallback.xlsx')).toBe('faturas abril.xlsx');
+    expect(extrairNomeArquivo('attachment; filename="fretes.csv"', 'fallback.csv')).toBe('fretes.csv');
+    expect(extrairNomeArquivo("attachment; filename*=UTF-8''faturas%20abril.csv", 'fallback.csv')).toBe('faturas abril.csv');
   });
 });

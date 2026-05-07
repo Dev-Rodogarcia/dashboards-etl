@@ -28,6 +28,11 @@ export async function buscarClientes(): Promise<string[]> {
   return data;
 }
 
+export async function buscarFaturasPorClienteClientesCnpj(): Promise<string[]> {
+  const { data } = await clienteAxios.get<string[]>('/api/dimensoes/faturas-por-cliente/clientes-cnpj');
+  return data;
+}
+
 export async function buscarMotoristas(): Promise<string[]> {
   const { data } = await clienteAxios.get<string[]>('/api/dimensoes/motoristas');
   return data;

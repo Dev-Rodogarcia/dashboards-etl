@@ -29,7 +29,7 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("[Data frete] >= :inicioOffset AND [Data frete] < :fimOffset");
+        assertThat(query.sql()).contains("TRY_CONVERT(datetimeoffset, [Data frete]) >= :inicioOffset AND TRY_CONVERT(datetimeoffset, [Data frete]) < :fimOffset");
         assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial])))) IN (:escopoFiliais)");
         assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Status])))) IN (:filtro_status)");
         assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador])))) IN (:filtro_pagadores)");
@@ -47,7 +47,7 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("[Emissão] BETWEEN :dataInicio AND :dataFim");
+        assertThat(query.sql()).contains("TRY_CONVERT(date, [Emissão]) BETWEEN :dataInicio AND :dataFim");
         assertThat(query.params().getValues()).containsEntry("dataInicio", LocalDate.of(2026, 3, 17));
         assertThat(query.params().getValues()).containsEntry("dataFim", LocalDate.of(2026, 4, 16));
     }
@@ -90,6 +90,19 @@ class DashboardExportSqlBuilderTest {
 
         assertThat(query.sql()).contains("[Fatura/N° Documento] IS NOT NULL");
         assertThat(query.sql()).contains("LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))) <> ''");
+    }
+
+    @Test
+    void buildSelectDeveFiltrarFaturasPorClientePorCnpj() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FATURAS_POR_CLIENTE,
+                filtro(Map.of("clientesCnpj", List.of("12.345.678/0001-90"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ])))) IN (:filtro_clientesCnpj)");
+        assertThat(query.params().getValues()).containsKey("filtro_clientesCnpj");
     }
 
     private static FiltroConsultaDTO filtro(Map<String, List<String>> filtros) {

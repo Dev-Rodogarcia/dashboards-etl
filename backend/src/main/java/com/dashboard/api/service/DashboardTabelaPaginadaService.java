@@ -317,6 +317,7 @@ public class DashboardTabelaPaginadaService {
                 texto(row, "Fatura/Baixa"),
                 texto(row, "Filial"),
                 texto(row, "Pagador do frete/Nome"),
+                texto(row, "Cliente/CNPJ"),
                 longo(row, "CT-e/Número", "CT-e/Numero"),
                 valorOperacionalFatura(row),
                 statusProcesso(row)

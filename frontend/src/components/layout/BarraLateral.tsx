@@ -19,6 +19,24 @@ export default function BarraLateral() {
       <nav className="space-y-6 px-3 py-4">
         <div>
           <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Principal
+          </div>
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              `block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                isActive
+                  ? 'bg-[#21478A] text-white'
+                  : 'text-gray-700 hover:bg-gray-200'
+              }`
+            }
+          >
+            Home
+          </NavLink>
+        </div>
+
+        <div>
+          <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
             Dashboards
           </div>
           <div className="space-y-1">

@@ -1,5 +1,5 @@
 import clienteAxios from '../clienteAxios';
-import { baixarExcel } from '../downloadExcel';
+import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { EtlExecucaoRow, EtlExecucaoTrendPoint, EtlSaudeCharts, EtlSaudeOverview } from '../../types/etlSaude';
@@ -51,6 +51,6 @@ export async function buscarEtlSaudeTabelaPaginada(
   return buscarTabelaPaginada('/api/painel/etl-saude/tabela/paginada', filtro, pagina, tamanhoPagina);
 }
 
-export async function exportarEtlSaudeExcel(filtro: FiltroQuery): Promise<void> {
-  await baixarExcel('/api/painel/etl-saude/exportacao', filtro, 'etl-saude');
+export async function exportarEtlSaudeCsv(filtro: FiltroQuery): Promise<void> {
+  await baixarCsv('/api/painel/etl-saude/exportacao', filtro, 'etl-saude');
 }

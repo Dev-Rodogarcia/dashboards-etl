@@ -1,5 +1,5 @@
 import clienteAxios from '../clienteAxios';
-import { baixarExcel } from '../downloadExcel';
+import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
@@ -87,10 +87,10 @@ export async function buscarFaturasTabelaPaginada(
   return buscarTabelaPaginada('/api/painel/faturas/tabela/paginada', filtro, pagina, tamanhoPagina);
 }
 
-export async function exportarFaturasProcessosExcel(filtro: FaturasFiltro): Promise<void> {
-  await baixarExcel('/api/painel/faturas/exportacao', filtro, 'faturas-processos');
+export async function exportarFaturasProcessosCsv(filtro: FaturasFiltro): Promise<void> {
+  await baixarCsv('/api/painel/faturas/exportacao', filtro, 'faturas-processos');
 }
 
-export async function exportarFaturasFinanceirasExcel(filtro: FaturasFiltro): Promise<void> {
-  await baixarExcel('/api/painel/faturas/exportacao-financeira', filtro, 'faturas-titulos-financeiros');
+export async function exportarFaturasFinanceirasCsv(filtro: FaturasFiltro): Promise<void> {
+  await baixarCsv('/api/painel/faturas/exportacao-financeira', filtro, 'faturas-titulos-financeiros');
 }

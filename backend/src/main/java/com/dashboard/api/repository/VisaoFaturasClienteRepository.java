@@ -20,11 +20,30 @@ public interface VisaoFaturasClienteRepository extends JpaRepository<VisaoFatura
     @Query(value = """
             SELECT *
             FROM dbo.vw_faturas_por_cliente_powerbi
-            WHERE [CT-e/Data de emissão] >= :inicioInclusivo
-              AND [CT-e/Data de emissão] < :fimExclusivo
+            WHERE TRY_CONVERT(datetimeoffset, [CT-e/Data de emissão]) >= :inicioInclusivo
+              AND TRY_CONVERT(datetimeoffset, [CT-e/Data de emissão]) < :fimExclusivo
             """, nativeQuery = true)
     List<VisaoFaturasClienteEntity> findPowerBiRowsByDataEmissaoCteNaJanela(
             @Param("inicioInclusivo") OffsetDateTime inicioInclusivo,
             @Param("fimExclusivo") OffsetDateTime fimExclusivo
     );
+
+    @Query(value = """
+            SELECT DISTINCT LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ]))) AS clienteCnpj
+            FROM dbo.vw_faturas_por_cliente_powerbi
+            WHERE [Cliente/CNPJ] IS NOT NULL
+              AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ]))) <> ''
+            ORDER BY clienteCnpj
+            """, nativeQuery = true)
+    List<String> findDistinctClienteCnpj();
+
+    @Query(value = """
+            SELECT DISTINCT LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ]))) AS clienteCnpj
+            FROM dbo.vw_faturas_por_cliente_powerbi
+            WHERE [Cliente/CNPJ] IS NOT NULL
+              AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ]))) <> ''
+              AND LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial])))) IN (:filiais)
+            ORDER BY clienteCnpj
+            """, nativeQuery = true)
+    List<String> findDistinctClienteCnpjByFilialIn(@Param("filiais") List<String> filiais);
 }

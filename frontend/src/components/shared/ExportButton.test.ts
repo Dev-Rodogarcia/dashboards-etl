@@ -12,7 +12,7 @@ describe('ExportButton', () => {
       }),
     );
 
-    expect(html).toContain('Exportar Excel');
+    expect(html).toContain('Exportar CSV');
     expect(html).not.toContain('disabled=""');
   });
 

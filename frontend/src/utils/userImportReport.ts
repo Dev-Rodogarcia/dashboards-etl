@@ -1,4 +1,4 @@
-import { salvarBlobComoArquivo } from '../api/downloadExcel';
+import { salvarBlobComoArquivo } from '../api/downloadArquivo';
 import type { UserImportResult } from '../types/userImport';
 
 function escapeCsvCell(value: string | number | null | undefined): string {

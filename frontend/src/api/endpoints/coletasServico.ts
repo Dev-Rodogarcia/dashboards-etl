@@ -1,5 +1,5 @@
 import clienteAxios from '../clienteAxios';
-import { baixarExcel } from '../downloadExcel';
+import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
@@ -51,6 +51,6 @@ export async function buscarColetasTabelaPaginada(
   return buscarTabelaPaginada('/api/painel/coletas/tabela/paginada', filtro, pagina, tamanhoPagina);
 }
 
-export async function exportarColetasExcel(filtro: ColetasFiltro): Promise<void> {
-  await baixarExcel('/api/painel/coletas/exportacao', filtro, 'coletas');
+export async function exportarColetasCsv(filtro: ColetasFiltro): Promise<void> {
+  await baixarCsv('/api/painel/coletas/exportacao', filtro, 'coletas');
 }

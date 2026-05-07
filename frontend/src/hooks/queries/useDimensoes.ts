@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   buscarFiliais,
   buscarClientes,
+  buscarFaturasPorClienteClientesCnpj,
   buscarMotoristas,
   buscarVeiculos,
   buscarPlanoContas,
@@ -25,6 +26,15 @@ export function useClientes() {
   return useQuery({
     queryKey: ['dim', 'clientes'],
     queryFn: buscarClientes,
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturasPorClienteClientesCnpj() {
+  return useQuery({
+    queryKey: ['dim', 'faturas-por-cliente', 'clientes-cnpj'],
+    queryFn: buscarFaturasPorClienteClientesCnpj,
     staleTime: STALE_TIME,
     retry: 1,
   });

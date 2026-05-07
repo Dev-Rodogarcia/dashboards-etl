@@ -10,11 +10,15 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 @Entity
 @Immutable
 @Table(name = "vw_faturas_por_cliente_powerbi")
 public class VisaoFaturasClienteEntity {
+
+    private static final DateTimeFormatter DATA_BR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     @Id
     @Column(name = "[ID Único]")
@@ -59,6 +63,9 @@ public class VisaoFaturasClienteEntity {
     @Column(name = "[Pagador do frete/Documento]")
     private String pagadorDocumento;
 
+    @Column(name = "[Cliente/CNPJ]")
+    private String clienteCnpj;
+
     @Column(name = "[Remetente/Nome]")
     private String remetenteNome;
 
@@ -84,7 +91,7 @@ public class VisaoFaturasClienteEntity {
     private String documentoFatura;
 
     @Column(name = "[Fatura/Emissão]")
-    private LocalDate emissaoFatura;
+    private String emissaoFatura;
 
     @Column(name = "[Fatura/Valor]")
     private BigDecimal valorFitAnt;
@@ -96,16 +103,16 @@ public class VisaoFaturasClienteEntity {
     private String numeroFatura;
 
     @Column(name = "[Fatura/Emissão Fatura]")
-    private LocalDate dataEmissaoFatura;
+    private String dataEmissaoFatura;
 
     @Column(name = "[Parcelas/Vencimento]")
-    private LocalDate dataVencimentoFatura;
+    private String dataVencimentoFatura;
 
     @Column(name = "[Fatura/Baixa]")
-    private LocalDate dataBaixaFatura;
+    private String dataBaixaFatura;
 
     @Column(name = "[Fatura/Data Vencimento Original]")
-    private LocalDate dataVencimentoOriginal;
+    private String dataVencimentoOriginal;
 
     @Column(name = "[Notas Fiscais]")
     private String notasFiscais;
@@ -175,6 +182,10 @@ public class VisaoFaturasClienteEntity {
         return pagadorDocumento;
     }
 
+    public String getClienteCnpj() {
+        return clienteCnpj;
+    }
+
     public String getRemetenteNome() {
         return remetenteNome;
     }
@@ -208,7 +219,7 @@ public class VisaoFaturasClienteEntity {
     }
 
     public LocalDate getEmissaoFatura() {
-        return emissaoFatura;
+        return parseLocalDate(emissaoFatura);
     }
 
     public BigDecimal getValorFitAnt() {
@@ -224,19 +235,19 @@ public class VisaoFaturasClienteEntity {
     }
 
     public LocalDate getDataEmissaoFatura() {
-        return dataEmissaoFatura;
+        return parseLocalDate(dataEmissaoFatura);
     }
 
     public LocalDate getDataVencimentoFatura() {
-        return dataVencimentoFatura;
+        return parseLocalDate(dataVencimentoFatura);
     }
 
     public LocalDate getDataBaixaFatura() {
-        return dataBaixaFatura;
+        return parseLocalDate(dataBaixaFatura);
     }
 
     public LocalDate getDataVencimentoOriginal() {
-        return dataVencimentoOriginal;
+        return parseLocalDate(dataVencimentoOriginal);
     }
 
     public String getNotasFiscais() {
@@ -249,5 +260,32 @@ public class VisaoFaturasClienteEntity {
 
     public LocalDateTime getDataExtracao() {
         return dataExtracao;
+    }
+
+    private static LocalDate parseLocalDate(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return null;
+        }
+
+        String texto = valor.trim();
+        if (texto.length() >= 10 && texto.charAt(4) == '-' && texto.charAt(7) == '-') {
+            return tryParse(texto.substring(0, 10), DateTimeFormatter.ISO_LOCAL_DATE);
+        }
+        if (texto.length() >= 10 && texto.charAt(2) == '/' && texto.charAt(5) == '/') {
+            return tryParse(texto.substring(0, 10), DATA_BR);
+        }
+        if (texto.length() == 8 && texto.chars().allMatch(Character::isDigit)) {
+            return tryParse(texto, DateTimeFormatter.BASIC_ISO_DATE);
+        }
+
+        return tryParse(texto, DateTimeFormatter.ISO_LOCAL_DATE);
+    }
+
+    private static LocalDate tryParse(String valor, DateTimeFormatter formatter) {
+        try {
+            return LocalDate.parse(valor, formatter);
+        } catch (DateTimeParseException ex) {
+            return null;
+        }
     }
 }

@@ -1,5 +1,5 @@
 import clienteAxios from '../clienteAxios';
-import { baixarExcel } from '../downloadExcel';
+import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
@@ -67,8 +67,8 @@ export async function buscarPerformanceEntregaTabelaPaginada(
   return buscarTabelaPaginada(`${BASE}/performance-entrega/tabela/paginada`, filtro, pagina, tamanhoPagina);
 }
 
-export async function exportarPerformanceEntregaExcel(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
-  await baixarExcel(`${BASE}/performance-entrega/exportacao`, filtro, 'indicadores-performance-entrega');
+export async function exportarPerformanceEntregaCsv(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
+  await baixarCsv(`${BASE}/performance-entrega/exportacao`, filtro, 'indicadores-performance-entrega');
 }
 
 export async function buscarUtilizacaoColetoresOverview(
@@ -107,8 +107,8 @@ export async function buscarUtilizacaoColetoresTabelaPaginada(
   return buscarTabelaPaginada(`${BASE}/utilizacao-coletores/tabela/paginada`, filtro, pagina, tamanhoPagina);
 }
 
-export async function exportarUtilizacaoColetoresExcel(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
-  await baixarExcel(`${BASE}/utilizacao-coletores/exportacao`, filtro, 'indicadores-utilizacao-coletores');
+export async function exportarUtilizacaoColetoresCsv(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
+  await baixarCsv(`${BASE}/utilizacao-coletores/exportacao`, filtro, 'indicadores-utilizacao-coletores');
 }
 
 export async function buscarCubagemMercadoriasOverview(
@@ -147,8 +147,8 @@ export async function buscarCubagemMercadoriasTabelaPaginada(
   return buscarTabelaPaginada(`${BASE}/cubagem-mercadorias/tabela/paginada`, filtro, pagina, tamanhoPagina);
 }
 
-export async function exportarCubagemMercadoriasExcel(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
-  await baixarExcel(`${BASE}/cubagem-mercadorias/exportacao`, filtro, 'indicadores-cubagem-mercadorias');
+export async function exportarCubagemMercadoriasCsv(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
+  await baixarCsv(`${BASE}/cubagem-mercadorias/exportacao`, filtro, 'indicadores-cubagem-mercadorias');
 }
 
 export async function buscarIndenizacaoMercadoriasOverview(
@@ -187,8 +187,8 @@ export async function buscarIndenizacaoMercadoriasTabelaPaginada(
   return buscarTabelaPaginada(`${BASE}/indenizacao-mercadorias/tabela/paginada`, filtro, pagina, tamanhoPagina);
 }
 
-export async function exportarIndenizacaoMercadoriasExcel(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
-  await baixarExcel(`${BASE}/indenizacao-mercadorias/exportacao`, filtro, 'indicadores-indenizacao-mercadorias');
+export async function exportarIndenizacaoMercadoriasCsv(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
+  await baixarCsv(`${BASE}/indenizacao-mercadorias/exportacao`, filtro, 'indicadores-indenizacao-mercadorias');
 }
 
 export async function buscarHorariosCorteOverview(
@@ -227,8 +227,8 @@ export async function buscarHorariosCorteTabelaPaginada(
   return buscarTabelaPaginada(`${BASE}/horarios-corte/tabela/paginada`, filtro, pagina, tamanhoPagina);
 }
 
-export async function exportarHorariosCorteExcel(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
-  await baixarExcel(`${BASE}/horarios-corte/exportacao`, filtro, 'indicadores-horarios-corte');
+export async function exportarHorariosCorteCsv(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
+  await baixarCsv(`${BASE}/horarios-corte/exportacao`, filtro, 'indicadores-horarios-corte');
 }
 
 export async function importarHorariosCorte(
