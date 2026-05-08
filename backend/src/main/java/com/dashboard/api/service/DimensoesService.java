@@ -134,7 +134,7 @@ public class DimensoesService {
             }
             return faturasClienteRepository.findDistinctClienteCnpjByFilialIn(filiais);
         } catch (DataAccessException ex) {
-            log.warn("Dimensão Cliente/CNPJ indisponível. Verifique se a view vw_faturas_por_cliente_powerbi expõe [Cliente/CNPJ]. Causa: {}",
+            log.warn("Dimensão Cliente/CNPJ indisponível. Verifique se a view vw_faturas_por_cliente_powerbi expõe [Pagador do frete/Documento]. Causa: {}",
                     ex.getMostSpecificCause().getMessage());
             return List.of();
         }

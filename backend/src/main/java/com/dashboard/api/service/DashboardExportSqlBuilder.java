@@ -198,11 +198,17 @@ class DashboardExportSqlBuilder {
 
         List<String> valores = normalizar(filtro.valores("statusProcesso"));
         List<String> permitidos = new ArrayList<>();
+        String documentoNormalizado = normalizarSql("[Fatura/N° Documento]");
+        String documentoPreenchido = "([Fatura/N° Documento] IS NOT NULL AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))) <> '')";
+        String statusFaturado = documentoNormalizado + " = 'faturado'";
+        String statusAguardando = documentoNormalizado + " = 'aguardando faturamento'";
+        String documentoNaoEhStatus = "(" + documentoNormalizado + " NOT IN ('faturado', 'aguardando faturamento'))";
+
         if (valores.contains("faturado")) {
-            permitidos.add("([Fatura/N° Documento] IS NOT NULL AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))) <> '')");
+            permitidos.add("(" + statusFaturado + " OR (" + documentoPreenchido + " AND " + documentoNaoEhStatus + "))");
         }
         if (valores.contains("aguardando faturamento")) {
-            permitidos.add("([Fatura/N° Documento] IS NULL OR LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))) = '')");
+            permitidos.add("(" + statusAguardando + " OR [Fatura/N° Documento] IS NULL OR LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))) = '')");
         }
         where.add(permitidos.isEmpty() ? "1 = 0" : "(" + String.join(" OR ", permitidos) + ")");
     }

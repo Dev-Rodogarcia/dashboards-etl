@@ -8,8 +8,11 @@ import type {
 
 export const PAPEL_ADMIN_PLATAFORMA = 'admin_plataforma';
 export const PAPEL_ADMIN_ACESSO = 'admin_acesso';
-export const PAPEL_DESENVOLVEDOR = String(import.meta.env.VITE_ACESSO_USUARIO_SUPREMO_PAPEL ?? '');
+export const PAPEL_DESENVOLVEDOR = String(import.meta.env.VITE_ACESSO_USUARIO_SUPREMO_PAPEL ?? 'desenvolvedor');
+export const EMAIL_USUARIO_SUPREMO = 'desenvolvedor@rodogarcia.com.br';
 export const PAPEL_USUARIO_COMUM = 'usuario_comum';
+
+type UsuarioPapel = Pick<IUsuarioSessao, 'papel'> & Partial<Pick<IUsuarioSessao, 'email'>>;
 
 export interface NavItem {
   label: string;
@@ -52,6 +55,7 @@ export function createEmptyPermissionMap(): PermissionMap {
     executivo: false,
     etlSaude: false,
     dimensoes: false,
+    homeComunicados: false,
   };
 }
 
@@ -76,26 +80,27 @@ export function createEmptyPermissionOverrideState(): PermissionOverrideStateMap
     executivo: 'inherit',
     etlSaude: 'inherit',
     dimensoes: 'inherit',
+    homeComunicados: 'inherit',
   };
 }
 
-export function hasRole(user: Pick<IUsuarioSessao, 'papel'> | null, role: string): boolean {
+export function hasRole(user: UsuarioPapel | null, role: string): boolean {
   return user?.papel === role;
 }
 
-export function isAdminPlataforma(user: Pick<IUsuarioSessao, 'papel'> | null): boolean {
+export function isAdminPlataforma(user: UsuarioPapel | null): boolean {
   return hasRole(user, PAPEL_ADMIN_PLATAFORMA);
 }
 
-export function isDesenvolvedor(user: Pick<IUsuarioSessao, 'papel'> | null): boolean {
-  return hasRole(user, PAPEL_DESENVOLVEDOR);
+export function isDesenvolvedor(user: UsuarioPapel | null): boolean {
+  return hasRole(user, PAPEL_DESENVOLVEDOR) || user?.email?.toLowerCase() === EMAIL_USUARIO_SUPREMO;
 }
 
-export function isAdminAcesso(user: Pick<IUsuarioSessao, 'papel'> | null): boolean {
+export function isAdminAcesso(user: UsuarioPapel | null): boolean {
   return isDesenvolvedor(user) || isAdminPlataforma(user) || hasRole(user, PAPEL_ADMIN_ACESSO);
 }
 
-export function canHardDeleteUsers(user: Pick<IUsuarioSessao, 'papel'> | null): boolean {
+export function canHardDeleteUsers(user: UsuarioPapel | null): boolean {
   return isDesenvolvedor(user) || isAdminPlataforma(user);
 }
 

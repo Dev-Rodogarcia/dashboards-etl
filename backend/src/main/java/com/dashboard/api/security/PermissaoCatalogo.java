@@ -19,7 +19,8 @@ public enum PermissaoCatalogo {
     INDICADORES_GESTAO_A_VISTA("indicadoresGestaoAVista", "Indicadores de Gestão à Vista", "Dashboard operacional de indicadores de gestão à vista", "/indicadores-gestao-a-vista"),
     EXECUTIVO("executivo", "Executivo", "Dashboard executivo consolidado", "/executivo"),
     ETL_SAUDE("etlSaude", "ETL Saúde", "Monitoramento e saúde do ETL", "/etl-saude"),
-    DIMENSOES("dimensoes", "Dimensões e filtros", "Acesso às dimensões de apoio aos dashboards", null);
+    DIMENSOES("dimensoes", "Dimensões e filtros", "Acesso às dimensões de apoio aos dashboards", null),
+    HOME_COMUNICADOS("homeComunicados", "Comunicações da Home", "Criar, editar e arquivar comunicados exibidos na Home", "/");
 
     private final String chave;
     private final String nome;

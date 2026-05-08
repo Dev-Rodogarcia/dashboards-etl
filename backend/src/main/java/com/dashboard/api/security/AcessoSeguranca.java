@@ -35,6 +35,12 @@ public class AcessoSeguranca {
         return ehAdmin() || possuiAuthority(PermissaoCatalogo.authorityForKey(permissao));
     }
 
+    public boolean podeGerenciarHomeComunicados() {
+        return ehDesenvolvedor()
+                || ehAdminPlataforma()
+                || possuiAuthority(PermissaoCatalogo.authorityForKey("homeComunicados"));
+    }
+
     public boolean podeAcessarDimensoes() {
         if (podeAcessar("dimensoes")) {
             return true;

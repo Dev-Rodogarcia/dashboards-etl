@@ -15,6 +15,7 @@ import type {
   LoginResponse,
 } from '../types/auth';
 import {
+  deveTentarRestaurarSessao,
   limparSessao,
   EVENTO_SESSAO_ATUALIZADA,
   montarSessaoDoLogin,
@@ -87,6 +88,14 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
     async function bootstrapSessao() {
       const sessao = obterSessao();
       if (!sessao?.token) {
+        if (!deveTentarRestaurarSessao()) {
+          if (ativo) {
+            setUsuario(null);
+            setCarregandoSessao(false);
+          }
+          return;
+        }
+
         try {
           const restaurada = montarSessaoDoLogin(await restaurarSessao());
           if (!ativo) return;
@@ -174,7 +183,7 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
       cancelado = true;
       window.clearTimeout(timeoutId);
     };
-  }, [usuario?.token, usuario?.sessaoExpiraEm]);
+  }, [usuario]);
 
   const login = useCallback(async (credenciais: LoginRequest): Promise<LoginResponse> => {
     const data = await loginUsuario(credenciais);

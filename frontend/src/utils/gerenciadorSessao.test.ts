@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  deveTentarRestaurarSessao,
   EVENTO_SESSAO_ATUALIZADA,
   limparSessao,
   obterSessao,
@@ -7,6 +8,7 @@ import {
 } from './gerenciadorSessao';
 import type { IUsuarioSessao } from '../types/auth';
 import type { PermissionMap } from '../types/access';
+import { createEmptyPermissionMap } from './accessControl';
 
 class StorageMock implements Storage {
   private readonly store = new Map<string, string>();
@@ -67,18 +69,8 @@ function criarWindowMock() {
 
 function criarPermissoes(): PermissionMap {
   return {
+    ...createEmptyPermissionMap(),
     coletas: true,
-    manifestos: false,
-    fretes: false,
-    tracking: false,
-    faturas: false,
-    faturasPorCliente: false,
-    contasAPagar: false,
-    cotacoes: false,
-    indicadoresGestaoAVista: false,
-    executivo: false,
-    etlSaude: false,
-    dimensoes: false,
   };
 }
 
@@ -120,6 +112,7 @@ describe('gerenciadorSessao', () => {
     salvarSessao(sessao);
 
     expect(sessionStorage.getItem('dashboard_usuario')).toBe(JSON.stringify(sessao));
+    expect(localStorage.getItem('dashboard_refresh_ativo')).toBe('1');
     expect(localStorage.getItem('dashboard_usuario')).toBeNull();
   });
 
@@ -142,7 +135,20 @@ describe('gerenciadorSessao', () => {
     limparSessao();
 
     expect(localStorage.getItem('dashboard_usuario')).toBeNull();
+    expect(localStorage.getItem('dashboard_refresh_ativo')).toBeNull();
     expect(sessionStorage.getItem('dashboard_usuario')).toBeNull();
+  });
+
+  it('só tenta restaurar por refresh quando existe marcador local de sessao', () => {
+    expect(deveTentarRestaurarSessao()).toBe(false);
+
+    salvarSessao(criarSessao());
+
+    expect(deveTentarRestaurarSessao()).toBe(true);
+
+    limparSessao();
+
+    expect(deveTentarRestaurarSessao()).toBe(false);
   });
 
   it('descarta sessao legada sem expiracao absoluta para forcar restauracao por refresh', () => {

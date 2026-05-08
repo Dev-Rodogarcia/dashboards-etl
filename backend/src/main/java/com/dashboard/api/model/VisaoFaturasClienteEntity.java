@@ -63,65 +63,65 @@ public class VisaoFaturasClienteEntity {
     @Column(name = "[Pagador do frete/Documento]")
     private String pagadorDocumento;
 
-    @Column(name = "[Cliente/CNPJ]")
+    @Column(name = "[Remetente/Nome]")
     private String clienteCnpj;
 
-    @Column(name = "[Remetente/Nome]")
+    @Column(name = "[Remetente/Documento]")
     private String remetenteNome;
 
-    @Column(name = "[Remetente/Documento]")
+    @Column(name = "[Destinatário/Nome]")
     private String remetenteDocumento;
 
-    @Column(name = "[Destinatário/Nome]")
+    @Column(name = "[Destinatário/Documento]")
     private String destinatarioNome;
 
-    @Column(name = "[Destinatário/Documento]")
+    @Column(name = "[Vendedor/Nome]")
     private String destinatarioDocumento;
 
-    @Column(name = "[Vendedor/Nome]")
+    @Column(name = "[NFS-e/Número]")
     private String vendedorNome;
 
-    @Column(name = "[NFS-e/Número]")
+    @Column(name = "[NFS-e/Série]")
     private Long numeroNfse;
 
-    @Column(name = "[NFS-e/Série]")
+    @Column(name = "[fit_nse_number]")
     private String serieNfse;
 
-    @Column(name = "[Fatura/N° Documento]")
+    @Column(name = "[Fatura/Emissão]")
     private String documentoFatura;
 
-    @Column(name = "[Fatura/Emissão]")
+    @Column(name = "[Fatura/Valor]")
     private String emissaoFatura;
 
-    @Column(name = "[Fatura/Valor]")
+    @Column(name = "[Fatura/Valor Total]")
     private BigDecimal valorFitAnt;
 
-    @Column(name = "[Fatura/Valor Total]")
+    @Column(name = "[Fatura/Número]")
     private BigDecimal valorFatura;
 
-    @Column(name = "[Fatura/Número]")
+    @Column(name = "[Fatura/Emissão Fatura]")
     private String numeroFatura;
 
-    @Column(name = "[Fatura/Emissão Fatura]")
+    @Column(name = "[Parcelas/Vencimento]")
     private String dataEmissaoFatura;
 
-    @Column(name = "[Parcelas/Vencimento]")
+    @Column(name = "[Fatura/Baixa]")
     private String dataVencimentoFatura;
 
-    @Column(name = "[Fatura/Baixa]")
+    @Column(name = "[Fatura/Data Vencimento Original]")
     private String dataBaixaFatura;
 
-    @Column(name = "[Fatura/Data Vencimento Original]")
+    @Column(name = "[Notas Fiscais]")
     private String dataVencimentoOriginal;
 
-    @Column(name = "[Notas Fiscais]")
+    @Column(name = "[Pedidos/Cliente]")
     private String notasFiscais;
 
-    @Column(name = "[Pedidos/Cliente]")
+    @Column(name = "[Metadata]")
     private String pedidosCliente;
 
     @Column(name = "[Data da Última Atualização]")
-    private LocalDateTime dataExtracao;
+    private String dataExtracao;
 
     protected VisaoFaturasClienteEntity() {
     }
@@ -259,7 +259,7 @@ public class VisaoFaturasClienteEntity {
     }
 
     public LocalDateTime getDataExtracao() {
-        return dataExtracao;
+        return parseLocalDateTime(dataExtracao);
     }
 
     private static LocalDate parseLocalDate(String valor) {
@@ -284,6 +284,27 @@ public class VisaoFaturasClienteEntity {
     private static LocalDate tryParse(String valor, DateTimeFormatter formatter) {
         try {
             return LocalDate.parse(valor, formatter);
+        } catch (DateTimeParseException ex) {
+            return null;
+        }
+    }
+
+    private static LocalDateTime parseLocalDateTime(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return null;
+        }
+
+        String texto = valor.trim();
+        if (texto.length() >= 19 && texto.charAt(4) == '-' && texto.charAt(7) == '-') {
+            String normalizado = texto.substring(0, 19).replace('T', ' ');
+            return tryParseLocalDateTime(normalizado, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        }
+        return tryParseLocalDateTime(texto, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+    }
+
+    private static LocalDateTime tryParseLocalDateTime(String valor, DateTimeFormatter formatter) {
+        try {
+            return LocalDateTime.parse(valor, formatter);
         } catch (DateTimeParseException ex) {
             return null;
         }

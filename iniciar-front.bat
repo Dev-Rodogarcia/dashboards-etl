@@ -19,6 +19,11 @@ set "ROOT_DIR=%CD%"
 set "FRONTEND_DIR=%ROOT_DIR%\frontend"
 set "ENV_FILE=%ROOT_DIR%\.env"
 set "FRONTEND_PORT=5173"
+set "BACKEND_PORT=5010"
+
+if /i "%DASHBOARD_API_LOCAL%"=="1" (
+    set "VITE_API_BASE_URL=http://127.0.0.1:%BACKEND_PORT%"
+)
 
 echo.
 echo ============================================
@@ -58,20 +63,41 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue;" ^
   "if (-not $listeners) { Write-Host ('[OK] Porta ' + $port + ' livre para o frontend.'); exit 0 }" ^
   "$processIds = $listeners | Select-Object -ExpandProperty OwningProcess -Unique;" ^
-  "Write-Host ('[AVISO] Porta ' + $port + ' ja esta em uso.');" ^
+  "Write-Host ('[INFO] Porta ' + $port + ' ja esta em uso. Encerrando processos antigos do frontend...');" ^
   "foreach ($procId in $processIds) {" ^
   "  $process = Get-Process -Id $procId -ErrorAction SilentlyContinue;" ^
-  "  if ($process) { Write-Host ('PID=' + $procId + ' | ' + $process.ProcessName + ' | ' + $process.Path) }" ^
+  "  if ($process) {" ^
+  "    Write-Host ('[INFO] Encerrando PID=' + $procId + ' | ' + $process.ProcessName + ' | ' + $process.Path);" ^
+  "    try { Stop-Process -Id $procId -Force -ErrorAction Stop } catch { Write-Host ('[ERRO] Falha ao encerrar PID=' + $procId + ': ' + $_.Exception.Message); exit 3 }" ^
+  "  }" ^
   "}" ^
-  "Write-Host 'Este script nao vai trocar para 5174/5175, para nao quebrar o apontamento do Cloudflare.';" ^
-  "Write-Host 'Se este ja for o Vite correto, mantenha a janela dele aberta.';" ^
-  "exit 2"
+  "Start-Sleep -Milliseconds 800;" ^
+  "$restantes = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue;" ^
+  "if ($restantes) { Write-Host ('[ERRO] Porta ' + $port + ' continuou em uso.'); exit 2 }" ^
+  "Write-Host ('[OK] Porta ' + $port + ' liberada para o frontend.');" ^
+  "exit 0"
 
 if errorlevel 1 (
     echo.
-    echo [ERRO] Frontend nao iniciado porque a porta %FRONTEND_PORT% nao esta livre.
+    echo [ERRO] Frontend nao iniciado porque a porta %FRONTEND_PORT% nao pode ser liberada.
     pause
     exit /b 1
+)
+
+if /i "%DASHBOARD_API_LOCAL%"=="1" (
+    echo [INFO] Modo dev local: frontend chamara %VITE_API_BASE_URL%
+    echo [INFO] Verificando backend em http://127.0.0.1:%BACKEND_PORT%...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+      "$url = 'http://127.0.0.1:%BACKEND_PORT%/actuator/health/liveness';" ^
+      "try {" ^
+      "  $response = Invoke-RestMethod -Uri $url -TimeoutSec 3;" ^
+      "  if ($response.status -eq 'UP') { Write-Host '[OK] Backend respondendo. Login liberado.'; exit 0 }" ^
+      "} catch {}" ^
+      "Write-Host '[AVISO] Backend ainda nao respondeu. O frontend vai abrir, mas o login so funciona depois que iniciar-backend.bat estiver pronto.';" ^
+      "exit 0"
+) else (
+    echo [INFO] Modo Cloudflare/producao: frontend usara VITE_API_BASE_URL do .env.
+    echo [INFO] API publica esperada: https://api-analytics.rodogarcia.com.br
 )
 
 cd /d "%FRONTEND_DIR%"
@@ -88,7 +114,8 @@ if not exist "node_modules" (
 
 echo [INFO] Iniciando Vite em porta fixa: %FRONTEND_PORT%
 echo [INFO] Configuracao: dashboards-etl\.env
-echo [INFO] URL local: http://localhost:%FRONTEND_PORT%/
+echo [INFO] URL local: http://127.0.0.1:%FRONTEND_PORT%/
+echo [INFO] URL alternativa: http://localhost:%FRONTEND_PORT%/
 echo [INFO] Se o processo encerrar, reabra este .bat antes de mexer no Cloudflare.
 echo.
 

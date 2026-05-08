@@ -51,18 +51,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue;" ^
   "if (-not $listeners) { Write-Host ('[OK] Porta ' + $port + ' livre para o backend.'); exit 0 }" ^
   "$processIds = $listeners | Select-Object -ExpandProperty OwningProcess -Unique;" ^
-  "Write-Host ('[AVISO] Porta ' + $port + ' ja esta em uso.');" ^
+  "Write-Host ('[INFO] Porta ' + $port + ' ja esta em uso. Encerrando processos antigos do backend...');" ^
   "foreach ($procId in $processIds) {" ^
   "  $process = Get-Process -Id $procId -ErrorAction SilentlyContinue;" ^
-  "  if ($process) { Write-Host ('PID=' + $procId + ' | ' + $process.ProcessName + ' | ' + $process.Path) }" ^
+  "  if ($process) {" ^
+  "    Write-Host ('[INFO] Encerrando PID=' + $procId + ' | ' + $process.ProcessName + ' | ' + $process.Path);" ^
+  "    try { Stop-Process -Id $procId -Force -ErrorAction Stop } catch { Write-Host ('[ERRO] Falha ao encerrar PID=' + $procId + ': ' + $_.Exception.Message); exit 3 }" ^
+  "  }" ^
   "}" ^
-  "Write-Host 'Este script nao vai trocar para outra porta, para nao quebrar o apontamento do Cloudflare.';" ^
-  "Write-Host 'Se este ja for o backend correto, mantenha a janela dele aberta.';" ^
-  "exit 2"
+  "Start-Sleep -Milliseconds 800;" ^
+  "$restantes = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue;" ^
+  "if ($restantes) { Write-Host ('[ERRO] Porta ' + $port + ' continuou em uso.'); exit 2 }" ^
+  "Write-Host ('[OK] Porta ' + $port + ' liberada para o backend.');" ^
+  "exit 0"
 
 if errorlevel 1 (
     echo.
-    echo [ERRO] Backend nao iniciado porque a porta %BACKEND_PORT% nao esta livre.
+    echo [ERRO] Backend nao iniciado porque a porta %BACKEND_PORT% nao pode ser liberada.
     pause
     exit /b 1
 )
@@ -73,7 +78,7 @@ call :load_env_file "%ENV_FILE%"
 
 echo [INFO] Iniciando Spring Boot em porta fixa: %BACKEND_PORT%
 echo [INFO] Configuracao: application.yml + dashboards-etl\.env
-echo [INFO] Healthcheck: http://localhost:%BACKEND_PORT%/actuator/health/liveness
+echo [INFO] Healthcheck: http://127.0.0.1:%BACKEND_PORT%/actuator/health/liveness
 echo [INFO] Use mvnw.cmd para evitar conflito com Java antigo no PATH.
 echo.
 

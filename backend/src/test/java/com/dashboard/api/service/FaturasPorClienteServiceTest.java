@@ -222,7 +222,7 @@ class FaturasPorClienteServiceTest {
         ReflectionTestUtils.setField(entity, "emissaoFatura", dataTexto(emissaoFatura));
         ReflectionTestUtils.setField(entity, "dataVencimentoFatura", dataTexto(vencimento));
         ReflectionTestUtils.setField(entity, "dataBaixaFatura", dataTexto(baixa));
-        ReflectionTestUtils.setField(entity, "dataExtracao", dataExtracao);
+        ReflectionTestUtils.setField(entity, "dataExtracao", dataHoraTexto(dataExtracao));
         ReflectionTestUtils.setField(entity, "dataEmissaoCte", OffsetDateTime.of(2026, 3, 5, 10, 0, 0, 0, ZoneOffset.UTC));
         ReflectionTestUtils.setField(entity, "numeroCte", 12345L);
         return entity;
@@ -239,6 +239,10 @@ class FaturasPorClienteServiceTest {
     }
 
     private static String dataTexto(LocalDate data) {
+        return data != null ? data.toString() : null;
+    }
+
+    private static String dataHoraTexto(LocalDateTime data) {
         return data != null ? data.toString() : null;
     }
 }

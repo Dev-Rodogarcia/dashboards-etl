@@ -1,6 +1,7 @@
 import type { IUsuarioSessao, LoginResponse, UsuarioSessao } from '../types/auth';
 
 const CHAVE_SESSAO = 'dashboard_usuario';
+const CHAVE_REFRESH_ATIVO = 'dashboard_refresh_ativo';
 export const EVENTO_SESSAO_ATUALIZADA = 'dashboard:sessao-atualizada';
 const TOLERANCIA_EXPIRACAO_SESSAO_MS = 2 * 60 * 1000;
 
@@ -92,8 +93,13 @@ function lerSessaoStorage(storage: Storage | null): IUsuarioSessao | null {
 
 export function salvarSessao(usuario: IUsuarioSessao): void {
   obterSessionStorage()?.setItem(CHAVE_SESSAO, JSON.stringify(usuario));
+  obterLocalStorage()?.setItem(CHAVE_REFRESH_ATIVO, '1');
   obterLocalStorage()?.removeItem(CHAVE_SESSAO);
   notificarMudancaSessao();
+}
+
+export function deveTentarRestaurarSessao(): boolean {
+  return obterLocalStorage()?.getItem(CHAVE_REFRESH_ATIVO) === '1';
 }
 
 export function obterSessao(): IUsuarioSessao | null {
@@ -130,5 +136,6 @@ export function atualizarTokenSessao(token: string): IUsuarioSessao | null {
 export function limparSessao(): void {
   obterSessionStorage()?.removeItem(CHAVE_SESSAO);
   obterLocalStorage()?.removeItem(CHAVE_SESSAO);
+  obterLocalStorage()?.removeItem(CHAVE_REFRESH_ATIVO);
   notificarMudancaSessao();
 }

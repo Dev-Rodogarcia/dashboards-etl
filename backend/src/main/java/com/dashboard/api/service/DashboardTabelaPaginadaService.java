@@ -285,7 +285,7 @@ public class DashboardTabelaPaginadaService {
     }
 
     private FaturaResumoDTO mapearFatura(Map<String, Object> row, Map<String, TituloFinanceiro> titulos) {
-        String documento = texto(row, "Fatura/N° Documento", "Fatura/Nº Documento");
+        String documento = documentoFaturaOperacional(row);
         String uniqueId = texto(row, "ID Único", "ID Unico");
         TituloFinanceiro titulo = documento != null ? titulos.get(documento) : null;
         BigDecimal valorFinanceiro = titulo != null ? titulo.valor() : BigDecimal.ZERO;
@@ -295,7 +295,7 @@ public class DashboardTabelaPaginadaService {
         return new FaturaResumoDTO(
                 uniqueId,
                 documento != null ? documento : uniqueId,
-                texto(row, "Fatura/Emissão", "Fatura/Emissao", "Fatura/Emissão Fatura", "Fatura/Emissao Fatura", "CT-e/Data de emissão", "CT-e/Data de emissao"),
+                emissaoFaturaOperacional(row),
                 titulo != null ? titulo.vencimento() : texto(row, "Parcelas/Vencimento"),
                 texto(row, "Filial"),
                 texto(row, "Pagador do frete/Nome"),
@@ -311,13 +311,13 @@ public class DashboardTabelaPaginadaService {
     private FaturaPorClienteResumoDTO mapearFaturaPorCliente(Map<String, Object> row) {
         return new FaturaPorClienteResumoDTO(
                 texto(row, "ID Único", "ID Unico"),
-                texto(row, "Fatura/N° Documento", "Fatura/Nº Documento"),
-                texto(row, "Fatura/Emissão", "Fatura/Emissao", "Fatura/Emissão Fatura", "Fatura/Emissao Fatura", "CT-e/Data de emissão", "CT-e/Data de emissao"),
-                texto(row, "Parcelas/Vencimento"),
-                texto(row, "Fatura/Baixa"),
+                documentoFaturaOperacional(row),
+                emissaoFaturaOperacional(row),
+                vencimentoFaturaOperacional(row),
+                baixaFaturaOperacional(row),
                 texto(row, "Filial"),
                 texto(row, "Pagador do frete/Nome"),
-                texto(row, "Cliente/CNPJ"),
+                clienteCnpjOperacional(row),
                 longo(row, "CT-e/Número", "CT-e/Numero"),
                 valorOperacionalFatura(row),
                 statusProcesso(row)
@@ -397,11 +397,15 @@ public class DashboardTabelaPaginadaService {
     }
 
     private BigDecimal valorOperacionalFatura(Map<String, Object> row) {
-        Object valorFitAnt = valor(row, "Fatura/Valor");
+        Object valorFitAnt = viewFaturasClienteDeslocada(row)
+                ? valor(row, "Fatura/Valor Total")
+                : valor(row, "Fatura/Valor");
         if (valorFitAnt != null) {
             return decimalObjeto(valorFitAnt);
         }
-        Object valorFatura = valor(row, "Fatura/Valor Total");
+        Object valorFatura = viewFaturasClienteDeslocada(row)
+                ? valor(row, "Fatura/Número", "Fatura/Numero")
+                : valor(row, "Fatura/Valor Total");
         if (valorFatura != null) {
             return decimalObjeto(valorFatura);
         }
@@ -410,13 +414,58 @@ public class DashboardTabelaPaginadaService {
 
     private String statusProcesso(Map<String, Object> row) {
         String documento = texto(row, "Fatura/N° Documento", "Fatura/Nº Documento");
+        if (ehStatusProcesso(documento)) {
+            return documento;
+        }
         return documento != null && !documento.isBlank() ? "Faturado" : "Aguardando Faturamento";
+    }
+
+    private boolean viewFaturasClienteDeslocada(Map<String, Object> row) {
+        return ehStatusProcesso(texto(row, "Fatura/N° Documento", "Fatura/Nº Documento"));
+    }
+
+    private boolean ehStatusProcesso(String valor) {
+        return valor != null
+                && (valor.equalsIgnoreCase("Faturado")
+                || valor.equalsIgnoreCase("Aguardando Faturamento"));
+    }
+
+    private String documentoFaturaOperacional(Map<String, Object> row) {
+        return viewFaturasClienteDeslocada(row)
+                ? texto(row, "Fatura/Emissão", "Fatura/Emissao")
+                : texto(row, "Fatura/N° Documento", "Fatura/Nº Documento");
+    }
+
+    private String emissaoFaturaOperacional(Map<String, Object> row) {
+        if (viewFaturasClienteDeslocada(row)) {
+            return texto(row, "Fatura/Valor", "CT-e/Data de emissão", "CT-e/Data de emissao");
+        }
+        return texto(row, "Fatura/Emissão", "Fatura/Emissao", "Fatura/Emissão Fatura", "Fatura/Emissao Fatura", "CT-e/Data de emissão", "CT-e/Data de emissao");
+    }
+
+    private String vencimentoFaturaOperacional(Map<String, Object> row) {
+        return viewFaturasClienteDeslocada(row)
+                ? texto(row, "Fatura/Baixa")
+                : texto(row, "Parcelas/Vencimento");
+    }
+
+    private String baixaFaturaOperacional(Map<String, Object> row) {
+        return viewFaturasClienteDeslocada(row)
+                ? texto(row, "Fatura/Data Vencimento Original")
+                : texto(row, "Fatura/Baixa");
+    }
+
+    private String clienteCnpjOperacional(Map<String, Object> row) {
+        return viewFaturasClienteDeslocada(row)
+                ? texto(row, "Remetente/Nome", "Pagador do frete/Documento")
+                : texto(row, "Cliente/CNPJ", "Pagador do frete/Documento");
     }
 
     private Object valor(Map<String, Object> row, String... colunas) {
         for (String coluna : colunas) {
-            if (row.containsKey(coluna)) {
-                return row.get(coluna);
+            Object valor = row.get(coluna);
+            if (valor != null) {
+                return valor;
             }
         }
         return null;

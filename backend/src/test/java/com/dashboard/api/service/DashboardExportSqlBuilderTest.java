@@ -101,7 +101,7 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ])))) IN (:filtro_clientesCnpj)");
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Documento])))) IN (:filtro_clientesCnpj)");
         assertThat(query.params().getValues()).containsKey("filtro_clientesCnpj");
     }
 

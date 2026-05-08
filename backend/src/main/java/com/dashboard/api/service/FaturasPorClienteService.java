@@ -502,7 +502,7 @@ public class FaturasPorClienteService {
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filiais", "filial"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "pagadores", "pagadorNome"),
-                ConsultaSpecificationUtils.filtroTexto(filtro, "clientesCnpj", "clienteCnpj"),
+                ConsultaSpecificationUtils.filtroTexto(filtro, "clientesCnpj", "pagadorDocumento"),
                 criarSpecificationStatusProcesso(filtro)
         );
     }

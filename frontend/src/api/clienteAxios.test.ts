@@ -3,21 +3,12 @@ import type { LoginResponse } from '../types/auth';
 import type { PermissionMap } from '../types/access';
 import { tratarErroRespostaApi, type RetryableRequestConfig } from './clienteAxios';
 import { SessaoExpiradaError, SessaoTemporariamenteIndisponivelError } from '../utils/authSession';
+import { createEmptyPermissionMap } from '../utils/accessControl';
 
 function criarPermissoes(): PermissionMap {
   return {
+    ...createEmptyPermissionMap(),
     coletas: true,
-    manifestos: false,
-    fretes: false,
-    tracking: false,
-    faturas: false,
-    faturasPorCliente: false,
-    contasAPagar: false,
-    cotacoes: false,
-    indicadoresGestaoAVista: false,
-    executivo: false,
-    etlSaude: false,
-    dimensoes: false,
   };
 }
 
