@@ -68,7 +68,9 @@ public class IndicadoresGestaoInfraBootstrapService implements ApplicationRunner
                 "sm_gerada", "corte", "nome_arquivo"
         )));
         inconsistencias.addAll(auditarObjeto("vw_horarios_corte_powerbi", List.of(
-                "Data", "Filial", "Saiu no Horário", "Atraso Minutos", "Data de extracao"
+                "Data", "Filial", "Origem SM", "Destino SM", "Origem Destino", "Origem", "Ordem", "Destino",
+                "Horario Corte SM", "Previsao Chegada Destino", "Transit Time", "Saiu no Horário",
+                "Atraso Minutos", "Data de extracao"
         )));
 
         if (!inconsistencias.isEmpty() && failOnSchemaMismatch) {

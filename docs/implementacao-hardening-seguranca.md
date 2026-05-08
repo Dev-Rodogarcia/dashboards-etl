@@ -36,7 +36,7 @@ Mudancas aplicadas:
 - `.gitignore` da raiz passou a bloquear o arquivo real e permitir apenas o sample
 - `MigracaoJsonParaSqlRunner` agora exige habilitacao explicita por `acl.legacy.migration-enabled`
 - `application-dev.yml` deixou de carregar segredos hardcoded
-- foi consolidado um `.env.example` na raiz de `dashboards-etl`, usado por backend e frontend
+- foi consolidado um `.env.example` na raiz de `dashboards`, usado por backend e frontend
 - README e documentacao foram ajustados para remover o uso de credenciais inseguras e defaults antigos
 
 Impacto:

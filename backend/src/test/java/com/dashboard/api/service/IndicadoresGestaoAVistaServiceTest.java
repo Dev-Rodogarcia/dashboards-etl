@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.indicadoresgestao.HorarioCorteRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
 import com.dashboard.api.model.VisaoHorariosCorteEntity;
@@ -118,6 +119,48 @@ class IndicadoresGestaoAVistaServiceTest {
                 .containsExactly("SPO");
     }
 
+    @Test
+    void buscarTabelaDeveRetornarCamposOperacionaisDoRaster() {
+        VisaoHorariosCorteEntity raster = row(
+                1L,
+                HorarioCorteFilialMapperService.FILIAL_NAO_MAPEADA,
+                "AGUDOS/SP x OSASCO/SP",
+                LocalDate.of(2026, 5, 7),
+                true,
+                0,
+                "Raster API - getEventoFimViagem",
+                LocalDateTime.of(2026, 5, 7, 8, 0)
+        );
+        setField(raster, "origemSm", "AGUDOS/SP");
+        setField(raster, "destinoSm", "OSASCO/SP");
+        setField(raster, "origemDestino", "AGUDOS/SP x OSASCO/SP");
+        setField(raster, "origem", "AGUDOS");
+        setField(raster, "ordem", "1º");
+        setField(raster, "destino", "OSASCO");
+        setField(raster, "horarioCorteSm", "23:30");
+        setField(raster, "previsaoChegadaDestino", "04:40");
+        setField(raster, "transitTime", "05:10");
+
+        when(repository.findByDataBetween(any(), any())).thenReturn(List.of(raster));
+
+        List<HorarioCorteRowDTO> tabela = service.buscarHorariosCorteTabela(
+                new FiltroConsultaDTO(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31), Map.of()),
+                10
+        );
+
+        assertThat(tabela).singleElement().satisfies(row -> {
+            assertThat(row.origemSm()).isEqualTo("AGUDOS/SP");
+            assertThat(row.destinoSm()).isEqualTo("OSASCO/SP");
+            assertThat(row.origemDestino()).isEqualTo("AGUDOS/SP x OSASCO/SP");
+            assertThat(row.origem()).isEqualTo("AGUDOS");
+            assertThat(row.ordem()).isEqualTo("1º");
+            assertThat(row.destino()).isEqualTo("OSASCO");
+            assertThat(row.horarioCorteSm()).isEqualTo("23:30");
+            assertThat(row.previsaoChegadaDestino()).isEqualTo("04:40");
+            assertThat(row.transitTime()).isEqualTo("05:10");
+        });
+    }
+
     private static VisaoHorariosCorteEntity row(
             Long id,
             String filial,
@@ -144,6 +187,15 @@ class IndicadoresGestaoAVistaServiceTest {
         setField(entity, "id", id);
         setField(entity, "filial", filial);
         setField(entity, "linhaOuOperacao", linhaOuOperacao);
+        setField(entity, "origemSm", linhaOuOperacao);
+        setField(entity, "destinoSm", linhaOuOperacao);
+        setField(entity, "origemDestino", linhaOuOperacao);
+        setField(entity, "origem", filial);
+        setField(entity, "ordem", "1º");
+        setField(entity, "destino", filial);
+        setField(entity, "horarioCorteSm", "23:30");
+        setField(entity, "previsaoChegadaDestino", "00:30");
+        setField(entity, "transitTime", "01:00");
         setField(entity, "data", data);
         setField(entity, "inicio", LocalTime.of(23, 20));
         setField(entity, "manifestado", LocalTime.of(0, 30));

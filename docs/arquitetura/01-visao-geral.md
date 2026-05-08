@@ -2,12 +2,12 @@
 
 ## Objetivo do sistema
 
-O monorepo `dashboards-etl` entrega uma plataforma de dashboards operacionais, financeiros, executivos e de saude do ETL. O backend expone contratos HTTP protegidos por JWT e ACL. O frontend consome esses contratos com React Query, mantendo filtros compartilhados na URL e renderizacao progressiva.
+O monorepo `dashboards` entrega uma plataforma de dashboards operacionais, financeiros, executivos e de saude do ETL. O backend expone contratos HTTP protegidos por JWT e ACL. O frontend consome esses contratos com React Query, mantendo filtros compartilhados na URL e renderizacao progressiva.
 
 ## Topologia do monorepo
 
 ```text
-dashboards-etl/
+dashboards/
 |-- backend/     -> Spring Boot 3.2, JPA, SQL Server, JWT, ACL
 |-- frontend/      -> React 19, TypeScript, Vite, React Query
 |-- docs/              -> referencia tecnica e operacional

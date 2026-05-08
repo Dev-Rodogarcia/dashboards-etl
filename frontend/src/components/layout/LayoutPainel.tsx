@@ -14,7 +14,7 @@ export default function LayoutPainel() {
       >
         <div>
           <p className="text-xs font-semibold" style={{ color: 'var(--color-text-muted)' }}>
-            DASHBOARDS ETL
+            DASHBOARDS
           </p>
           <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>
             Painel de indicadores operacionais e logísticos.

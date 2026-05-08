@@ -6,7 +6,7 @@ spring:
   application:
     name: dashboard-api
 
-  # SQL Server (credenciais lidas de dashboards-etl/.env)
+  # SQL Server (credenciais lidas de dashboards/.env)
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}

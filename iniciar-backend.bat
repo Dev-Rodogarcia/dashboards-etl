@@ -22,7 +22,7 @@ set "BACKEND_PORT=5010"
 
 echo.
 echo ============================================
-echo   DASHBOARDS ETL - BACKEND
+echo   DASHBOARDS - BACKEND
 echo ============================================
 echo.
 
@@ -34,7 +34,7 @@ if not exist "%BACKEND_DIR%\mvnw.cmd" (
 
 if not exist "%ENV_FILE%" (
     echo [ERRO] Arquivo nao encontrado: .env
-    echo Crie dashboards-etl\.env a partir de dashboards-etl\.env.example antes de iniciar a API.
+    echo Crie dashboards\.env a partir de dashboards\.env.example antes de iniciar a API.
     pause
     exit /b 1
 )
@@ -77,7 +77,7 @@ cd /d "%BACKEND_DIR%"
 call :load_env_file "%ENV_FILE%"
 
 echo [INFO] Iniciando Spring Boot em porta fixa: %BACKEND_PORT%
-echo [INFO] Configuracao: application.yml + dashboards-etl\.env
+echo [INFO] Configuracao: application.yml + dashboards\.env
 echo [INFO] Healthcheck: http://127.0.0.1:%BACKEND_PORT%/actuator/health/liveness
 echo [INFO] Use mvnw.cmd para evitar conflito com Java antigo no PATH.
 echo.
@@ -99,5 +99,5 @@ for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
     )
 )
 
-echo [INFO] Variaveis carregadas de dashboards-etl\.env para esta janela.
+echo [INFO] Variaveis carregadas de dashboards\.env para esta janela.
 exit /b 0

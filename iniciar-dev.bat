@@ -24,7 +24,7 @@ if /i "%~1"=="--dry-run" set "DRY_RUN=1"
 
 echo.
 echo ============================================
-echo   INICIAR DASHBOARDS ETL - DEV
+echo   INICIAR DASHBOARDS - DEV
 echo ============================================
 echo.
 

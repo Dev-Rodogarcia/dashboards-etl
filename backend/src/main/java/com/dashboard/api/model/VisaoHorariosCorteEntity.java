@@ -28,6 +28,33 @@ public class VisaoHorariosCorteEntity {
     @Column(name = "[Linha ou Operação]")
     private String linhaOuOperacao;
 
+    @Column(name = "[Origem SM]")
+    private String origemSm;
+
+    @Column(name = "[Destino SM]")
+    private String destinoSm;
+
+    @Column(name = "[Origem Destino]")
+    private String origemDestino;
+
+    @Column(name = "[Origem]")
+    private String origem;
+
+    @Column(name = "[Ordem]")
+    private String ordem;
+
+    @Column(name = "[Destino]")
+    private String destino;
+
+    @Column(name = "[Horario Corte SM]")
+    private String horarioCorteSm;
+
+    @Column(name = "[Previsao Chegada Destino]")
+    private String previsaoChegadaDestino;
+
+    @Column(name = "[Transit Time]")
+    private String transitTime;
+
     @Column(name = "[Início]")
     private LocalTime inicio;
 
@@ -84,6 +111,42 @@ public class VisaoHorariosCorteEntity {
 
     public String getLinhaOuOperacao() {
         return linhaOuOperacao;
+    }
+
+    public String getOrigemSm() {
+        return origemSm;
+    }
+
+    public String getDestinoSm() {
+        return destinoSm;
+    }
+
+    public String getOrigemDestino() {
+        return origemDestino;
+    }
+
+    public String getOrigem() {
+        return origem;
+    }
+
+    public String getOrdem() {
+        return ordem;
+    }
+
+    public String getDestino() {
+        return destino;
+    }
+
+    public String getHorarioCorteSm() {
+        return horarioCorteSm;
+    }
+
+    public String getPrevisaoChegadaDestino() {
+        return previsaoChegadaDestino;
+    }
+
+    public String getTransitTime() {
+        return transitTime;
     }
 
     public LocalTime getInicio() {

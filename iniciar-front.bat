@@ -27,7 +27,7 @@ if /i "%DASHBOARD_API_LOCAL%"=="1" (
 
 echo.
 echo ============================================
-echo   DASHBOARDS ETL - FRONTEND
+echo   DASHBOARDS - FRONTEND
 echo ============================================
 echo.
 
@@ -38,7 +38,7 @@ if not exist "%FRONTEND_DIR%\package.json" (
 )
 
 if not exist "%ENV_FILE%" (
-    echo [AVISO] Arquivo dashboards-etl\.env nao encontrado.
+    echo [AVISO] Arquivo dashboards\.env nao encontrado.
     echo         O Vite usara fallback de ambiente se existir.
     echo.
 )
@@ -113,7 +113,7 @@ if not exist "node_modules" (
 )
 
 echo [INFO] Iniciando Vite em porta fixa: %FRONTEND_PORT%
-echo [INFO] Configuracao: dashboards-etl\.env
+echo [INFO] Configuracao: dashboards\.env
 echo [INFO] URL local: http://127.0.0.1:%FRONTEND_PORT%/
 echo [INFO] URL alternativa: http://localhost:%FRONTEND_PORT%/
 echo [INFO] Se o processo encerrar, reabra este .bat antes de mexer no Cloudflare.

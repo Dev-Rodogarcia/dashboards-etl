@@ -1,4 +1,4 @@
-# Dashboards ETL
+# Dashboards
 
 Monorepo com backend Spring Boot e frontend React para dashboards operacionais, financeiros e de monitoramento do ETL. O projeto centraliza autenticacao, autorizacao por setor, consultas em SQL Server e filtros compartilhados por URL.
 
@@ -14,7 +14,7 @@ Monorepo com backend Spring Boot e frontend React para dashboards operacionais, 
 ## Estrutura do repositorio
 
 ```text
-dashboards-etl/
+dashboards/
 |-- backend/      # Spring Boot 3.2 / Java 17
 |-- frontend/       # React 19 / TypeScript / Vite
 |-- docs/               # documentacao funcional e tecnica
@@ -56,7 +56,7 @@ dashboards-etl/
 
 ### Ambiente central (`.env`)
 
-Use `.env.example` como base. Este arquivo fica na raiz de `dashboards-etl` e alimenta backend e frontend.
+Use `.env.example` como base. Este arquivo fica na raiz de `dashboards` e alimenta backend e frontend.
 
 ```env
 API_BASE_URL=http://localhost:5010

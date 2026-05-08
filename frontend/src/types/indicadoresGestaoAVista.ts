@@ -152,6 +152,15 @@ export interface HorarioCorteRow {
   data: string | null;
   filial: string | null;
   linhaOuOperacao: string | null;
+  origemSm: string | null;
+  destinoSm: string | null;
+  origemDestino: string | null;
+  origem: string | null;
+  ordem: string | null;
+  destino: string | null;
+  horarioCorteSm: string | null;
+  previsaoChegadaDestino: string | null;
+  transitTime: string | null;
   inicio: string | null;
   manifestado: string | null;
   smGerada: string | null;

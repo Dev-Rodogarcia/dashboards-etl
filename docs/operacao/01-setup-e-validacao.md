@@ -5,7 +5,7 @@
 - Java 17 ou superior
 - Node.js com npm
 - acesso ao SQL Server usado pela API
-- arquivo `.env` na raiz de `dashboards-etl`
+- arquivo `.env` na raiz de `dashboards`
 
 ## Configuracao de ambiente
 

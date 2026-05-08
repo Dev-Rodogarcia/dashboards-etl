@@ -472,6 +472,9 @@ CLOSE view_cursor;
 DEALLOCATE view_cursor;
 GO
 
+:r databases/DASHBOARDS/migrations/V013__horarios_corte_consumir_raster_etl.sql
+GO
+
 IF OBJECT_ID(N'acesso.usuario_importacao_lotes', N'U') IS NULL
 BEGIN
     CREATE TABLE acesso.usuario_importacao_lotes (
