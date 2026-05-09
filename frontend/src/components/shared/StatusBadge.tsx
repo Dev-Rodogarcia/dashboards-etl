@@ -9,7 +9,7 @@ const TEXT_COLORS_BY_HEX: Record<string, string> = {
   '#10b981': '#047857',
   '#ef4444': '#dc2626',
   '#06b6d4': '#0e7490',
-  '#7c3aed': '#7c3aed',
+  '#7c3aed': '#6d28d9',
   '#f97316': '#ea580c',
   '#3b82f6': '#2563eb',
   '#8b5cf6': '#7c3aed',
@@ -34,12 +34,12 @@ function hexToRgba(hex: string, alpha: number) {
 export default function StatusBadge({ status }: StatusBadgeProps) {
   const statusNormalizado = status.toLowerCase();
   const cor = CORES_STATUS[statusNormalizado] ?? '#6b7280';
-  const badgeColor = TEXT_COLORS_BY_HEX[cor] ?? cor;
+  const textColor = TEXT_COLORS_BY_HEX[cor] ?? cor;
 
   return (
     <span
-      className="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
-      style={{ backgroundColor: hexToRgba(badgeColor, 0.14), borderColor: badgeColor, color: badgeColor }}
+      className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
+      style={{ backgroundColor: hexToRgba(textColor, 0.14), color: textColor }}
     >
       {status}
     </span>

@@ -52,8 +52,8 @@ export default function IndicadoresGestaoSummaryCard({
           {value}
         </span>
         <span
-          className="rounded-full border px-2 py-1 text-[11px] font-semibold uppercase tracking-wide"
-          style={{ backgroundColor: style.badgeBg, borderColor: style.badgeBorder, color: style.badgeText }}
+          className="rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wide"
+          style={{ backgroundColor: style.badgeBg, color: style.badgeText }}
         >
           {statusLabel}
         </span>

@@ -100,25 +100,21 @@ function previewStatusStyle(status: UserImportPreviewRow['status']) {
     case 'PRONTA':
       return {
         backgroundColor: 'rgba(22, 163, 74, 0.14)',
-        borderColor: '#16a34a',
         color: '#15803d',
       };
     case 'CONFLITO_EMAIL_EXISTENTE':
       return {
         backgroundColor: 'rgba(249, 115, 22, 0.16)',
-        borderColor: '#f97316',
         color: '#ea580c',
       };
     case 'SETOR_INEXISTENTE':
       return {
         backgroundColor: 'rgba(220, 38, 38, 0.14)',
-        borderColor: '#dc2626',
         color: '#dc2626',
       };
     default:
       return {
         backgroundColor: 'rgba(71, 85, 105, 0.14)',
-        borderColor: '#475569',
         color: '#475569',
       };
   }
@@ -473,7 +469,7 @@ function UsuariosImportacaoModalAberto({ onClose }: Pick<UsuariosImportacaoModal
       largura: '180px',
       formato: (valor) => (
         <span
-          className="inline-flex rounded-full border px-2 py-1 text-xs font-semibold"
+          className="inline-flex rounded-full px-2 py-1 text-xs font-semibold"
           style={previewStatusStyle(valor as UserImportPreviewRow['status'])}
         >
           {formatPreviewStatus(valor as UserImportPreviewRow['status'])}

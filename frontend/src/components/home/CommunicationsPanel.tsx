@@ -36,14 +36,14 @@ function priorityForNotice(notice: HomeNotice): HomeCommunicationPriority {
 
 function priorityStyle(priority: HomeCommunicationPriority) {
   if (priority === 'Alta') {
-    return { backgroundColor: 'rgba(220, 38, 38, 0.14)', borderColor: '#dc2626', color: '#dc2626' };
+    return { backgroundColor: 'rgba(220, 38, 38, 0.14)', color: '#dc2626' };
   }
 
   if (priority === 'Média') {
-    return { backgroundColor: 'rgba(249, 115, 22, 0.16)', borderColor: '#f97316', color: '#ea580c' };
+    return { backgroundColor: 'rgba(249, 115, 22, 0.16)', color: '#ea580c' };
   }
 
-  return { backgroundColor: 'rgba(22, 163, 74, 0.14)', borderColor: '#16a34a', color: '#15803d' };
+  return { backgroundColor: 'rgba(22, 163, 74, 0.14)', color: '#15803d' };
 }
 
 function filterByTab(notices: HomeNotice[], tab: HomeCommunicationTab) {
@@ -308,7 +308,7 @@ export default function CommunicationsPanel({
                           {tagLabel(notice.tag)}
                         </span>
                       </div>
-                      <span className="shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold uppercase" style={priorityStyle(priority)}>
+                      <span className="shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase" style={priorityStyle(priority)}>
                         {priority}
                       </span>
                     </div>

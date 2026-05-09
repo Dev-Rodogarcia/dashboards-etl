@@ -56,8 +56,8 @@ export default function AsyncMultiSelect({
           {label}
           {temSelecao && (
             <span
-              className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold leading-none"
-              style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+              className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none"
+              style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', color: 'var(--color-primary)' }}
             >
               {selecionados.length}
             </span>

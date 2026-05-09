@@ -15,7 +15,6 @@ export interface GoalToneStyle {
   border: string;
   text: string;
   badgeBg: string;
-  badgeBorder: string;
   badgeText: string;
   track: string;
   fill: string;
@@ -99,7 +98,6 @@ export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
       border: '#16a34a',
       text: '#15803d',
       badgeBg: 'rgba(22, 163, 74, 0.14)',
-      badgeBorder: '#16a34a',
       badgeText: '#15803d',
       track: '#bbf7d0',
       fill: '#16a34a',
@@ -108,7 +106,6 @@ export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
       border: '#f97316',
       text: '#ea580c',
       badgeBg: 'rgba(249, 115, 22, 0.16)',
-      badgeBorder: '#f97316',
       badgeText: '#ea580c',
       track: '#fed7aa',
       fill: '#f97316',
@@ -117,7 +114,6 @@ export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
       border: '#dc2626',
       text: '#b91c1c',
       badgeBg: 'rgba(220, 38, 38, 0.14)',
-      badgeBorder: '#dc2626',
       badgeText: '#b91c1c',
       track: '#fecaca',
       fill: '#ef4444',
@@ -126,7 +122,6 @@ export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
       border: '#64748b',
       text: '#475569',
       badgeBg: 'rgba(71, 85, 105, 0.14)',
-      badgeBorder: '#475569',
       badgeText: '#475569',
       track: '#cbd5e1',
       fill: '#64748b',
@@ -135,7 +130,6 @@ export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
       border: '#2563eb',
       text: '#1d4ed8',
       badgeBg: 'rgba(37, 99, 235, 0.14)',
-      badgeBorder: '#2563eb',
       badgeText: '#1d4ed8',
       track: '#bfdbfe',
       fill: '#3b82f6',
@@ -144,7 +138,6 @@ export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
       border: '#dc2626',
       text: '#b91c1c',
       badgeBg: 'rgba(220, 38, 38, 0.14)',
-      badgeBorder: '#dc2626',
       badgeText: '#b91c1c',
       track: '#fecaca',
       fill: '#ef4444',
@@ -153,7 +146,6 @@ export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
       border: '#f97316',
       text: '#ea580c',
       badgeBg: 'rgba(249, 115, 22, 0.16)',
-      badgeBorder: '#f97316',
       badgeText: '#ea580c',
       track: '#fed7aa',
       fill: '#f97316',

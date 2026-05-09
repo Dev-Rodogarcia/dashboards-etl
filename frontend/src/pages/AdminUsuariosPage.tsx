@@ -110,30 +110,25 @@ const FOCUS_RING_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-[
 
 const ACTIVE_BADGE_STYLE = {
   backgroundColor: 'rgba(22, 163, 74, 0.14)',
-  borderColor: '#16a34a',
   color: '#15803d',
 };
 
 const INACTIVE_BADGE_STYLE = {
   backgroundColor: 'rgba(220, 38, 38, 0.14)',
-  borderColor: '#dc2626',
   color: '#dc2626',
 };
 
 const PASSWORD_STATUS_STYLE = {
   segura: {
     backgroundColor: 'rgba(22, 163, 74, 0.14)',
-    borderColor: '#16a34a',
     color: '#15803d',
   },
   migrar_no_login: {
     backgroundColor: 'rgba(249, 115, 22, 0.16)',
-    borderColor: '#f97316',
     color: '#ea580c',
   },
   reset_obrigatorio: {
     backgroundColor: 'rgba(220, 38, 38, 0.14)',
-    borderColor: '#dc2626',
     color: '#dc2626',
   },
 } as const;
@@ -156,7 +151,7 @@ function renderPasswordStatusBadge(status: UsuarioAdmin['statusSenha'], algoritm
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="inline-flex w-fit rounded-full border px-2 py-1 text-xs font-medium" style={style}>
+      <span className="inline-flex w-fit rounded-full px-2 py-1 text-xs font-medium" style={style}>
         {formatPasswordStatus(status)}
       </span>
       <span className="text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
@@ -244,7 +239,7 @@ function useIsMobileUsersTable() {
 function renderStatusBadge(ativo: boolean) {
   return (
     <span
-      className="inline-flex w-fit rounded-full border px-2 py-0.5 text-xs font-medium"
+      className="inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium"
       style={ativo ? ACTIVE_BADGE_STYLE : INACTIVE_BADGE_STYLE}
     >
       {ativo ? 'Ativo' : 'Inativo'}

@@ -96,8 +96,8 @@ export default function IndicadoresGestaoPanoramaSection({
 
                 <div className="xl:justify-self-start">
                   <span
-                    className="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
-                    style={{ backgroundColor: style.badgeBg, borderColor: style.badgeBorder, color: style.badgeText }}
+                    className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
+                    style={{ backgroundColor: style.badgeBg, color: style.badgeText }}
                   >
                     {item.statusLabel}
                   </span>
@@ -164,8 +164,8 @@ export default function IndicadoresGestaoPanoramaSection({
                       </div>
                     </div>
                     <span
-                      className="inline-flex shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
-                      style={{ backgroundColor: style.badgeBg, borderColor: style.badgeBorder, color: style.badgeText }}
+                      className="inline-flex shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
+                      style={{ backgroundColor: style.badgeBg, color: style.badgeText }}
                     >
                       {item.statusLabel}
                     </span>

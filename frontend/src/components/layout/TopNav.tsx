@@ -122,8 +122,8 @@ function DrawerNavSection({
                       <span className="truncate text-sm font-semibold">{item.label}</span>
                       {isActive && (
                         <span
-                          className="rounded-full border px-2 py-0.5 text-[10px] font-bold leading-none"
-                          style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                          className="rounded-full px-2 py-0.5 text-[10px] font-bold leading-none"
+                          style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', color: 'var(--color-primary)' }}
                         >
                           Atual
                         </span>
@@ -391,8 +391,8 @@ export default function TopNav() {
                       </div>
                       {adminBadge && (
                         <span
-                          className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold"
-                          style={{ backgroundColor: 'rgba(249, 115, 22, 0.16)', borderColor: '#f97316', color: '#ea580c' }}
+                          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold"
+                          style={{ backgroundColor: 'rgba(249, 115, 22, 0.16)', color: '#ea580c' }}
                         >
                           {adminBadge}
                         </span>

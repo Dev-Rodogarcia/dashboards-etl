@@ -62,13 +62,11 @@ const SOFT_PANEL_STYLE = {
 
 const ACTIVE_BADGE_STYLE = {
   backgroundColor: 'rgba(33, 71, 138, 0.14)',
-  borderColor: 'var(--color-primary)',
   color: 'var(--color-primary)',
 };
 
 const INACTIVE_BADGE_STYLE = {
   backgroundColor: 'rgba(71, 85, 105, 0.12)',
-  borderColor: 'var(--color-border)',
   color: 'var(--color-text-subtle)',
 };
 
@@ -107,7 +105,7 @@ function useIsMobileSetoresTable() {
 function renderSistemaBadge(sistema: boolean) {
   return (
     <span
-      className="inline-flex w-fit rounded-full border px-2 py-0.5 text-xs font-medium"
+      className="inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium"
       style={sistema ? ACTIVE_BADGE_STYLE : INACTIVE_BADGE_STYLE}
     >
       {sistema ? 'Sistema' : 'Manual'}

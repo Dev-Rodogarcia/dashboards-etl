@@ -42,8 +42,8 @@ function useIsMobile() {
 function FilterBadge({ label, count, onRemove }: ActiveFilter) {
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-all duration-150"
-      style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-all duration-150"
+      style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', color: 'var(--color-primary)' }}
     >
       {label}: {count}
       <button
@@ -118,8 +118,8 @@ export default function FilterBar({
         Filtros
         {totalActive > 0 && (
           <span
-            className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold leading-none"
-            style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none"
+            style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', color: 'var(--color-primary)' }}
             aria-label={`${totalActive} filtros ativos`}
           >
             {totalActive}
@@ -260,8 +260,8 @@ export default function FilterBar({
                     Filtros
                     {totalActive > 0 && (
                       <span
-                        className="ml-2 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold leading-none"
-                        style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                        className="ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none"
+                        style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', color: 'var(--color-primary)' }}
                         aria-label={`${totalActive} filtros ativos`}
                       >
                         {totalActive}

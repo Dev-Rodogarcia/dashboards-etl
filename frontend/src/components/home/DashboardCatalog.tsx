@@ -5,12 +5,12 @@ import type { HomeDashboardCategory, HomeDashboardFilter, HomeDashboardItem } fr
 const focusRingClass =
   'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]';
 
-const CATEGORY_BADGE_STYLE: Record<HomeDashboardCategory, { backgroundColor: string; borderColor: string; color: string }> = {
-  Operação: { backgroundColor: 'rgba(37, 99, 235, 0.14)', borderColor: '#2563eb', color: '#1d4ed8' },
-  Financeiro: { backgroundColor: 'rgba(124, 58, 237, 0.14)', borderColor: '#7c3aed', color: '#6d28d9' },
-  Comercial: { backgroundColor: 'rgba(249, 115, 22, 0.16)', borderColor: '#f97316', color: '#ea580c' },
-  Executivo: { backgroundColor: 'rgba(79, 70, 229, 0.14)', borderColor: '#4f46e5', color: '#4338ca' },
-  'TI/ETL': { backgroundColor: 'rgba(220, 38, 38, 0.14)', borderColor: '#dc2626', color: '#b91c1c' },
+const CATEGORY_BADGE_STYLE: Record<HomeDashboardCategory, { backgroundColor: string; color: string }> = {
+  Operação: { backgroundColor: 'rgba(37, 99, 235, 0.14)', color: '#1d4ed8' },
+  Financeiro: { backgroundColor: 'rgba(124, 58, 237, 0.14)', color: '#6d28d9' },
+  Comercial: { backgroundColor: 'rgba(249, 115, 22, 0.16)', color: '#ea580c' },
+  Executivo: { backgroundColor: 'rgba(79, 70, 229, 0.14)', color: '#4338ca' },
+  'TI/ETL': { backgroundColor: 'rgba(220, 38, 38, 0.14)', color: '#b91c1c' },
 };
 
 function hexToRgba(hex: string, alpha: number) {
@@ -29,11 +29,11 @@ function hexToRgba(hex: string, alpha: number) {
 function CategoryTag({ item }: { item: HomeDashboardItem }) {
   const style = item.isAccessible
     ? CATEGORY_BADGE_STYLE[item.category]
-    : { backgroundColor: 'rgba(71, 85, 105, 0.14)', borderColor: '#475569', color: '#475569' };
+    : { backgroundColor: 'rgba(71, 85, 105, 0.14)', color: '#475569' };
 
   return (
     <span
-      className="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
+      className="inline-flex w-fit max-w-full justify-self-start rounded-full px-[0.72em] py-[0.34em] text-[11px] font-semibold uppercase leading-none tracking-wide"
       style={style}
     >
       {item.category}
@@ -70,10 +70,9 @@ function OpenButton({ item }: { item: HomeDashboardItem }) {
   if (!item.isAccessible) {
     return (
       <span
-        className="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-4 py-1.5 text-xs font-bold leading-none"
+        className="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-1.5 text-xs font-bold leading-none"
         style={{
           backgroundColor: 'rgba(220, 38, 38, 0.12)',
-          borderColor: '#b91c1c',
           color: '#dc2626',
         }}
         aria-label={`${item.label} sem acesso para este perfil`}
