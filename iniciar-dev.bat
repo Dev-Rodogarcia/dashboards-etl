@@ -22,6 +22,8 @@ set "DRY_RUN=0"
 
 if /i "%~1"=="--dry-run" set "DRY_RUN=1"
 
+call :prefer_java_home
+
 echo.
 echo ============================================
 echo   INICIAR DASHBOARDS - DEV
@@ -60,6 +62,14 @@ where powershell >nul 2>nul
 if errorlevel 1 (
     echo [ERRO] PowerShell nao encontrado no PATH.
     echo O script usa PowerShell para liberar portas presas com seguranca.
+    pause
+    exit /b 1
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT_DIR%\scripts\check-java-version.ps1" -MinimumMajor 17
+if errorlevel 1 (
+    echo.
+    echo [ERRO] Corrija o Java antes de iniciar o backend Spring.
     pause
     exit /b 1
 )
@@ -141,4 +151,12 @@ start "Dashboard UI" cmd /k "set DASHBOARD_FRONTEND_WINDOW=1&& set DASHBOARD_API
 echo [OK] Backend pronto e frontend iniciado pelos scripts separados.
 echo Feche cada janela individualmente para encerrar os processos.
 echo.
+exit /b 0
+
+:prefer_java_home
+if defined JAVA_HOME (
+    if exist "%JAVA_HOME%\bin\java.exe" (
+        set "PATH=%JAVA_HOME%\bin;%PATH%"
+    )
+)
 exit /b 0

@@ -32,7 +32,7 @@ import { ADMIN_NAV_ITEMS, DASHBOARD_NAV_ITEMS } from '../../utils/accessControl'
 import type { NavItem } from '../../utils/accessControl';
 import { formatarDataHora } from '../../utils/formatadores';
 
-const focusRingClass = 'outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-primary)_34%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
+const focusRingClass = 'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
 
 const NAV_ICON_BY_PATH: Record<string, ComponentType<{ size?: number; className?: string }>> = {
   '/': LayoutDashboard,
@@ -98,10 +98,10 @@ function DrawerNavSection({
               }
               style={({ isActive }) => ({
                 backgroundColor: isActive
-                  ? 'color-mix(in srgb, var(--color-primary) 12%, var(--color-card))'
+                  ? 'var(--color-bg)'
                   : 'transparent',
                 borderColor: isActive
-                  ? 'color-mix(in srgb, var(--color-primary) 40%, var(--color-border))'
+                  ? 'var(--color-primary)'
                   : 'transparent',
                 color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
               })}
@@ -122,8 +122,8 @@ function DrawerNavSection({
                       <span className="truncate text-sm font-semibold">{item.label}</span>
                       {isActive && (
                         <span
-                          className="rounded-full px-2 py-0.5 text-[10px] font-bold leading-none text-white"
-                          style={{ backgroundColor: 'var(--color-primary)' }}
+                          className="rounded-full border px-2 py-0.5 text-[10px] font-bold leading-none"
+                          style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
                         >
                           Atual
                         </span>
@@ -376,7 +376,7 @@ export default function TopNav() {
                   <div
                     className="mt-4 rounded-xl border px-3 py-2.5"
                     style={{
-                      backgroundColor: 'color-mix(in srgb, var(--color-text) 4%, var(--color-card))',
+                      backgroundColor: 'var(--color-bg)',
                       borderColor: 'var(--color-border)',
                     }}
                   >
@@ -390,7 +390,10 @@ export default function TopNav() {
                         </p>
                       </div>
                       {adminBadge && (
-                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                        <span
+                          className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold"
+                          style={{ backgroundColor: 'rgba(249, 115, 22, 0.16)', borderColor: '#f97316', color: '#ea580c' }}
+                        >
                           {adminBadge}
                         </span>
                       )}
@@ -428,10 +431,10 @@ export default function TopNav() {
                           onClick={() => void handleLogout()}
                           className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold text-red-500 transition-all duration-150 hover:-translate-y-px hover:bg-red-500 hover:text-white ${focusRingClass}`}
                           style={{
-                            borderColor: 'color-mix(in srgb, #ef4444 26%, var(--color-border))',
+                            borderColor: '#dc2626',
                           }}
                         >
-                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-600 bg-red-50 text-red-600">
                             <LogOut size={16} />
                           </span>
                           Sair
@@ -478,7 +481,7 @@ export default function TopNav() {
       <header
         className="top-nav sticky top-0 z-50 border-b px-4 py-3 shadow-sm sm:px-5"
         style={{
-          backgroundColor: 'color-mix(in srgb, var(--color-card) 96%, var(--color-bg))',
+          backgroundColor: 'var(--color-card)',
           borderColor: 'var(--color-border)',
         }}
       >

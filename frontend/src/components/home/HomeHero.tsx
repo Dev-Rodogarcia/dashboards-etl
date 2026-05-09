@@ -18,14 +18,14 @@ function InfoChip({
     <span
       className="inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold"
       style={{
-        backgroundColor: 'color-mix(in srgb, var(--color-bg) 72%, var(--color-card))',
+        backgroundColor: 'var(--color-bg)',
         borderColor: 'var(--color-border)',
         color: 'var(--color-text)',
       }}
       title={`${label}: ${value}`}
     >
-      <Icon className="shrink-0" size={14} style={{ color: 'var(--color-text-muted)' }} />
-      <span className="shrink-0" style={{ color: 'var(--color-text-muted)' }}>
+      <Icon className="shrink-0" size={14} style={{ color: 'var(--color-primary)' }} />
+      <span className="shrink-0" style={{ color: 'var(--color-primary)' }}>
         {label}
       </span>
       <span className="truncate">{value}</span>

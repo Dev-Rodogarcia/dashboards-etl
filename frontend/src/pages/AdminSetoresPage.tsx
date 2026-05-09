@@ -56,26 +56,28 @@ const SECONDARY_BUTTON_STYLE = {
 };
 
 const SOFT_PANEL_STYLE = {
-  backgroundColor: 'color-mix(in srgb, var(--color-text) 6%, var(--color-card))',
+  backgroundColor: 'var(--color-bg)',
   borderColor: 'var(--color-border)',
 };
 
 const ACTIVE_BADGE_STYLE = {
-  backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, var(--color-card))',
+  backgroundColor: 'rgba(33, 71, 138, 0.14)',
+  borderColor: 'var(--color-primary)',
   color: 'var(--color-primary)',
 };
 
 const INACTIVE_BADGE_STYLE = {
-  backgroundColor: 'var(--color-bg)',
+  backgroundColor: 'rgba(71, 85, 105, 0.12)',
+  borderColor: 'var(--color-border)',
   color: 'var(--color-text-subtle)',
 };
 
 const DANGER_BUTTON_STYLE = {
-  borderColor: 'color-mix(in srgb, #ef4444 30%, var(--color-border))',
-  color: 'color-mix(in srgb, #ef4444 78%, var(--color-text))',
+  borderColor: '#dc2626',
+  color: '#dc2626',
 };
 
-const FOCUS_RING_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-primary)_34%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
+const FOCUS_RING_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
 
 function useIsMobileSetoresTable() {
   const [isMobile, setIsMobile] = useState(() =>
@@ -105,7 +107,7 @@ function useIsMobileSetoresTable() {
 function renderSistemaBadge(sistema: boolean) {
   return (
     <span
-      className="inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium"
+      className="inline-flex w-fit rounded-full border px-2 py-0.5 text-xs font-medium"
       style={sistema ? ACTIVE_BADGE_STYLE : INACTIVE_BADGE_STYLE}
     >
       {sistema ? 'Sistema' : 'Manual'}
@@ -480,7 +482,7 @@ export default function AdminSetoresPage() {
 
           {erro && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">{erro}</p>}
           {!erro && form.filiaisPermitidas.length === 0 && (
-            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+            <p className="rounded-xl border border-orange-300 bg-orange-50 px-3 py-2 text-sm text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300">
               Selecione pelo menos uma filial para salvar o setor.
             </p>
           )}

@@ -3,8 +3,8 @@ export const CORES = {
   secundaria: '#7c3aed',
   sucesso: '#10b981',
   perigo: '#ef4444',
-  aviso: '#f59e0b',
-  alerta: '#f59e0b',
+  aviso: '#f97316',
+  alerta: '#f97316',
   info: '#06b6d4',
   cinza: '#6b7280',
   cinzaClaro: '#d1d5db',
@@ -12,19 +12,19 @@ export const CORES = {
 
 export const PALETA_SERIES = [
   '#21478A',
-  '#f59e0b',
+  '#f97316',
   '#10b981',
   '#ef4444',
   '#7c3aed',
   '#06b6d4',
   '#ec4899',
   '#84cc16',
-  '#f97316',
+  '#eab308',
   '#8b5cf6',
 ] as const;
 
 export const CORES_STATUS: Record<string, string> = {
-  pendente: '#f59e0b',
+  pendente: '#f97316',
   'em trânsito': '#21478A',
   finalizado: '#10b981',
   encerrado: '#10b981',

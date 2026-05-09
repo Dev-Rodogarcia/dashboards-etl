@@ -10,7 +10,7 @@ import type {
 } from '../../types/home';
 
 const focusRingClass =
-  'outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-primary)_34%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]';
+  'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]';
 
 const TAB_LABELS: Record<HomeCommunicationTab, string> = {
   avisos: 'Avisos',
@@ -36,14 +36,14 @@ function priorityForNotice(notice: HomeNotice): HomeCommunicationPriority {
 
 function priorityStyle(priority: HomeCommunicationPriority) {
   if (priority === 'Alta') {
-    return { backgroundColor: 'rgba(239, 68, 68, 0.20)', color: '#b91c1c' };
+    return { backgroundColor: 'rgba(220, 38, 38, 0.14)', borderColor: '#dc2626', color: '#dc2626' };
   }
 
   if (priority === 'Média') {
-    return { backgroundColor: 'rgba(245, 158, 11, 0.22)', color: '#a16207' };
+    return { backgroundColor: 'rgba(249, 115, 22, 0.16)', borderColor: '#f97316', color: '#ea580c' };
   }
 
-  return { backgroundColor: 'rgba(16, 185, 129, 0.20)', color: '#047857' };
+  return { backgroundColor: 'rgba(22, 163, 74, 0.14)', borderColor: '#16a34a', color: '#15803d' };
 }
 
 function filterByTab(notices: HomeNotice[], tab: HomeCommunicationTab) {
@@ -112,14 +112,14 @@ export default function CommunicationsPanel({
       <section
         className="flex min-h-[38rem] flex-1 flex-col overflow-hidden rounded-[30px] border shadow-[0_22px_48px_rgba(15,23,42,0.10)]"
         style={{
-          backgroundColor: 'color-mix(in srgb, var(--color-card) 94%, var(--color-bg))',
-          borderColor: 'color-mix(in srgb, var(--color-border) 76%, transparent)',
+          backgroundColor: 'var(--color-card)',
+          borderColor: 'var(--color-border)',
         }}
       >
         <div
           className="sticky top-0 z-10 border-b px-5 py-5 backdrop-blur"
           style={{
-            backgroundColor: 'color-mix(in srgb, var(--color-card) 88%, transparent)',
+            backgroundColor: 'var(--color-card)',
             borderColor: 'var(--color-border)',
           }}
         >
@@ -136,9 +136,10 @@ export default function CommunicationsPanel({
               </p>
             </div>
             <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border"
               style={{
-                backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, var(--color-card))',
+                backgroundColor: 'rgba(33, 71, 138, 0.14)',
+                borderColor: 'var(--color-primary)',
                 color: 'var(--color-primary)',
               }}
             >
@@ -186,7 +187,7 @@ export default function CommunicationsPanel({
               onSubmit={onSubmit}
               className="mb-5 space-y-3 rounded-[22px] border p-4"
               style={{
-                backgroundColor: 'color-mix(in srgb, var(--color-text) 4%, var(--color-card))',
+                backgroundColor: 'var(--color-bg)',
                 borderColor: 'var(--color-border)',
               }}
             >
@@ -292,9 +293,9 @@ export default function CommunicationsPanel({
                     className={`group w-full rounded-[20px] border p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${focusRingClass}`}
                     style={{
                       backgroundColor: selected
-                        ? 'color-mix(in srgb, var(--color-primary) 8%, var(--color-card))'
+                        ? 'var(--color-bg)'
                         : 'var(--color-card)',
-                      borderColor: selected ? 'color-mix(in srgb, var(--color-primary) 36%, var(--color-border))' : 'var(--color-border)',
+                      borderColor: selected ? 'var(--color-primary)' : 'var(--color-border)',
                     }}
                     aria-expanded={selected}
                   >
@@ -307,7 +308,7 @@ export default function CommunicationsPanel({
                           {tagLabel(notice.tag)}
                         </span>
                       </div>
-                      <span className="shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase" style={priorityStyle(priority)}>
+                      <span className="shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold uppercase" style={priorityStyle(priority)}>
                         {priority}
                       </span>
                     </div>

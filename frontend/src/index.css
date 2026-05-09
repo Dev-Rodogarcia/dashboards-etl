@@ -45,7 +45,7 @@ body {
 }
 
 .top-nav__drawer-logo-mark {
-  filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--color-primary) 16%, transparent));
+  filter: drop-shadow(0 8px 18px rgba(33, 71, 138, 0.18));
 }
 
 .top-nav__drawer-panel {
@@ -74,11 +74,11 @@ body {
 }
 
 .top-nav__drawer-scroll-indicator--top {
-  background: linear-gradient(to bottom, var(--color-card), color-mix(in srgb, var(--color-card) 78%, transparent), transparent);
+  background: linear-gradient(to bottom, var(--color-card), var(--color-card), transparent);
 }
 
 .top-nav__drawer-scroll-indicator--bottom {
-  background: linear-gradient(to top, var(--color-card), color-mix(in srgb, var(--color-card) 78%, transparent), transparent);
+  background: linear-gradient(to top, var(--color-card), var(--color-card), transparent);
 }
 
 @media (max-width: 860px) {

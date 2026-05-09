@@ -3,24 +3,37 @@ import { Link } from 'react-router-dom';
 import type { HomeDashboardCategory, HomeDashboardFilter, HomeDashboardItem } from '../../types/home';
 
 const focusRingClass =
-  'outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-primary)_34%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]';
+  'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]';
 
-const CATEGORY_BADGE_STYLE: Record<HomeDashboardCategory, { backgroundColor: string; color: string }> = {
-  Operação: { backgroundColor: 'rgba(37, 99, 235, 0.18)', color: '#1d4ed8' },
-  Financeiro: { backgroundColor: 'rgba(124, 58, 237, 0.18)', color: '#6d28d9' },
-  Comercial: { backgroundColor: 'rgba(245, 158, 11, 0.22)', color: '#a16207' },
-  Executivo: { backgroundColor: 'rgba(79, 70, 229, 0.18)', color: '#4338ca' },
-  'TI/ETL': { backgroundColor: 'rgba(225, 29, 72, 0.18)', color: '#be123c' },
+const CATEGORY_BADGE_STYLE: Record<HomeDashboardCategory, { backgroundColor: string; borderColor: string; color: string }> = {
+  Operação: { backgroundColor: 'rgba(37, 99, 235, 0.14)', borderColor: '#2563eb', color: '#1d4ed8' },
+  Financeiro: { backgroundColor: 'rgba(124, 58, 237, 0.14)', borderColor: '#7c3aed', color: '#6d28d9' },
+  Comercial: { backgroundColor: 'rgba(249, 115, 22, 0.16)', borderColor: '#f97316', color: '#ea580c' },
+  Executivo: { backgroundColor: 'rgba(79, 70, 229, 0.14)', borderColor: '#4f46e5', color: '#4338ca' },
+  'TI/ETL': { backgroundColor: 'rgba(220, 38, 38, 0.14)', borderColor: '#dc2626', color: '#b91c1c' },
 };
+
+function hexToRgba(hex: string, alpha: number) {
+  const normalized = hex.replace('#', '');
+  if (normalized.length !== 6) {
+    return 'rgba(71, 85, 105, 0.14)';
+  }
+
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
 
 function CategoryTag({ item }: { item: HomeDashboardItem }) {
   const style = item.isAccessible
     ? CATEGORY_BADGE_STYLE[item.category]
-    : { backgroundColor: 'rgba(107, 114, 128, 0.16)', color: '#4b5563' };
+    : { backgroundColor: 'rgba(71, 85, 105, 0.14)', borderColor: '#475569', color: '#475569' };
 
   return (
     <span
-      className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
+      className="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
       style={style}
     >
       {item.category}
@@ -57,15 +70,15 @@ function OpenButton({ item }: { item: HomeDashboardItem }) {
   if (!item.isAccessible) {
     return (
       <span
-        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border px-3 text-xs font-bold"
+        className="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-4 py-1.5 text-xs font-bold leading-none"
         style={{
-          backgroundColor: 'color-mix(in srgb, var(--color-text-muted) 8%, var(--color-card))',
-          borderColor: 'var(--color-border)',
-          color: 'var(--color-text-muted)',
+          backgroundColor: 'rgba(220, 38, 38, 0.12)',
+          borderColor: '#b91c1c',
+          color: '#dc2626',
         }}
         aria-label={`${item.label} sem acesso para este perfil`}
       >
-        <Lock size={13} />
+        <Lock className="shrink-0" size={14} strokeWidth={2.4} />
         Sem acesso
       </span>
     );
@@ -95,15 +108,15 @@ function DashboardRow({
   const Icon = item.Icon;
   const locked = !item.isAccessible;
   const textColor = locked ? 'var(--color-text-muted)' : 'var(--color-text)';
-  const subtleColor = locked ? 'color-mix(in srgb, var(--color-text-muted) 82%, transparent)' : 'var(--color-text-subtle)';
+  const subtleColor = locked ? 'var(--color-text-muted)' : 'var(--color-text-subtle)';
 
   return (
     <div
       className={`grid gap-3 border-b px-5 py-4 last:border-b-0 xl:grid-cols-[minmax(230px,1fr)_132px_minmax(260px,1.2fr)_100px] xl:items-center ${
-        locked ? '' : 'transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_4%,var(--color-card))]'
+        locked ? '' : 'transition-colors hover:bg-[var(--color-bg)]'
       }`}
       style={{
-        backgroundColor: locked ? 'color-mix(in srgb, var(--color-text-muted) 5%, var(--color-card))' : 'var(--color-card)',
+        backgroundColor: locked ? 'var(--color-bg)' : 'var(--color-card)',
         borderColor: 'var(--color-border)',
       }}
       aria-disabled={locked}
@@ -112,13 +125,9 @@ function DashboardRow({
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border"
           style={{
-            backgroundColor: locked
-              ? 'color-mix(in srgb, var(--color-text-muted) 8%, var(--color-card))'
-              : `color-mix(in srgb, ${item.accent} 8%, var(--color-card))`,
-            borderColor: locked
-              ? 'var(--color-border)'
-              : `color-mix(in srgb, ${item.accent} 18%, var(--color-border))`,
-            color: locked ? 'var(--color-text-muted)' : item.accent,
+            backgroundColor: locked ? 'rgba(71, 85, 105, 0.14)' : hexToRgba(item.accent, 0.14),
+            borderColor: locked ? '#334155' : item.accent,
+            color: locked ? '#475569' : item.accent,
           }}
         >
           <Icon size={17} />
@@ -221,7 +230,7 @@ export default function DashboardCatalog({
         <div
           className="hidden min-h-11 grid-cols-[minmax(230px,1fr)_132px_minmax(260px,1.2fr)_100px] items-center gap-3 border-b px-5 text-[11px] font-bold uppercase xl:grid"
           style={{
-            backgroundColor: 'color-mix(in srgb, var(--color-text) 4%, var(--color-card))',
+            backgroundColor: 'var(--color-bg)',
             borderColor: 'var(--color-border)',
             color: 'var(--color-text-muted)',
           }}

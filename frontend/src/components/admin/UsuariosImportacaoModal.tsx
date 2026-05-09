@@ -53,7 +53,7 @@ const SECONDARY_BUTTON_STYLE = {
 };
 
 const SOFT_PANEL_STYLE = {
-  backgroundColor: 'color-mix(in srgb, var(--color-text) 5%, var(--color-card))',
+  backgroundColor: 'var(--color-bg)',
   borderColor: 'var(--color-border)',
 };
 
@@ -99,23 +99,27 @@ function previewStatusStyle(status: UserImportPreviewRow['status']) {
   switch (status) {
     case 'PRONTA':
       return {
-        backgroundColor: 'color-mix(in srgb, #10b981 14%, var(--color-card))',
-        color: 'color-mix(in srgb, #10b981 76%, var(--color-text))',
+        backgroundColor: 'rgba(22, 163, 74, 0.14)',
+        borderColor: '#16a34a',
+        color: '#15803d',
       };
     case 'CONFLITO_EMAIL_EXISTENTE':
       return {
-        backgroundColor: 'color-mix(in srgb, #f59e0b 14%, var(--color-card))',
-        color: 'color-mix(in srgb, #b45309 72%, var(--color-text))',
+        backgroundColor: 'rgba(249, 115, 22, 0.16)',
+        borderColor: '#f97316',
+        color: '#ea580c',
       };
     case 'SETOR_INEXISTENTE':
       return {
-        backgroundColor: 'color-mix(in srgb, #ef4444 14%, var(--color-card))',
-        color: 'color-mix(in srgb, #b91c1c 76%, var(--color-text))',
+        backgroundColor: 'rgba(220, 38, 38, 0.14)',
+        borderColor: '#dc2626',
+        color: '#dc2626',
       };
     default:
       return {
-        backgroundColor: 'color-mix(in srgb, #94a3b8 16%, var(--color-card))',
-        color: 'var(--color-text)',
+        backgroundColor: 'rgba(71, 85, 105, 0.14)',
+        borderColor: '#475569',
+        color: '#475569',
       };
   }
 }
@@ -256,9 +260,9 @@ function CriarSetorInlineModal({
 
           {erro && (
             <div className="rounded-xl border px-3 py-2 text-sm" style={{
-              backgroundColor: 'color-mix(in srgb, #ef4444 10%, var(--color-card))',
-              borderColor: 'color-mix(in srgb, #ef4444 28%, var(--color-border))',
-              color: 'color-mix(in srgb, #ef4444 76%, var(--color-text))',
+              backgroundColor: '#fef2f2',
+              borderColor: '#dc2626',
+              color: '#991b1b',
             }}>
               {erro}
             </div>
@@ -469,7 +473,7 @@ function UsuariosImportacaoModalAberto({ onClose }: Pick<UsuariosImportacaoModal
       largura: '180px',
       formato: (valor) => (
         <span
-          className="inline-flex rounded-full px-2 py-1 text-xs font-semibold"
+          className="inline-flex rounded-full border px-2 py-1 text-xs font-semibold"
           style={previewStatusStyle(valor as UserImportPreviewRow['status'])}
         >
           {formatPreviewStatus(valor as UserImportPreviewRow['status'])}
@@ -583,8 +587,8 @@ function UsuariosImportacaoModalAberto({ onClose }: Pick<UsuariosImportacaoModal
                 <div
                   className="mt-4 rounded-3xl border border-dashed p-6 text-center"
                   style={{
-                    borderColor: 'color-mix(in srgb, var(--color-primary) 28%, var(--color-border))',
-                    backgroundColor: 'color-mix(in srgb, var(--color-primary) 5%, var(--color-card))',
+                    borderColor: 'var(--color-primary)',
+                    backgroundColor: 'var(--color-bg)',
                   }}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => void handleDrop(event)}
@@ -605,9 +609,9 @@ function UsuariosImportacaoModalAberto({ onClose }: Pick<UsuariosImportacaoModal
                   <div
                     className="mt-4 rounded-xl border px-3 py-2 text-sm"
                     style={{
-                      backgroundColor: 'color-mix(in srgb, #ef4444 10%, var(--color-card))',
-                      borderColor: 'color-mix(in srgb, #ef4444 28%, var(--color-border))',
-                      color: 'color-mix(in srgb, #ef4444 76%, var(--color-text))',
+                      backgroundColor: '#fef2f2',
+                      borderColor: '#dc2626',
+                      color: '#991b1b',
                     }}
                   >
                     {erroLocal}
@@ -626,7 +630,7 @@ function UsuariosImportacaoModalAberto({ onClose }: Pick<UsuariosImportacaoModal
                   {preview.setoresInexistentes.length > 0 && (
                     <section className="rounded-3xl border p-5" style={SOFT_PANEL_STYLE}>
                       <div className="flex items-start gap-3">
-                        <AlertCircle size={18} style={{ color: '#b45309' }} />
+                        <AlertCircle size={18} style={{ color: '#f97316' }} />
                         <div>
                           <h3 className="text-base font-semibold" style={{ color: 'var(--color-text)' }}>
                             Foram encontrados setores que não existem no sistema.
@@ -746,7 +750,7 @@ function UsuariosImportacaoModalAberto({ onClose }: Pick<UsuariosImportacaoModal
 
                   <div className="grid gap-4 md:grid-cols-3">
                     <SummaryCard label="Criados com sucesso" value={resultado.totalCriados} accent="#10b981" />
-                    <SummaryCard label="Ignorados" value={resultado.totalIgnorados} accent="#f59e0b" />
+                    <SummaryCard label="Ignorados" value={resultado.totalIgnorados} accent="#f97316" />
                     <SummaryCard label="Erros" value={resultado.totalErros} accent="#ef4444" />
                   </div>
 

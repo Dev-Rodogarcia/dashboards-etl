@@ -114,6 +114,7 @@ Sinais de problema:
 Acao recomendada:
 
 - preferir `.\mvnw.cmd spring-boot:run`; ou
+- rodar o JAR com `& "$env:JAVA_HOME\bin\java.exe" -jar .\target\dashboard-api-1.0.0.jar`; ou
 - ajustar `JAVA_HOME` e `PATH` antes de rodar o jar diretamente.
 
 ## Testes de rotina

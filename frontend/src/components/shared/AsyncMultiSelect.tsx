@@ -56,8 +56,8 @@ export default function AsyncMultiSelect({
           {label}
           {temSelecao && (
             <span
-              className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
-              style={{ backgroundColor: 'var(--color-primary)' }}
+              className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold leading-none"
+              style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
             >
               {selecionados.length}
             </span>
@@ -70,11 +70,11 @@ export default function AsyncMultiSelect({
             aria-labelledby={`${labelId} ${valueId}`}
             className="h-10 w-full cursor-pointer rounded-lg border px-3 text-left text-sm shadow-sm
                        transition-all duration-150 hover:border-[var(--color-primary)] active:scale-[0.97]
-                       focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
+                       focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
             style={{
               backgroundColor: 'var(--color-card)',
               borderColor: aberto ? 'var(--color-primary)' : 'var(--color-border)',
-              boxShadow: aberto ? '0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent)' : undefined,
+              boxShadow: aberto ? '0 0 0 2px var(--color-primary)' : undefined,
             }}
           >
             <span
@@ -140,7 +140,7 @@ export default function AsyncMultiSelect({
                   selecionado
                     ? {
                         color: 'var(--color-primary)',
-                        backgroundColor: 'color-mix(in srgb, var(--color-primary) 8%, transparent)',
+                        backgroundColor: 'var(--color-bg)',
                         fontWeight: 500,
                       }
                     : { color: 'var(--color-text)' }

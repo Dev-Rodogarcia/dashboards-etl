@@ -91,7 +91,7 @@ const FIELD_STYLE = {
 };
 
 const SOFT_PANEL_STYLE = {
-  backgroundColor: 'color-mix(in srgb, var(--color-text) 6%, var(--color-card))',
+  backgroundColor: 'var(--color-bg)',
   borderColor: 'var(--color-border)',
 };
 
@@ -102,34 +102,39 @@ const SECONDARY_BUTTON_STYLE = {
 };
 
 const EDIT_DANGER_STYLE = {
-  borderColor: 'color-mix(in srgb, #ef4444 30%, var(--color-border))',
-  color: 'color-mix(in srgb, #ef4444 78%, var(--color-text))',
+  borderColor: '#dc2626',
+  color: '#dc2626',
 };
 
-const FOCUS_RING_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-primary)_34%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
+const FOCUS_RING_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
 
 const ACTIVE_BADGE_STYLE = {
-  backgroundColor: 'color-mix(in srgb, #10b981 14%, var(--color-card))',
-  color: 'color-mix(in srgb, #10b981 72%, var(--color-text))',
+  backgroundColor: 'rgba(22, 163, 74, 0.14)',
+  borderColor: '#16a34a',
+  color: '#15803d',
 };
 
 const INACTIVE_BADGE_STYLE = {
-  backgroundColor: 'color-mix(in srgb, #ef4444 14%, var(--color-card))',
-  color: 'color-mix(in srgb, #ef4444 72%, var(--color-text))',
+  backgroundColor: 'rgba(220, 38, 38, 0.14)',
+  borderColor: '#dc2626',
+  color: '#dc2626',
 };
 
 const PASSWORD_STATUS_STYLE = {
   segura: {
-    backgroundColor: 'color-mix(in srgb, #10b981 14%, var(--color-card))',
-    color: 'color-mix(in srgb, #10b981 74%, var(--color-text))',
+    backgroundColor: 'rgba(22, 163, 74, 0.14)',
+    borderColor: '#16a34a',
+    color: '#15803d',
   },
   migrar_no_login: {
-    backgroundColor: 'color-mix(in srgb, #f59e0b 14%, var(--color-card))',
-    color: 'color-mix(in srgb, #b45309 72%, var(--color-text))',
+    backgroundColor: 'rgba(249, 115, 22, 0.16)',
+    borderColor: '#f97316',
+    color: '#ea580c',
   },
   reset_obrigatorio: {
-    backgroundColor: 'color-mix(in srgb, #ef4444 14%, var(--color-card))',
-    color: 'color-mix(in srgb, #b91c1c 76%, var(--color-text))',
+    backgroundColor: 'rgba(220, 38, 38, 0.14)',
+    borderColor: '#dc2626',
+    color: '#dc2626',
   },
 } as const;
 
@@ -151,7 +156,7 @@ function renderPasswordStatusBadge(status: UsuarioAdmin['statusSenha'], algoritm
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="inline-flex w-fit rounded-full px-2 py-1 text-xs font-medium" style={style}>
+      <span className="inline-flex w-fit rounded-full border px-2 py-1 text-xs font-medium" style={style}>
         {formatPasswordStatus(status)}
       </span>
       <span className="text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
@@ -239,7 +244,7 @@ function useIsMobileUsersTable() {
 function renderStatusBadge(ativo: boolean) {
   return (
     <span
-      className="inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium"
+      className="inline-flex w-fit rounded-full border px-2 py-0.5 text-xs font-medium"
       style={ativo ? ACTIVE_BADGE_STYLE : INACTIVE_BADGE_STYLE}
     >
       {ativo ? 'Ativo' : 'Inativo'}
@@ -686,7 +691,7 @@ export default function AdminUsuariosPage() {
                 disabled={excluirUsuarioDefinitivamente.isPending}
                 onSelect={() => abrirModalExclusao(row)}
                 className="gap-2 font-semibold"
-                style={{ color: 'color-mix(in srgb, #dc2626 86%, var(--color-text))' }}
+                style={{ color: '#dc2626' }}
               >
                 <Trash2 size={14} />
                 Excluir definitivamente
@@ -771,7 +776,7 @@ export default function AdminUsuariosPage() {
           <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Usuários monitorados" value={resumoStatusSenha.total} accent="var(--color-text)" />
             <SummaryCard label="Hash seguro" value={resumoStatusSenha.segura} accent="#10b981" />
-            <SummaryCard label="Migra no login" value={resumoStatusSenha.migrar_no_login} accent="#f59e0b" />
+            <SummaryCard label="Migra no login" value={resumoStatusSenha.migrar_no_login} accent="#f97316" />
             <SummaryCard label="Reset obrigatório" value={resumoStatusSenha.reset_obrigatorio} accent="#ef4444" />
           </div>
         </div>
@@ -900,8 +905,8 @@ export default function AdminUsuariosPage() {
                   style={
                     form.escopoFiliaisTipo === opcao.value
                       ? {
-                          backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, var(--color-card))',
-                          borderColor: 'color-mix(in srgb, var(--color-primary) 34%, var(--color-border))',
+                          backgroundColor: 'var(--color-bg)',
+                          borderColor: 'var(--color-primary)',
                         }
                       : SOFT_PANEL_STYLE
                   }
@@ -953,9 +958,9 @@ export default function AdminUsuariosPage() {
             <div
               className="rounded-2xl border px-4 py-3 text-sm"
               style={{
-                backgroundColor: 'color-mix(in srgb, #f59e0b 10%, var(--color-card))',
-                borderColor: 'color-mix(in srgb, #f59e0b 28%, var(--color-border))',
-                color: 'color-mix(in srgb, #b45309 72%, var(--color-text))',
+                backgroundColor: '#fffbeb',
+                borderColor: '#f97316',
+                color: '#ea580c',
               }}
             >
               {senhaPolicyErrors[0]}
@@ -978,8 +983,8 @@ export default function AdminUsuariosPage() {
                   style={
                     form.papel === papel.nome
                       ? {
-                          backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, var(--color-card))',
-                          borderColor: 'color-mix(in srgb, var(--color-primary) 34%, var(--color-border))',
+                          backgroundColor: 'var(--color-bg)',
+                          borderColor: 'var(--color-primary)',
                         }
                       : SOFT_PANEL_STYLE
                   }

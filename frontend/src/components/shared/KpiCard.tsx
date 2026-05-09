@@ -31,7 +31,7 @@ export default function KpiCard({ label, valor, icone, tone = 'neutral', progres
     <div
       className="flex flex-col gap-1 rounded-[20px] border p-3 transition-all duration-150 hover:shadow-lg hover:-translate-y-[2px] cursor-default"
       style={{
-        backgroundColor: tone === 'neutral' ? 'var(--color-card)' : `color-mix(in srgb, var(--color-card) 94%, ${style.soft} 6%)`,
+        backgroundColor: 'var(--color-card)',
         borderColor: tone === 'neutral' ? 'var(--color-border)' : style.border,
         flexGrow: 1,
         flexShrink: 1,

@@ -121,7 +121,7 @@ const HOME_DASHBOARD_META: Record<string, HomeDashboardMeta> = {
     description: 'Indicadores oficiais de performance, coletores, cubagem, indenização e corte.',
     keywords: ['gestao a vista', 'performance', 'coletores', 'cubagem', 'indenizacao', 'horarios'],
     Icon: BarChart3,
-    accent: '#ca8a04',
+    accent: '#f97316',
     priority: 94,
   },
   '/executivo': {

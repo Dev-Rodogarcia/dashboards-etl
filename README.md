@@ -100,6 +100,13 @@ cd .\backend
 .\mvnw.cmd spring-boot:run
 ```
 
+Para validar o JAR empacotado no Windows, prefira o Java do `JAVA_HOME`:
+
+```powershell
+cd .\backend
+& "$env:JAVA_HOME\bin\java.exe" -jar .\target\dashboard-api-1.0.0.jar
+```
+
 Frontend:
 
 ```powershell

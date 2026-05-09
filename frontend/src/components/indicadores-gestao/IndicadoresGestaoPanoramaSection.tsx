@@ -70,7 +70,7 @@ export default function IndicadoresGestaoPanoramaSection({
               key={item.id}
               className="rounded-[20px] border px-4 py-[14px] transition-colors xl:px-5 xl:py-4"
               style={{
-                backgroundColor: item.tone === 'neutral' ? 'var(--color-bg)' : `color-mix(in srgb, var(--color-bg) 94%, ${style.soft} 6%)`,
+                backgroundColor: 'var(--color-bg)',
                 borderColor: item.tone === 'neutral' ? 'var(--color-border)' : style.border,
               }}
             >
@@ -96,8 +96,8 @@ export default function IndicadoresGestaoPanoramaSection({
 
                 <div className="xl:justify-self-start">
                   <span
-                    className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
-                    style={{ backgroundColor: style.bg, color: style.text }}
+                    className="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
+                    style={{ backgroundColor: style.badgeBg, borderColor: style.badgeBorder, color: style.badgeText }}
                   >
                     {item.statusLabel}
                   </span>
@@ -153,7 +153,7 @@ export default function IndicadoresGestaoPanoramaSection({
                   key={`${item.id}-attention`}
                   className="rounded-[18px] border px-3.5 py-3"
                   style={{
-                    backgroundColor: `color-mix(in srgb, var(--color-bg) 93%, ${style.soft} 7%)`,
+                    backgroundColor: 'var(--color-bg)',
                     borderColor: style.border,
                   }}
                 >
@@ -164,8 +164,8 @@ export default function IndicadoresGestaoPanoramaSection({
                       </div>
                     </div>
                     <span
-                      className="inline-flex shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
-                      style={{ backgroundColor: style.bg, color: style.text }}
+                      className="inline-flex shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
+                      style={{ backgroundColor: style.badgeBg, borderColor: style.badgeBorder, color: style.badgeText }}
                     >
                       {item.statusLabel}
                     </span>

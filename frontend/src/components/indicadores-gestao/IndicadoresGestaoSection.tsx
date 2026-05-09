@@ -20,8 +20,8 @@ function GoalBadge({ label, tone = 'neutral' }: GoalBadgeProps) {
 
   return (
     <span
-      className="inline-flex rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide"
-      style={{ backgroundColor: style.bg, color: style.text }}
+      className="inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide"
+      style={{ backgroundColor: style.badgeBg, borderColor: style.badgeBorder, color: style.badgeText }}
     >
       {label}
     </span>

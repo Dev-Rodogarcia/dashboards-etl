@@ -12,10 +12,11 @@ export type GoalTone = 'positive' | 'warning' | 'negative' | 'neutral' | 'loadin
 export const GOAL_WARNING_PROGRESS_PCT = 50;
 
 export interface GoalToneStyle {
-  bg: string;
   border: string;
   text: string;
-  soft: string;
+  badgeBg: string;
+  badgeBorder: string;
+  badgeText: string;
   track: string;
   fill: string;
 }
@@ -95,60 +96,67 @@ function groupLabel(value: string | null | undefined, fallback = 'Nao informado'
 export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
   const palette: Record<GoalTone, GoalToneStyle> = {
     positive: {
-      bg: 'rgba(22, 163, 74, 0.10)',
-      border: 'rgba(22, 163, 74, 0.28)',
+      border: '#16a34a',
       text: '#15803d',
-      soft: 'rgba(22, 163, 74, 0.06)',
-      track: 'rgba(22, 163, 74, 0.16)',
+      badgeBg: 'rgba(22, 163, 74, 0.14)',
+      badgeBorder: '#16a34a',
+      badgeText: '#15803d',
+      track: '#bbf7d0',
       fill: '#16a34a',
     },
     warning: {
-      bg: 'rgba(245, 158, 11, 0.10)',
-      border: 'rgba(245, 158, 11, 0.28)',
-      text: '#a16207',
-      soft: 'rgba(245, 158, 11, 0.06)',
-      track: 'rgba(245, 158, 11, 0.18)',
-      fill: '#f59e0b',
+      border: '#f97316',
+      text: '#ea580c',
+      badgeBg: 'rgba(249, 115, 22, 0.16)',
+      badgeBorder: '#f97316',
+      badgeText: '#ea580c',
+      track: '#fed7aa',
+      fill: '#f97316',
     },
     negative: {
-      bg: 'rgba(239, 68, 68, 0.10)',
-      border: 'rgba(239, 68, 68, 0.24)',
+      border: '#dc2626',
       text: '#b91c1c',
-      soft: 'rgba(239, 68, 68, 0.05)',
-      track: 'rgba(239, 68, 68, 0.16)',
+      badgeBg: 'rgba(220, 38, 38, 0.14)',
+      badgeBorder: '#dc2626',
+      badgeText: '#b91c1c',
+      track: '#fecaca',
       fill: '#ef4444',
     },
     neutral: {
-      bg: 'rgba(100, 116, 139, 0.12)',
-      border: 'rgba(100, 116, 139, 0.20)',
+      border: '#64748b',
       text: '#475569',
-      soft: 'rgba(100, 116, 139, 0.05)',
-      track: 'rgba(100, 116, 139, 0.16)',
+      badgeBg: 'rgba(71, 85, 105, 0.14)',
+      badgeBorder: '#475569',
+      badgeText: '#475569',
+      track: '#cbd5e1',
       fill: '#64748b',
     },
     loading: {
-      bg: 'rgba(59, 130, 246, 0.12)',
-      border: 'rgba(59, 130, 246, 0.22)',
+      border: '#2563eb',
       text: '#1d4ed8',
-      soft: 'rgba(59, 130, 246, 0.05)',
-      track: 'rgba(59, 130, 246, 0.16)',
+      badgeBg: 'rgba(37, 99, 235, 0.14)',
+      badgeBorder: '#2563eb',
+      badgeText: '#1d4ed8',
+      track: '#bfdbfe',
       fill: '#3b82f6',
     },
     error: {
-      bg: 'rgba(239, 68, 68, 0.12)',
-      border: 'rgba(239, 68, 68, 0.22)',
+      border: '#dc2626',
       text: '#b91c1c',
-      soft: 'rgba(239, 68, 68, 0.05)',
-      track: 'rgba(239, 68, 68, 0.16)',
+      badgeBg: 'rgba(220, 38, 38, 0.14)',
+      badgeBorder: '#dc2626',
+      badgeText: '#b91c1c',
+      track: '#fecaca',
       fill: '#ef4444',
     },
     empty: {
-      bg: 'rgba(245, 158, 11, 0.12)',
-      border: 'rgba(245, 158, 11, 0.22)',
-      text: '#a16207',
-      soft: 'rgba(245, 158, 11, 0.05)',
-      track: 'rgba(245, 158, 11, 0.18)',
-      fill: '#f59e0b',
+      border: '#f97316',
+      text: '#ea580c',
+      badgeBg: 'rgba(249, 115, 22, 0.16)',
+      badgeBorder: '#f97316',
+      badgeText: '#ea580c',
+      track: '#fed7aa',
+      fill: '#f97316',
     },
   };
 

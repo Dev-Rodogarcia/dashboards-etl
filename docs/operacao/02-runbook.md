@@ -23,6 +23,7 @@ cd .\backend
 Acao:
 
 - usar `.\mvnw.cmd spring-boot:run`; ou
+- rodar o JAR com `& "$env:JAVA_HOME\bin\java.exe" -jar .\target\dashboard-api-1.0.0.jar`; ou
 - ajustar `JAVA_HOME` para um JDK compativel.
 
 ## 2. Dashboard devolve `400` ao trocar o periodo

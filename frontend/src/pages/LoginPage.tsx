@@ -47,7 +47,7 @@ export default function LoginPage() {
             Controle de acesso por setor com área administrativa.
           </p>
           {carregandoSessao && (
-            <p className="mt-2 text-xs text-amber-700">
+            <p className="mt-2 text-xs text-orange-600">
               Validando a sessão salva nesta aba...
             </p>
           )}

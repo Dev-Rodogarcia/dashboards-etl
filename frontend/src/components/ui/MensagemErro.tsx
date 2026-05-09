@@ -13,9 +13,9 @@ const config: Record<TipoErro, {
   Icon: typeof AlertCircle;
 }> = {
   periodo: {
-    bg: 'bg-amber-50 dark:bg-amber-950/30',
-    border: 'border-amber-400',
-    text: 'text-amber-700 dark:text-amber-400',
+    bg: 'bg-orange-50 dark:bg-orange-950/30',
+    border: 'border-orange-400',
+    text: 'text-orange-700 dark:text-orange-400',
     Icon: CalendarX,
   },
   timeout: {

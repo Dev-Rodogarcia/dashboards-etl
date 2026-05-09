@@ -22,16 +22,47 @@ const OPCOES: Array<{ valor: PermissionOverrideMode; label: string }> = [
 ];
 
 function getToneSurfaceStyle(color: string) {
+  if (color === '#ef4444') {
+    return {
+      backgroundColor: '#fef2f2',
+      borderColor: '#dc2626',
+    };
+  }
+
+  if (color === '#10b981') {
+    return {
+      backgroundColor: '#f0fdf4',
+      borderColor: '#16a34a',
+    };
+  }
+
   return {
-    backgroundColor: `color-mix(in srgb, ${color} 12%, var(--color-card))`,
-    borderColor: `color-mix(in srgb, ${color} 34%, var(--color-border))`,
+    backgroundColor: 'var(--color-bg)',
+    borderColor: color,
   };
 }
 
 function getToneBadgeStyle(color: string) {
+  if (color === '#ef4444') {
+    return {
+      backgroundColor: 'rgba(220, 38, 38, 0.14)',
+      borderColor: '#dc2626',
+      color: '#dc2626',
+    };
+  }
+
+  if (color === '#10b981') {
+    return {
+      backgroundColor: 'rgba(22, 163, 74, 0.14)',
+      borderColor: '#16a34a',
+      color: '#15803d',
+    };
+  }
+
   return {
-    backgroundColor: `color-mix(in srgb, ${color} 14%, var(--color-card))`,
-    color: `color-mix(in srgb, ${color} 72%, var(--color-text))`,
+    backgroundColor: 'rgba(33, 71, 138, 0.14)',
+    borderColor: color,
+    color,
   };
 }
 
@@ -73,12 +104,13 @@ export default function PermissionOverrideMatrix({
 
             <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
               <span
-                className="rounded-full px-2 py-1 font-medium"
+                className="rounded-full border px-2 py-1 font-medium"
                 style={
                   herdado
                     ? getToneBadgeStyle('var(--color-primary)')
                     : {
-                        backgroundColor: 'var(--color-bg)',
+                        backgroundColor: 'rgba(71, 85, 105, 0.12)',
+                        borderColor: 'var(--color-border)',
                         color: 'var(--color-text-subtle)',
                       }
                 }
@@ -86,7 +118,7 @@ export default function PermissionOverrideMatrix({
                 Herdado: {herdado ? 'permitido' : 'negado'}
               </span>
               <span
-                className="rounded-full px-2 py-1 font-medium"
+                className="rounded-full border px-2 py-1 font-medium"
                 style={acessoFinal ? getToneBadgeStyle('#10b981') : getToneBadgeStyle('#ef4444')}
               >
                 Final: {acessoFinal ? 'permitido' : 'negado'}

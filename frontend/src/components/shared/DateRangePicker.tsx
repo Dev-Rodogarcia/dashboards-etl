@@ -22,7 +22,7 @@ const PRESETS = [
 const inputClass =
   'cursor-pointer rounded-lg border px-3 py-2 text-sm shadow-sm transition-all duration-150 ' +
   'hover:border-[var(--color-primary)] focus:border-[var(--color-primary)] ' +
-  'focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]';
+  'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]';
 
 export default function DateRangePicker({
   dataInicio,
@@ -133,7 +133,7 @@ export default function DateRangePicker({
                 aria-pressed={ativo}
                 className="cursor-pointer rounded-lg border px-2.5 py-2 text-xs font-semibold
                            transition-all duration-150 active:scale-[0.97]
-                           focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
+                           focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                 style={
                   ativo
                     ? {

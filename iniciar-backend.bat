@@ -20,6 +20,8 @@ set "BACKEND_DIR=%ROOT_DIR%\backend"
 set "ENV_FILE=%ROOT_DIR%\.env"
 set "BACKEND_PORT=5010"
 
+call :prefer_java_home
+
 echo.
 echo ============================================
 echo   DASHBOARDS - BACKEND
@@ -42,6 +44,14 @@ if not exist "%ENV_FILE%" (
 where powershell >nul 2>nul
 if errorlevel 1 (
     echo [ERRO] PowerShell nao encontrado no PATH.
+    pause
+    exit /b 1
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT_DIR%\scripts\check-java-version.ps1" -MinimumMajor 17
+if errorlevel 1 (
+    echo.
+    echo [ERRO] Corrija o Java antes de iniciar o backend Spring.
     pause
     exit /b 1
 )
@@ -100,4 +110,12 @@ for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
 )
 
 echo [INFO] Variaveis carregadas de dashboards\.env para esta janela.
+exit /b 0
+
+:prefer_java_home
+if defined JAVA_HOME (
+    if exist "%JAVA_HOME%\bin\java.exe" (
+        set "PATH=%JAVA_HOME%\bin;%PATH%"
+    )
+)
 exit /b 0

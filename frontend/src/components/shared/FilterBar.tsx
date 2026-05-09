@@ -111,15 +111,15 @@ export default function FilterBar({
         aria-controls={panelId}
         className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium
                    transition-all duration-150 hover:bg-[var(--color-bg)] active:scale-[0.97]
-                   focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
+                   focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
         style={{ color: 'var(--color-text)' }}
       >
         <SlidersHorizontal size={14} aria-hidden="true" />
         Filtros
         {totalActive > 0 && (
           <span
-            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
-            style={{ backgroundColor: 'var(--color-primary)' }}
+            className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold leading-none"
+            style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
             aria-label={`${totalActive} filtros ativos`}
           >
             {totalActive}
@@ -205,7 +205,7 @@ export default function FilterBar({
                     onClick={onClear}
                     className="ml-auto cursor-pointer rounded-lg border px-3 py-1 text-xs font-medium
                                transition-all duration-150 hover:opacity-70 active:scale-[0.97]
-                               focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
+                               focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                     style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
                   >
                     Limpar filtros
@@ -260,8 +260,8 @@ export default function FilterBar({
                     Filtros
                     {totalActive > 0 && (
                       <span
-                        className="ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
-                        style={{ backgroundColor: 'var(--color-primary)' }}
+                        className="ml-2 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold leading-none"
+                        style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
                         aria-label={`${totalActive} filtros ativos`}
                       >
                         {totalActive}
@@ -272,7 +272,7 @@ export default function FilterBar({
                     type="button"
                     onClick={() => setOpen(false)}
                     className="cursor-pointer rounded-full p-1.5 transition-all hover:bg-[var(--color-bg)] active:scale-[0.97]
-                               focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
+                               focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                     style={{ color: 'var(--color-text-muted)' }}
                     aria-label="Fechar filtros"
                   >
@@ -307,7 +307,7 @@ export default function FilterBar({
                       onClick={() => { onClear(); setOpen(false); }}
                       className="mt-4 w-full cursor-pointer rounded-xl border py-3 text-sm font-medium
                                  transition-all duration-150 hover:opacity-80 active:scale-[0.98]
-                                 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
+                                 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                       style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
                     >
                       Limpar filtros

@@ -27,7 +27,7 @@ export default function AcessoNegadoPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4">
       <div className="w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-2xl font-bold text-red-600">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-red-600 bg-red-50 text-2xl font-bold text-red-600">
           !
         </div>
         <h1 className="mt-5 text-2xl font-bold text-gray-900">Acesso negado</h1>

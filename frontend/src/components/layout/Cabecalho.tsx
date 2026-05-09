@@ -17,7 +17,7 @@ export default function Cabecalho() {
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-gray-900">{usuario?.setor.nome}</span>
           {usuario?.papel === 'admin_plataforma' && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+            <span className="rounded-full border border-orange-500 bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-600">
               Admin
             </span>
           )}

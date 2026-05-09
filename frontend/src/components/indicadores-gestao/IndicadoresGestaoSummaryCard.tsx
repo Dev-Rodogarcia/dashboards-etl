@@ -31,7 +31,7 @@ export default function IndicadoresGestaoSummaryCard({
     <div
       className="rounded-[20px] border p-4 shadow-sm transition-colors"
       style={{
-        backgroundColor: tone === 'neutral' ? 'var(--color-card)' : `color-mix(in srgb, var(--color-card) 92%, ${style.soft} 8%)`,
+        backgroundColor: 'var(--color-card)',
         borderColor: tone === 'neutral' ? 'var(--color-border)' : style.border,
       }}
     >
@@ -52,8 +52,8 @@ export default function IndicadoresGestaoSummaryCard({
           {value}
         </span>
         <span
-          className="rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wide"
-          style={{ backgroundColor: style.bg, color: style.text }}
+          className="rounded-full border px-2 py-1 text-[11px] font-semibold uppercase tracking-wide"
+          style={{ backgroundColor: style.badgeBg, borderColor: style.badgeBorder, color: style.badgeText }}
         >
           {statusLabel}
         </span>

@@ -10,19 +10,19 @@ export interface ToastItem {
 
 const TONE_STYLE: Record<ToastTone, { background: string; border: string; color: string }> = {
   success: {
-    background: 'color-mix(in srgb, #10b981 14%, var(--color-card))',
-    border: 'color-mix(in srgb, #10b981 32%, var(--color-border))',
-    color: 'color-mix(in srgb, #10b981 74%, var(--color-text))',
+    background: 'var(--color-card)',
+    border: '#16a34a',
+    color: '#15803d',
   },
   error: {
-    background: 'color-mix(in srgb, #ef4444 12%, var(--color-card))',
-    border: 'color-mix(in srgb, #ef4444 28%, var(--color-border))',
-    color: 'color-mix(in srgb, #ef4444 72%, var(--color-text))',
+    background: 'var(--color-card)',
+    border: '#dc2626',
+    color: '#dc2626',
   },
   info: {
-    background: 'color-mix(in srgb, var(--color-primary) 10%, var(--color-card))',
-    border: 'color-mix(in srgb, var(--color-primary) 26%, var(--color-border))',
-    color: 'var(--color-text)',
+    background: 'var(--color-card)',
+    border: 'var(--color-primary)',
+    color: 'var(--color-primary)',
   },
 };
 

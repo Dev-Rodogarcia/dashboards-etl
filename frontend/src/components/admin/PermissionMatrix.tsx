@@ -20,8 +20,8 @@ export default function PermissionMatrix({ catalogo, valor, onChange, disabled }
             style={
               ativo
                 ? {
-                    backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, var(--color-card))',
-                    borderColor: 'color-mix(in srgb, var(--color-primary) 34%, var(--color-border))',
+                    backgroundColor: 'var(--color-bg)',
+                    borderColor: 'var(--color-primary)',
                   }
                 : {
                     backgroundColor: 'var(--color-card)',

@@ -1,7 +1,7 @@
 import { Search, X } from 'lucide-react';
 
 const focusRingClass =
-  'outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-primary)_34%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]';
+  'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]';
 
 export default function HomeSearch({
   value,
@@ -27,7 +27,7 @@ export default function HomeSearch({
         className={`h-14 w-full rounded-[22px] border px-5 pl-14 pr-14 text-sm shadow-[0_14px_28px_rgba(15,23,42,0.06)] transition-all duration-200 focus:shadow-[0_18px_36px_rgba(15,23,42,0.10)] ${focusRingClass}`}
         style={{
           backgroundColor: 'var(--color-card)',
-          borderColor: 'color-mix(in srgb, var(--color-border) 76%, transparent)',
+          borderColor: 'var(--color-border)',
           color: 'var(--color-text)',
         }}
       />
