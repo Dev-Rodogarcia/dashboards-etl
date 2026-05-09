@@ -251,10 +251,11 @@ public class FaturasPorClienteService {
                     janela.inicioInclusivo(),
                     janela.fimExclusivo()
             )) {
-                if (!temTexto(row.getUniqueId())) {
+                String chave = chaveNormalizacao(row);
+                if (!temTexto(chave)) {
                     continue;
                 }
-                normalizadas.merge(row.getUniqueId(), row, this::escolherRepresentante);
+                normalizadas.merge(chave, row, this::escolherRepresentante);
             }
             return normalizadas.values().stream().toList();
         }
@@ -267,10 +268,11 @@ public class FaturasPorClienteService {
                         Sort.Order.asc("uniqueId")
                 )
         )) {
-            if (!temTexto(row.getUniqueId())) {
+            String chave = chaveNormalizacao(row);
+            if (!temTexto(chave)) {
                 continue;
             }
-            normalizadas.merge(row.getUniqueId(), row, this::escolherRepresentante);
+            normalizadas.merge(chave, row, this::escolherRepresentante);
         }
 
         return normalizadas.values().stream().toList();
@@ -293,6 +295,22 @@ public class FaturasPorClienteService {
             return atual;
         }
         return atual.getDataExtracao().isBefore(candidato.getDataExtracao()) ? candidato : atual;
+    }
+
+    private String chaveNormalizacao(VisaoFaturasClienteEntity row) {
+        if (row == null) {
+            return null;
+        }
+
+        String documento = textoLimpo(row.getDocumentoFatura());
+        if (temTexto(documento)) {
+            return String.join("|",
+                    "fatura",
+                    documento.toLowerCase(Locale.ROOT)
+            );
+        }
+
+        return temTexto(row.getUniqueId()) ? "linha|" + row.getUniqueId().trim() : null;
     }
 
     private boolean temDocumentoFatura(VisaoFaturasClienteEntity row) {
@@ -444,12 +462,12 @@ public class FaturasPorClienteService {
                             janela.inicioInclusivo(),
                             janela.fimExclusivo()
                     ).stream()
-                    .filter(row -> temTexto(row.getUniqueId()))
+                    .filter(row -> temTexto(chaveNormalizacao(row)))
                     .sorted(Comparator
                             .comparing(VisaoFaturasClienteEntity::getDataEmissaoCte, Comparator.nullsLast(Comparator.reverseOrder()))
                             .thenComparing(VisaoFaturasClienteEntity::getUniqueId))
                     .collect(Collectors.toMap(
-                            VisaoFaturasClienteEntity::getUniqueId,
+                            this::chaveNormalizacao,
                             row -> row,
                             (atual, candidato) -> atual,
                             LinkedHashMap::new
@@ -474,10 +492,11 @@ public class FaturasPorClienteService {
             );
 
             for (VisaoFaturasClienteEntity row : pagina.getContent()) {
-                if (!temTexto(row.getUniqueId())) {
+                String chave = chaveNormalizacao(row);
+                if (!temTexto(chave)) {
                     continue;
                 }
-                normalizadas.putIfAbsent(row.getUniqueId(), row);
+                normalizadas.merge(chave, row, this::escolherRepresentante);
             }
 
             if (pagina.isLast() || pagina.getContent().isEmpty()) {

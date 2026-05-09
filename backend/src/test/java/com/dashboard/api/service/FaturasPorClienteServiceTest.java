@@ -68,6 +68,34 @@ class FaturasPorClienteServiceTest {
     }
 
     @Test
+    void buscarOverviewDeveNormalizarItensDaMesmaFaturaPorDocumento() {
+        VisaoFaturasClienteEntity primeira = linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",
+                LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
+                LocalDateTime.of(2026, 3, 21, 10, 0));
+        VisaoFaturasClienteEntity segunda = linha("uid-2", "DOC-1", "100.00", null, null, "Cliente B", "Filial 2",
+                LocalDate.of(2026, 3, 2), LocalDate.of(2026, 3, 10), null,
+                LocalDateTime.of(2026, 3, 22, 10, 0));
+        ReflectionTestUtils.setField(primeira, "clienteCnpj", "11111111000191");
+        ReflectionTestUtils.setField(segunda, "clienteCnpj", "22222222000192");
+        ReflectionTestUtils.setField(primeira, "pagadorDocumento", "11.111.111/0001-91");
+        ReflectionTestUtils.setField(segunda, "pagadorDocumento", "22.222.222/0001-92");
+
+        when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of(
+                primeira,
+                segunda,
+                linha("uid-3", "DOC-2", "75.00", null, null, "Cliente A", "Filial 1",
+                        LocalDate.of(2026, 3, 2), LocalDate.of(2026, 3, 12), null,
+                        LocalDateTime.of(2026, 3, 23, 10, 0))
+        ));
+
+        FaturasPorClienteOverviewDTO overview = service.buscarOverview(filtroPadrao());
+
+        assertThat(overview.valorFaturado()).isEqualByComparingTo("175.00");
+        assertThat(overview.registrosFaturados()).isEqualTo(2);
+        assertThat(overview.clientesAtivos()).isEqualTo(2);
+    }
+
+    @Test
     void buscarOverviewDeveContarTitulosEmAtrasoApenasComDocumentoEVencidosSemBaixa() {
         when(repository.findPowerBiRowsByDataEmissaoCteNaJanela(any(), any())).thenReturn(List.of(
                 linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",

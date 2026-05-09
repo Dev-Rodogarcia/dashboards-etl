@@ -63,61 +63,61 @@ public class VisaoFaturasClienteEntity {
     @Column(name = "[Pagador do frete/Documento]")
     private String pagadorDocumento;
 
-    @Column(name = "[Remetente/Nome]")
+    @Column(name = "[Cliente/CNPJ]")
     private String clienteCnpj;
 
-    @Column(name = "[Remetente/Documento]")
+    @Column(name = "[Remetente/Nome]")
     private String remetenteNome;
 
-    @Column(name = "[Destinatário/Nome]")
+    @Column(name = "[Remetente/Documento]")
     private String remetenteDocumento;
 
-    @Column(name = "[Destinatário/Documento]")
+    @Column(name = "[Destinatário/Nome]")
     private String destinatarioNome;
 
-    @Column(name = "[Vendedor/Nome]")
+    @Column(name = "[Destinatário/Documento]")
     private String destinatarioDocumento;
 
-    @Column(name = "[NFS-e/Número]")
+    @Column(name = "[Vendedor/Nome]")
     private String vendedorNome;
 
-    @Column(name = "[NFS-e/Série]")
+    @Column(name = "[NFS-e/Número]")
     private Long numeroNfse;
 
-    @Column(name = "[fit_nse_number]")
+    @Column(name = "[NFS-e/Série]")
     private String serieNfse;
 
-    @Column(name = "[Fatura/Emissão]")
+    @Column(name = "[Fatura/N° Documento]")
     private String documentoFatura;
 
-    @Column(name = "[Fatura/Valor]")
+    @Column(name = "[Fatura/Emissão]")
     private String emissaoFatura;
 
-    @Column(name = "[Fatura/Valor Total]")
+    @Column(name = "[Fatura/Valor]")
     private BigDecimal valorFitAnt;
 
-    @Column(name = "[Fatura/Número]")
+    @Column(name = "[Fatura/Valor Total]")
     private BigDecimal valorFatura;
 
-    @Column(name = "[Fatura/Emissão Fatura]")
+    @Column(name = "[Fatura/Número]")
     private String numeroFatura;
 
-    @Column(name = "[Parcelas/Vencimento]")
+    @Column(name = "[Fatura/Emissão Fatura]")
     private String dataEmissaoFatura;
 
-    @Column(name = "[Fatura/Baixa]")
+    @Column(name = "[Parcelas/Vencimento]")
     private String dataVencimentoFatura;
 
-    @Column(name = "[Fatura/Data Vencimento Original]")
+    @Column(name = "[Fatura/Baixa]")
     private String dataBaixaFatura;
 
-    @Column(name = "[Notas Fiscais]")
+    @Column(name = "[Fatura/Data Vencimento Original]")
     private String dataVencimentoOriginal;
 
-    @Column(name = "[Pedidos/Cliente]")
+    @Column(name = "[Notas Fiscais]")
     private String notasFiscais;
 
-    @Column(name = "[Metadata]")
+    @Column(name = "[Pedidos/Cliente]")
     private String pedidosCliente;
 
     @Column(name = "[Data da Última Atualização]")

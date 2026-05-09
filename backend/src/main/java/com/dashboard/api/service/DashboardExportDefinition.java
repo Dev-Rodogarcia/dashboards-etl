@@ -127,7 +127,7 @@ public enum DashboardExportDefinition {
                     "clientesCnpj", List.of("[Pagador do frete/Documento]")
             ),
             List.of("[CT-e/Data de emissão] DESC", "[ID Único] DESC"),
-            new DedupConfig("[ID Único]", List.of("[Data da Última Atualização] DESC", "[CT-e/Data de emissão] DESC"))
+            new DedupConfig(faturaPorClienteDedupKey(), List.of("[Data da Última Atualização] DESC", "[CT-e/Data de emissão] DESC"))
     ),
     FATURAS_POR_CLIENTE(
             "faturas-por-cliente",
@@ -142,7 +142,7 @@ public enum DashboardExportDefinition {
                     "clientesCnpj", List.of("[Pagador do frete/Documento]")
             ),
             List.of("[CT-e/Data de emissão] DESC", "[ID Único] DESC"),
-            new DedupConfig("[ID Único]", List.of("[Data da Última Atualização] DESC", "[CT-e/Data de emissão] DESC"))
+            new DedupConfig(faturaPorClienteDedupKey(), List.of("[Data da Última Atualização] DESC", "[CT-e/Data de emissão] DESC"))
     ),
     FATURAS_FINANCEIRO(
             "faturas-financeiro",
@@ -240,6 +240,23 @@ public enum DashboardExportDefinition {
 
     boolean temFiltroStatusProcesso() {
         return Set.of(FATURAS_PROCESSOS, FATURAS_POR_CLIENTE).contains(this);
+    }
+
+    private static String faturaPorClienteDedupKey() {
+        return """
+                CASE
+                    WHEN [Fatura/N° Documento] IS NOT NULL
+                     AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))) <> ''
+                    THEN CONCAT(
+                        'fatura|',
+                        LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))))
+                    )
+                    ELSE CONCAT(
+                        'linha|',
+                        LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [ID Único]))))
+                    )
+                END
+                """;
     }
 
     enum DateMode {
