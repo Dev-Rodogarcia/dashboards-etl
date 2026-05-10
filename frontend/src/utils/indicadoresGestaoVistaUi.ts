@@ -103,12 +103,12 @@ export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
       fill: '#16a34a',
     },
     warning: {
-      border: '#f97316',
-      text: '#ea580c',
-      badgeBg: 'rgba(249, 115, 22, 0.16)',
-      badgeText: '#ea580c',
-      track: '#fed7aa',
-      fill: '#f97316',
+      border: '#eab308',
+      text: '#a16207',
+      badgeBg: 'rgba(234, 179, 8, 0.18)',
+      badgeText: '#a16207',
+      track: '#fef08a',
+      fill: '#eab308',
     },
     negative: {
       border: '#dc2626',
@@ -143,12 +143,12 @@ export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
       fill: '#ef4444',
     },
     empty: {
-      border: '#f97316',
-      text: '#ea580c',
-      badgeBg: 'rgba(249, 115, 22, 0.16)',
-      badgeText: '#ea580c',
-      track: '#fed7aa',
-      fill: '#f97316',
+      border: '#eab308',
+      text: '#a16207',
+      badgeBg: 'rgba(234, 179, 8, 0.18)',
+      badgeText: '#a16207',
+      track: '#fef08a',
+      fill: '#eab308',
     },
   };
 

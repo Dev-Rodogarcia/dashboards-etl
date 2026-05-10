@@ -7,6 +7,7 @@ import {
   aggregateUtilizacaoRanking,
   avaliarMetaIndicador,
   calcularProgressoMeta,
+  getGoalToneStyle,
 } from './indicadoresGestaoVistaUi';
 
 describe('indicadoresGestaoVistaUi', () => {
@@ -57,6 +58,19 @@ describe('indicadoresGestaoVistaUi', () => {
 
   it('calcula progresso invertido para metas de teto', () => {
     expect(calcularProgressoMeta(0.3, 0.2, 'atMost')).toBe(66.7);
+  });
+
+  it('usa amarelo no tom de atencao para nao confundir com vermelho', () => {
+    expect(getGoalToneStyle('warning')).toMatchObject({
+      border: '#eab308',
+      text: '#a16207',
+      fill: '#eab308',
+    });
+    expect(getGoalToneStyle('empty')).toMatchObject({
+      border: '#eab308',
+      text: '#a16207',
+      fill: '#eab308',
+    });
   });
 
   it('agrega performance por filial performance', () => {
