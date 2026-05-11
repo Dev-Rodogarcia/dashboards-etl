@@ -6,7 +6,7 @@ import path from 'node:path';
 
 const ROOT_DIR = process.cwd();
 const REPORTS_DIR = path.join(ROOT_DIR, 'reports');
-const DEFAULT_XLSX = path.join(ROOT_DIR, 'Análise - Divergências - Indicadores Projeto Gestão a Vista Operacional.xlsx');
+const DEFAULT_XLSX = path.join(ROOT_DIR, 'docs', 'Análise - Divergências - Indicadores Projeto Gestão a Vista Operacional.xlsx');
 const DEFAULT_API_BASE_URL = 'http://localhost:5010';
 
 const METRIC_TOLERANCES = {
@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
@@ -91,6 +92,10 @@ public class GestaoVistaXlsxReader {
                         parseSheet(stream, styles, sharedStrings, table(tables, "Tabela9"),
                                 List.of("CNPJ"),
                                 stats::acceptClienteSemCubagem);
+                    } else if ("HC (Apoio)".equals(sheetName)) {
+                        parseSheet(stream, styles, sharedStrings, table(tables, "Horário_Corte"),
+                                List.of("ORIGEM - SM", "DESTINO - SM", "Origem x Destino", "HORÁRIO CORTE"),
+                                stats::acceptHorarioCorteApoio);
                     }
                 }
             }
@@ -118,6 +123,9 @@ public class GestaoVistaXlsxReader {
                         case "Faturamento (Apoio Sinistros)" -> parseSheet(stream, styles, sharedStrings, table(tables, "faturamento"),
                                 List.of("N° Minuta", "Data do frete", "Total a receber"),
                                 row -> stats.acceptFaturamento(row, dataInicio, dataFim));
+                        case "Horário de Corte" -> parseSheet(stream, styles, sharedStrings, table(tables, "Viagens"),
+                                List.of("Código", "Dt. Hr. Início Viagem", "Dt. Hr. Fim Viagem", "Origem", "Destino", "Dt. Horario de Corte"),
+                                row -> stats.acceptHorarioCorte(row, dataInicio, dataFim));
                         default -> {
                         }
                     }
@@ -238,6 +246,56 @@ public class GestaoVistaXlsxReader {
         return null;
     }
 
+    private static LocalDateTime parseDateTime(String value) {
+        String text = clean(value);
+        if (text.isBlank()) {
+            return null;
+        }
+
+        text = text.replace('\u00A0', ' ').replaceAll("\\s+", " ").trim();
+        if (text.matches("-?\\d+(\\.\\d+)?")) {
+            try {
+                return DateUtil.getLocalDateTime(Double.parseDouble(text)).withNano(0);
+            } catch (RuntimeException ignored) {
+            }
+        }
+
+        List<DateTimeFormatter> formats = List.of(
+                new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("uuuu-M-d H:m[:s]").toFormatter(Locale.ROOT).withResolverStyle(ResolverStyle.SMART),
+                new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d/M/uuuu H:m[:s]").toFormatter(Locale.forLanguageTag("pt-BR")).withResolverStyle(ResolverStyle.SMART),
+                new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d/M/uu H:m[:s]").toFormatter(Locale.forLanguageTag("pt-BR")).withResolverStyle(ResolverStyle.SMART)
+        );
+
+        for (DateTimeFormatter formatter : formats) {
+            try {
+                return LocalDateTime.parse(text.replace('T', ' '), formatter);
+            } catch (DateTimeParseException ignored) {
+            }
+        }
+        try {
+            return LocalDateTime.parse(text.replace(" ", "T")).withNano(0);
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
+    }
+
+    private static int parseTimeMinutes(String value) {
+        String text = clean(value);
+        if (text.isBlank()) {
+            return -1;
+        }
+        if (text.matches("-?\\d+(\\.\\d+)?")) {
+            BigDecimal decimal = new BigDecimal(text);
+            return decimal.multiply(BigDecimal.valueOf(24 * 60)).setScale(0, RoundingMode.HALF_UP).intValue();
+        }
+        try {
+            LocalTime time = LocalTime.parse(text.length() == 5 ? text + ":00" : text);
+            return time.getHour() * 60 + time.getMinute();
+        } catch (DateTimeParseException ignored) {
+            return -1;
+        }
+    }
+
     private static BigDecimal parseDecimal(String value) {
         String text = clean(value);
         if (text.isBlank()) {
@@ -274,6 +332,10 @@ public class GestaoVistaXlsxReader {
         String text = Normalizer.normalize(clean(value).toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
                 .replaceAll("\\p{M}+", "");
         return text.replaceAll("\\s+", " ").trim();
+    }
+
+    private static String normalizeRouteKey(String value) {
+        return normalizeText(value).replace(" x ", "|").replaceAll("\\s+", " ");
     }
 
     private static String normalizeDoc(String value) {
@@ -434,12 +496,29 @@ public class GestaoVistaXlsxReader {
                 return sharedStrings.getItemAt(Integer.parseInt(raw)).getString();
             }
             if (currentCellStyle >= 0 && raw.matches("-?\\d+(\\.\\d+)?") && isDateStyle(currentCellStyle)) {
-                return DateUtil.getJavaDate(Double.parseDouble(raw)).toInstant()
-                        .atZone(java.time.ZoneId.systemDefault())
-                        .toLocalDate()
-                        .toString();
+                return formatDateCell(raw, currentCellStyle);
             }
             return raw;
+        }
+
+        private String formatDateCell(String raw, int styleIndex) {
+            LocalDateTime value = DateUtil.getLocalDateTime(Double.parseDouble(raw));
+            String format = "";
+            try {
+                CellStyle style = styles.getStyleAt(styleIndex);
+                format = Objects.toString(style.getDataFormatString(), "").toLowerCase(Locale.ROOT);
+            } catch (RuntimeException ignored) {
+            }
+
+            boolean hasDate = format.contains("d") || format.contains("y") || format.contains("m/");
+            boolean hasTime = format.contains("h") || format.contains("s");
+            if (hasTime && !hasDate) {
+                return value.toLocalTime().withNano(0).toString();
+            }
+            if (hasTime) {
+                return value.withNano(0).toString().replace('T', ' ');
+            }
+            return value.toLocalDate().toString();
         }
 
         private boolean isDateStyle(int styleIndex) {
@@ -499,6 +578,14 @@ public class GestaoVistaXlsxReader {
         private final Set<String> faturamentoMinutas = new HashSet<>();
         private final Map<String, Object> faturamentoPorMinuta = new TreeMap<>();
         private BigDecimal faturamentoBase = BigDecimal.ZERO;
+
+        private final Map<String, Integer> horariosCortePorRota = new HashMap<>();
+        private final Set<String> horariosCodigos = new HashSet<>();
+        private final Map<String, Object> horariosDetalhes = new TreeMap<>();
+        private int horariosTotalProgramado;
+        private int horariosSaidasNoHorario;
+        private int horariosSaidasForaHorario;
+        private int horariosSemCorte;
 
         private void acceptPerformance(Map<String, String> row, LocalDate start, LocalDate end) {
             LocalDate date = parseDate(row.get("Previsão Entrega/Previsão de entrega"));
@@ -665,6 +752,70 @@ public class GestaoVistaXlsxReader {
             faturamentoBase = faturamentoBase.add(parseDecimal(row.get("Total a receber")));
         }
 
+        private void acceptHorarioCorteApoio(Map<String, String> row) {
+            String origem = clean(row.get("ORIGEM - SM"));
+            String destino = clean(row.get("DESTINO - SM"));
+            int minutos = parseTimeMinutes(row.get("HORÁRIO CORTE"));
+            if (origem.isBlank() || destino.isBlank() || minutos < 0) {
+                return;
+            }
+
+            String origemDestino = clean(row.get("Origem x Destino"));
+            if (!origemDestino.isBlank()) {
+                horariosCortePorRota.put(normalizeRouteKey(origemDestino), minutos);
+            }
+            horariosCortePorRota.put(normalizeRouteKey(origem + " x " + destino), minutos);
+            horariosCortePorRota.put(normalizeRouteKey(origem + destino), minutos);
+        }
+
+        private void acceptHorarioCorte(Map<String, String> row, LocalDate start, LocalDate end) {
+            LocalDate dataCorte = parseDate(row.get("Dt. Horario de Corte"));
+            if (dataCorte == null) {
+                dataCorte = parseDate(row.get("Dt. Hr. Fim Viagem"));
+            }
+            if (!inPeriod(dataCorte, start, end)) {
+                return;
+            }
+
+            String codigo = clean(row.get("Código"));
+            if (codigo.isBlank() || !horariosCodigos.add(codigo)) {
+                return;
+            }
+
+            String origem = clean(row.get("Origem"));
+            String destino = clean(row.get("Destino"));
+            LocalDateTime inicio = parseDateTime(row.get("Dt. Hr. Início Viagem"));
+            Integer minutos = horariosCortePorRota.get(normalizeRouteKey(origem + " x " + destino));
+            if (minutos == null || inicio == null) {
+                horariosSemCorte++;
+                horariosDetalhes.put(codigo, mapOf(
+                        "codigo", codigo,
+                        "origem", origem,
+                        "destino", destino,
+                        "dataCorte", dataCorte.toString(),
+                        "status", "SEM DADO"
+                ));
+                return;
+            }
+
+            LocalDateTime dataHoraCorte = dataCorte.atStartOfDay().plusMinutes(minutos);
+            boolean dentro = !inicio.isAfter(dataHoraCorte);
+            horariosTotalProgramado++;
+            if (dentro) {
+                horariosSaidasNoHorario++;
+            } else {
+                horariosSaidasForaHorario++;
+            }
+            horariosDetalhes.put(codigo, mapOf(
+                    "codigo", codigo,
+                    "origem", origem,
+                    "destino", destino,
+                    "dataHoraInicio", inicio.toString(),
+                    "dataHoraCorte", dataHoraCorte.toString(),
+                    "status", dentro ? "DENTRO" : "FORA"
+            ));
+        }
+
         private String toJson() {
             int coletoresTotal = manifestosEmitidos.size() + manifestosDescarregamento.size();
             int cubagemNaoCubados = Math.max(cubagemTotal - cubagemCubados, 0);
@@ -705,8 +856,12 @@ public class GestaoVistaXlsxReader {
                     "linhasFaturamento", faturamentoLinhas
             ));
             root.put("horariosCorte", mapOf(
-                    "comparavel", false,
-                    "motivo", "O XLSX não contém aba/base de Horários de Corte."
+                    "comparavel", true,
+                    "totalProgramado", horariosTotalProgramado,
+                    "saidasNoHorario", horariosSaidasNoHorario,
+                    "saidasForaHorario", horariosSaidasForaHorario,
+                    "semHorarioCorte", horariosSemCorte,
+                    "pctNoHorario", pct(horariosSaidasNoHorario, horariosTotalProgramado, 4)
             ));
             root.put("details", mapOf(
                     "performanceMinutas", performanceDetalhes,
@@ -715,7 +870,8 @@ public class GestaoVistaXlsxReader {
                     "coletoresManifestosDescarregamento", manifestosDescarregamentoDetalhes,
                     "cubagemMinutas", cubagemDetalhes,
                     "indenizacaoSinistros", sinistrosDetalhes,
-                    "indenizacaoFaturamentoPorMinuta", faturamentoPorMinuta
+                    "indenizacaoFaturamentoPorMinuta", faturamentoPorMinuta,
+                    "horariosCorteViagens", horariosDetalhes
             ));
             return json(root);
         }
@@ -976,6 +1132,7 @@ async function fetchDashboardMetrics(apiBaseUrl, token, dataInicio, dataFim) {
     coletores: '/api/painel/indicadores-gestao-a-vista/utilizacao-coletores/overview',
     cubagem: '/api/painel/indicadores-gestao-a-vista/cubagem-mercadorias/overview',
     indenizacao: '/api/painel/indicadores-gestao-a-vista/indenizacao-mercadorias/overview',
+    horariosCorte: '/api/painel/indicadores-gestao-a-vista/horarios-corte/overview',
   };
   const output = {};
 
@@ -1040,6 +1197,7 @@ async function fetchDashboardDetails(apiBaseUrl, token, dataInicio, dataFim) {
     coletores: '/api/painel/indicadores-gestao-a-vista/utilizacao-coletores/diagnostico',
     cubagem: '/api/painel/indicadores-gestao-a-vista/cubagem-mercadorias/diagnostico',
     indenizacao: '/api/painel/indicadores-gestao-a-vista/indenizacao-mercadorias/diagnostico',
+    horariosCorte: '/api/painel/indicadores-gestao-a-vista/horarios-corte/tabela/paginada',
   };
   const output = {};
 
@@ -1180,6 +1338,7 @@ function buildReconciliation(xlsx, dashboardDetails) {
   const cubagemMap = keyMapFromRows(dashboardDetails.cubagem?.rows, row => row.numeroMinuta);
   const indenizacaoMap = keyMapFromRows(dashboardDetails.indenizacao?.rows, row => row.numeroSinistro);
   const coletoresMap = keyMapFromRows(dashboardDetails.coletores?.rows, row => row.chave);
+  const horariosMap = keyMapFromRows(dashboardDetails.horariosCorte?.rows, row => row.id == null ? null : String(row.id));
 
   return {
     performance: dashboardDetails.performance?.ok
@@ -1229,6 +1388,21 @@ function buildReconciliation(xlsx, dashboardDetails) {
           },
         })
       : { error: dashboardDetails.indenizacao?.error ?? 'Detalhe da API indisponível.' },
+    horariosCorte: dashboardDetails.horariosCorte?.ok
+      ? compareKeyMaps({
+          xlsxMap: details.horariosCorteViagens,
+          dashboardMap: horariosMap,
+          mismatch: (xlsxRow, dashboardRow) => {
+            const xlsxStatus = normalizeStatus(xlsxRow.status);
+            const dashboardStatus = dashboardRow.saiuNoHorario === true ? 'DENTRO' : dashboardRow.saiuNoHorario === false ? 'FORA' : 'SEM DADO';
+            return xlsxStatus === normalizeStatus(dashboardStatus) ? null : {
+              field: 'saiuNoHorario',
+              xlsxValue: xlsxRow.status,
+              dashboardValue: dashboardStatus,
+            };
+          },
+        })
+      : { error: dashboardDetails.horariosCorte?.error ?? 'Detalhe da API indisponível.' },
     coletores: {
       xlsxOrdensCount: objectValues(details.coletoresOrdens).length,
       xlsxManifestosEmitidosCount: objectValues(details.coletoresManifestosEmitidos).length,
@@ -1257,6 +1431,7 @@ function buildMetricRows(xlsx, dashboard) {
   const coletoresDash = dashboard.coletores;
   const cubagemDash = dashboard.cubagem;
   const indenizacaoDash = dashboard.indenizacao;
+  const horariosDash = dashboard.horariosCorte;
 
   const performanceEmAbertoDash = dashboardValue(performanceDash, data =>
     Math.max((data.totalEntregas ?? 0) - (data.entregasNoPrazo ?? 0) - (data.entregasForaDoPrazo ?? 0), 0));
@@ -1287,20 +1462,11 @@ function buildMetricRows(xlsx, dashboard) {
     metric({ indicator: 'Indenização de Mercadorias', key: 'indenizacao.valorIndenizadoAbs', label: 'Valor indenizado', type: 'currency', xlsxValue: xlsx.indenizacao.valorIndenizadoAbs, dashboardValue: dashboardValue(indenizacaoDash, d => d.valorIndenizadoAbs) }),
     metric({ indicator: 'Indenização de Mercadorias', key: 'indenizacao.faturamentoBase', label: 'Faturamento base', type: 'currency', xlsxValue: xlsx.indenizacao.faturamentoBase, dashboardValue: dashboardValue(indenizacaoDash, d => d.faturamentoBase) }),
     metric({ indicator: 'Indenização de Mercadorias', key: 'indenizacao.pctIndenizacao', label: '% indenização', type: 'percentage', displayDecimals: 2, xlsxValue: xlsx.indenizacao.pctIndenizacao, dashboardValue: dashboardValue(indenizacaoDash, d => d.pctIndenizacao) }),
-    {
-      indicator: 'Horários de Corte',
-      key: 'horarios.naoComparavel',
-      label: 'Indicador completo',
-      type: 'notComparable',
-      xlsxValue: null,
-      dashboardValue: null,
-      comparedXlsxValue: null,
-      comparedDashboardValue: null,
-      diffAbs: null,
-      diffPct: null,
-      status: 'NAO_COMPARAVEL',
-      reason: 'DADO AUSENTE NO XLSX: não há aba/base de Horários de Corte no arquivo fonte da verdade.',
-    },
+
+    metric({ indicator: 'Horários de Corte', key: 'horariosCorte.totalProgramado', label: 'Total programado', type: 'count', xlsxValue: xlsx.horariosCorte.totalProgramado, dashboardValue: dashboardValue(horariosDash, d => d.totalProgramado) }),
+    metric({ indicator: 'Horários de Corte', key: 'horariosCorte.saidasNoHorario', label: 'Saídas no horário', type: 'count', xlsxValue: xlsx.horariosCorte.saidasNoHorario, dashboardValue: dashboardValue(horariosDash, d => d.saidasNoHorario) }),
+    metric({ indicator: 'Horários de Corte', key: 'horariosCorte.saidasForaHorario', label: 'Saídas fora do horário', type: 'count', xlsxValue: xlsx.horariosCorte.saidasForaHorario, dashboardValue: dashboardValue(horariosDash, d => Math.max((d.totalProgramado ?? 0) - (d.saidasNoHorario ?? 0), 0)) }),
+    metric({ indicator: 'Horários de Corte', key: 'horariosCorte.pctNoHorario', label: '% no horário', type: 'percentage', displayDecimals: 1, xlsxValue: xlsx.horariosCorte.pctNoHorario, dashboardValue: dashboardValue(horariosDash, d => d.pctNoHorario) }),
   ];
 }
 
@@ -1321,6 +1487,9 @@ function possibleCause(row, dashboard) {
   }
   if (row.indicator === 'Indenização de Mercadorias') {
     return 'Revisar filtro por Data abertura, campo valor a pagar ao cliente, deduplicação por Nº do Sinistro e denominador de faturamento por Data do frete/Total a receber.';
+  }
+  if (row.indicator === 'Horários de Corte') {
+    return 'Revisar mapeamento Origem x Destino contra HC (Apoio), data de corte pelo fim da viagem, timezone/localtime e rotas sem horário calculável.';
   }
   return 'Dado ausente ou regra não mapeada.';
 }
@@ -1425,7 +1594,7 @@ function renderMarkdown(context, xlsxMetrics, dashboardMetrics, rows, reconcilia
   lines.push('');
   lines.push('## Dados Ausentes ou Ambíguos');
   lines.push('');
-  lines.push('- Horários de Corte não foi comparado porque o XLSX informado não contém aba ou base equivalente.');
+  lines.push(`- Horários de Corte ignora ${xlsxMetrics.horariosCorte.semHorarioCorte ?? 0} viagem(ns) do XLSX sem horário de corte mapeável em HC (Apoio) ou sem início real.`);
   lines.push('- Percentuais usam o arredondamento visual do dashboard para Status, mas a diferença exibida acima mantém a diferença bruta em pontos percentuais.');
   lines.push('');
   lines.push('## Reconciliação Detalhada');
@@ -1436,6 +1605,7 @@ function renderMarkdown(context, xlsxMetrics, dashboardMetrics, rows, reconcilia
     ['Performance por N° Minuta', reconciliation.performance],
     ['Cubagem por N° Minuta', reconciliation.cubagem],
     ['Indenização por Nº do Sinistro', reconciliation.indenizacaoSinistros],
+    ['Horários por Código Raster', reconciliation.horariosCorte],
   ]) {
     if (detail?.error) {
       lines.push(`| ${label} | - | - | - | - | - | - |`);

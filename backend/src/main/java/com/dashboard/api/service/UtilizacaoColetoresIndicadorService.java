@@ -40,6 +40,16 @@ public class UtilizacaoColetoresIndicadorService {
             "carregamento",
             "descarregamento"
     );
+    private static final String[] FILIAIS_PADRAO = {
+            "AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "CAS - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "CWB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "NHB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "REC - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "RJR - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"
+    };
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoManifestosRepository manifestosRepository;
@@ -203,9 +213,12 @@ public class UtilizacaoColetoresIndicadorService {
                 continue;
             }
 
-            String filialEmissora = primeiroTexto(manifesto.getFilialEmissora(), manifesto.getFilial());
+            String filialEmissora = canonicalizarFilial(
+                    primeiroTexto(manifesto.getFilialEmissora(), manifesto.getFilial()),
+                    filiaisValidas
+            );
 
-            if (permiteFilial(escopo, filtro, filialEmissora)) {
+            if (permiteFilial(escopo, filtro, filialEmissora, filiaisValidas)) {
                 String chaveEmitido = registro.chaveManifesto();
                 if (emitidosRegistrados.add(chaveEmitido)) {
                     ponto(pontos, registro.data(), filialEmissora)
@@ -226,7 +239,7 @@ public class UtilizacaoColetoresIndicadorService {
         }
 
         for (VisaoInventarioEntity ordem : ordens) {
-            OrdemConferenciaElegivel registro = analisarOrdemConferencia(ordem, filtro, escopo);
+            OrdemConferenciaElegivel registro = analisarOrdemConferencia(ordem, filtro, escopo, filiaisValidas);
             if (registro == null || !ordensRegistradas.add(registro.numeroOrdem())) {
                 continue;
             }
@@ -261,7 +274,8 @@ public class UtilizacaoColetoresIndicadorService {
     private OrdemConferenciaElegivel analisarOrdemConferencia(
             VisaoInventarioEntity ordem,
             FiltroConsultaDTO filtro,
-            EscopoFilialService.EscopoFilial escopo
+            EscopoFilialService.EscopoFilial escopo,
+            Map<String, String> filiaisValidas
     ) {
         Long numeroOrdem = ordem.getNumeroOrdem();
         LocalDate data = ordem.getDataHoraInicio() != null ? ordem.getDataHoraInicio().toLocalDate() : null;
@@ -269,12 +283,15 @@ public class UtilizacaoColetoresIndicadorService {
             return null;
         }
 
-        String filial = primeiroTexto(
-                ordem.getFilialOrdemConferencia(),
-                ordem.getFilial(),
-                ordem.getFilialEmissoraFrete()
+        String filial = canonicalizarFilial(
+                primeiroTexto(
+                        ordem.getFilialOrdemConferencia(),
+                        ordem.getFilial(),
+                        ordem.getFilialEmissoraFrete()
+                ),
+                filiaisValidas
         );
-        if (!permiteFilial(escopo, filtro, filial)) {
+        if (!permiteFilial(escopo, filtro, filial, filiaisValidas)) {
             return null;
         }
 
@@ -316,26 +333,28 @@ public class UtilizacaoColetoresIndicadorService {
 
     private Map<String, String> carregarFiliaisValidas() {
         Map<String, String> filiais = new LinkedHashMap<>();
-        dimFilialRepository.findAll().stream()
-                .map(filial -> filial.getNomeFilial())
-                .filter(this::temTexto)
-                .map(String::trim)
-                .forEach(nome -> filiais.putIfAbsent(normalizarTexto(nome), nome));
+        for (String filial : FILIAIS_PADRAO) {
+            registrarAliasesFilial(filiais, filial, filial);
+            String codigo = extrairCodigoPrefixo(filial);
+            registrarAliasFilial(filiais, "TR RODOGARCIA | " + codigo, filial);
+            registrarAliasFilial(filiais, "RODOGARCIA FILIAL " + codigo, filial);
+        }
         return filiais;
     }
 
     private boolean permiteFilial(
             EscopoFilialService.EscopoFilial escopo,
             FiltroConsultaDTO filtro,
-            String filial
+            String filial,
+            Map<String, String> filiaisValidas
     ) {
         if (!temTexto(filial)) {
             return escopo.acessoTotal() && !filtro.temFiltro("filiais");
         }
 
-        String valor = filial.trim();
-        return escopo.permiteAlgumaFilial(valor)
-                && filtro.corresponde("filiais", valor);
+        String valor = canonicalizarFilial(filial, filiaisValidas);
+        return escopoPermiteFilial(escopo, valor, filiaisValidas)
+                && filtroCorrespondeFilial(filtro, valor, filiaisValidas);
     }
 
     private boolean classificacaoExcluida(String classificacao) {
@@ -353,12 +372,103 @@ public class UtilizacaoColetoresIndicadorService {
             FiltroConsultaDTO filtro
     ) {
         for (String filialDescarga : extrairFiliaisDescarregamento(localDescarregamento)) {
-            String filialCanonica = filiaisValidas.getOrDefault(normalizarTexto(filialDescarga), filialDescarga);
-            if (permiteFilial(escopo, filtro, filialCanonica)) {
+            String filialCanonica = canonicalizarFilial(filialDescarga, filiaisValidas);
+            if (permiteFilial(escopo, filtro, filialCanonica, filiaisValidas)) {
                 return filialCanonica;
             }
         }
         return null;
+    }
+
+    private String canonicalizarFilial(String filial, Map<String, String> filiaisValidas) {
+        if (!temTexto(filial)) {
+            return filial;
+        }
+        String valor = filial.trim();
+        return filiaisValidas.getOrDefault(normalizarTexto(valor), valor);
+    }
+
+    private boolean escopoPermiteFilial(
+            EscopoFilialService.EscopoFilial escopo,
+            String filial,
+            Map<String, String> filiaisValidas
+    ) {
+        if (escopo.acessoTotal()) {
+            return true;
+        }
+        String valorNormalizado = normalizarTexto(canonicalizarFilial(filial, filiaisValidas));
+        return escopo.filiaisPermitidas().stream()
+                .map(valor -> canonicalizarFilial(valor, filiaisValidas))
+                .map(this::normalizarTexto)
+                .anyMatch(valorNormalizado::equals);
+    }
+
+    private boolean filtroCorrespondeFilial(
+            FiltroConsultaDTO filtro,
+            String filial,
+            Map<String, String> filiaisValidas
+    ) {
+        if (!filtro.temFiltro("filiais")) {
+            return true;
+        }
+        String valorNormalizado = normalizarTexto(canonicalizarFilial(filial, filiaisValidas));
+        return filtro.valores("filiais").stream()
+                .map(valor -> canonicalizarFilial(valor, filiaisValidas))
+                .map(this::normalizarTexto)
+                .anyMatch(valorNormalizado::equals);
+    }
+
+    private void registrarAliasesFilial(Map<String, String> lookup, String filial, String canonica) {
+        registrarAliasFilial(lookup, filial, canonica);
+        registrarAliasFilial(lookup, extrairCodigoPrefixo(filial), canonica);
+        registrarAliasFilial(lookup, extrairCodigoSufixoPipe(filial), canonica);
+    }
+
+    private void registrarAliasFilial(Map<String, String> lookup, String alias, String canonica) {
+        if (!temTexto(alias) || !temTexto(canonica)) {
+            return;
+        }
+        lookup.merge(normalizarTexto(alias), canonica.trim(), UtilizacaoColetoresIndicadorService::preferirNomeCanonico);
+    }
+
+    private String extrairCodigoPrefixo(String filial) {
+        if (!temTexto(filial)) {
+            return null;
+        }
+        int separador = filial.indexOf(" - ");
+        if (separador <= 0) {
+            return null;
+        }
+        return filial.substring(0, separador).trim();
+    }
+
+    private String extrairCodigoSufixoPipe(String filial) {
+        if (!temTexto(filial)) {
+            return null;
+        }
+        int separador = filial.lastIndexOf('|');
+        if (separador < 0 || separador >= filial.length() - 1) {
+            return null;
+        }
+        return filial.substring(separador + 1).trim();
+    }
+
+    private static String preferirNomeCanonico(String atual, String candidato) {
+        return pontuacaoCanonica(candidato) > pontuacaoCanonica(atual) ? candidato : atual;
+    }
+
+    private static int pontuacaoCanonica(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return 0;
+        }
+        int score = valor.length();
+        if (valor.contains(" - ")) {
+            score += 100;
+        }
+        if (valor.matches("^[A-Z]{2,4}\\s-\\s.+$")) {
+            score += 100;
+        }
+        return score;
     }
 
     private boolean tipoOrdemElegivel(String tipo) {

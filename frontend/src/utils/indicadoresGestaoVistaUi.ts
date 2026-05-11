@@ -103,12 +103,12 @@ export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
       fill: '#16a34a',
     },
     warning: {
-      border: '#eab308',
-      text: '#a16207',
-      badgeBg: 'rgba(234, 179, 8, 0.18)',
-      badgeText: '#a16207',
+      border: '#facc15',
+      text: '#713f12',
+      badgeBg: 'rgba(250, 204, 21, 0.20)',
+      badgeText: '#713f12',
       track: '#fef08a',
-      fill: '#eab308',
+      fill: '#facc15',
     },
     negative: {
       border: '#dc2626',
@@ -143,12 +143,12 @@ export function getGoalToneStyle(tone: GoalTone): GoalToneStyle {
       fill: '#ef4444',
     },
     empty: {
-      border: '#eab308',
-      text: '#a16207',
-      badgeBg: 'rgba(234, 179, 8, 0.18)',
-      badgeText: '#a16207',
+      border: '#facc15',
+      text: '#713f12',
+      badgeBg: 'rgba(250, 204, 21, 0.20)',
+      badgeText: '#713f12',
       track: '#fef08a',
-      fill: '#eab308',
+      fill: '#facc15',
     },
   };
 
@@ -193,6 +193,22 @@ export function resolverTomMetaPorProgresso(progressPct: number): GoalTone {
   return 'negative';
 }
 
+export function resolverTomMetaPorValor(value: number, threshold: number, mode: GoalMode): GoalTone {
+  if (!Number.isFinite(value) || !Number.isFinite(threshold) || threshold <= 0) {
+    return 'negative';
+  }
+
+  if (mode === 'atLeast') {
+    if (value >= threshold) {
+      return 'positive';
+    }
+    return value >= GOAL_WARNING_PROGRESS_PCT ? 'warning' : 'negative';
+  }
+
+  const progressPct = calcularProgressoMeta(value, threshold, mode);
+  return value <= threshold ? 'positive' : resolverTomMetaPorProgresso(progressPct);
+}
+
 export function avaliarMetaIndicador({
   value,
   threshold,
@@ -215,7 +231,7 @@ export function avaliarMetaIndicador({
 
   const met = mode === 'atLeast' ? value >= threshold : value <= threshold;
   const progressPct = calcularProgressoMeta(value, threshold, mode);
-  const tone = met ? 'positive' : resolverTomMetaPorProgresso(progressPct);
+  const tone = resolverTomMetaPorValor(value, threshold, mode);
   return {
     tone,
     label: met ? 'Dentro da meta' : tone === 'warning' ? 'Em atenção' : 'Crítico',

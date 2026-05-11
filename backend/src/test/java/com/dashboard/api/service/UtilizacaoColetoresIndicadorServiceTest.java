@@ -3,7 +3,6 @@ package com.dashboard.api.service;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresSeriePointDTO;
-import com.dashboard.api.model.DimFilialEntity;
 import com.dashboard.api.model.VisaoInventarioEntity;
 import com.dashboard.api.model.VisaoManifestosEntity;
 import com.dashboard.api.model.VisaoManifestosId;
@@ -55,7 +54,6 @@ class UtilizacaoColetoresIndicadorServiceTest {
 
     @Test
     void buscarOverviewDeveUsarOrdensDistintasSobreManifestosBipaveis() {
-        when(dimFilialRepository.findAll()).thenReturn(List.of(filial("SPO"), filial("REC")));
         when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
                 manifesto(10L, "SPO", "REC", "encerrado", "DISTRIBUIÇÃO"),
                 manifesto(10L, "REC", "REC", "encerrado", "DISTRIBUIÇÃO"),
@@ -85,7 +83,6 @@ class UtilizacaoColetoresIndicadorServiceTest {
 
     @Test
     void buscarOverviewDeveAplicarFiltroDeFilialEmManifestosEOrdens() {
-        when(dimFilialRepository.findAll()).thenReturn(List.of(filial("SPO")));
         when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
                 manifesto(20L, "SPO", "null, PARCEIRO X", "encerrado", "DISTRIBUIÇÃO"),
                 manifesto(21L, "REC", "SPO", "encerrado", "DISTRIBUIÇÃO")
@@ -107,8 +104,42 @@ class UtilizacaoColetoresIndicadorServiceTest {
     }
 
     @Test
+    void buscarOverviewDeveCanonicalizarAliasesDeFilialParaEvitarPercentualZero() {
+        when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                manifesto(25L, "SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA", null, "encerrado", "DISTRIBUIÇÃO")
+        ));
+        when(inventarioRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                ordem(250L, "TR RODOGARCIA | SPO", "carregamento", OffsetDateTime.parse("2026-04-02T08:00:00-03:00"), OffsetDateTime.parse("2026-04-02T08:30:00-03:00"))
+        ));
+
+        UtilizacaoColetoresOverviewDTO overview = service.buscarOverview(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of("filiais", List.of("TR RODOGARCIA | SPO")))
+        );
+
+        assertThat(overview.manifestosBipados()).isEqualTo(1);
+        assertThat(overview.totalManifestos()).isEqualTo(1);
+        assertThat(overview.pctUtilizacao()).isEqualTo(100.0);
+    }
+
+    @Test
+    void buscarSerieDeveUsarNomeCanonicoQuandoOrdemChegaComCodigoCurto() {
+        when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                manifesto(26L, "SPO", null, "encerrado", "DISTRIBUIÇÃO")
+        ));
+        when(inventarioRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                ordem(260L, "SPO", "picking", OffsetDateTime.parse("2026-04-02T08:00:00-03:00"), OffsetDateTime.parse("2026-04-02T08:30:00-03:00"))
+        ));
+
+        List<UtilizacaoColetoresSeriePointDTO> serie = service.buscarSerie(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
+        );
+
+        assertThat(serie).extracting(UtilizacaoColetoresSeriePointDTO::filial)
+                .containsExactly("SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA");
+    }
+
+    @Test
     void buscarSerieDeveAgruparPorDataFilialEClassificacaoGeral() {
-        when(dimFilialRepository.findAll()).thenReturn(List.of(filial("SPO")));
         when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
                 manifesto(30L, "SPO", null, "encerrado", "DISTRIBUIÇÃO")
         ));
@@ -123,8 +154,8 @@ class UtilizacaoColetoresIndicadorServiceTest {
         assertThat(serie)
                 .extracting(UtilizacaoColetoresSeriePointDTO::date, UtilizacaoColetoresSeriePointDTO::filial, UtilizacaoColetoresSeriePointDTO::classificacao)
                 .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple("2026-04-02", "SPO", "Geral"),
-                        org.assertj.core.groups.Tuple.tuple("2026-04-03", "SPO", "Geral")
+                        org.assertj.core.groups.Tuple.tuple("2026-04-02", "SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA", "Geral"),
+                        org.assertj.core.groups.Tuple.tuple("2026-04-03", "SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA", "Geral")
                 );
     }
 
@@ -163,12 +194,6 @@ class UtilizacaoColetoresIndicadorServiceTest {
         TestReflectionUtils.setField(entity, "dataHoraInicio", dataHoraInicio);
         TestReflectionUtils.setField(entity, "dataHoraFim", dataHoraFim);
         TestReflectionUtils.setField(entity, "dataExtracao", LocalDateTime.of(2026, 4, 3, 9, 0));
-        return entity;
-    }
-
-    private static DimFilialEntity filial(String nome) {
-        DimFilialEntity entity = TestReflectionUtils.novaInstancia(DimFilialEntity.class);
-        TestReflectionUtils.setField(entity, "nomeFilial", nome);
         return entity;
     }
 

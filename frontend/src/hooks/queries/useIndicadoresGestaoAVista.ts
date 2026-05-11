@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   buscarCubagemMercadoriasOverview,
   buscarCubagemMercadoriasSerie,
@@ -12,7 +12,6 @@ import {
   buscarIndenizacaoMercadoriasSerie,
   buscarIndenizacaoMercadoriasTabela,
   buscarIndenizacaoMercadoriasTabelaPaginada,
-  importarHorariosCorte,
   buscarPerformanceEntregaOverview,
   buscarPerformanceEntregaSerie,
   buscarPerformanceEntregaTabela,
@@ -203,18 +202,5 @@ export function useHorariosCorteTabelaPaginada(filtro: IndicadoresGestaoVistaFil
     queryFn: () => buscarHorariosCorteTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
     retry: 1,
-  });
-}
-
-export function useImportarHorariosCorte() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: importarHorariosCorte,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ['indicadores-gestao-a-vista', 'horarios-corte'],
-      });
-    },
   });
 }

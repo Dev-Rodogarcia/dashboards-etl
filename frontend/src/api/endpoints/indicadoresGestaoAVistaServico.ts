@@ -8,7 +8,6 @@ import type {
   CubagemMercadoriasRow,
   CubagemMercadoriasSeriePoint,
   HorarioCorteRow,
-  HorariosCorteImportacaoResultado,
   HorariosCorteOverview,
   HorariosCorteSeriePoint,
   IndenizacaoMercadoriasOverview,
@@ -229,22 +228,4 @@ export async function buscarHorariosCorteTabelaPaginada(
 
 export async function exportarHorariosCorteCsv(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
   await baixarCsv(`${BASE}/horarios-corte/exportacao`, filtro, 'indicadores-horarios-corte');
-}
-
-export async function importarHorariosCorte(
-  arquivo: File,
-): Promise<HorariosCorteImportacaoResultado> {
-  const formData = new FormData();
-  formData.append('arquivo', arquivo);
-
-  const { data } = await clienteAxios.post<HorariosCorteImportacaoResultado>(
-    `${BASE}/horarios-corte/importacao`,
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    },
-  );
-  return data;
 }

@@ -1,5 +1,5 @@
 import type { EChartsOption } from 'echarts';
-import { getGoalToneStyle, resolverTomMetaPorProgresso, calcularProgressoMeta, type GoalMode } from './indicadoresGestaoVistaUi';
+import { getGoalToneStyle, resolverTomMetaPorValor, type GoalMode } from './indicadoresGestaoVistaUi';
 
 interface RankingOptionArgs<T> {
   items: T[];
@@ -33,7 +33,7 @@ function truncarRotulo(label: string, limite = 26): string {
 }
 
 function resolveColor(value: number, threshold: number, mode: GoalMode): string {
-  const tone = resolverTomMetaPorProgresso(calcularProgressoMeta(value, threshold, mode));
+  const tone = resolverTomMetaPorValor(value, threshold, mode);
   return getGoalToneStyle(tone).fill;
 }
 

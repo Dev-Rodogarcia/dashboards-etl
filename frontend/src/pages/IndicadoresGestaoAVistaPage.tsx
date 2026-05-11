@@ -1,12 +1,10 @@
-import { useMemo, useRef, useState } from 'react';
-import type { ChangeEvent } from 'react';
-import { AlertCircle, BarChart3, Boxes, Clock3, FileUp, Gauge, PackageCheck, ShieldAlert, Truck } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { AlertCircle, BarChart3, Boxes, Clock3, Gauge, PackageCheck, ShieldAlert, Truck } from 'lucide-react';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import type { ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
-import MensagemErro from '../components/ui/MensagemErro';
 import IndicadoresGestaoPanoramaSection, { type PanoramaOperacionalItem } from '../components/indicadores-gestao/IndicadoresGestaoPanoramaSection';
 import IndicadoresGestaoSection from '../components/indicadores-gestao/IndicadoresGestaoSection';
 import IndicadoresGestaoSummaryCard from '../components/indicadores-gestao/IndicadoresGestaoSummaryCard';
@@ -27,7 +25,6 @@ import {
   useHorariosCorteOverview,
   useHorariosCorteSerie,
   useHorariosCorteTabelaPaginada,
-  useImportarHorariosCorte,
   useIndenizacaoMercadoriasOverview,
   useIndenizacaoMercadoriasSerie,
   useIndenizacaoMercadoriasTabelaPaginada,
@@ -42,13 +39,12 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type {
   CubagemMercadoriasRow,
   HorarioCorteRow,
-  HorariosCorteImportacaoMensagem,
   IndenizacaoMercadoriasRow,
   IndicadoresGestaoVistaFiltro,
   PerformanceEntregaRow,
   UtilizacaoColetoresRow,
 } from '../types/indicadoresGestaoAVista';
-import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
+import { getApiErrorMessage } from '../utils/apiError';
 import { formatarData, formatarDataHora, formatarMoeda, formatarNumero, formatarPorcentagem } from '../utils/formatadores';
 import {
   aggregateCubagemRanking,
@@ -78,26 +74,6 @@ const GOALS: Record<SectionId, GoalConfig> = {
   horarios: { threshold: 90, mode: 'atLeast', label: 'Meta 90%' },
 };
 
-function StatusImportacao({ titulo, mensagens, cor }: { titulo: string; mensagens: HorariosCorteImportacaoMensagem[]; cor: 'warn' | 'error' }) {
-  if (mensagens.length === 0) return null;
-  const style = cor === 'warn'
-    ? { border: '#facc15', bg: 'rgba(250, 204, 21, 0.12)', text: '#854d0e' }
-    : { border: '#fca5a5', bg: 'rgba(239, 68, 68, 0.08)', text: '#991b1b' };
-  return (
-    <div className="rounded-xl border px-3 py-3" style={{ borderColor: style.border, backgroundColor: style.bg, color: style.text }}>
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide">{titulo}</div>
-      <div className="space-y-1 text-xs">
-        {mensagens.slice(0, 6).map((mensagem, index) => (
-          <div key={`${mensagem.linha}-${index}`}>
-            Linha {mensagem.linha}{mensagem.linhaOuOperacao ? ` · ${mensagem.linhaOuOperacao}` : ''}: {mensagem.mensagem}
-          </div>
-        ))}
-        {mensagens.length > 6 && <div>+{mensagens.length - 6} registro(s) adicional(is).</div>}
-      </div>
-    </div>
-  );
-}
-
 function latestUpdatedAt(values: Array<string | null | undefined>) {
   return values
     .filter((value): value is string => Boolean(value))
@@ -125,8 +101,6 @@ export default function IndicadoresGestaoAVistaPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
   const [expandedSection, setExpandedSection] = useState<SectionId | null>(null);
-  const [arquivoSelecionado, setArquivoSelecionado] = useState<File | null>(null);
-  const arquivoInputRef = useRef<HTMLInputElement | null>(null);
   const filtroBase: IndicadoresGestaoVistaFiltro = { dataInicio, dataFim, filiais: filtros.filiais };
   const filtroColetores: IndicadoresGestaoVistaFiltro = filtroBase;
   const filtroBaseKey = JSON.stringify(filtroBase);
@@ -155,7 +129,6 @@ export default function IndicadoresGestaoAVistaPage() {
   const horariosOverview = useHorariosCorteOverview(filtroBase);
   const horariosSerie = useHorariosCorteSerie(filtroBase);
   const horariosTabela = useHorariosCorteTabelaPaginada(filtroBase, horariosPaginacao.pagina, horariosPaginacao.tamanhoPagina);
-  const importacao = useImportarHorariosCorte();
 
   const updatedAt = latestUpdatedAt([
     performanceOverview.data?.updatedAt,
@@ -420,88 +393,30 @@ export default function IndicadoresGestaoAVistaPage() {
     { chave: 'saiuNoHorario', label: 'Status', formato: (v) => <StatusBadge status={v === true ? 'NO PRAZO' : v === false ? 'FORA DO PRAZO' : 'SEM DADO'} /> },
     { chave: 'atrasoMinutos', label: 'Atraso (min)', formato: (v) => v == null ? '—' : formatarNumero(Number(v)) },
     { chave: 'observacao', label: 'Observação', largura: '260px' },
-    { chave: 'nomeArquivo', label: 'Arquivo', largura: '220px' },
-    { chave: 'importadoEm', label: 'Importado em', formato: (v) => v ? formatarDataHora(String(v)) : '—' },
-    { chave: 'importadoPor', label: 'Importado por' },
+    { chave: 'nomeArquivo', label: 'Fonte', largura: '220px' },
+    { chave: 'importadoEm', label: 'Extraído em', formato: (v) => v ? formatarDataHora(String(v)) : '—' },
+    { chave: 'importadoPor', label: 'Origem técnica' },
   ];
 
-  const handleArquivo = (event: ChangeEvent<HTMLInputElement>) => setArquivoSelecionado(event.target.files?.[0] ?? null);
-  const handleImportar = async () => {
-    if (!arquivoSelecionado || importacao.isPending) return;
-    await importacao.mutateAsync(arquivoSelecionado);
-    setArquivoSelecionado(null);
-    if (arquivoInputRef.current) arquivoInputRef.current.value = '';
-  };
   const toggleSection = (sectionId: SectionId) => setExpandedSection((current) => current === sectionId ? null : sectionId);
 
-  const importBox = (
+  const horariosFonteBox = (
     <div className="mb-5 rounded-[20px] border p-4 shadow-sm" style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-            <FileUp size={17} />
-            Operação de importação
-          </div>
-          <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            Última importação: {horariosOverview.data?.ultimaImportacaoEm ? formatarDataHora(horariosOverview.data.ultimaImportacaoEm) : '—'}
-          </div>
-          <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            Arquivo mais recente: {horariosOverview.data?.ultimaImportacaoArquivo ?? '—'}
-          </div>
-          <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            Regra: `SM Gerada` versus `Corte`, com ajuste de virada de dia pela coluna `Início`.
-          </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+          <Clock3 size={17} />
+          Fonte Raster via SQL Server
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <a href="/templates/horarios-corte-modelo.xlsx" className="rounded-xl border px-3 py-2 text-sm font-medium" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}>
-            Baixar modelo
-          </a>
-          <label className="cursor-pointer rounded-xl border px-3 py-2 text-sm font-medium" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}>
-            Selecionar planilha
-            <input ref={arquivoInputRef} type="file" accept=".xlsx" className="hidden" onChange={handleArquivo} />
-          </label>
-          <button
-            type="button"
-            onClick={handleImportar}
-            disabled={!arquivoSelecionado || importacao.isPending}
-            className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            style={{ backgroundColor: 'var(--color-primary)' }}
-          >
-            {importacao.isPending ? 'Importando...' : 'Importar'}
-          </button>
+        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          Última extração: {horariosOverview.data?.ultimaImportacaoEm ? formatarDataHora(horariosOverview.data.ultimaImportacaoEm) : '—'}
+        </div>
+        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          Fonte: {horariosOverview.data?.ultimaImportacaoArquivo ?? 'Raster API - SQL Server'}
+        </div>
+        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          Regra: início real da viagem comparado com a data de fim da viagem somada ao horário de corte da rota.
         </div>
       </div>
-
-      <div className="mt-3 text-xs" style={{ color: 'var(--color-text-subtle)' }}>
-        {arquivoSelecionado ? `Arquivo selecionado: ${arquivoSelecionado.name}` : 'Nenhum arquivo selecionado.'}
-      </div>
-
-      {importacao.isError && (
-        <div className="mt-3">
-          <MensagemErro mensagem={getApiErrorMessage(importacao.error, 'Falha ao importar a planilha de horários de corte.')} tipo={getTipoErro(importacao.error)} />
-        </div>
-      )}
-
-      {importacao.data && (
-        <div className="mt-3 space-y-3">
-          <div className="rounded-xl border px-3 py-3" style={{ borderColor: 'var(--color-border)' }}>
-            <div className="mb-1 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-              <AlertCircle size={15} />
-              Resultado da importação
-            </div>
-            <div className="grid grid-cols-1 gap-2 text-xs md:grid-cols-3" style={{ color: 'var(--color-text-muted)' }}>
-              <div>Arquivo: {importacao.data.arquivo}</div>
-              <div>Importado em: {formatarDataHora(importacao.data.importadoEm)}</div>
-              <div>Processadas: {formatarNumero(importacao.data.linhasProcessadas)}</div>
-              <div>Importadas: {formatarNumero(importacao.data.linhasImportadas)}</div>
-              <div>Substituídas: {formatarNumero(importacao.data.linhasSubstituidas)}</div>
-              <div>Ignoradas: {formatarNumero(importacao.data.linhasIgnoradas)}</div>
-            </div>
-          </div>
-          <StatusImportacao titulo="Avisos" mensagens={importacao.data.avisos} cor="warn" />
-          <StatusImportacao titulo="Rejeições" mensagens={importacao.data.rejeicoes} cor="error" />
-        </div>
-      )}
     </div>
   );
 
@@ -786,11 +701,11 @@ export default function IndicadoresGestaoAVistaPage() {
 
       <IndicadoresGestaoSection
         title="Horários de Corte"
-        description="Filiais com menor pontualidade de saída a partir da planilha operacional manual."
+        description="Filiais com menor pontualidade de saída a partir das viagens Raster persistidas no SQL Server."
         goalLabel={GOALS.horarios.label}
         goalTone={horariosAssessment.tone}
         error={horariosOverview.error}
-        extra={importBox}
+        extra={horariosFonteBox}
         kpis={[
           { label: 'Saídas no horário', value: formatarNumero(horariosOverview.data?.saidasNoHorario ?? 0), icon: <Truck size={16} />, progressPct: horariosAssessment.progressPct },
           { label: 'Saídas fora do horário', value: formatarNumero(horariosForaHorario), icon: <AlertCircle size={16} />, progressPct: horariosAssessment.progressPct },

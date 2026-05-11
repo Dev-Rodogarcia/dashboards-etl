@@ -8,6 +8,9 @@ import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
 import com.dashboard.api.model.VisaoHorariosCorteEntity;
 import com.dashboard.api.repository.VisaoHorariosCorteRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -25,21 +28,25 @@ import java.util.stream.Collectors;
 @Service
 public class IndicadoresGestaoAVistaService {
 
+    private static final Logger log = LoggerFactory.getLogger(IndicadoresGestaoAVistaService.class);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
     private final ValidadorPeriodoService validadorPeriodo;
+    private final HorariosCorteRasterDataSource rasterSqlRepository;
     private final VisaoHorariosCorteRepository repository;
     private final EscopoFilialService escopoFilialService;
     private final HorarioCorteFilialMapperService filialMapperService;
 
     public IndicadoresGestaoAVistaService(
             ValidadorPeriodoService validadorPeriodo,
+            HorariosCorteRasterDataSource rasterSqlRepository,
             VisaoHorariosCorteRepository repository,
             EscopoFilialService escopoFilialService,
             HorarioCorteFilialMapperService filialMapperService
     ) {
         this.validadorPeriodo = validadorPeriodo;
+        this.rasterSqlRepository = rasterSqlRepository;
         this.repository = repository;
         this.escopoFilialService = escopoFilialService;
         this.filialMapperService = filialMapperService;
@@ -60,8 +67,11 @@ public class IndicadoresGestaoAVistaService {
             );
         }
 
-        int totalProgramado = rows.size();
-        int saidasNoHorario = (int) rows.stream()
+        List<HorarioCorteRegistroResolvido> calculaveis = rows.stream()
+                .filter(this::isCalculavelParaKpi)
+                .toList();
+        int totalProgramado = calculaveis.size();
+        int saidasNoHorario = (int) calculaveis.stream()
                 .filter(row -> Boolean.TRUE.equals(row.entity().getSaiuNoHorario()))
                 .count();
         double pctNoHorario = percentual(saidasNoHorario, totalProgramado);
@@ -85,6 +95,7 @@ public class IndicadoresGestaoAVistaService {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
         Map<String, List<HorarioCorteRegistroResolvido>> agrupado = buscarHorariosCorte(filtro).stream()
+                .filter(this::isCalculavelParaKpi)
                 .collect(Collectors.groupingBy(row -> chaveSerie(row.entity().getData(), row.filial())));
 
         return agrupado.entrySet().stream()
@@ -193,12 +204,32 @@ public class IndicadoresGestaoAVistaService {
 
     private List<HorarioCorteRegistroResolvido> buscarHorariosCorte(FiltroConsultaDTO filtro) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
-        HorarioCorteFilialMapperService.FilialMappingContext mappingContext = filialMapperService.criarContexto();
-        return repository.findByDataBetween(filtro.dataInicio(), filtro.dataFim()).stream()
+        HorarioCorteFilialMapperService.FilialMappingContext mappingContext = filialMapperService.criarContextoRasterPadrao();
+        return buscarHorariosCorteNaFonte(filtro).stream()
                 .map(row -> new HorarioCorteRegistroResolvido(row, resolverFilial(row, mappingContext)))
                 .filter(row -> escopo.permiteAlgumaFilial(row.filial()))
                 .filter(row -> filtro.corresponde("filiais", row.filial()))
                 .toList();
+    }
+
+    private List<VisaoHorariosCorteEntity> buscarHorariosCorteNaFonte(FiltroConsultaDTO filtro) {
+        try {
+            return rasterSqlRepository.findByDataBetween(filtro.dataInicio(), filtro.dataFim());
+        } catch (DataAccessException ex) {
+            log.warn(
+                    "Falha ao consultar Horario de Corte diretamente nas tabelas Raster; tentando fallback pela view vw_horarios_corte_powerbi. causa={}",
+                    ex.getMostSpecificCause().getMessage()
+            );
+            return repository.findByDataBetween(filtro.dataInicio(), filtro.dataFim());
+        }
+    }
+
+    private boolean isCalculavelParaKpi(HorarioCorteRegistroResolvido row) {
+        VisaoHorariosCorteEntity entity = row.entity();
+        return entity.getData() != null
+                && entity.getSaidaEfetiva() != null
+                && entity.getHorarioCorte() != null
+                && entity.getSaiuNoHorario() != null;
     }
 
     private String resolverFilial(

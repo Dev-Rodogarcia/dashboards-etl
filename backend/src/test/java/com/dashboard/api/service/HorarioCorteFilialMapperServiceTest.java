@@ -5,6 +5,7 @@ import com.dashboard.api.repository.DimFilialRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.dao.QueryTimeoutException;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -48,6 +49,15 @@ class HorarioCorteFilialMapperServiceTest {
         ));
 
         String mapeada = service.mapearFilialCanonica("SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA");
+
+        assertThat(mapeada).isEqualTo("SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA");
+    }
+
+    @Test
+    void deveUsarAliasesRasterQuandoDimensaoFiliaisFalhar() {
+        when(dimFilialRepository.findAll()).thenThrow(new QueryTimeoutException("timeout vw_dim_filiais"));
+
+        String mapeada = service.mapearFilialCanonica("SPO-CAS");
 
         assertThat(mapeada).isEqualTo("SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA");
     }

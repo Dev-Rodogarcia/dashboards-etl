@@ -174,20 +174,3 @@ export interface HorarioCorteRow {
   importadoEm: string | null;
   importadoPor: string | null;
 }
-
-export interface HorariosCorteImportacaoMensagem {
-  linha: number;
-  linhaOuOperacao: string | null;
-  mensagem: string;
-}
-
-export interface HorariosCorteImportacaoResultado {
-  arquivo: string;
-  importadoEm: string;
-  linhasProcessadas: number;
-  linhasImportadas: number;
-  linhasSubstituidas: number;
-  linhasIgnoradas: number;
-  avisos: HorariosCorteImportacaoMensagem[];
-  rejeicoes: HorariosCorteImportacaoMensagem[];
-}

@@ -56,20 +56,34 @@ describe('indicadoresGestaoVistaUi', () => {
     });
   });
 
+  it('usa amarelo quando indicador percentual fica entre 50% e abaixo da meta', () => {
+    expect(avaliarMetaIndicador({
+      value: 50,
+      threshold: 90,
+      mode: 'atLeast',
+      hasData: true,
+    })).toMatchObject({
+      tone: 'warning',
+      label: 'Em atenção',
+      met: false,
+      delta: -40,
+    });
+  });
+
   it('calcula progresso invertido para metas de teto', () => {
     expect(calcularProgressoMeta(0.3, 0.2, 'atMost')).toBe(66.7);
   });
 
   it('usa amarelo no tom de atencao para nao confundir com vermelho', () => {
     expect(getGoalToneStyle('warning')).toMatchObject({
-      border: '#eab308',
-      text: '#a16207',
-      fill: '#eab308',
+      border: '#facc15',
+      text: '#713f12',
+      fill: '#facc15',
     });
     expect(getGoalToneStyle('empty')).toMatchObject({
-      border: '#eab308',
-      text: '#a16207',
-      fill: '#eab308',
+      border: '#facc15',
+      text: '#713f12',
+      fill: '#facc15',
     });
   });
 

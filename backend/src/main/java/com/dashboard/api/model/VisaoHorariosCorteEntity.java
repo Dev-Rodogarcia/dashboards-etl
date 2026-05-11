@@ -97,6 +97,64 @@ public class VisaoHorariosCorteEntity {
     protected VisaoHorariosCorteEntity() {
     }
 
+    public static VisaoHorariosCorteEntity fromJdbc(
+            Long id,
+            LocalDate data,
+            String filial,
+            String linhaOuOperacao,
+            String origemSm,
+            String destinoSm,
+            String origemDestino,
+            String origem,
+            String ordem,
+            String destino,
+            String horarioCorteSm,
+            String previsaoChegadaDestino,
+            String transitTime,
+            LocalTime inicio,
+            LocalTime manifestado,
+            LocalTime smGerada,
+            LocalTime corte,
+            LocalDateTime saidaEfetiva,
+            LocalDateTime horarioCorte,
+            Boolean saiuNoHorario,
+            Integer atrasoMinutos,
+            String observacao,
+            String nomeArquivo,
+            LocalDateTime importadoEm,
+            String importadoPor,
+            LocalDateTime dataExtracao
+    ) {
+        VisaoHorariosCorteEntity entity = new VisaoHorariosCorteEntity();
+        entity.id = id;
+        entity.data = data;
+        entity.filial = filial;
+        entity.linhaOuOperacao = linhaOuOperacao;
+        entity.origemSm = origemSm;
+        entity.destinoSm = destinoSm;
+        entity.origemDestino = origemDestino;
+        entity.origem = origem;
+        entity.ordem = ordem;
+        entity.destino = destino;
+        entity.horarioCorteSm = horarioCorteSm;
+        entity.previsaoChegadaDestino = previsaoChegadaDestino;
+        entity.transitTime = transitTime;
+        entity.inicio = inicio;
+        entity.manifestado = manifestado;
+        entity.smGerada = smGerada;
+        entity.corte = corte;
+        entity.saidaEfetiva = saidaEfetiva;
+        entity.horarioCorte = horarioCorte;
+        entity.saiuNoHorario = saiuNoHorario;
+        entity.atrasoMinutos = atrasoMinutos;
+        entity.observacao = observacao;
+        entity.nomeArquivo = nomeArquivo;
+        entity.importadoEm = importadoEm;
+        entity.importadoPor = importadoPor;
+        entity.dataExtracao = dataExtracao;
+        return entity;
+    }
+
     public Long getId() {
         return id;
     }

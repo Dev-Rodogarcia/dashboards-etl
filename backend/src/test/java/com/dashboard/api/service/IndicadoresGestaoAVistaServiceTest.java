@@ -31,6 +31,9 @@ class IndicadoresGestaoAVistaServiceTest {
     @Mock
     private VisaoHorariosCorteRepository repository;
 
+    @Mock
+    private HorariosCorteRasterDataSource rasterSqlRepository;
+
     private EscopoFilialServiceStub escopoFilialService;
     private StubHorarioCorteFilialMapperService filialMapperService;
 
@@ -40,12 +43,12 @@ class IndicadoresGestaoAVistaServiceTest {
     void setUp() {
         escopoFilialService = new EscopoFilialServiceStub();
         filialMapperService = new StubHorarioCorteFilialMapperService();
-        service = new IndicadoresGestaoAVistaService(new ValidadorPeriodoService(), repository, escopoFilialService, filialMapperService);
+        service = new IndicadoresGestaoAVistaService(new ValidadorPeriodoService(), rasterSqlRepository, repository, escopoFilialService, filialMapperService);
     }
 
     @Test
     void buscarOverviewDeveCalcularTotaisPercentualEUltimaImportacao() {
-        when(repository.findByDataBetween(any(), any())).thenReturn(List.of(
+        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(
                 row(1L, "SPO", LocalDate.of(2026, 4, 2), true, 0, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0)),
                 row(2L, "SPO", LocalDate.of(2026, 4, 2), false, 62, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0)),
                 row(3L, "REC", LocalDate.of(2026, 4, 3), true, -451, "arquivo-2.xlsx", LocalDateTime.of(2026, 4, 3, 9, 30))
@@ -64,7 +67,7 @@ class IndicadoresGestaoAVistaServiceTest {
 
     @Test
     void buscarSerieDeveAgruparPorDataEFilial() {
-        when(repository.findByDataBetween(any(), any())).thenReturn(List.of(
+        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(
                 row(1L, "SPO", LocalDate.of(2026, 4, 2), true, 0, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0)),
                 row(2L, "SPO", LocalDate.of(2026, 4, 2), false, 62, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0)),
                 row(3L, "REC", LocalDate.of(2026, 4, 2), true, 0, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0))
@@ -82,8 +85,33 @@ class IndicadoresGestaoAVistaServiceTest {
     }
 
     @Test
+    void buscarOverviewESerieDevemExcluirLinhasSemCorteCalculavelDoDenominador() {
+        VisaoHorariosCorteEntity calculavel = row(1L, "SPO", LocalDate.of(2026, 4, 2), true, 0, "Raster API - SQL Server", LocalDateTime.of(2026, 4, 2, 10, 0));
+        VisaoHorariosCorteEntity semHorarioCorte = row(2L, "SPO", LocalDate.of(2026, 4, 2), null, null, "Raster API - SQL Server", LocalDateTime.of(2026, 4, 2, 10, 0));
+        setField(semHorarioCorte, "horarioCorte", null);
+        setField(semHorarioCorte, "corte", null);
+        setField(semHorarioCorte, "observacao", "Sem horario de corte em HC Apoio");
+
+        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(calculavel, semHorarioCorte));
+
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of());
+        HorariosCorteOverviewDTO overview = service.buscarHorariosCorteOverview(filtro);
+        List<HorariosCorteSeriePointDTO> serie = service.buscarHorariosCorteSerie(filtro);
+        List<HorarioCorteRowDTO> tabela = service.buscarHorariosCorteTabela(filtro, 10);
+
+        assertThat(overview.totalProgramado()).isEqualTo(1);
+        assertThat(overview.saidasNoHorario()).isEqualTo(1);
+        assertThat(overview.pctNoHorario()).isEqualTo(100.0);
+        assertThat(serie).singleElement().satisfies(point -> {
+            assertThat(point.totalProgramado()).isEqualTo(1);
+            assertThat(point.saidasNoHorario()).isEqualTo(1);
+        });
+        assertThat(tabela).hasSize(2);
+    }
+
+    @Test
     void buscarOverviewDeveRespeitarFiltroDeFiliais() {
-        when(repository.findByDataBetween(any(), any())).thenReturn(List.of(
+        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(
                 row(1L, "SPO", LocalDate.of(2026, 4, 2), true, 0, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0)),
                 row(2L, "REC", LocalDate.of(2026, 4, 2), false, 45, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0))
         ));
@@ -101,7 +129,7 @@ class IndicadoresGestaoAVistaServiceTest {
     void buscarOverviewDeveResolverFilialAPartirDaLinhaOperacaoQuandoVierNaoMapeada() {
         filialMapperService.definirMapeamento("SPO-CAS", "SPO");
 
-        when(repository.findByDataBetween(any(), any())).thenReturn(List.of(
+        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(
                 row(1L, HorarioCorteFilialMapperService.FILIAL_NAO_MAPEADA, "SPO-CAS", LocalDate.of(2026, 4, 2), true, 0, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0))
         ));
 
@@ -141,7 +169,7 @@ class IndicadoresGestaoAVistaServiceTest {
         setField(raster, "previsaoChegadaDestino", "04:40");
         setField(raster, "transitTime", "05:10");
 
-        when(repository.findByDataBetween(any(), any())).thenReturn(List.of(raster));
+        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(raster));
 
         List<HorarioCorteRowDTO> tabela = service.buscarHorariosCorteTabela(
                 new FiltroConsultaDTO(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31), Map.of()),
@@ -201,6 +229,8 @@ class IndicadoresGestaoAVistaServiceTest {
         setField(entity, "manifestado", LocalTime.of(0, 30));
         setField(entity, "smGerada", LocalTime.of(0, 32));
         setField(entity, "corte", LocalTime.of(23, 30));
+        setField(entity, "saidaEfetiva", data != null ? data.atTime(23, 20) : null);
+        setField(entity, "horarioCorte", data != null ? data.atTime(23, 30) : null);
         setField(entity, "saiuNoHorario", saiuNoHorario);
         setField(entity, "atrasoMinutos", atrasoMinutos);
         setField(entity, "nomeArquivo", arquivo);
@@ -257,6 +287,11 @@ class IndicadoresGestaoAVistaServiceTest {
 
         @Override
         public FilialMappingContext criarContexto() {
+            return new FilialMappingContext(Map.of());
+        }
+
+        @Override
+        public FilialMappingContext criarContextoRasterPadrao() {
             return new FilialMappingContext(Map.of());
         }
 

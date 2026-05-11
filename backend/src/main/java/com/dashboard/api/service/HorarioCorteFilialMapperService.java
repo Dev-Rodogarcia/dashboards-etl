@@ -1,6 +1,9 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.repository.DimFilialRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
@@ -14,9 +17,21 @@ import java.util.regex.Pattern;
 @Service
 public class HorarioCorteFilialMapperService {
 
+    private static final Logger log = LoggerFactory.getLogger(HorarioCorteFilialMapperService.class);
+
     public static final String FILIAL_NAO_MAPEADA = "Não mapeada";
 
     private static final Pattern DELIMITADORES = Pattern.compile("[-/\\s]+");
+    private static final String[] FILIAIS_RASTER_PADRAO = {
+            "AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "CAS - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "CWB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "NHB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "REC - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "RJR - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"
+    };
     private final DimFilialRepository dimFilialRepository;
 
     public HorarioCorteFilialMapperService(DimFilialRepository dimFilialRepository) {
@@ -24,14 +39,25 @@ public class HorarioCorteFilialMapperService {
     }
 
     public FilialMappingContext criarContexto() {
-        Map<String, String> lookup = new LinkedHashMap<>();
-        dimFilialRepository.findAll().stream()
-                .map(f -> f.getNomeFilial())
-                .filter(valor -> valor != null && !valor.isBlank())
-                .map(String::trim)
-                .distinct()
-                .forEach(filial -> registrarAliases(lookup, filial));
+        Map<String, String> lookup = criarLookupPadrao();
+        try {
+            dimFilialRepository.findAll().stream()
+                    .map(f -> f.getNomeFilial())
+                    .filter(valor -> valor != null && !valor.isBlank())
+                    .map(String::trim)
+                    .distinct()
+                    .forEach(filial -> registrarAliases(lookup, filial));
+        } catch (DataAccessException ex) {
+            log.warn(
+                    "Falha ao consultar vw_dim_filiais para mapear filial de Horario de Corte; usando aliases Raster locais. causa={}",
+                    ex.getMostSpecificCause().getMessage()
+            );
+        }
         return new FilialMappingContext(lookup);
+    }
+
+    public FilialMappingContext criarContextoRasterPadrao() {
+        return new FilialMappingContext(criarLookupPadrao());
     }
 
     public String mapearFilialCanonica(String linhaOuOperacao) {
@@ -87,6 +113,12 @@ public class HorarioCorteFilialMapperService {
             return;
         }
         lookup.merge(normalizar(alias), filial, HorarioCorteFilialMapperService::preferirNomeCanonico);
+    }
+
+    private Map<String, String> criarLookupPadrao() {
+        Map<String, String> lookup = new LinkedHashMap<>();
+        Arrays.stream(FILIAIS_RASTER_PADRAO).forEach(filial -> registrarAliases(lookup, filial));
+        return lookup;
     }
 
     private String extrairCodigoPrefixo(String filial) {
