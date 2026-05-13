@@ -48,7 +48,6 @@ import {
 } from '../hooks/queries/useIndicadoresGestaoAVista';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import { usePermissions } from '../hooks/usePermissions';
-import { dataNDiasAtrasLocal } from '../utils/dateUtils';
 import type {
   CubagemMercadoriasRow,
   HorarioCorteRow,
@@ -187,8 +186,7 @@ export default function IndicadoresGestaoAVistaPage() {
   const [goalsPanelBranchId, setGoalsPanelBranchId] = useState('');
   const [goalsHistoryPage, setGoalsHistoryPage] = useState(1);
   const filtrosIniciaisResetadosRef = useRef(false);
-  const periodoFoiInformado = searchParams.has('dataInicio') || searchParams.has('dataFim');
-  const dataInicioIndicadores = periodoFoiInformado ? dataInicio : dataNDiasAtrasLocal(365);
+  const dataInicioIndicadores = dataInicio;
   const dataFimIndicadores = dataFim;
   const filtroBase: IndicadoresGestaoVistaFiltro = { dataInicio: dataInicioIndicadores, dataFim: dataFimIndicadores, filiais: filtros.filiais };
   const filtroColetores: IndicadoresGestaoVistaFiltro = filtroBase;

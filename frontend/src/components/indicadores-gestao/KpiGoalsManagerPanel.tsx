@@ -155,7 +155,7 @@ function GoalInputs({
             </div>
             {isInherited ? (
               <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                valor herdado
+                valor herdado: {formatGoal(DEFAULT_GOALS[indicatorKey])}
               </span>
             ) : null}
           </label>
