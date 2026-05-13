@@ -11,6 +11,8 @@ import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -25,6 +27,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class PerformanceEntregaIndicadorService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PerformanceEntregaIndicadorService.class);
 
     private static final String STATUS_CANCELADO = "cancelado";
     private static final String PERFORMANCE_EM_ABERTO = "EM ABERTO";
@@ -161,7 +165,17 @@ public class PerformanceEntregaIndicadorService {
     private List<PerformanceEntregaRegistro> buscarRegistros(FiltroConsultaDTO filtro) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
-        List<VisaoFretesEntity> fretes = fretesRepository.findAll(criarFretesSpecification(filtro, escopo));
+        List<VisaoFretesEntity> fretes;
+        try {
+            fretes = fretesRepository.findAll(criarFretesSpecification(filtro, escopo));
+        } catch (RuntimeException ex) {
+            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
+                throw ex;
+            }
+            DatabaseReadFallbackUtils.logFallback(LOGGER, "Falha ao consultar performance de entrega", ex);
+            return List.of();
+        }
+
         Map<Long, PerformanceEntregaRegistro> porMinuta = new LinkedHashMap<>();
         for (VisaoFretesEntity frete : fretes) {
             Long numeroMinuta = frete.getNumeroMinuta();

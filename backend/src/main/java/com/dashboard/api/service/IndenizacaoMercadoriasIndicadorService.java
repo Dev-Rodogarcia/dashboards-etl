@@ -13,6 +13,8 @@ import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -27,6 +29,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class IndenizacaoMercadoriasIndicadorService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(IndenizacaoMercadoriasIndicadorService.class);
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoSinistrosRepository sinistrosRepository;
@@ -176,7 +180,7 @@ public class IndenizacaoMercadoriasIndicadorService {
         JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
-        List<VisaoFretesEntity> fretes = fretesRepository.findAll(criarFretesSpecification(filtro, escopo, janela));
+        List<VisaoFretesEntity> fretes = consultarFretes(filtro, escopo, janela);
         Map<String, BigDecimal> faturamentoPeriodoPorFilial = new LinkedHashMap<>();
         Map<String, BigDecimal> faturamentoMensalPorFilial = new LinkedHashMap<>();
         LocalDateTime updatedAtFretes = null;
@@ -200,7 +204,7 @@ public class IndenizacaoMercadoriasIndicadorService {
             updatedAtFretes = dataMaisRecente(updatedAtFretes, frete.getDataExtracao());
         }
 
-        List<VisaoSinistrosEntity> sinistros = sinistrosRepository.findAll(criarSinistrosSpecification(filtro, escopo));
+        List<VisaoSinistrosEntity> sinistros = consultarSinistros(filtro, escopo);
         Map<Long, IndenizacaoRegistro> porSinistro = new LinkedHashMap<>();
         LocalDateTime updatedAt = updatedAtFretes != null ? updatedAtFretes : LocalDateTime.now();
 
@@ -240,6 +244,37 @@ public class IndenizacaoMercadoriasIndicadorService {
                 faturamentoMensalPorFilial,
                 updatedAt.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         );
+    }
+
+    private List<VisaoFretesEntity> consultarFretes(
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            JanelaOffsetDateTime janela
+    ) {
+        try {
+            return fretesRepository.findAll(criarFretesSpecification(filtro, escopo, janela));
+        } catch (RuntimeException ex) {
+            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
+                throw ex;
+            }
+            DatabaseReadFallbackUtils.logFallback(LOGGER, "Falha ao consultar faturamento base de indenizacao", ex);
+            return List.of();
+        }
+    }
+
+    private List<VisaoSinistrosEntity> consultarSinistros(
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo
+    ) {
+        try {
+            return sinistrosRepository.findAll(criarSinistrosSpecification(filtro, escopo));
+        } catch (RuntimeException ex) {
+            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
+                throw ex;
+            }
+            DatabaseReadFallbackUtils.logFallback(LOGGER, "Falha ao consultar sinistros de indenizacao", ex);
+            return List.of();
+        }
     }
 
     @NonNull

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { canAccess, createEmptyPermissionMap, firstAccessibleRoute } from './accessControl';
+import { canAccess, canManageCommunications, createEmptyPermissionMap, firstAccessibleRoute } from './accessControl';
 
 describe('accessControl', () => {
   it('inclui a permissão indicadoresGestaoAVista no mapa vazio', () => {
     expect(createEmptyPermissionMap()).toMatchObject({
       indicadoresGestaoAVista: false,
       homeComunicados: false,
+      can_manage_kpi_goals: false,
+      can_manage_communications: false,
     });
   });
 
@@ -45,5 +47,25 @@ describe('accessControl', () => {
       token: 'token',
       sessaoExpiraEm: new Date(Date.now() + 60_000).toISOString(),
     }, 'homeComunicados')).toBe(true);
+  });
+
+  it('trata can_manage_communications como alias de homeComunicados', () => {
+    const usuario = {
+      id: 'user',
+      nome: 'Usuário',
+      email: 'user@example.com',
+      papel: 'usuario_comum',
+      setor: { id: '1', nome: 'TI' },
+      permissoesEfetivas: {
+        ...createEmptyPermissionMap(),
+        can_manage_communications: true,
+      },
+      filiaisPermitidasEfetivas: [],
+      exigeTrocaSenha: false,
+      token: 'token',
+      sessaoExpiraEm: new Date(Date.now() + 60_000).toISOString(),
+    };
+
+    expect(canManageCommunications(usuario)).toBe(true);
   });
 });

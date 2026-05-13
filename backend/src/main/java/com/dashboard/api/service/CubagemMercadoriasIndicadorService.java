@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -27,6 +29,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class CubagemMercadoriasIndicadorService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CubagemMercadoriasIndicadorService.class);
 
     private static final String STATUS_CANCELADO = "cancelado";
     private static final String PAGADOR_DOCS_EXCLUIDOS_PADRAO = """
@@ -175,7 +179,18 @@ public class CubagemMercadoriasIndicadorService {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         Map<Long, CubagemRegistro> porMinuta = new LinkedHashMap<>();
-        for (VisaoFretesEntity frete : fretesRepository.findAll(criarSpecification(filtro, escopo, janela))) {
+        List<VisaoFretesEntity> fretes;
+        try {
+            fretes = fretesRepository.findAll(criarSpecification(filtro, escopo, janela));
+        } catch (RuntimeException ex) {
+            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
+                throw ex;
+            }
+            DatabaseReadFallbackUtils.logFallback(LOGGER, "Falha ao consultar cubagem de mercadorias", ex);
+            return List.of();
+        }
+
+        for (VisaoFretesEntity frete : fretes) {
             Long numeroMinuta = frete.getNumeroMinuta();
             if (numeroMinuta == null
                     || statusCancelado(frete.getStatus())

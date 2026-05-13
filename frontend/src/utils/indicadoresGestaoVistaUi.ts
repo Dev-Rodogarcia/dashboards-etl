@@ -38,6 +38,9 @@ export interface PerformanceRankingItem {
 
 export interface UtilizacaoRankingItem {
   group: string;
+  branchId?: string;
+  branchName?: string;
+  goal?: number;
   pctUtilizacao: number;
   manifestosBipados: number;
   manifestosEmitidos: number;

@@ -15,6 +15,7 @@ import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaSeriePointDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresOverviewDTO;
+import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRankingDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresSeriePointDTO;
 import com.dashboard.api.service.CubagemMercadoriasIndicadorService;
@@ -126,6 +127,15 @@ public class IndicadoresGestaoAVistaController {
             @RequestParam MultiValueMap<String, String> params
     ) {
         return ResponseEntity.ok(utilizacaoColetoresService.buscarSerie(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
+    @GetMapping("/utilizacao-coletores/ranking")
+    public ResponseEntity<List<UtilizacaoColetoresRankingDTO>> utilizacaoColetoresRanking(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        return ResponseEntity.ok(utilizacaoColetoresService.buscarRanking(FiltroRequestMapper.from(dataInicio, dataFim, params)));
     }
 
     @GetMapping("/utilizacao-coletores/tabela")

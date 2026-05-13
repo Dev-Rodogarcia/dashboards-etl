@@ -6,6 +6,7 @@ interface RankingOptionArgs<T> {
   getLabel: (item: T) => string;
   getValue: (item: T) => number;
   threshold: number;
+  getThreshold?: (item: T) => number;
   mode: GoalMode;
   thresholdLabel: string;
   tooltipLines?: (item: T) => string[];
@@ -74,6 +75,7 @@ export function buildRankingOption<T>({
   getLabel,
   getValue,
   threshold,
+  getThreshold,
   mode,
   thresholdLabel,
   tooltipLines,
@@ -85,7 +87,8 @@ export function buildRankingOption<T>({
   const ordered = [...topItems].reverse();
   const labels = ordered.map((item) => truncarRotulo(getLabel(item)));
   const values = ordered.map((item) => getValue(item));
-  const resolvedMax = resolveMax(values, threshold, max);
+  const itemThresholds = getThreshold ? ordered.map((item) => getThreshold(item)) : [threshold];
+  const resolvedMax = resolveMax([...values, ...itemThresholds], threshold, max);
 
   return {
     grid: { left: 110, right: 32, top: 20, bottom: 32 },
@@ -126,7 +129,7 @@ export function buildRankingOption<T>({
         type: 'bar',
         data: ordered.map((item) => ({
           value: getValue(item),
-          itemStyle: { color: resolveColor(getValue(item), threshold, mode) },
+          itemStyle: { color: resolveColor(getValue(item), getThreshold ? getThreshold(item) : threshold, mode) },
         })),
         barMaxWidth: 24,
         label: {

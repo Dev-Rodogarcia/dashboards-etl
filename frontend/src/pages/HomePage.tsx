@@ -18,6 +18,7 @@ import {
 import { usePermissions } from '../hooks/usePermissions';
 import type { HomeDashboardFilter, HomeDashboardItem, HomeMetric, HomeNotice, HomeNoticeFormState } from '../types/home';
 import { getApiErrorMessage } from '../utils/apiError';
+import { canManageCommunications } from '../utils/accessControl';
 import {
   buildFavoriteKey,
   CATEGORY_ORDER,
@@ -119,7 +120,7 @@ export default function HomePage() {
     : FALLBACK_HOME_NOTICES;
   const noticeError = noticeMutationError;
   const noticeSaving = criarComunicado.isPending || atualizarComunicado.isPending || arquivarComunicado.isPending;
-  const canManageHomeComunicados = HOME_COMUNICADOS_API_ENABLED && hasHomeComunicadosApiData && canAccess('homeComunicados');
+  const canManageHomeComunicados = HOME_COMUNICADOS_API_ENABLED && hasHomeComunicadosApiData && canManageCommunications(usuario);
 
   const metrics: HomeMetric[] = [
     {

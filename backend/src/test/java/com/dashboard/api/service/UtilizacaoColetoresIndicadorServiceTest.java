@@ -2,6 +2,7 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresOverviewDTO;
+import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRankingDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresSeriePointDTO;
 import com.dashboard.api.model.VisaoInventarioEntity;
 import com.dashboard.api.model.VisaoManifestosEntity;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataAccessResourceFailureException;
 
 import java.lang.reflect.Constructor;
 import java.time.LocalDate;
@@ -157,6 +159,46 @@ class UtilizacaoColetoresIndicadorServiceTest {
                         org.assertj.core.groups.Tuple.tuple("2026-04-02", "SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA", "Geral"),
                         org.assertj.core.groups.Tuple.tuple("2026-04-03", "SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA", "Geral")
                 );
+    }
+
+    @Test
+    void buscarRankingDeveCalcularPercentualDecimalSemZerar() {
+        when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                manifesto(40L, "SPO", null, "encerrado", "DISTRIBUIÇÃO"),
+                manifesto(41L, "SPO", null, "encerrado", "DISTRIBUIÇÃO"),
+                manifesto(42L, "SPO", "SPO", "encerrado", "DISTRIBUIÇÃO")
+        ));
+        when(inventarioRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                ordem(400L, "SPO", "picking", OffsetDateTime.parse("2026-04-02T08:00:00-03:00"), OffsetDateTime.parse("2026-04-02T08:30:00-03:00")),
+                ordem(401L, "SPO", "recebimento", OffsetDateTime.parse("2026-04-02T09:00:00-03:00"), null)
+        ));
+
+        List<UtilizacaoColetoresRankingDTO> ranking = service.buscarRanking(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of("filiais", List.of("SPO")))
+        );
+
+        assertThat(ranking).singleElement().satisfies(item -> {
+            assertThat(item.branchName()).isEqualTo("SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA");
+            assertThat(item.ordensConferencia()).isEqualTo(2);
+            assertThat(item.manifestosBipaveis()).isEqualTo(4);
+            assertThat(item.descarregamentos()).isEqualTo(1);
+            assertThat(item.utilization()).isEqualTo(50.0);
+            assertThat(item.goal()).isEqualByComparingTo("90");
+        });
+    }
+
+    @Test
+    void buscarOverviewDeveRetornarVazioQuandoBaseIndisponivel() {
+        when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification()))
+                .thenThrow(new DataAccessResourceFailureException("view indisponivel"));
+
+        UtilizacaoColetoresOverviewDTO overview = service.buscarOverview(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
+        );
+
+        assertThat(overview.manifestosBipados()).isZero();
+        assertThat(overview.totalManifestos()).isZero();
+        assertThat(overview.pctUtilizacao()).isZero();
     }
 
     private static VisaoManifestosEntity manifesto(

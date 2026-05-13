@@ -99,13 +99,7 @@ export function FiltroProvider({ children }: { children: ReactNode }) {
   );
 
   const limparFiltros = useCallback(() => {
-    setSearchParams(
-      {
-        dataInicio: data30DiasAtrasLocal(),
-        dataFim: dataHojeLocal(),
-      },
-      { replace: true }
-    );
+    setSearchParams({}, { replace: true });
   }, [setSearchParams]);
 
   return (

@@ -8,9 +8,9 @@ import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
 import com.dashboard.api.model.VisaoHorariosCorteEntity;
 import com.dashboard.api.repository.VisaoHorariosCorteRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import org.springframework.dao.DataAccessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -220,7 +220,25 @@ public class IndicadoresGestaoAVistaService {
                     "Falha ao consultar Horario de Corte diretamente nas tabelas Raster; tentando fallback pela view vw_horarios_corte_powerbi. causa={}",
                     ex.getMostSpecificCause().getMessage()
             );
+            return buscarHorariosCorteNaView(filtro);
+        } catch (RuntimeException ex) {
+            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
+                throw ex;
+            }
+            DatabaseReadFallbackUtils.logFallback(log, "Falha ao consultar Horario de Corte diretamente nas tabelas Raster", ex);
+            return buscarHorariosCorteNaView(filtro);
+        }
+    }
+
+    private List<VisaoHorariosCorteEntity> buscarHorariosCorteNaView(FiltroConsultaDTO filtro) {
+        try {
             return repository.findByDataBetween(filtro.dataInicio(), filtro.dataFim());
+        } catch (RuntimeException ex) {
+            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
+                throw ex;
+            }
+            DatabaseReadFallbackUtils.logFallback(log, "Falha ao consultar fallback de Horario de Corte pela view", ex);
+            return List.of();
         }
     }
 

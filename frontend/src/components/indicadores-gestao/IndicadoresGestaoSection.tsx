@@ -34,6 +34,7 @@ interface IndicadoresGestaoSectionProps<T> {
   goalLabel: string;
   goalTone?: GoalTone;
   error?: unknown;
+  goalOverridesNotice?: ReactNode;
   alert?: ReactNode;
   extra?: ReactNode;
   kpis: Array<{ label: string; value: string; icon?: ReactNode; tone?: GoalTone; progressPct?: number | null }>;
@@ -64,6 +65,7 @@ export default function IndicadoresGestaoSection<T>({
   goalLabel,
   goalTone = 'neutral',
   error,
+  goalOverridesNotice,
   alert,
   extra,
   kpis,
@@ -127,6 +129,7 @@ export default function IndicadoresGestaoSection<T>({
       {Boolean(error) && (
         <MensagemErro mensagem={getApiErrorMessage(error, `Erro ao carregar ${title}.`)} tipo={getTipoErro(error)} />
       )}
+      {goalOverridesNotice ? <div className="mb-4">{goalOverridesNotice}</div> : null}
       {alert}
       {extra}
 
@@ -152,7 +155,7 @@ export default function IndicadoresGestaoSection<T>({
           isLoading={chartLoading}
           isEmpty={chartEmpty}
           erro={chartError}
-          emptyMessage="Nenhum ponto disponível para o período selecionado."
+          emptyMessage="Sem dados para o período selecionado."
           altura={320}
         />
       </div>

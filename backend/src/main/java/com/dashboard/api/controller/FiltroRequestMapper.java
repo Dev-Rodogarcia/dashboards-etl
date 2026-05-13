@@ -20,9 +20,20 @@ final class FiltroRequestMapper {
                 .filter(entry -> entry.getKey().startsWith(PREFIXO))
                 .collect(Collectors.toMap(
                         entry -> entry.getKey().substring(PREFIXO.length()),
-                        Map.Entry::getValue
+                        entry -> normalizarValoresFiltro(entry.getKey().substring(PREFIXO.length()), entry.getValue())
                 ));
+        filtros.entrySet().removeIf(entry -> entry.getValue().isEmpty());
 
         return new FiltroConsultaDTO(dataInicio, dataFim, filtros);
+    }
+
+    private static List<String> normalizarValoresFiltro(String chave, List<String> valores) {
+        if (!"filiais".equals(chave)) {
+            return valores;
+        }
+        return valores.stream()
+                .filter(valor -> valor != null && !valor.isBlank())
+                .filter(valor -> !"GLOBAL".equalsIgnoreCase(valor.trim()))
+                .toList();
     }
 }

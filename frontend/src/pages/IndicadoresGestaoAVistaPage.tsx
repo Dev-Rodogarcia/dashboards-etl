@@ -1,46 +1,62 @@
-import { useMemo, useState } from 'react';
-import { AlertCircle, BarChart3, Boxes, Clock3, Gauge, PackageCheck, ShieldAlert, Truck } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { AlertCircle, BarChart3, Boxes, Clock3, Gauge, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import type { ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
+import BranchGoalOverridesBanner from '../components/indicadores-gestao/BranchGoalOverridesBanner';
 import IndicadoresGestaoPanoramaSection, { type PanoramaOperacionalItem } from '../components/indicadores-gestao/IndicadoresGestaoPanoramaSection';
 import IndicadoresGestaoSection from '../components/indicadores-gestao/IndicadoresGestaoSection';
 import IndicadoresGestaoSummaryCard from '../components/indicadores-gestao/IndicadoresGestaoSummaryCard';
+import KpiGoalsManagerPanel from '../components/indicadores-gestao/KpiGoalsManagerPanel';
 import {
   exportarCubagemMercadoriasCsv,
   exportarHorariosCorteCsv,
   exportarIndenizacaoMercadoriasCsv,
   exportarPerformanceEntregaCsv,
   exportarUtilizacaoColetoresCsv,
+  GLOBAL_KPI_GOAL_BRANCH_ID,
 } from '../api/endpoints/indicadoresGestaoAVistaServico';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useFiliais } from '../hooks/queries/useDimensoes';
 import {
+  useAtualizarKpiGoalsFilial,
+  useAtualizarKpiGoalsGlobais,
   useCubagemMercadoriasOverview,
   useCubagemMercadoriasSerie,
   useCubagemMercadoriasTabelaPaginada,
   useHorariosCorteOverview,
   useHorariosCorteSerie,
   useHorariosCorteTabelaPaginada,
+  useKpiGoalHistory,
+  useKpiGoalOverrides,
+  useKpiGoalsEffective,
+  useKpiGoalsFull,
   useIndenizacaoMercadoriasOverview,
   useIndenizacaoMercadoriasSerie,
   useIndenizacaoMercadoriasTabelaPaginada,
   usePerformanceEntregaOverview,
   usePerformanceEntregaSerie,
   usePerformanceEntregaTabelaPaginada,
+  useRemoverKpiGoalsOverride,
   useUtilizacaoColetoresOverview,
-  useUtilizacaoColetoresSerie,
+  useUtilizacaoColetoresRanking,
   useUtilizacaoColetoresTabelaPaginada,
 } from '../hooks/queries/useIndicadoresGestaoAVista';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
+import { usePermissions } from '../hooks/usePermissions';
+import { dataNDiasAtrasLocal } from '../utils/dateUtils';
 import type {
   CubagemMercadoriasRow,
   HorarioCorteRow,
   IndenizacaoMercadoriasRow,
   IndicadoresGestaoVistaFiltro,
+  KpiGoalIndicatorKey,
+  KpiGoalIndicatorOverride,
+  KpiGoalsMap,
   PerformanceEntregaRow,
   UtilizacaoColetoresRow,
 } from '../types/indicadoresGestaoAVista';
@@ -51,7 +67,6 @@ import {
   aggregateHorariosRanking,
   aggregateIndenizacaoRanking,
   aggregatePerformanceRanking,
-  aggregateUtilizacaoRanking,
   avaliarMetaIndicador,
   calcularDistanciaRelativaMeta,
   type GoalMode,
@@ -66,13 +81,51 @@ interface GoalConfig {
   label: string;
 }
 
-const GOALS: Record<SectionId, GoalConfig> = {
-  performance: { threshold: 95, mode: 'atLeast', label: 'Meta 95%' },
-  coletores: { threshold: 80, mode: 'atLeast', label: 'Meta 80%' },
-  cubagem: { threshold: 80, mode: 'atLeast', label: 'Meta 80%' },
-  indenizacao: { threshold: 0.2, mode: 'atMost', label: 'Limite 0,2%' },
-  horarios: { threshold: 90, mode: 'atLeast', label: 'Meta 90%' },
+const DEFAULT_KPI_GOALS: KpiGoalsMap = {
+  delivery_performance: 95,
+  collector_usage: 90,
+  cargo_cubage: 85,
+  cargo_indemnity: 2,
+  cutoff_time: 98,
 };
+const KPI_GOAL_HISTORY_PAGE_SIZE = 10;
+
+const SECTION_GOAL_KEYS: Record<SectionId, KpiGoalIndicatorKey> = {
+  performance: 'delivery_performance',
+  coletores: 'collector_usage',
+  cubagem: 'cargo_cubage',
+  indenizacao: 'cargo_indemnity',
+  horarios: 'cutoff_time',
+};
+
+const SECTION_GOAL_MODES: Record<SectionId, GoalMode> = {
+  performance: 'atLeast',
+  coletores: 'atLeast',
+  cubagem: 'atLeast',
+  indenizacao: 'atMost',
+  horarios: 'atLeast',
+};
+
+function formatarMetaValor(value: number): string {
+  return value.toLocaleString('pt-BR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  });
+}
+
+function buildGoalConfigs(kpiGoals: KpiGoalsMap): Record<SectionId, GoalConfig> {
+  return (Object.keys(SECTION_GOAL_KEYS) as SectionId[]).reduce((acc, sectionId) => {
+    const mode = SECTION_GOAL_MODES[sectionId];
+    const threshold = kpiGoals[SECTION_GOAL_KEYS[sectionId]];
+    const prefix = mode === 'atLeast' ? 'Meta' : 'Limite';
+    acc[sectionId] = {
+      threshold,
+      mode,
+      label: `${prefix} ${formatarMetaValor(threshold)}%`,
+    };
+    return acc;
+  }, {} as Record<SectionId, GoalConfig>);
+}
 
 function latestUpdatedAt(values: Array<string | null | undefined>) {
   return values
@@ -97,12 +150,50 @@ function formatarGap(gap: number, mode: GoalMode, decimais = 1): string {
   return `${prefixo}: ${formatarNumero(gap, decimais)} p.p.`;
 }
 
+function formatarGapComBase(hasData: boolean, gap: number, mode: GoalMode, decimais = 1): string {
+  return hasData ? formatarGap(gap, mode, decimais) : 'Sem base de cálculo';
+}
+
+function normalizarFilialMeta(value: string | null | undefined): string {
+  return (value ?? '').trim().toLocaleLowerCase('pt-BR');
+}
+
+function resolverMetaFilial(
+  branchName: string,
+  globalGoal: number,
+  overrides?: KpiGoalIndicatorOverride[],
+): number {
+  const normalized = normalizarFilialMeta(branchName);
+  const override = overrides?.find((item) => (
+    normalizarFilialMeta(item.branchId) === normalized
+    || normalizarFilialMeta(item.branchName) === normalized
+  ));
+  return override?.goalValue ?? globalGoal;
+}
+
+function formatarDiferencaMeta(value: number, goal: number): string {
+  const difference = Number((value - goal).toFixed(1));
+  const prefix = difference > 0 ? '+' : '';
+  return `${prefix}${formatarNumero(difference, 1)} p.p.`;
+}
+
 export default function IndicadoresGestaoAVistaPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const [searchParams] = useSearchParams();
+  const { canAccess } = usePermissions();
   const filiais = useFiliais();
   const [expandedSection, setExpandedSection] = useState<SectionId | null>(null);
-  const filtroBase: IndicadoresGestaoVistaFiltro = { dataInicio, dataFim, filiais: filtros.filiais };
+  const [goalsPanelOpen, setGoalsPanelOpen] = useState(false);
+  const [goalsPanelBranchId, setGoalsPanelBranchId] = useState('');
+  const [goalsHistoryPage, setGoalsHistoryPage] = useState(1);
+  const filtrosIniciaisResetadosRef = useRef(false);
+  const periodoFoiInformado = searchParams.has('dataInicio') || searchParams.has('dataFim');
+  const dataInicioIndicadores = periodoFoiInformado ? dataInicio : dataNDiasAtrasLocal(365);
+  const dataFimIndicadores = dataFim;
+  const filtroBase: IndicadoresGestaoVistaFiltro = { dataInicio: dataInicioIndicadores, dataFim: dataFimIndicadores, filiais: filtros.filiais };
   const filtroColetores: IndicadoresGestaoVistaFiltro = filtroBase;
+  const filiaisSelecionadas = filtros.filiais ?? [];
+  const goalBranchId = filiaisSelecionadas.length === 1 ? filiaisSelecionadas[0] : GLOBAL_KPI_GOAL_BRANCH_ID;
   const filtroBaseKey = JSON.stringify(filtroBase);
   const filtroColetoresKey = JSON.stringify(filtroColetores);
   const performancePaginacao = useTabelaPaginadaState(`${filtroBaseKey}|performance`);
@@ -113,22 +204,157 @@ export default function IndicadoresGestaoAVistaPage() {
   const activeFilters: ActiveFilter[] = [
     { label: 'Filial base', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
   ].filter((item) => item.count > 0);
+  const canManageKpiGoals = canAccess('can_manage_kpi_goals');
 
   const performanceOverview = usePerformanceEntregaOverview(filtroBase);
   const performanceSerie = usePerformanceEntregaSerie(filtroBase);
-  const performanceTabela = usePerformanceEntregaTabelaPaginada(filtroBase, performancePaginacao.pagina, performancePaginacao.tamanhoPagina);
+  const performanceTabela = usePerformanceEntregaTabelaPaginada(
+    filtroBase,
+    performancePaginacao.pagina,
+    performancePaginacao.tamanhoPagina,
+    expandedSection === 'performance',
+  );
   const coletoresOverview = useUtilizacaoColetoresOverview(filtroColetores);
-  const coletoresSerie = useUtilizacaoColetoresSerie(filtroColetores);
-  const coletoresTabela = useUtilizacaoColetoresTabelaPaginada(filtroColetores, coletoresPaginacao.pagina, coletoresPaginacao.tamanhoPagina);
+  const coletoresRankingQuery = useUtilizacaoColetoresRanking(filtroColetores);
+  const coletoresTabela = useUtilizacaoColetoresTabelaPaginada(
+    filtroColetores,
+    coletoresPaginacao.pagina,
+    coletoresPaginacao.tamanhoPagina,
+    expandedSection === 'coletores',
+  );
   const cubagemOverview = useCubagemMercadoriasOverview(filtroBase);
   const cubagemSerie = useCubagemMercadoriasSerie(filtroBase);
-  const cubagemTabela = useCubagemMercadoriasTabelaPaginada(filtroBase, cubagemPaginacao.pagina, cubagemPaginacao.tamanhoPagina);
+  const cubagemTabela = useCubagemMercadoriasTabelaPaginada(
+    filtroBase,
+    cubagemPaginacao.pagina,
+    cubagemPaginacao.tamanhoPagina,
+    expandedSection === 'cubagem',
+  );
   const indenizacaoOverview = useIndenizacaoMercadoriasOverview(filtroBase);
   const indenizacaoSerie = useIndenizacaoMercadoriasSerie(filtroBase);
-  const indenizacaoTabela = useIndenizacaoMercadoriasTabelaPaginada(filtroBase, indenizacaoPaginacao.pagina, indenizacaoPaginacao.tamanhoPagina);
+  const indenizacaoTabela = useIndenizacaoMercadoriasTabelaPaginada(
+    filtroBase,
+    indenizacaoPaginacao.pagina,
+    indenizacaoPaginacao.tamanhoPagina,
+    expandedSection === 'indenizacao',
+  );
   const horariosOverview = useHorariosCorteOverview(filtroBase);
   const horariosSerie = useHorariosCorteSerie(filtroBase);
-  const horariosTabela = useHorariosCorteTabelaPaginada(filtroBase, horariosPaginacao.pagina, horariosPaginacao.tamanhoPagina);
+  const horariosTabela = useHorariosCorteTabelaPaginada(
+    filtroBase,
+    horariosPaginacao.pagina,
+    horariosPaginacao.tamanhoPagina,
+    expandedSection === 'horarios',
+  );
+  const kpiGoals = useKpiGoalsEffective(goalBranchId);
+  const canFetchGoalOverrides = kpiGoals.isSuccess;
+  const performanceOverrides = useKpiGoalOverrides('delivery_performance', canFetchGoalOverrides);
+  const coletoresOverrides = useKpiGoalOverrides('collector_usage', canFetchGoalOverrides);
+  const cubagemOverrides = useKpiGoalOverrides('cargo_cubage', canFetchGoalOverrides);
+  const indenizacaoOverrides = useKpiGoalOverrides('cargo_indemnity', canFetchGoalOverrides);
+  const horariosOverrides = useKpiGoalOverrides('cutoff_time', canFetchGoalOverrides);
+  const managerKpiGoals = useKpiGoalsFull(canManageKpiGoals && goalsPanelOpen);
+  const managerHistory = useKpiGoalHistory(
+    goalsPanelBranchId,
+    goalsHistoryPage,
+    KPI_GOAL_HISTORY_PAGE_SIZE,
+    canManageKpiGoals && goalsPanelOpen && Boolean(goalsPanelBranchId),
+  );
+  const atualizarGlobais = useAtualizarKpiGoalsGlobais();
+  const atualizarFilial = useAtualizarKpiGoalsFilial();
+  const removerOverride = useRemoverKpiGoalsOverride();
+  const goals = useMemo(() => buildGoalConfigs(kpiGoals.data?.goals ?? DEFAULT_KPI_GOALS), [kpiGoals.data]);
+  const overridesByIndicator = useMemo<Record<KpiGoalIndicatorKey, KpiGoalIndicatorOverride[]>>(() => ({
+    delivery_performance: performanceOverrides.data?.overrides ?? [],
+    collector_usage: coletoresOverrides.data?.overrides ?? [],
+    cargo_cubage: cubagemOverrides.data?.overrides ?? [],
+    cargo_indemnity: indenizacaoOverrides.data?.overrides ?? [],
+    cutoff_time: horariosOverrides.data?.overrides ?? [],
+  }), [
+    performanceOverrides.data?.overrides,
+    coletoresOverrides.data?.overrides,
+    cubagemOverrides.data?.overrides,
+    indenizacaoOverrides.data?.overrides,
+    horariosOverrides.data?.overrides,
+  ]);
+  const goalBranchOptions = useMemo(
+    () => {
+      const options = [goalBranchId, ...(filiais.data ?? []), ...(managerKpiGoals.data?.branches.map((branch) => branch.branchId) ?? [])]
+        .filter((option): option is string => Boolean(option));
+      return Array.from(new Set(options)).filter((option) => option !== GLOBAL_KPI_GOAL_BRANCH_ID);
+    },
+    [filiais.data, goalBranchId, managerKpiGoals.data?.branches],
+  );
+
+  function abrirGerenciadorMetas() {
+    atualizarGlobais.reset();
+    atualizarFilial.reset();
+    removerOverride.reset();
+    setGoalsPanelBranchId(goalBranchId === GLOBAL_KPI_GOAL_BRANCH_ID ? (filiais.data?.[0] ?? '') : goalBranchId);
+    setGoalsHistoryPage(1);
+    setGoalsPanelOpen((current) => !current);
+  }
+
+  async function aplicarMetasGlobais(kpiGoalValues: KpiGoalsMap) {
+    atualizarFilial.reset();
+    removerOverride.reset();
+    await atualizarGlobais.mutateAsync({ goals: kpiGoalValues });
+    setGoalsHistoryPage(1);
+  }
+
+  async function salvarMetasFilial(branchId: string, kpiGoalValues: KpiGoalsMap) {
+    atualizarGlobais.reset();
+    removerOverride.reset();
+    await atualizarFilial.mutateAsync({ branchId, payload: { goals: kpiGoalValues } });
+    setGoalsHistoryPage(1);
+  }
+
+  async function removerOverrideFilial(branchId: string) {
+    atualizarGlobais.reset();
+    atualizarFilial.reset();
+    await removerOverride.mutateAsync(branchId);
+    setGoalsHistoryPage(1);
+  }
+
+  function alterarFilialPainelMetas(branchId: string) {
+    setGoalsPanelBranchId(branchId);
+    setGoalsHistoryPage(1);
+  }
+
+  function rolarParaTopoIndicadores() {
+    requestAnimationFrame(() => {
+      document.querySelector('[data-indicadores-gestao-top]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  function selecionarFilialMeta(branchId: string) {
+    setFiltro('filiais', [branchId]);
+    rolarParaTopoIndicadores();
+  }
+
+  function limparFiltroFilialMeta() {
+    setFiltro('filiais', []);
+    rolarParaTopoIndicadores();
+  }
+
+  useEffect(() => {
+    if (!goalsPanelOpen || goalsPanelBranchId || goalBranchOptions.length === 0) return;
+    setGoalsPanelBranchId(goalBranchOptions[0]);
+    setGoalsHistoryPage(1);
+  }, [goalBranchOptions, goalsPanelBranchId, goalsPanelOpen]);
+  const managerSaveError = atualizarGlobais.error ?? atualizarFilial.error ?? removerOverride.error;
+  const managerIsSaving = atualizarGlobais.isPending || atualizarFilial.isPending || removerOverride.isPending;
+
+  useEffect(() => {
+    if (filtrosIniciaisResetadosRef.current) return;
+    filtrosIniciaisResetadosRef.current = true;
+
+    const temFiltroNaUrl = Array.from(searchParams.keys())
+      .some((key) => key === 'dataInicio' || key === 'dataFim' || key.startsWith('f.'));
+    if (temFiltroNaUrl) {
+      limparFiltros();
+    }
+  }, [limparFiltros, searchParams]);
 
   const updatedAt = latestUpdatedAt([
     performanceOverview.data?.updatedAt,
@@ -143,105 +369,150 @@ export default function IndicadoresGestaoAVistaPage() {
     updatedAt,
   });
   const performanceRanking = useMemo(() => aggregatePerformanceRanking(performanceSerie.data ?? []), [performanceSerie.data]);
-  const coletoresRanking = useMemo(() => aggregateUtilizacaoRanking(coletoresSerie.data ?? []), [coletoresSerie.data]);
+  const coletoresRanking = useMemo(() => (coletoresRankingQuery.data ?? []).map((item) => ({
+    group: item.branchName || item.branchId,
+    branchId: item.branchId,
+    branchName: item.branchName,
+    goal: item.goal,
+    pctUtilizacao: item.utilization,
+    manifestosBipados: item.ordensConferencia,
+    manifestosEmitidos: Math.max(item.manifestosBipaveis - item.descarregamentos, 0),
+    manifestosDescarregamento: item.descarregamentos,
+    totalManifestos: item.manifestosBipaveis,
+    manifestosIncompletos: item.ordensIncompletas,
+  })), [coletoresRankingQuery.data]);
   const cubagemRanking = useMemo(() => aggregateCubagemRanking(cubagemSerie.data ?? []), [cubagemSerie.data]);
   const indenizacaoRanking = useMemo(() => aggregateIndenizacaoRanking(indenizacaoSerie.data ?? []), [indenizacaoSerie.data]);
   const horariosRanking = useMemo(() => aggregateHorariosRanking(horariosSerie.data ?? []), [horariosSerie.data]);
+  const selectedBranchForOverrides = filiaisSelecionadas.length === 1 ? filiaisSelecionadas[0] : null;
+  const globalGoalByIndicator: KpiGoalsMap = {
+    delivery_performance: performanceOverrides.data?.globalGoal ?? kpiGoals.data?.goals.delivery_performance ?? DEFAULT_KPI_GOALS.delivery_performance,
+    collector_usage: coletoresOverrides.data?.globalGoal ?? kpiGoals.data?.goals.collector_usage ?? DEFAULT_KPI_GOALS.collector_usage,
+    cargo_cubage: cubagemOverrides.data?.globalGoal ?? kpiGoals.data?.goals.cargo_cubage ?? DEFAULT_KPI_GOALS.cargo_cubage,
+    cargo_indemnity: indenizacaoOverrides.data?.globalGoal ?? kpiGoals.data?.goals.cargo_indemnity ?? DEFAULT_KPI_GOALS.cargo_indemnity,
+    cutoff_time: horariosOverrides.data?.globalGoal ?? kpiGoals.data?.goals.cutoff_time ?? DEFAULT_KPI_GOALS.cutoff_time,
+  };
+  const metaFilial = (sectionId: SectionId, branchName: string) => {
+    const indicatorKey = SECTION_GOAL_KEYS[sectionId];
+    return resolverMetaFilial(branchName, globalGoalByIndicator[indicatorKey], overridesByIndicator[indicatorKey]);
+  };
+  const goalOverridesNotice = (indicatorKey: KpiGoalIndicatorKey) => (
+    <BranchGoalOverridesBanner
+      indicatorKey={indicatorKey}
+      globalGoal={globalGoalByIndicator[indicatorKey]}
+      overrides={overridesByIndicator[indicatorKey]}
+      selectedBranch={selectedBranchForOverrides}
+      onSelectBranch={selecionarFilialMeta}
+      onClearFilter={limparFiltroFilialMeta}
+    />
+  );
 
   const performanceHasData = (performanceOverview.data?.totalEntregas ?? 0) > 0;
   const coletoresHasData = (coletoresOverview.data?.manifestosBipados ?? 0) > 0 || (coletoresOverview.data?.totalManifestos ?? 0) > 0;
   const cubagemHasData = (cubagemOverview.data?.totalFretes ?? 0) > 0;
-  const indenizacaoHasData = (indenizacaoOverview.data?.faturamentoBase ?? 0) > 0 || (indenizacaoOverview.data?.totalSinistros ?? 0) > 0;
+  const indenizacaoHasData = (indenizacaoOverview.data?.totalSinistros ?? 0) > 0;
   const horariosHasData = (horariosOverview.data?.totalProgramado ?? 0) > 0;
 
   const performanceAssessment = avaliarMetaIndicador({
     value: performanceOverview.data?.pctNoPrazo ?? 0,
-    threshold: GOALS.performance.threshold,
-    mode: GOALS.performance.mode,
+    threshold: goals.performance.threshold,
+    mode: goals.performance.mode,
     hasData: performanceHasData,
-    isLoading: performanceOverview.isLoading,
-    isError: performanceOverview.isError,
+    isLoading: performanceOverview.isLoading || kpiGoals.isLoading,
+    isError: performanceOverview.isError || kpiGoals.isError,
   });
   const coletoresAssessment = avaliarMetaIndicador({
     value: coletoresOverview.data?.pctUtilizacao ?? 0,
-    threshold: GOALS.coletores.threshold,
-    mode: GOALS.coletores.mode,
+    threshold: goals.coletores.threshold,
+    mode: goals.coletores.mode,
     hasData: coletoresHasData,
-    isLoading: coletoresOverview.isLoading,
-    isError: coletoresOverview.isError,
+    isLoading: coletoresOverview.isLoading || kpiGoals.isLoading,
+    isError: coletoresOverview.isError || kpiGoals.isError,
   });
   const cubagemAssessment = avaliarMetaIndicador({
     value: cubagemOverview.data?.pctCubagem ?? 0,
-    threshold: GOALS.cubagem.threshold,
-    mode: GOALS.cubagem.mode,
+    threshold: goals.cubagem.threshold,
+    mode: goals.cubagem.mode,
     hasData: cubagemHasData,
-    isLoading: cubagemOverview.isLoading,
-    isError: cubagemOverview.isError,
+    isLoading: cubagemOverview.isLoading || kpiGoals.isLoading,
+    isError: cubagemOverview.isError || kpiGoals.isError,
   });
   const indenizacaoAssessment = avaliarMetaIndicador({
     value: indenizacaoOverview.data?.pctIndenizacao ?? 0,
-    threshold: GOALS.indenizacao.threshold,
-    mode: GOALS.indenizacao.mode,
+    threshold: goals.indenizacao.threshold,
+    mode: goals.indenizacao.mode,
     hasData: indenizacaoHasData,
-    isLoading: indenizacaoOverview.isLoading,
-    isError: indenizacaoOverview.isError,
+    isLoading: indenizacaoOverview.isLoading || kpiGoals.isLoading,
+    isError: indenizacaoOverview.isError || kpiGoals.isError,
   });
   const horariosAssessment = avaliarMetaIndicador({
     value: horariosOverview.data?.pctNoHorario ?? 0,
-    threshold: GOALS.horarios.threshold,
-    mode: GOALS.horarios.mode,
+    threshold: goals.horarios.threshold,
+    mode: goals.horarios.mode,
     hasData: horariosHasData,
-    isLoading: horariosOverview.isLoading,
-    isError: horariosOverview.isError,
+    isLoading: horariosOverview.isLoading || kpiGoals.isLoading,
+    isError: horariosOverview.isError || kpiGoals.isError,
   });
 
-  const performanceGap = calcularGap(performanceOverview.data?.pctNoPrazo ?? 0, GOALS.performance.threshold, GOALS.performance.mode);
-  const coletoresGap = calcularGap(coletoresOverview.data?.pctUtilizacao ?? 0, GOALS.coletores.threshold, GOALS.coletores.mode);
-  const cubagemGap = calcularGap(cubagemOverview.data?.pctCubagem ?? 0, GOALS.cubagem.threshold, GOALS.cubagem.mode);
-  const indenizacaoGap = calcularGap(indenizacaoOverview.data?.pctIndenizacao ?? 0, GOALS.indenizacao.threshold, GOALS.indenizacao.mode);
-  const horariosGap = calcularGap(horariosOverview.data?.pctNoHorario ?? 0, GOALS.horarios.threshold, GOALS.horarios.mode);
+  const performanceGap = calcularGap(performanceOverview.data?.pctNoPrazo ?? 0, goals.performance.threshold, goals.performance.mode);
+  const coletoresGap = calcularGap(coletoresOverview.data?.pctUtilizacao ?? 0, goals.coletores.threshold, goals.coletores.mode);
+  const cubagemGap = calcularGap(cubagemOverview.data?.pctCubagem ?? 0, goals.cubagem.threshold, goals.cubagem.mode);
+  const indenizacaoGap = calcularGap(indenizacaoOverview.data?.pctIndenizacao ?? 0, goals.indenizacao.threshold, goals.indenizacao.mode);
+  const horariosGap = calcularGap(horariosOverview.data?.pctNoHorario ?? 0, goals.horarios.threshold, goals.horarios.mode);
+  const performanceGapLabel = formatarGapComBase(performanceHasData, performanceGap, goals.performance.mode);
+  const coletoresGapLabel = formatarGapComBase(coletoresHasData, coletoresGap, goals.coletores.mode);
+  const cubagemGapLabel = formatarGapComBase(cubagemHasData, cubagemGap, goals.cubagem.mode);
+  const indenizacaoGapLabel = formatarGapComBase(indenizacaoHasData, indenizacaoGap, goals.indenizacao.mode, 2);
+  const horariosGapLabel = formatarGapComBase(horariosHasData, horariosGap, goals.horarios.mode);
 
   const performanceChartOption = useMemo(() => (
     performanceRanking.length <= 1
       ? buildMetaComparisonOption({
           label: performanceRanking[0]?.group ?? 'Periodo filtrado',
           value: performanceOverview.data?.pctNoPrazo ?? 0,
-          threshold: GOALS.performance.threshold,
-          mode: GOALS.performance.mode,
-          thresholdLabel: GOALS.performance.label,
+          threshold: goals.performance.threshold,
+          mode: goals.performance.mode,
+          thresholdLabel: goals.performance.label,
         })
       : buildRankingOption({
           items: performanceRanking,
           getLabel: (item) => item.group,
           getValue: (item) => item.pctNoPrazo,
-          threshold: GOALS.performance.threshold,
-          mode: GOALS.performance.mode,
-          thresholdLabel: GOALS.performance.label,
+          threshold: goals.performance.threshold,
+          getThreshold: (item) => metaFilial('performance', item.group),
+          mode: goals.performance.mode,
+          thresholdLabel: goals.performance.label,
           tooltipLines: (item) => [
+            `Meta da filial: ${formatarPorcentagem(metaFilial('performance', item.group))}`,
+            `Diferença: ${formatarDiferencaMeta(item.pctNoPrazo, metaFilial('performance', item.group))}`,
             `Total: ${formatarNumero(item.totalEntregas)}`,
             `No prazo: ${formatarNumero(item.entregasNoPrazo)}`,
             `Fora do prazo: ${formatarNumero(item.entregasForaDoPrazo)}`,
           ],
         })
-  ), [performanceRanking, performanceOverview.data?.pctNoPrazo]);
+  ), [goals, performanceRanking, performanceOverview.data?.pctNoPrazo, overridesByIndicator, globalGoalByIndicator]);
 
   const coletoresChartOption = useMemo(() => (
     coletoresRanking.length <= 1
       ? buildMetaComparisonOption({
           label: coletoresRanking[0]?.group ?? 'Periodo filtrado',
           value: coletoresOverview.data?.pctUtilizacao ?? 0,
-          threshold: GOALS.coletores.threshold,
-          mode: GOALS.coletores.mode,
-          thresholdLabel: GOALS.coletores.label,
+          threshold: goals.coletores.threshold,
+          mode: goals.coletores.mode,
+          thresholdLabel: goals.coletores.label,
         })
       : buildRankingOption({
           items: coletoresRanking,
           getLabel: (item) => item.group,
           getValue: (item) => item.pctUtilizacao,
-          threshold: GOALS.coletores.threshold,
-          mode: GOALS.coletores.mode,
-          thresholdLabel: GOALS.coletores.label,
+          threshold: goals.coletores.threshold,
+          getThreshold: (item) => item.goal ?? metaFilial('coletores', item.group),
+          mode: goals.coletores.mode,
+          thresholdLabel: goals.coletores.label,
           tooltipLines: (item) => [
+            `Utilização: ${formatarPorcentagem(item.pctUtilizacao)}`,
+            `Meta: ${formatarPorcentagem(item.goal ?? metaFilial('coletores', item.group))}`,
+            `Diferença: ${formatarDiferencaMeta(item.pctUtilizacao, item.goal ?? metaFilial('coletores', item.group))}`,
             `Ordens de conferência: ${formatarNumero(item.manifestosBipados)}`,
             `Manifestos criados: ${formatarNumero(item.manifestosEmitidos)}`,
             `Descarregamento: ${formatarNumero(item.manifestosDescarregamento)}`,
@@ -249,40 +520,43 @@ export default function IndicadoresGestaoAVistaPage() {
             `Manifestos bipáveis: ${formatarNumero(item.totalManifestos)}`,
           ],
         })
-  ), [coletoresRanking, coletoresOverview.data?.pctUtilizacao]);
+  ), [coletoresRanking, coletoresOverview.data?.pctUtilizacao, goals, overridesByIndicator, globalGoalByIndicator]);
 
   const cubagemChartOption = useMemo(() => (
     cubagemRanking.length <= 1
       ? buildMetaComparisonOption({
           label: cubagemRanking[0]?.group ?? 'Periodo filtrado',
           value: cubagemOverview.data?.pctCubagem ?? 0,
-          threshold: GOALS.cubagem.threshold,
-          mode: GOALS.cubagem.mode,
-          thresholdLabel: GOALS.cubagem.label,
+          threshold: goals.cubagem.threshold,
+          mode: goals.cubagem.mode,
+          thresholdLabel: goals.cubagem.label,
         })
       : buildRankingOption({
           items: cubagemRanking,
           getLabel: (item) => item.group,
           getValue: (item) => item.pctCubagem,
-          threshold: GOALS.cubagem.threshold,
-          mode: GOALS.cubagem.mode,
-          thresholdLabel: GOALS.cubagem.label,
+          threshold: goals.cubagem.threshold,
+          getThreshold: (item) => metaFilial('cubagem', item.group),
+          mode: goals.cubagem.mode,
+          thresholdLabel: goals.cubagem.label,
           tooltipLines: (item) => [
+            `Meta da filial: ${formatarPorcentagem(metaFilial('cubagem', item.group))}`,
+            `Diferença: ${formatarDiferencaMeta(item.pctCubagem, metaFilial('cubagem', item.group))}`,
             `Minutas: ${formatarNumero(item.totalFretes)}`,
             `Cubadas: ${formatarNumero(item.fretesCubados)}`,
             `Sem cubagem: ${formatarNumero(item.fretesNaoCubados)}`,
           ],
         })
-  ), [cubagemRanking, cubagemOverview.data?.pctCubagem]);
+  ), [cubagemRanking, cubagemOverview.data?.pctCubagem, goals, overridesByIndicator, globalGoalByIndicator]);
 
   const indenizacaoChartOption = useMemo(() => (
     indenizacaoRanking.length <= 1
       ? buildMetaComparisonOption({
           label: indenizacaoRanking[0]?.group ?? 'Periodo filtrado',
           value: indenizacaoOverview.data?.pctIndenizacao ?? 0,
-          threshold: GOALS.indenizacao.threshold,
-          mode: GOALS.indenizacao.mode,
-          thresholdLabel: GOALS.indenizacao.label,
+          threshold: goals.indenizacao.threshold,
+          mode: goals.indenizacao.mode,
+          thresholdLabel: goals.indenizacao.label,
           valueFormatter: (value) => formatarPorcentagem(value, 2),
           axisFormatter: (value) => formatarPorcentagem(value, 2),
         })
@@ -290,10 +564,13 @@ export default function IndicadoresGestaoAVistaPage() {
           items: indenizacaoRanking,
           getLabel: (item) => item.group,
           getValue: (item) => item.pctIndenizacao,
-          threshold: GOALS.indenizacao.threshold,
-          mode: GOALS.indenizacao.mode,
-          thresholdLabel: GOALS.indenizacao.label,
+          threshold: goals.indenizacao.threshold,
+          getThreshold: (item) => metaFilial('indenizacao', item.group),
+          mode: goals.indenizacao.mode,
+          thresholdLabel: goals.indenizacao.label,
           tooltipLines: (item) => [
+            `Limite da filial: ${formatarPorcentagem(metaFilial('indenizacao', item.group), 2)}`,
+            `Diferença: ${formatarDiferencaMeta(item.pctIndenizacao, metaFilial('indenizacao', item.group))}`,
             `Valor indenizado: ${formatarMoeda(item.valorIndenizadoAbs)}`,
             `Faturamento base: ${formatarMoeda(item.faturamentoBase)}`,
             `Sinistros: ${formatarNumero(item.totalSinistros)}`,
@@ -301,31 +578,34 @@ export default function IndicadoresGestaoAVistaPage() {
           valueFormatter: (value) => formatarPorcentagem(value, 2),
           axisFormatter: (value) => formatarPorcentagem(value, 2),
         })
-  ), [indenizacaoRanking, indenizacaoOverview.data?.pctIndenizacao]);
+  ), [goals, indenizacaoRanking, indenizacaoOverview.data?.pctIndenizacao, overridesByIndicator, globalGoalByIndicator]);
 
   const horariosChartOption = useMemo(() => (
     horariosRanking.length <= 1
       ? buildMetaComparisonOption({
           label: horariosRanking[0]?.group ?? 'Periodo filtrado',
           value: horariosOverview.data?.pctNoHorario ?? 0,
-          threshold: GOALS.horarios.threshold,
-          mode: GOALS.horarios.mode,
-          thresholdLabel: GOALS.horarios.label,
+          threshold: goals.horarios.threshold,
+          mode: goals.horarios.mode,
+          thresholdLabel: goals.horarios.label,
         })
       : buildRankingOption({
           items: horariosRanking,
           getLabel: (item) => item.group,
           getValue: (item) => item.pctNoHorario,
-          threshold: GOALS.horarios.threshold,
-          mode: GOALS.horarios.mode,
-          thresholdLabel: GOALS.horarios.label,
+          threshold: goals.horarios.threshold,
+          getThreshold: (item) => metaFilial('horarios', item.group),
+          mode: goals.horarios.mode,
+          thresholdLabel: goals.horarios.label,
           tooltipLines: (item) => [
+            `Meta da filial: ${formatarPorcentagem(metaFilial('horarios', item.group))}`,
+            `Diferença: ${formatarDiferencaMeta(item.pctNoHorario, metaFilial('horarios', item.group))}`,
             `Programado: ${formatarNumero(item.totalProgramado)}`,
             `No horario: ${formatarNumero(item.saidasNoHorario)}`,
             `Fora do horario: ${formatarNumero(item.saidasForaDoHorario)}`,
           ],
         })
-  ), [horariosRanking, horariosOverview.data?.pctNoHorario]);
+  ), [goals, horariosRanking, horariosOverview.data?.pctNoHorario, overridesByIndicator, globalGoalByIndicator]);
 
   const performanceColumns: ColunaTabela<PerformanceEntregaRow>[] = [
     { chave: 'numeroMinuta', label: 'Minuta', fixo: true },
@@ -442,9 +722,9 @@ export default function IndicadoresGestaoAVistaPage() {
       statusLabel: performanceAssessment.label,
       tone: performanceAssessment.tone,
       progressPct: performanceAssessment.progressPct,
-      detail: `${formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0)} no prazo / ${formatarNumero(performanceOverview.data?.totalEntregas ?? 0)} entregas · ${GOALS.performance.label}`,
-      alertDetail: `${formatarGap(performanceGap, GOALS.performance.mode)} · ${formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0)} no prazo de ${formatarNumero(performanceOverview.data?.totalEntregas ?? 0)}`,
-      severityScore: calcularDistanciaRelativaMeta(performanceOverview.data?.pctNoPrazo ?? 0, GOALS.performance.threshold, GOALS.performance.mode),
+      detail: `${formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0)} no prazo / ${formatarNumero(performanceOverview.data?.totalEntregas ?? 0)} entregas · ${goals.performance.label}`,
+      alertDetail: `${performanceGapLabel} · ${formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0)} no prazo de ${formatarNumero(performanceOverview.data?.totalEntregas ?? 0)}`,
+      severityScore: calcularDistanciaRelativaMeta(performanceOverview.data?.pctNoPrazo ?? 0, goals.performance.threshold, goals.performance.mode),
       icon: <Truck size={16} />,
     },
     {
@@ -454,9 +734,9 @@ export default function IndicadoresGestaoAVistaPage() {
       statusLabel: coletoresAssessment.label,
       tone: coletoresAssessment.tone,
       progressPct: coletoresAssessment.progressPct,
-      detail: `${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} ordens / ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos bipáveis · ${GOALS.coletores.label}`,
-      alertDetail: `${formatarGap(coletoresGap, GOALS.coletores.mode)} · ${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} ordens sobre ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos bipáveis`,
-      severityScore: calcularDistanciaRelativaMeta(coletoresOverview.data?.pctUtilizacao ?? 0, GOALS.coletores.threshold, GOALS.coletores.mode),
+      detail: `${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} ordens / ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos bipáveis · ${goals.coletores.label}`,
+      alertDetail: `${coletoresGapLabel} · ${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} ordens sobre ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos bipáveis`,
+      severityScore: calcularDistanciaRelativaMeta(coletoresOverview.data?.pctUtilizacao ?? 0, goals.coletores.threshold, goals.coletores.mode),
       icon: <Boxes size={16} />,
     },
     {
@@ -466,9 +746,9 @@ export default function IndicadoresGestaoAVistaPage() {
       statusLabel: cubagemAssessment.label,
       tone: cubagemAssessment.tone,
       progressPct: cubagemAssessment.progressPct,
-      detail: `${formatarNumero(cubagemOverview.data?.fretesCubados ?? 0)} cubadas / ${formatarNumero(cubagemOverview.data?.totalFretes ?? 0)} minutas · ${GOALS.cubagem.label}`,
-      alertDetail: `${formatarGap(cubagemGap, GOALS.cubagem.mode)} · ${formatarNumero(cubagemOverview.data?.fretesCubados ?? 0)} minutas cubadas de ${formatarNumero(cubagemOverview.data?.totalFretes ?? 0)}`,
-      severityScore: calcularDistanciaRelativaMeta(cubagemOverview.data?.pctCubagem ?? 0, GOALS.cubagem.threshold, GOALS.cubagem.mode),
+      detail: `${formatarNumero(cubagemOverview.data?.fretesCubados ?? 0)} cubadas / ${formatarNumero(cubagemOverview.data?.totalFretes ?? 0)} minutas · ${goals.cubagem.label}`,
+      alertDetail: `${cubagemGapLabel} · ${formatarNumero(cubagemOverview.data?.fretesCubados ?? 0)} minutas cubadas de ${formatarNumero(cubagemOverview.data?.totalFretes ?? 0)}`,
+      severityScore: calcularDistanciaRelativaMeta(cubagemOverview.data?.pctCubagem ?? 0, goals.cubagem.threshold, goals.cubagem.mode),
       icon: <PackageCheck size={16} />,
     },
     {
@@ -478,9 +758,9 @@ export default function IndicadoresGestaoAVistaPage() {
       statusLabel: indenizacaoAssessment.label,
       tone: indenizacaoAssessment.tone,
       progressPct: indenizacaoAssessment.progressPct,
-      detail: `${formatarMoeda(indenizacaoOverview.data?.valorIndenizadoAbs ?? 0)} / ${formatarMoeda(indenizacaoOverview.data?.faturamentoBase ?? 0)} · ${GOALS.indenizacao.label}`,
-      alertDetail: `${formatarGap(indenizacaoGap, GOALS.indenizacao.mode, 2)} · ${formatarMoeda(indenizacaoOverview.data?.valorIndenizadoAbs ?? 0)} indenizados`,
-      severityScore: calcularDistanciaRelativaMeta(indenizacaoOverview.data?.pctIndenizacao ?? 0, GOALS.indenizacao.threshold, GOALS.indenizacao.mode),
+      detail: `${formatarMoeda(indenizacaoOverview.data?.valorIndenizadoAbs ?? 0)} / ${formatarMoeda(indenizacaoOverview.data?.faturamentoBase ?? 0)} · ${goals.indenizacao.label}`,
+      alertDetail: `${indenizacaoGapLabel} · ${formatarMoeda(indenizacaoOverview.data?.valorIndenizadoAbs ?? 0)} indenizados`,
+      severityScore: calcularDistanciaRelativaMeta(indenizacaoOverview.data?.pctIndenizacao ?? 0, goals.indenizacao.threshold, goals.indenizacao.mode),
       icon: <ShieldAlert size={16} />,
     },
     {
@@ -490,27 +770,64 @@ export default function IndicadoresGestaoAVistaPage() {
       statusLabel: horariosAssessment.label,
       tone: horariosAssessment.tone,
       progressPct: horariosAssessment.progressPct,
-      detail: `${formatarNumero(horariosOverview.data?.saidasNoHorario ?? 0)} no horário / ${formatarNumero(horariosOverview.data?.totalProgramado ?? 0)} saídas · ${GOALS.horarios.label}`,
-      alertDetail: `${formatarGap(horariosGap, GOALS.horarios.mode)} · ${formatarNumero(horariosOverview.data?.saidasNoHorario ?? 0)} de ${formatarNumero(horariosOverview.data?.totalProgramado ?? 0)} no horário`,
-      severityScore: calcularDistanciaRelativaMeta(horariosOverview.data?.pctNoHorario ?? 0, GOALS.horarios.threshold, GOALS.horarios.mode),
+      detail: `${formatarNumero(horariosOverview.data?.saidasNoHorario ?? 0)} no horário / ${formatarNumero(horariosOverview.data?.totalProgramado ?? 0)} saídas · ${goals.horarios.label}`,
+      alertDetail: `${horariosGapLabel} · ${formatarNumero(horariosOverview.data?.saidasNoHorario ?? 0)} de ${formatarNumero(horariosOverview.data?.totalProgramado ?? 0)} no horário`,
+      severityScore: calcularDistanciaRelativaMeta(horariosOverview.data?.pctNoHorario ?? 0, goals.horarios.threshold, goals.horarios.mode),
       icon: <Clock3 size={16} />,
     },
   ];
 
   return (
-    <div className="w-full">
-      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
-        <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
+    <div className="w-full" data-indicadores-gestao-top>
+      <FilterBar
+        onClear={limparFiltros}
+        activeFilters={activeFilters}
+        dataInicio={dataInicioIndicadores}
+        dataFim={dataFimIndicadores}
+        actions={canManageKpiGoals ? (
+          <button
+            type="button"
+            onClick={abrirGerenciadorMetas}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-150 hover:bg-[var(--color-bg)] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            style={{ color: 'var(--color-text)' }}
+          >
+            <Settings size={14} aria-hidden="true" />
+            Gerenciar Metas
+          </button>
+        ) : null}
+      >
+        <DateRangePicker dataInicio={dataInicioIndicadores} dataFim={dataFimIndicadores} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
         <AsyncMultiSelect label="Filial base" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />
       </FilterBar>
+
+      {canManageKpiGoals ? (
+        <KpiGoalsManagerPanel
+          open={goalsPanelOpen}
+          branchId={goalsPanelBranchId}
+          branchOptions={goalBranchOptions}
+          data={managerKpiGoals.data}
+          history={managerHistory.data}
+          historyPage={goalsHistoryPage}
+          isLoading={managerKpiGoals.isLoading}
+          isHistoryLoading={managerHistory.isLoading}
+          isSaving={managerIsSaving}
+          error={managerKpiGoals.error}
+          saveError={managerSaveError}
+          onBranchChange={alterarFilialPainelMetas}
+          onApplyGlobal={aplicarMetasGlobais}
+          onSaveBranch={salvarMetasFilial}
+          onRemoveOverride={removerOverrideFilial}
+          onHistoryPageChange={setGoalsHistoryPage}
+        />
+      ) : null}
 
       <div className="mb-5 grid grid-cols-1 gap-3 xl:grid-cols-5">
         <IndicadoresGestaoSummaryCard
           title="Performance de Entrega"
           description="Pontualidade por previsão de entrega, incluindo registros em aberto no denominador."
           value={formatarPorcentagem(performanceOverview.data?.pctNoPrazo ?? 0)}
-          detail={`${formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0)} no prazo de ${formatarNumero(performanceOverview.data?.totalEntregas ?? 0)} · ${formatarGap(performanceGap, GOALS.performance.mode)}`}
-          goalLabel={GOALS.performance.label}
+          detail={`${formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0)} no prazo de ${formatarNumero(performanceOverview.data?.totalEntregas ?? 0)} · ${performanceGapLabel}`}
+          goalLabel={goals.performance.label}
           statusLabel={performanceAssessment.label}
           tone={performanceAssessment.tone}
           progressPct={performanceAssessment.progressPct}
@@ -520,8 +837,8 @@ export default function IndicadoresGestaoAVistaPage() {
           title="Utilização dos Coletores"
           description="Aderência operacional da conferência."
           value={formatarPorcentagem(coletoresOverview.data?.pctUtilizacao ?? 0)}
-          detail={`${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} ordens sobre ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos bipáveis · ${formatarGap(coletoresGap, GOALS.coletores.mode)}`}
-          goalLabel={GOALS.coletores.label}
+          detail={`${formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0)} ordens sobre ${formatarNumero(coletoresOverview.data?.totalManifestos ?? 0)} manifestos bipáveis · ${coletoresGapLabel}`}
+          goalLabel={goals.coletores.label}
           statusLabel={coletoresAssessment.label}
           tone={coletoresAssessment.tone}
           progressPct={coletoresAssessment.progressPct}
@@ -531,8 +848,8 @@ export default function IndicadoresGestaoAVistaPage() {
           title="Cubagem de Mercadorias"
           description="Cobertura de cubagem das minutas emitidas."
           value={formatarPorcentagem(cubagemOverview.data?.pctCubagem ?? 0)}
-          detail={`${formatarNumero(cubagemOverview.data?.fretesCubados ?? 0)} cubadas de ${formatarNumero(cubagemOverview.data?.totalFretes ?? 0)} minutas · ${formatarGap(cubagemGap, GOALS.cubagem.mode)}`}
-          goalLabel={GOALS.cubagem.label}
+          detail={`${formatarNumero(cubagemOverview.data?.fretesCubados ?? 0)} cubadas de ${formatarNumero(cubagemOverview.data?.totalFretes ?? 0)} minutas · ${cubagemGapLabel}`}
+          goalLabel={goals.cubagem.label}
           statusLabel={cubagemAssessment.label}
           tone={cubagemAssessment.tone}
           progressPct={cubagemAssessment.progressPct}
@@ -542,8 +859,8 @@ export default function IndicadoresGestaoAVistaPage() {
           title="Indenização de Mercadorias"
           description="Valor a pagar ao cliente por abertura do sinistro sobre o faturamento da filial."
           value={formatarPorcentagem(indenizacaoOverview.data?.pctIndenizacao ?? 0, 2)}
-          detail={`${formatarMoeda(indenizacaoOverview.data?.valorIndenizadoAbs ?? 0)} indenizados · ${formatarGap(indenizacaoGap, GOALS.indenizacao.mode, 2)}`}
-          goalLabel={GOALS.indenizacao.label}
+          detail={`${formatarMoeda(indenizacaoOverview.data?.valorIndenizadoAbs ?? 0)} indenizados · ${indenizacaoGapLabel}`}
+          goalLabel={goals.indenizacao.label}
           statusLabel={indenizacaoAssessment.label}
           tone={indenizacaoAssessment.tone}
           progressPct={indenizacaoAssessment.progressPct}
@@ -553,8 +870,8 @@ export default function IndicadoresGestaoAVistaPage() {
           title="Horários de Corte"
           description="Pontualidade das saídas programadas."
           value={formatarPorcentagem(horariosOverview.data?.pctNoHorario ?? 0)}
-          detail={`${formatarNumero(horariosOverview.data?.saidasNoHorario ?? 0)} no horário de ${formatarNumero(horariosOverview.data?.totalProgramado ?? 0)} · ${formatarGap(horariosGap, GOALS.horarios.mode)}`}
-          goalLabel={GOALS.horarios.label}
+          detail={`${formatarNumero(horariosOverview.data?.saidasNoHorario ?? 0)} no horário de ${formatarNumero(horariosOverview.data?.totalProgramado ?? 0)} · ${horariosGapLabel}`}
+          goalLabel={goals.horarios.label}
           statusLabel={horariosAssessment.label}
           tone={horariosAssessment.tone}
           progressPct={horariosAssessment.progressPct}
@@ -567,14 +884,15 @@ export default function IndicadoresGestaoAVistaPage() {
       <IndicadoresGestaoSection
         title="Performance de Entrega"
         description="Piores filiais performance por pontualidade, usando previsão de entrega e registros em aberto no denominador."
-        goalLabel={GOALS.performance.label}
+        goalLabel={goals.performance.label}
         goalTone={performanceAssessment.tone}
         error={performanceOverview.error}
+        goalOverridesNotice={goalOverridesNotice('delivery_performance')}
         kpis={[
           { label: 'Total de Entregas', value: formatarNumero(performanceOverview.data?.totalEntregas ?? 0), icon: <Truck size={16} />, progressPct: performanceAssessment.progressPct },
           { label: 'Entregas Fora do Prazo', value: formatarNumero(performanceForaPrazo), icon: <AlertCircle size={16} />, progressPct: performanceAssessment.progressPct },
           { label: 'Entregas No Prazo', value: formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0), icon: <Truck size={16} />, progressPct: performanceAssessment.progressPct },
-          { label: 'Gap vs meta 95%', value: formatarGap(performanceGap, GOALS.performance.mode), icon: <Gauge size={16} />, progressPct: performanceAssessment.progressPct },
+          { label: `Gap vs ${goals.performance.label.toLowerCase()}`, value: performanceGapLabel, icon: <Gauge size={16} />, progressPct: performanceAssessment.progressPct },
         ]}
         chartTitle={performanceRanking.length <= 1 ? 'Comparativo contra meta' : 'Piores filiais performance por pontualidade'}
         chartOption={performanceChartOption}
@@ -600,9 +918,10 @@ export default function IndicadoresGestaoAVistaPage() {
       <IndicadoresGestaoSection
         title="Utilização dos Coletores"
         description="Filiais com menor utilização operacional de coletores no período."
-        goalLabel={GOALS.coletores.label}
+        goalLabel={goals.coletores.label}
         goalTone={coletoresAssessment.tone}
         error={coletoresOverview.error}
+        goalOverridesNotice={goalOverridesNotice('collector_usage')}
         extra={coletoresFilterBox}
         kpis={[
           { label: 'Ordens de Conferência', value: formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0), icon: <Boxes size={16} />, progressPct: coletoresAssessment.progressPct },
@@ -612,9 +931,9 @@ export default function IndicadoresGestaoAVistaPage() {
         ]}
         chartTitle={coletoresRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais com menor utilização'}
         chartOption={coletoresChartOption}
-        chartLoading={coletoresSerie.isLoading}
+        chartLoading={coletoresRankingQuery.isLoading}
         chartEmpty={coletoresRanking.length === 0}
-        chartError={coletoresSerie.isError ? getApiErrorMessage(coletoresSerie.error, 'Erro ao carregar gráfico.') : null}
+        chartError={coletoresRankingQuery.isError ? getApiErrorMessage(coletoresRankingQuery.error, 'Erro ao carregar gráfico.') : null}
         exportName="indicadores-gestao-a-vista-utilizacao-coletores"
         onExport={() => exportarUtilizacaoColetoresCsv(filtroColetores)}
         tableTitle="Coletores por Data e Filial"
@@ -634,15 +953,16 @@ export default function IndicadoresGestaoAVistaPage() {
       <IndicadoresGestaoSection
         title="Cubagem de Mercadorias"
         description="Filiais com menor cubagem por minuta emitida nao cancelada, considerando apenas `Total M3 > 0` ou `Peso Cubado > 0`."
-        goalLabel={GOALS.cubagem.label}
+        goalLabel={goals.cubagem.label}
         goalTone={cubagemAssessment.tone}
         error={cubagemOverview.error}
+        goalOverridesNotice={goalOverridesNotice('cargo_cubage')}
         alert={<div className="mb-4 rounded-xl border border-dashed px-3 py-3 text-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>A regra oficial considera `Status != CANCELADO`, cubagem por `Total M3` ou `Peso Cubado` e exclusão pela lista oficial de `Pagador Doc`.</div>}
         kpis={[
           { label: 'Minutas Cubadas', value: formatarNumero(cubagemOverview.data?.fretesCubados ?? 0), icon: <PackageCheck size={16} />, progressPct: cubagemAssessment.progressPct },
           { label: 'Minutas Sem Cubagem', value: formatarNumero(cubagemNaoCubados), icon: <AlertCircle size={16} />, progressPct: cubagemAssessment.progressPct },
           { label: 'Minutas com Peso Real', value: formatarNumero(cubagemOverview.data?.fretesComPesoReal ?? 0), icon: <BarChart3 size={16} />, progressPct: cubagemAssessment.progressPct },
-          { label: 'Gap vs meta 80%', value: formatarGap(cubagemGap, GOALS.cubagem.mode), icon: <Gauge size={16} />, progressPct: cubagemAssessment.progressPct },
+          { label: `Gap vs ${goals.cubagem.label.toLowerCase()}`, value: cubagemGapLabel, icon: <Gauge size={16} />, progressPct: cubagemAssessment.progressPct },
         ]}
         chartTitle={cubagemRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais com menor cubagem por minuta'}
         chartOption={cubagemChartOption}
@@ -668,15 +988,16 @@ export default function IndicadoresGestaoAVistaPage() {
       <IndicadoresGestaoSection
         title="Indenização de Mercadorias"
         description="Filiais com maior impacto percentual por data de abertura do sinistro."
-        goalLabel={GOALS.indenizacao.label}
+        goalLabel={goals.indenizacao.label}
         goalTone={indenizacaoAssessment.tone}
         error={indenizacaoOverview.error}
+        goalOverridesNotice={goalOverridesNotice('cargo_indemnity')}
         alert={<div className="mb-4 rounded-xl border border-dashed px-3 py-3 text-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>A competência do custo segue `Data abertura` e o numerador usa `valor a pagar ao cliente`. O faturamento base continua vindo de `Valor Total do Serviço`.</div>}
         kpis={[
           { label: 'Valor Indenizado', value: formatarMoeda(indenizacaoOverview.data?.valorIndenizadoAbs ?? 0), icon: <ShieldAlert size={16} />, progressPct: indenizacaoAssessment.progressPct },
           { label: 'Total de Sinistros', value: formatarNumero(indenizacaoOverview.data?.totalSinistros ?? 0), icon: <ShieldAlert size={16} />, progressPct: indenizacaoAssessment.progressPct },
           { label: 'Faturamento Base', value: formatarMoeda(indenizacaoOverview.data?.faturamentoBase ?? 0), icon: <BarChart3 size={16} />, progressPct: indenizacaoAssessment.progressPct },
-          { label: 'Acima do limite 0,2%', value: formatarGap(indenizacaoGap, GOALS.indenizacao.mode, 2), icon: <Gauge size={16} />, progressPct: indenizacaoAssessment.progressPct },
+          { label: `Acima do ${goals.indenizacao.label.toLowerCase()}`, value: indenizacaoGapLabel, icon: <Gauge size={16} />, progressPct: indenizacaoAssessment.progressPct },
         ]}
         chartTitle={indenizacaoRanking.length <= 1 ? 'Comparativo contra limite' : 'Filiais com maior impacto por abertura de sinistro'}
         chartOption={indenizacaoChartOption}
@@ -702,15 +1023,16 @@ export default function IndicadoresGestaoAVistaPage() {
       <IndicadoresGestaoSection
         title="Horários de Corte"
         description="Filiais com menor pontualidade de saída a partir das viagens Raster persistidas no SQL Server."
-        goalLabel={GOALS.horarios.label}
+        goalLabel={goals.horarios.label}
         goalTone={horariosAssessment.tone}
         error={horariosOverview.error}
+        goalOverridesNotice={goalOverridesNotice('cutoff_time')}
         extra={horariosFonteBox}
         kpis={[
           { label: 'Saídas no horário', value: formatarNumero(horariosOverview.data?.saidasNoHorario ?? 0), icon: <Truck size={16} />, progressPct: horariosAssessment.progressPct },
           { label: 'Saídas fora do horário', value: formatarNumero(horariosForaHorario), icon: <AlertCircle size={16} />, progressPct: horariosAssessment.progressPct },
           { label: 'Total programado', value: formatarNumero(horariosOverview.data?.totalProgramado ?? 0), icon: <BarChart3 size={16} />, progressPct: horariosAssessment.progressPct },
-          { label: 'Gap vs meta 90%', value: formatarGap(horariosGap, GOALS.horarios.mode), icon: <Gauge size={16} />, progressPct: horariosAssessment.progressPct },
+          { label: `Gap vs ${goals.horarios.label.toLowerCase()}`, value: horariosGapLabel, icon: <Gauge size={16} />, progressPct: horariosAssessment.progressPct },
         ]}
         chartTitle={horariosRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais com menor pontualidade de saída'}
         chartOption={horariosChartOption}

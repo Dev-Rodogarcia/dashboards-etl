@@ -55,6 +55,8 @@ public class PermissaoCatalogoBootstrapService implements ApplicationRunner {
             case CONTAS_A_PAGAR -> "contas_a_pagar";
             case ETL_SAUDE -> "etl_saude";
             case INDICADORES_GESTAO_A_VISTA -> "indicadores_gestao_a_vista";
+            case CAN_MANAGE_KPI_GOALS -> "can_manage_kpi_goals";
+            case CAN_MANAGE_COMMUNICATIONS -> "can_manage_communications";
             default -> catalogo.chave();
         };
     }

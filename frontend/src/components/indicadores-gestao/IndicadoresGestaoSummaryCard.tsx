@@ -40,7 +40,7 @@ export default function IndicadoresGestaoSummaryCard({
           <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
             {title}
           </h3>
-          <p className="mt-1 text-xs" style={{ color: 'var(--color-text-subtle)' }}>
+          <p className="mt-1 min-h-[32px] text-xs leading-4 line-clamp-2" style={{ color: 'var(--color-text-subtle)' }}>
             {description}
           </p>
         </div>

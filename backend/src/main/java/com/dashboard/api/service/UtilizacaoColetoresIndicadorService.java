@@ -3,6 +3,7 @@ package com.dashboard.api.service;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresOverviewDTO;
+import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRankingDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresSeriePointDTO;
 import com.dashboard.api.model.VisaoInventarioEntity;
@@ -12,10 +13,13 @@ import com.dashboard.api.repository.VisaoInventarioRepository;
 import com.dashboard.api.repository.VisaoManifestosRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,10 +31,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
 public class UtilizacaoColetoresIndicadorService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(UtilizacaoColetoresIndicadorService.class);
 
     private static final String CLASSIFICACAO_GERAL = "Geral";
     private static final Set<String> TIPOS_ORDEM_CONFERENCIA = Set.of(
@@ -57,6 +64,7 @@ public class UtilizacaoColetoresIndicadorService {
     private final DimFilialRepository dimFilialRepository;
     private final EscopoFilialService escopoFilialService;
     private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
+    private final KpiGoalService kpiGoalService;
 
     UtilizacaoColetoresIndicadorService(
             ValidadorPeriodoService validadorPeriodo,
@@ -70,7 +78,8 @@ public class UtilizacaoColetoresIndicadorService {
                 inventarioRepository,
                 dimFilialRepository,
                 escopoSemRestricao(),
-                PeriodoOffsetDateTimeHelper.padrao()
+                PeriodoOffsetDateTimeHelper.padrao(),
+                null
         );
     }
 
@@ -81,7 +90,8 @@ public class UtilizacaoColetoresIndicadorService {
             VisaoInventarioRepository inventarioRepository,
             DimFilialRepository dimFilialRepository,
             EscopoFilialService escopoFilialService,
-            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper,
+            KpiGoalService kpiGoalService
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.manifestosRepository = manifestosRepository;
@@ -89,6 +99,26 @@ public class UtilizacaoColetoresIndicadorService {
         this.dimFilialRepository = dimFilialRepository;
         this.escopoFilialService = escopoFilialService;
         this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
+        this.kpiGoalService = kpiGoalService;
+    }
+
+    UtilizacaoColetoresIndicadorService(
+            ValidadorPeriodoService validadorPeriodo,
+            VisaoManifestosRepository manifestosRepository,
+            VisaoInventarioRepository inventarioRepository,
+            DimFilialRepository dimFilialRepository,
+            EscopoFilialService escopoFilialService,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
+    ) {
+        this(
+                validadorPeriodo,
+                manifestosRepository,
+                inventarioRepository,
+                dimFilialRepository,
+                escopoFilialService,
+                periodoOffsetDateTimeHelper,
+                null
+        );
     }
 
     public UtilizacaoColetoresOverviewDTO buscarOverview(FiltroConsultaDTO filtro) {
@@ -142,6 +172,27 @@ public class UtilizacaoColetoresIndicadorService {
                 .sorted(Comparator.comparing(UtilizacaoColetoresSeriePointDTO::date)
                         .thenComparing(UtilizacaoColetoresSeriePointDTO::filial, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
                         .thenComparing(UtilizacaoColetoresSeriePointDTO::classificacao, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .toList();
+    }
+
+    public List<UtilizacaoColetoresRankingDTO> buscarRanking(FiltroConsultaDTO filtro) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+
+        Map<String, AcumuladorRanking> ranking = new LinkedHashMap<>();
+        for (UtilizacaoColetoresPonto ponto : buscarPontos(filtro)) {
+            String branchName = textoOuPadrao(ponto.filial(), "Filial nao informada");
+            ranking.computeIfAbsent(branchName, AcumuladorRanking::new).registrar(ponto);
+        }
+
+        Map<String, BigDecimal> metas = kpiGoalService != null
+                ? kpiGoalService.buscarMetasEfetivasPorIndicador(KpiGoalService.COLLECTOR_USAGE, ranking.keySet())
+                : Map.of();
+
+        return ranking.values().stream()
+                .map(acumulador -> acumulador.toDto(metas.getOrDefault(acumulador.branchName(), BigDecimal.valueOf(90))))
+                .sorted(Comparator.comparingDouble(UtilizacaoColetoresRankingDTO::utilization)
+                        .thenComparing(UtilizacaoColetoresRankingDTO::manifestosBipaveis, Comparator.reverseOrder())
+                        .thenComparing(UtilizacaoColetoresRankingDTO::branchName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
 
@@ -199,8 +250,22 @@ public class UtilizacaoColetoresIndicadorService {
         JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         Map<String, String> filiaisValidas = carregarFiliaisValidas();
-        List<VisaoManifestosEntity> manifestos = manifestosRepository.findAll(criarManifestosSpecification(janela));
-        List<VisaoInventarioEntity> ordens = inventarioRepository.findAll(criarInventarioSpecification(janela));
+        List<VisaoManifestosEntity> manifestos;
+        List<VisaoInventarioEntity> ordens;
+        try {
+            manifestos = Optional
+                    .ofNullable(manifestosRepository.findAll(criarManifestosSpecification(janela)))
+                    .orElse(List.of());
+            ordens = Optional
+                    .ofNullable(inventarioRepository.findAll(criarInventarioSpecification(janela)))
+                    .orElse(List.of());
+        } catch (RuntimeException ex) {
+            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
+                throw ex;
+            }
+            DatabaseReadFallbackUtils.logFallback(LOGGER, "Falha ao consultar dados de utilizacao de coletores", ex);
+            return List.of();
+        }
 
         Map<String, AcumuladorPonto> pontos = new LinkedHashMap<>();
         Set<String> emitidosRegistrados = new LinkedHashSet<>();
@@ -561,6 +626,43 @@ public class UtilizacaoColetoresIndicadorService {
     ) {
         private int totalManifestos() {
             return manifestosEmitidos + manifestosDescarregamento;
+        }
+    }
+
+    private static final class AcumuladorRanking {
+        private final String branchName;
+        private int manifestosBipados;
+        private int manifestosEmitidos;
+        private int manifestosDescarregamento;
+        private int manifestosIncompletos;
+
+        private AcumuladorRanking(String branchName) {
+            this.branchName = branchName;
+        }
+
+        private String branchName() {
+            return branchName;
+        }
+
+        private void registrar(UtilizacaoColetoresPonto ponto) {
+            manifestosBipados += ponto.manifestosBipados();
+            manifestosEmitidos += ponto.manifestosEmitidos();
+            manifestosDescarregamento += ponto.manifestosDescarregamento();
+            manifestosIncompletos += ponto.manifestosIncompletos();
+        }
+
+        private UtilizacaoColetoresRankingDTO toDto(BigDecimal goal) {
+            int manifestosBipaveis = manifestosEmitidos + manifestosDescarregamento;
+            return new UtilizacaoColetoresRankingDTO(
+                    branchName,
+                    branchName,
+                    IndicadoresGestaoMetricasUtils.percentual(manifestosBipados, manifestosBipaveis),
+                    goal,
+                    manifestosBipados,
+                    manifestosBipaveis,
+                    manifestosDescarregamento,
+                    manifestosIncompletos
+            );
         }
     }
 

@@ -38,7 +38,14 @@ public class AcessoSeguranca {
     public boolean podeGerenciarHomeComunicados() {
         return ehDesenvolvedor()
                 || ehAdminPlataforma()
-                || possuiAuthority(PermissaoCatalogo.authorityForKey("homeComunicados"));
+                || possuiAuthority(PermissaoCatalogo.authorityForKey("homeComunicados"))
+                || possuiAuthority(PermissaoCatalogo.authorityForKey("can_manage_communications"));
+    }
+
+    public boolean podeGerenciarKpiGoals() {
+        return ehDesenvolvedor()
+                || ehAdminPlataforma()
+                || possuiAuthority(PermissaoCatalogo.authorityForKey("can_manage_kpi_goals"));
     }
 
     public boolean podeAcessarDimensoes() {

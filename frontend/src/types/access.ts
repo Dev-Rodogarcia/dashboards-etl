@@ -12,6 +12,8 @@ export const PERMISSION_KEYS = [
   'etlSaude',
   'dimensoes',
   'homeComunicados',
+  'can_manage_kpi_goals',
+  'can_manage_communications',
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];

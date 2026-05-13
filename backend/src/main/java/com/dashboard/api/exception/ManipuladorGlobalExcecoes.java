@@ -7,6 +7,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.TransactionException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -134,7 +135,7 @@ public class ManipuladorGlobalExcecoes {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(resposta);
     }
 
-    @ExceptionHandler({SQLException.class, DataAccessException.class})
+    @ExceptionHandler({SQLException.class, DataAccessException.class, TransactionException.class, jakarta.persistence.PersistenceException.class})
     public ResponseEntity<RespostaErroPadrao> handleDatabaseFailure(Exception ex) {
         log.error("Falha no acesso ao banco de dados: {}", ex.getMessage(), ex);
 

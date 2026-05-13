@@ -20,6 +20,7 @@ import { useFiliais } from '../hooks/queries/useDimensoes';
 import { usePermissions } from '../hooks/usePermissions';
 import type {
   PapelAdmin,
+  PermissionKey,
   PermissionMap,
   PermissionOverrideStateMap,
   UsuarioAdmin,
@@ -209,6 +210,20 @@ function mapStateToConcedidas(state: PermissionOverrideStateMap): UsuarioPayload
   return Object.entries(state)
     .filter(([, valor]) => valor === 'grant')
     .map(([permissaoChave]) => permissaoChave as UsuarioPayload['permissoesConcedidas'][number]);
+}
+
+function buildUsuarioPayload(usuario: UsuarioAdmin, permissoesNegadas: PermissionKey[], permissoesConcedidas: PermissionKey[]): UsuarioPayload {
+  return {
+    nome: usuario.nome,
+    email: usuario.email,
+    setorId: usuario.setorId,
+    papel: usuario.papel,
+    permissoesNegadas,
+    permissoesConcedidas,
+    escopoFiliaisTipo: usuario.escopoFiliaisTipo,
+    filiaisPermitidasUsuario: [...usuario.filiaisPermitidasUsuario],
+    ativo: usuario.ativo,
+  };
 }
 
 function useIsMobileUsersTable() {
@@ -610,6 +625,37 @@ export default function AdminUsuariosPage() {
     }
   }
 
+  async function handleTogglePermissaoRapida(usuario: UsuarioAdmin, permissoes: PermissionKey | PermissionKey[], permitir: boolean) {
+    const negadas = new Set(usuario.permissoesNegadas);
+    const concedidas = new Set(usuario.permissoesConcedidas);
+    const permissoesAlvo = Array.isArray(permissoes) ? permissoes : [permissoes];
+
+    for (const permissao of permissoesAlvo) {
+      if (permitir) {
+        negadas.delete(permissao);
+        concedidas.add(permissao);
+      } else {
+        concedidas.delete(permissao);
+        negadas.add(permissao);
+      }
+    }
+
+    const payload = buildUsuarioPayload(
+      usuario,
+      Array.from(negadas).sort(),
+      Array.from(concedidas).sort(),
+    );
+
+    try {
+      const atualizado = await atualizarUsuario.mutateAsync({ id: usuario.id, payload });
+      if (editing?.id === usuario.id) {
+        startEdit(atualizado);
+      }
+    } catch (error) {
+      setErro(getApiErrorMessage(error));
+    }
+  }
+
   function abrirModalExclusao(usuario: UsuarioAdmin) {
     setErro('');
     setConfirmacaoExclusao('');
@@ -645,6 +691,9 @@ export default function AdminUsuariosPage() {
     const usuarioSupremo = row.papel === PAPEL_DESENVOLVEDOR;
     const bloqueado = usuarioSupremo || (!podeOperarPapelElevado && row.papel !== 'usuario_comum');
     const podeExcluirDefinitivamente = canHardDeleteUsers && !usuarioSupremo;
+    const podeGerenciarMetas = Boolean(row.permissoesEfetivas.can_manage_kpi_goals);
+    const podeGerenciarComunicacoes = Boolean(row.permissoesEfetivas.can_manage_communications || row.permissoesEfetivas.homeComunicados);
+    const operacaoRapidaBloqueada = bloqueado || atualizarUsuario.isPending;
 
     return (
       <DropdownMenu>
@@ -658,7 +707,7 @@ export default function AdminUsuariosPage() {
             <MoreHorizontal size={17} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[12rem]">
+        <DropdownMenuContent align="end" className="min-w-[18rem]">
           <DropdownMenuItem
             disabled={bloqueado}
             onSelect={() => startEdit(row)}
@@ -675,6 +724,40 @@ export default function AdminUsuariosPage() {
           >
             <UserX size={14} />
             Inativar
+          </DropdownMenuItem>
+          <DropdownMenuSeparator
+            className="mx-2 my-1 h-px"
+            style={{ backgroundColor: 'var(--color-border)' }}
+          />
+          <DropdownMenuItem
+            disabled={operacaoRapidaBloqueada}
+            onSelect={() => void handleTogglePermissaoRapida(row, 'can_manage_kpi_goals', !podeGerenciarMetas)}
+            className="gap-2"
+          >
+            <input
+              type="checkbox"
+              checked={podeGerenciarMetas}
+              readOnly
+              className="mt-0.5 h-4 w-4 rounded border-gray-300"
+              style={{ accentColor: 'var(--color-primary)' }}
+              tabIndex={-1}
+            />
+            <span>Permitir gerenciar metas de indicadores</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={operacaoRapidaBloqueada}
+            onSelect={() => void handleTogglePermissaoRapida(row, ['can_manage_communications', 'homeComunicados'], !podeGerenciarComunicacoes)}
+            className="gap-2"
+          >
+            <input
+              type="checkbox"
+              checked={podeGerenciarComunicacoes}
+              readOnly
+              className="mt-0.5 h-4 w-4 rounded border-gray-300"
+              style={{ accentColor: 'var(--color-primary)' }}
+              tabIndex={-1}
+            />
+            <span>Permitir alterar comunicações</span>
           </DropdownMenuItem>
           {podeExcluirDefinitivamente && (
             <>

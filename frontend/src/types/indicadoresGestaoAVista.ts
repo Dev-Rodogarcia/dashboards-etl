@@ -5,6 +5,75 @@ export interface IndicadoresGestaoVistaFiltro {
   classificacoes?: string[];
 }
 
+export const KPI_GOAL_INDICATOR_KEYS = [
+  'delivery_performance',
+  'collector_usage',
+  'cargo_cubage',
+  'cargo_indemnity',
+  'cutoff_time',
+] as const;
+
+export type KpiGoalIndicatorKey = (typeof KPI_GOAL_INDICATOR_KEYS)[number];
+export type KpiGoalsMap = Record<KpiGoalIndicatorKey, number>;
+export type KpiGoalSource = 'GLOBAL' | 'BRANCH_OVERRIDE';
+export type KpiGoalHistoryAction = 'GLOBAL_UPDATE' | 'BRANCH_UPDATE' | 'BRANCH_OVERRIDE_REMOVED';
+
+export interface KpiGoalUser {
+  id: string | null;
+  name: string | null;
+}
+
+export interface KpiGoalBranchOverride {
+  branchId: string;
+  goals: KpiGoalsMap;
+  updatedAt: string | null;
+  updatedBy: KpiGoalUser | null;
+}
+
+export interface KpiGoalsFullResponse {
+  global: KpiGoalsMap;
+  branches: KpiGoalBranchOverride[];
+}
+
+export interface KpiGoalEffectiveResponse {
+  branchId: string;
+  source: KpiGoalSource;
+  goals: KpiGoalsMap;
+}
+
+export interface KpiGoalsUpdatePayload {
+  goals: KpiGoalsMap;
+}
+
+export interface KpiGoalHistoryItem {
+  branchId: string | null;
+  indicatorKey: KpiGoalIndicatorKey;
+  oldValue: number | null;
+  newValue: number | null;
+  updatedBy: KpiGoalUser | null;
+  updatedAt: string | null;
+  action: KpiGoalHistoryAction;
+}
+
+export interface KpiGoalConflictResponse {
+  mensagem?: string;
+  branches?: KpiGoalBranchOverride[];
+}
+
+export interface KpiGoalIndicatorOverride {
+  branchId: string;
+  branchName: string;
+  goalValue: number;
+  updatedAt: string | null;
+  updatedBy: KpiGoalUser | null;
+}
+
+export interface KpiGoalOverridesResponse {
+  indicatorKey: KpiGoalIndicatorKey;
+  globalGoal: number;
+  overrides: KpiGoalIndicatorOverride[];
+}
+
 export interface PerformanceEntregaOverview {
   updatedAt: string;
   totalEntregas: number;
@@ -53,6 +122,17 @@ export interface UtilizacaoColetoresSeriePoint {
   totalManifestos: number;
   manifestosIncompletos: number;
   pctUtilizacao: number;
+}
+
+export interface UtilizacaoColetoresRankingItem {
+  branchId: string;
+  branchName: string;
+  utilization: number;
+  goal: number;
+  ordensConferencia: number;
+  manifestosBipaveis: number;
+  descarregamentos: number;
+  ordensIncompletas: number;
 }
 
 export interface UtilizacaoColetoresRow {

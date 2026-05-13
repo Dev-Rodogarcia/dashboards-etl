@@ -20,7 +20,9 @@ public enum PermissaoCatalogo {
     EXECUTIVO("executivo", "Executivo", "Dashboard executivo consolidado", "/executivo"),
     ETL_SAUDE("etlSaude", "ETL Saúde", "Monitoramento e saúde do ETL", "/etl-saude"),
     DIMENSOES("dimensoes", "Dimensões e filtros", "Acesso às dimensões de apoio aos dashboards", null),
-    HOME_COMUNICADOS("homeComunicados", "Comunicações da Home", "Criar, editar e arquivar comunicados exibidos na Home", "/");
+    HOME_COMUNICADOS("homeComunicados", "Comunicações da Home", "Criar, editar e arquivar comunicados exibidos na Home", "/"),
+    CAN_MANAGE_KPI_GOALS("can_manage_kpi_goals", "Gerenciar metas de indicadores", "Criar e alterar metas dos Indicadores de Gestão por filial", "/indicadores-gestao-a-vista"),
+    CAN_MANAGE_COMMUNICATIONS("can_manage_communications", "Alterar comunicações", "Criar, editar e arquivar comunicados exibidos na Home", "/");
 
     private final String chave;
     private final String nome;

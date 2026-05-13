@@ -14,6 +14,7 @@ interface FilterBarProps {
   children: ReactNode;
   onClear?: () => void;
   activeFilters?: ActiveFilter[];
+  actions?: ReactNode;
   /** Se fornecidos, exibe data compacta na barra recolhida */
   dataInicio?: string;
   dataFim?: string;
@@ -64,6 +65,7 @@ export default function FilterBar({
   children,
   onClear,
   activeFilters,
+  actions,
   dataInicio,
   dataFim,
 }: FilterBarProps) {
@@ -129,6 +131,12 @@ export default function FilterBar({
           <ChevronDown size={13} />
         </motion.span>
       </button>
+
+      {actions ? (
+        <div className="flex shrink-0 items-center gap-2">
+          {actions}
+        </div>
+      ) : null}
 
       {/* Chips de filtros ativos — somente desktop */}
       {hasActive && (

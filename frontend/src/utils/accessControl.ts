@@ -56,6 +56,8 @@ export function createEmptyPermissionMap(): PermissionMap {
     etlSaude: false,
     dimensoes: false,
     homeComunicados: false,
+    can_manage_kpi_goals: false,
+    can_manage_communications: false,
   };
 }
 
@@ -81,6 +83,8 @@ export function createEmptyPermissionOverrideState(): PermissionOverrideStateMap
     etlSaude: 'inherit',
     dimensoes: 'inherit',
     homeComunicados: 'inherit',
+    can_manage_kpi_goals: 'inherit',
+    can_manage_communications: 'inherit',
   };
 }
 
@@ -109,6 +113,10 @@ export function canAccess(user: IUsuarioSessao | null, permission?: PermissionKe
   if (isDesenvolvedor(user) || isAdminPlataforma(user)) return true;
   if (!permission) return true;
   return Boolean(user.permissoesEfetivas[permission]);
+}
+
+export function canManageCommunications(user: IUsuarioSessao | null): boolean {
+  return canAccess(user, 'can_manage_communications') || canAccess(user, 'homeComunicados');
 }
 
 export function firstAccessibleRoute(

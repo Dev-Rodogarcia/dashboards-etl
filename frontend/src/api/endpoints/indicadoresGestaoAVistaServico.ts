@@ -14,15 +14,25 @@ import type {
   IndenizacaoMercadoriasRow,
   IndenizacaoMercadoriasSeriePoint,
   IndicadoresGestaoVistaFiltro,
+  KpiGoalEffectiveResponse,
+  KpiGoalHistoryItem,
+  KpiGoalIndicatorKey,
+  KpiGoalOverridesResponse,
+  KpiGoalsFullResponse,
+  KpiGoalsUpdatePayload,
   PerformanceEntregaOverview,
   PerformanceEntregaRow,
   PerformanceEntregaSeriePoint,
   UtilizacaoColetoresOverview,
+  UtilizacaoColetoresRankingItem,
   UtilizacaoColetoresRow,
   UtilizacaoColetoresSeriePoint,
 } from '../../types/indicadoresGestaoAVista';
 
 const BASE = '/api/painel/indicadores-gestao-a-vista';
+const KPI_GOALS_BASE = '/api/kpi-goals';
+
+export const GLOBAL_KPI_GOAL_BRANCH_ID = 'GLOBAL';
 
 function withLimit(filtro: IndicadoresGestaoVistaFiltro, limite: number) {
   const params = montarQueryParams(filtro);
@@ -83,6 +93,15 @@ export async function buscarUtilizacaoColetoresSerie(
   filtro: IndicadoresGestaoVistaFiltro,
 ): Promise<UtilizacaoColetoresSeriePoint[]> {
   const { data } = await clienteAxios.get<UtilizacaoColetoresSeriePoint[]>(`${BASE}/utilizacao-coletores/serie`, {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarUtilizacaoColetoresRanking(
+  filtro: IndicadoresGestaoVistaFiltro,
+): Promise<UtilizacaoColetoresRankingItem[]> {
+  const { data } = await clienteAxios.get<UtilizacaoColetoresRankingItem[]>(`${BASE}/utilizacao-coletores/ranking`, {
     params: montarQueryParams(filtro),
   });
   return data;
@@ -228,4 +247,56 @@ export async function buscarHorariosCorteTabelaPaginada(
 
 export async function exportarHorariosCorteCsv(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
   await baixarCsv(`${BASE}/horarios-corte/exportacao`, filtro, 'indicadores-horarios-corte');
+}
+
+export async function buscarKpiGoalsCompleto(): Promise<KpiGoalsFullResponse> {
+  const { data } = await clienteAxios.get<KpiGoalsFullResponse>(KPI_GOALS_BASE);
+  return data;
+}
+
+export async function buscarKpiGoalsEfetivos(branchId: string): Promise<KpiGoalEffectiveResponse> {
+  const { data } = await clienteAxios.get<KpiGoalEffectiveResponse>(`${KPI_GOALS_BASE}/effective`, {
+    params: { branchId },
+  });
+  return data;
+}
+
+export async function atualizarKpiGoalsGlobais(payload: KpiGoalsUpdatePayload): Promise<KpiGoalsFullResponse> {
+  const { data } = await clienteAxios.put<KpiGoalsFullResponse>(`${KPI_GOALS_BASE}/global`, payload);
+  return data;
+}
+
+export async function atualizarKpiGoalsFilial(branchId: string, payload: KpiGoalsUpdatePayload): Promise<KpiGoalEffectiveResponse> {
+  const { data } = await clienteAxios.put<KpiGoalEffectiveResponse>(`${KPI_GOALS_BASE}/branch/${encodeURIComponent(branchId)}`, payload);
+  return data;
+}
+
+export async function removerKpiGoalsOverride(branchId: string): Promise<KpiGoalEffectiveResponse> {
+  const { data } = await clienteAxios.delete<KpiGoalEffectiveResponse>(`${KPI_GOALS_BASE}/branch/${encodeURIComponent(branchId)}`);
+  return data;
+}
+
+export async function buscarKpiGoalsHistorico(branchId: string, limit = 10): Promise<KpiGoalHistoryItem[]> {
+  const { data } = await clienteAxios.get<KpiGoalHistoryItem[]>(`${KPI_GOALS_BASE}/history`, {
+    params: { branchId, limit },
+  });
+  return data;
+}
+
+export async function buscarKpiGoalsHistoricoPaginado(
+  branchId: string,
+  pagina = 1,
+  tamanhoPagina = 10,
+): Promise<PaginacaoResponse<KpiGoalHistoryItem>> {
+  const { data } = await clienteAxios.get<PaginacaoResponse<KpiGoalHistoryItem>>(`${KPI_GOALS_BASE}/history/page`, {
+    params: { branchId, pagina, tamanhoPagina },
+  });
+  return data;
+}
+
+export async function buscarKpiGoalOverrides(indicatorKey: KpiGoalIndicatorKey): Promise<KpiGoalOverridesResponse> {
+  const { data } = await clienteAxios.get<KpiGoalOverridesResponse>(`${KPI_GOALS_BASE}/overrides`, {
+    params: { indicatorKey },
+  });
+  return data;
 }
