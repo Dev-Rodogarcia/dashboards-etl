@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -23,6 +25,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,12 +37,14 @@ public class IndicadoresGestaoAVistaService {
     private static final Logger log = LoggerFactory.getLogger(IndicadoresGestaoAVistaService.class);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final Duration CACHE_FONTE_TTL = Duration.ofMinutes(2);
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final HorariosCorteRasterDataSource rasterSqlRepository;
     private final VisaoHorariosCorteRepository repository;
     private final EscopoFilialService escopoFilialService;
     private final HorarioCorteFilialMapperService filialMapperService;
+    private final ConcurrentMap<HorarioCorteFonteCacheKey, HorarioCorteFonteCacheEntry> horariosCorteFonteCache = new ConcurrentHashMap<>();
 
     public IndicadoresGestaoAVistaService(
             ValidadorPeriodoService validadorPeriodo,
@@ -205,14 +213,48 @@ public class IndicadoresGestaoAVistaService {
     private List<HorarioCorteRegistroResolvido> buscarHorariosCorte(FiltroConsultaDTO filtro) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         HorarioCorteFilialMapperService.FilialMappingContext mappingContext = filialMapperService.criarContextoRasterPadrao();
-        return buscarHorariosCorteNaFonte(filtro).stream()
+        return buscarHorariosCorteNaFonteComCache(filtro).stream()
                 .map(row -> new HorarioCorteRegistroResolvido(row, resolverFilial(row, mappingContext)))
                 .filter(row -> escopo.permiteAlgumaFilial(row.filial()))
                 .filter(row -> filtro.corresponde("filiais", row.filial()))
                 .toList();
     }
 
-    private List<VisaoHorariosCorteEntity> buscarHorariosCorteNaFonte(FiltroConsultaDTO filtro) {
+    private List<VisaoHorariosCorteEntity> buscarHorariosCorteNaFonteComCache(FiltroConsultaDTO filtro) {
+        HorarioCorteFonteCacheKey key = new HorarioCorteFonteCacheKey(filtro.dataInicio(), filtro.dataFim());
+        Instant agora = Instant.now();
+        HorarioCorteFonteCacheEntry novaEntry = new HorarioCorteFonteCacheEntry(
+                new CompletableFuture<>(),
+                agora.plus(CACHE_FONTE_TTL)
+        );
+
+        HorarioCorteFonteCacheEntry entry = horariosCorteFonteCache.compute(key, (cacheKey, existente) ->
+                existente != null && existente.validaEm(agora) ? existente : novaEntry
+        );
+
+        if (entry == novaEntry) {
+            try {
+                List<VisaoHorariosCorteEntity> rows = carregarHorariosCorteNaFonte(filtro);
+                novaEntry.future().complete(rows);
+                return rows;
+            } catch (RuntimeException ex) {
+                novaEntry.future().completeExceptionally(ex);
+                horariosCorteFonteCache.remove(key, novaEntry);
+                throw ex;
+            }
+        }
+
+        try {
+            return entry.future().join();
+        } catch (CompletionException ex) {
+            if (ex.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw ex;
+        }
+    }
+
+    private List<VisaoHorariosCorteEntity> carregarHorariosCorteNaFonte(FiltroConsultaDTO filtro) {
         try {
             return rasterSqlRepository.findByDataBetween(filtro.dataInicio(), filtro.dataFim());
         } catch (DataAccessException ex) {
@@ -292,5 +334,17 @@ public class IndicadoresGestaoAVistaService {
             VisaoHorariosCorteEntity entity,
             String filial
     ) {
+    }
+
+    private record HorarioCorteFonteCacheKey(LocalDate dataInicio, LocalDate dataFim) {
+    }
+
+    private record HorarioCorteFonteCacheEntry(
+            CompletableFuture<List<VisaoHorariosCorteEntity>> future,
+            Instant expiraEm
+    ) {
+        boolean validaEm(Instant instante) {
+            return expiraEm.isAfter(instante);
+        }
     }
 }

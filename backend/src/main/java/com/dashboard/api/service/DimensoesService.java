@@ -16,15 +16,23 @@ import com.dashboard.api.repository.VisaoFaturasClienteRepository;
 import com.dashboard.api.repository.VisaoFretesRepository;
 import com.dashboard.api.repository.VisaoManifestosRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -32,6 +40,18 @@ import java.util.stream.Stream;
 public class DimensoesService {
 
     private static final Logger log = LoggerFactory.getLogger(DimensoesService.class);
+    private static final Duration CACHE_FILIAIS_TTL = Duration.ofMinutes(10);
+    private static final String CACHE_FILIAIS_KEY = "filiais";
+    private static final List<String> FILIAIS_OPERACIONAIS_PADRAO = List.of(
+            "AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "CAS - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "CWB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "NHB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "REC - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "RJR - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+            "SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"
+    );
 
     private final DimFilialRepository dimFilialRepository;
     private final DimUsuarioRepository dimUsuarioRepository;
@@ -43,7 +63,10 @@ public class DimensoesService {
     private final VisaoManifestosRepository manifestosRepository;
     private final VisaoContasAPagarRepository contasAPagarRepository;
     private final EscopoFilialService escopoFilialService;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ConcurrentMap<String, CacheEntry<List<String>>> filiaisCache = new ConcurrentHashMap<>();
 
+    @Autowired
     public DimensoesService(
             DimFilialRepository dimFilialRepository,
             DimUsuarioRepository dimUsuarioRepository,
@@ -54,7 +77,8 @@ public class DimensoesService {
             VisaoFaturasClienteRepository faturasClienteRepository,
             VisaoManifestosRepository manifestosRepository,
             VisaoContasAPagarRepository contasAPagarRepository,
-            EscopoFilialService escopoFilialService
+            EscopoFilialService escopoFilialService,
+            NamedParameterJdbcTemplate jdbcTemplate
     ) {
         this.dimFilialRepository = dimFilialRepository;
         this.dimUsuarioRepository = dimUsuarioRepository;
@@ -66,20 +90,114 @@ public class DimensoesService {
         this.manifestosRepository = manifestosRepository;
         this.contasAPagarRepository = contasAPagarRepository;
         this.escopoFilialService = escopoFilialService;
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    DimensoesService(
+            DimFilialRepository dimFilialRepository,
+            DimUsuarioRepository dimUsuarioRepository,
+            DimVeiculoRepository dimVeiculoRepository,
+            VisaoColetasRepository coletasRepository,
+            VisaoFretesRepository fretesRepository,
+            VisaoCotacoesRepository cotacoesRepository,
+            VisaoFaturasClienteRepository faturasClienteRepository,
+            VisaoManifestosRepository manifestosRepository,
+            VisaoContasAPagarRepository contasAPagarRepository,
+            EscopoFilialService escopoFilialService
+    ) {
+        this(
+                dimFilialRepository,
+                dimUsuarioRepository,
+                dimVeiculoRepository,
+                coletasRepository,
+                fretesRepository,
+                cotacoesRepository,
+                faturasClienteRepository,
+                manifestosRepository,
+                contasAPagarRepository,
+                escopoFilialService,
+                null
+        );
     }
 
     public List<String> listarFiliais() {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         if (escopo.acessoTotal()) {
-            return dimFilialRepository.findAll().stream()
-                    .map(e -> e.getNomeFilial())
+            return listarFiliaisComCache();
+        }
+        return escopo.filiaisOrdenadas();
+    }
+
+    private List<String> listarFiliaisComCache() {
+        Instant agora = Instant.now();
+        CacheEntry<List<String>> novaEntry = new CacheEntry<>(
+                new CompletableFuture<>(),
+                agora.plus(CACHE_FILIAIS_TTL)
+        );
+
+        CacheEntry<List<String>> entry = filiaisCache.compute(CACHE_FILIAIS_KEY, (key, existente) ->
+                existente != null && existente.validaEm(agora) ? existente : novaEntry
+        );
+
+        if (entry == novaEntry) {
+            try {
+                List<String> filiais = consultarFiliais();
+                novaEntry.future().complete(filiais);
+                return filiais;
+            } catch (RuntimeException ex) {
+                novaEntry.future().completeExceptionally(ex);
+                filiaisCache.remove(CACHE_FILIAIS_KEY, novaEntry);
+                List<String> fallback = fallbackFiliais(ex);
+                filiaisCache.put(CACHE_FILIAIS_KEY, CacheEntry.pronta(fallback, agora.plus(Duration.ofMinutes(2))));
+                return fallback;
+            }
+        }
+
+        try {
+            return entry.future().join();
+        } catch (CompletionException ex) {
+            if (ex.getCause() instanceof RuntimeException runtimeException) {
+                return fallbackFiliais(runtimeException);
+            }
+            throw ex;
+        }
+    }
+
+    private List<String> consultarFiliais() {
+        if (jdbcTemplate != null) {
+            return jdbcTemplate.queryForList(
+                            """
+                            SELECT DISTINCT [NomeFilial]
+                            FROM dbo.vw_dim_filiais
+                            WHERE [NomeFilial] IS NOT NULL
+                              AND LTRIM(RTRIM([NomeFilial])) <> ''
+                            ORDER BY [NomeFilial]
+                            """,
+                            new java.util.HashMap<>(),
+                            String.class
+                    ).stream()
                     .filter(this::temTexto)
                     .map(String::trim)
                     .distinct()
                     .sorted(String.CASE_INSENSITIVE_ORDER)
                     .toList();
         }
-        return escopo.filiaisOrdenadas();
+
+        return dimFilialRepository.findAll().stream()
+                .map(e -> e.getNomeFilial())
+                .filter(this::temTexto)
+                .map(String::trim)
+                .distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    private List<String> fallbackFiliais(RuntimeException ex) {
+        log.warn(
+                "Dimensão de filiais indisponível; usando lista operacional padrão temporária. causa={}",
+                ex.getMessage()
+        );
+        return FILIAIS_OPERACIONAIS_PADRAO;
     }
 
     public List<String> listarClientes() {
@@ -134,7 +252,7 @@ public class DimensoesService {
             }
             return faturasClienteRepository.findDistinctClienteCnpjByFilialIn(filiais);
         } catch (DataAccessException ex) {
-            log.warn("Dimensão Cliente/CNPJ indisponível. Verifique se a view vw_faturas_por_cliente_powerbi expõe [Pagador do frete/Documento]. Causa: {}",
+            log.warn("Dimensão Cliente/CNPJ indisponível. Verifique se a view vw_faturas_por_cliente_powerbi expõe [Cliente/CNPJ]. Causa: {}",
                     ex.getMostSpecificCause().getMessage());
             return List.of();
         }
@@ -214,5 +332,15 @@ public class DimensoesService {
         return Stream.of(valores)
                 .filter(this::temTexto)
                 .map(String::trim);
+    }
+
+    private record CacheEntry<T>(CompletableFuture<T> future, Instant expiraEm) {
+        private boolean validaEm(Instant instante) {
+            return expiraEm.isAfter(instante);
+        }
+
+        private static <T> CacheEntry<T> pronta(T valor, Instant expiraEm) {
+            return new CacheEntry<>(CompletableFuture.completedFuture(valor), expiraEm);
+        }
     }
 }

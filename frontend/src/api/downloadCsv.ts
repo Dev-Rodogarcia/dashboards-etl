@@ -1,6 +1,7 @@
 import clienteAxios from './clienteAxios';
 import { extrairNomeArquivo, salvarBlobComoArquivo } from './downloadArquivo';
 import { montarQueryParams } from './endpoints/queryParams';
+import { API_DOWNLOAD_TIMEOUT_MS } from '../config/api';
 
 export { extrairNomeArquivo, salvarBlobComoArquivo } from './downloadArquivo';
 
@@ -10,6 +11,7 @@ export function criarConfigDownloadCsv<T extends FiltroCsv>(filtro: T) {
   return {
     params: montarQueryParams(filtro),
     responseType: 'blob' as const,
+    timeout: API_DOWNLOAD_TIMEOUT_MS,
   };
 }
 

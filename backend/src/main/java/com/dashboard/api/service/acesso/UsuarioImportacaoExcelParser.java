@@ -25,6 +25,8 @@ public class UsuarioImportacaoExcelParser {
             "E-mail",
             "Setor"
     );
+    private static final long MAX_FILE_SIZE_BYTES = 2L * 1024L * 1024L;
+    private static final int MAX_LINHAS_DADOS = 1000;
 
     public PlanilhaImportada parse(MultipartFile arquivo) {
         validarArquivo(arquivo);
@@ -43,6 +45,9 @@ public class UsuarioImportacaoExcelParser {
                 if (linhaVazia(row)) {
                     continue;
                 }
+                if (linhas.size() >= MAX_LINHAS_DADOS) {
+                    throw new IllegalArgumentException("A planilha excede o limite de 1000 linhas de usuários.");
+                }
 
                 linhas.add(new LinhaPlanilha(
                         rowIndex + 1,
@@ -56,6 +61,10 @@ public class UsuarioImportacaoExcelParser {
                     Objects.toString(arquivo.getOriginalFilename(), "usuarios-importacao.xlsx"),
                     linhas
             );
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            throw new IllegalArgumentException("Não foi possível ler a planilha enviada.");
         } catch (IOException ex) {
             throw new IllegalArgumentException("Não foi possível ler a planilha enviada.");
         }
@@ -64,6 +73,10 @@ public class UsuarioImportacaoExcelParser {
     private void validarArquivo(MultipartFile arquivo) {
         if (arquivo == null || arquivo.isEmpty()) {
             throw new IllegalArgumentException("Envie um arquivo .xlsx ou .xls para importar os usuários.");
+        }
+
+        if (arquivo.getSize() > MAX_FILE_SIZE_BYTES) {
+            throw new IllegalArgumentException("Arquivo muito grande. Envie uma planilha de até 2 MB.");
         }
 
         String nome = arquivo.getOriginalFilename();

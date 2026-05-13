@@ -15,6 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -23,6 +25,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,10 +40,12 @@ public class PerformanceEntregaIndicadorService {
     private static final String PERFORMANCE_EM_ABERTO = "EM ABERTO";
     private static final String PERFORMANCE_NO_PRAZO = "NO PRAZO";
     private static final String PERFORMANCE_FORA_DO_PRAZO = "FORA DO PRAZO";
+    private static final Duration CACHE_REGISTROS_TTL = Duration.ofMinutes(2);
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoFretesRepository fretesRepository;
     private final EscopoFilialService escopoFilialService;
+    private final ConcurrentMap<IndicadoresGestaoCacheUtils.CacheKey, IndicadoresGestaoCacheUtils.CacheEntry<List<PerformanceEntregaRegistro>>> registrosCache = new ConcurrentHashMap<>();
 
     PerformanceEntregaIndicadorService(
             ValidadorPeriodoService validadorPeriodo,
@@ -164,7 +172,49 @@ public class PerformanceEntregaIndicadorService {
 
     private List<PerformanceEntregaRegistro> buscarRegistros(FiltroConsultaDTO filtro) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        if (!IndicadoresGestaoCacheUtils.contextoWebAtivo()) {
+            return carregarRegistros(filtro, escopo);
+        }
+        IndicadoresGestaoCacheUtils.CacheKey key = IndicadoresGestaoCacheUtils.chave(filtro, escopo);
+        Instant agora = Instant.now();
+        IndicadoresGestaoCacheUtils.CacheEntry<List<PerformanceEntregaRegistro>> novaEntry = new IndicadoresGestaoCacheUtils.CacheEntry<>(
+                new CompletableFuture<>(),
+                agora.plus(CACHE_REGISTROS_TTL)
+        );
 
+        IndicadoresGestaoCacheUtils.CacheEntry<List<PerformanceEntregaRegistro>> entry = registrosCache.compute(key, (cacheKey, existente) ->
+                existente != null && existente.validaEm(agora) ? existente : novaEntry
+        );
+
+        if (entry == novaEntry) {
+            try {
+                List<PerformanceEntregaRegistro> registros = carregarRegistros(filtro, escopo);
+                novaEntry.future().complete(registros);
+                if (registros.isEmpty()) {
+                    registrosCache.remove(key, novaEntry);
+                }
+                return registros;
+            } catch (RuntimeException ex) {
+                novaEntry.future().completeExceptionally(ex);
+                registrosCache.remove(key, novaEntry);
+                throw ex;
+            }
+        }
+
+        try {
+            return entry.future().join();
+        } catch (CompletionException ex) {
+            if (ex.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw ex;
+        }
+    }
+
+    private List<PerformanceEntregaRegistro> carregarRegistros(
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo
+    ) {
         List<VisaoFretesEntity> fretes;
         try {
             fretes = fretesRepository.findAll(criarFretesSpecification(filtro, escopo));

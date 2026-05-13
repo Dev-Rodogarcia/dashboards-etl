@@ -1,20 +1,16 @@
 package com.dashboard.api.config;
 
+import com.dashboard.api.exception.RespostaErroHttpWriter;
 import com.dashboard.api.security.FiltroApiKey;
 import com.dashboard.api.security.FiltroRateLimitApi;
 import com.dashboard.api.security.FiltroValidacaoJwt;
 import com.dashboard.api.service.acesso.AutenticacaoService;
 import com.dashboard.api.service.acesso.CredencialInvalidaException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,6 +24,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -53,10 +50,11 @@ public class SegurancaWebConfig {
             HttpSecurity http,
             AuthenticationProvider basicAuthenticationProvider,
             AuthenticationEntryPoint apiAuthenticationEntryPoint,
-            AccessDeniedHandler apiAccessDeniedHandler
+            AccessDeniedHandler apiAccessDeniedHandler,
+            CorsConfigurationSource corsConfigurationSource
     ) throws Exception {
         http
-                .cors(cors -> {})
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(httpBasic -> httpBasic.authenticationEntryPoint(apiAuthenticationEntryPoint))
                 .formLogin(formLogin -> formLogin.disable())
@@ -71,6 +69,7 @@ public class SegurancaWebConfig {
                         .accessDeniedHandler(apiAccessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
                         .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers("/actuator/health/liveness", "/actuator/health/readiness").permitAll()
                         .requestMatchers("/actuator/**").authenticated()
@@ -113,50 +112,25 @@ public class SegurancaWebConfig {
 
     @Bean
     public AuthenticationEntryPoint apiAuthenticationEntryPoint(ObjectMapper objectMapper) {
-        return (request, response, authException) -> {
-            response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"dashboard-api\"");
-            escreverErroJson(
+        return (request, response, authException) ->
+            RespostaErroHttpWriter.escrever(
                     response,
                     objectMapper,
-                    HttpServletResponse.SC_UNAUTHORIZED,
+                    HttpStatus.UNAUTHORIZED,
                     "Unauthorized",
-                    "Autenticacao obrigatoria ou credenciais invalidas.",
-                    request.getRequestURI()
+                    "Autenticacao obrigatoria ou credenciais invalidas."
             );
-        };
     }
 
     @Bean
     public AccessDeniedHandler apiAccessDeniedHandler(ObjectMapper objectMapper) {
         return (request, response, accessDeniedException) ->
-                escreverErroJson(
+                RespostaErroHttpWriter.escrever(
                         response,
                         objectMapper,
-                        HttpServletResponse.SC_FORBIDDEN,
+                        HttpStatus.FORBIDDEN,
                         "Forbidden",
-                        "Usuario autenticado sem permissao para este recurso.",
-                        request.getRequestURI()
+                        "Usuario autenticado sem permissao para este recurso."
                 );
-    }
-
-    private static void escreverErroJson(
-            HttpServletResponse response,
-            ObjectMapper objectMapper,
-            int status,
-            String erro,
-            String mensagem,
-            String path
-    ) throws IOException {
-        response.setStatus(status);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("status", status);
-        body.put("erro", erro);
-        body.put("mensagem", mensagem);
-        body.put("path", path);
-
-        objectMapper.writeValue(response.getWriter(), body);
     }
 }

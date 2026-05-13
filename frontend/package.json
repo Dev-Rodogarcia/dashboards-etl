@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node ./scripts/validate-prod-env.mjs && tsc -b && vite build",
     "check:encoding": "node ./scripts/check-encoding.mjs",
     "lint": "eslint .",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "preview": "vite preview",
+    "start:prod": "node ./scripts/start-prod-static.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -25,7 +26,9 @@
     "next-themes": "^0.4.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^6.30.3"
+    "react-router-dom": "^6.30.3",
+    "serve": "^14.2.6",
+    "serve-handler": "^6.1.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

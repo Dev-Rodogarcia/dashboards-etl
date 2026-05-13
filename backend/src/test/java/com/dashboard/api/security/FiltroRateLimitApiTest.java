@@ -2,6 +2,7 @@ package com.dashboard.api.security;
 
 import com.dashboard.api.service.acesso.AuditService;
 import com.dashboard.api.service.acesso.AcaoAudit;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
@@ -39,6 +40,8 @@ class FiltroRateLimitApiTest {
         assertThat(primeiraResposta.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
         assertThat(segundaResposta.getStatus()).isEqualTo(429);
         assertThat(segundaResposta.getHeader("Retry-After")).isNotBlank();
+        assertThat(segundaResposta.getContentAsString()).contains("\"timestamp\"");
+        assertThat(segundaResposta.getContentAsString()).doesNotContain("\"path\"");
     }
 
     @Test
@@ -55,6 +58,30 @@ class FiltroRateLimitApiTest {
         assertThat(chamadaNormal.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
     }
 
+    @Test
+    void limitaEndpointsDeMetasKpi() throws Exception {
+        FiltroRateLimitApi filtro = filtroComLimite(1, 10);
+        autenticar("gestor@empresa.com");
+
+        MockHttpServletResponse primeiraResposta = executar(filtro, "/api/kpi-goals/effective");
+        MockHttpServletResponse segundaResposta = executar(filtro, "/api/kpi-goals/effective");
+
+        assertThat(primeiraResposta.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
+        assertThat(segundaResposta.getStatus()).isEqualTo(429);
+    }
+
+    @Test
+    void limitaEndpointsDeComunicadosDaHome() throws Exception {
+        FiltroRateLimitApi filtro = filtroComLimite(1, 10);
+        autenticar("gestor@empresa.com");
+
+        MockHttpServletResponse primeiraResposta = executar(filtro, "/api/painel/home/comunicados");
+        MockHttpServletResponse segundaResposta = executar(filtro, "/api/painel/home/comunicados");
+
+        assertThat(primeiraResposta.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
+        assertThat(segundaResposta.getStatus()).isEqualTo(429);
+    }
+
     private FiltroRateLimitApi filtroComLimite(int apiMaxRequests, int exportMaxRequests) {
         RateLimitService rateLimitService = new RateLimitService(
                 10,
@@ -64,7 +91,12 @@ class FiltroRateLimitApiTest {
                 exportMaxRequests,
                 60
         );
-        return new FiltroRateLimitApi(rateLimitService, new NoopAuditService(), new IpClienteResolver(false));
+        return new FiltroRateLimitApi(
+                rateLimitService,
+                new NoopAuditService(),
+                new IpClienteResolver(false),
+                new ObjectMapper().findAndRegisterModules()
+        );
     }
 
     private void autenticar(String principal) {

@@ -1,10 +1,15 @@
 server:
   address: ${SERVER_ADDRESS:127.0.0.1}
-  port: 5010
+  port: ${SERVER_PORT:5010}
 
 spring:
   application:
     name: dashboard-api
+
+  servlet:
+    multipart:
+      max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:2MB}
+      max-request-size: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:3MB}
 
   # SQL Server (credenciais lidas de dashboards/.env)
   datasource:
@@ -47,7 +52,7 @@ security:
       window-seconds: ${SECURITY_RATE_LIMIT_EXPORT_WINDOW_SECONDS:60}
 
 cors:
-  origens-permitidas: ${CORS_ORIGENS_PERMITIDAS:http://localhost:5173,https://analytics.rodogarcia.com.br}
+  origens-permitidas: ${CORS_ORIGENS_PERMITIDAS:https://analytics.rodogarcia.com.br}
 
 # JWT
 jwt:

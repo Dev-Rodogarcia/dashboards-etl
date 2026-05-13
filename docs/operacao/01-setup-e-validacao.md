@@ -18,8 +18,8 @@ Arquivo:
 Variaveis minimas:
 
 ```env
-API_BASE_URL=http://localhost:5010
-VITE_API_BASE_URL=http://localhost:5010
+API_BASE_URL=http://localhost:5011
+VITE_API_BASE_URL=http://localhost:5011
 SERVER_ADDRESS=127.0.0.1
 DB_URL=jdbc:sqlserver://HOST:1433;databaseName=ETL_SISTEMA;encrypt=true;trustServerCertificate=true
 DB_USER=seu_usuario
@@ -37,7 +37,7 @@ VITE_ACESSO_USUARIO_SUPREMO_PAPEL=desenvolvedor
 
 Configuracoes importantes no `application.yml`:
 
-- porta `5010`
+- porta padrao `5010`; em dev local o `iniciar-dev.bat` sobrescreve para `5011` via `SERVER_PORT`
 - timeout JPA `30000`
 - periodo timezone `America/Sao_Paulo`
 - JWT `15 minutos`
@@ -48,6 +48,9 @@ Configuracoes importantes no `application.yml`:
 Na VM, use as variaveis abaixo junto das credenciais reais:
 
 ```env
+ENVIRONMENT=production
+SPRING_PROFILES_ACTIVE=prod
+VITE_API_BASE_URL=https://api-analytics.rodogarcia.com.br
 SERVER_ADDRESS=127.0.0.1
 SECURITY_TRUST_FORWARDED_HEADERS=true
 AUTH_REFRESH_COOKIE_SECURE=true
@@ -61,6 +64,16 @@ ACESSO_USUARIO_SUPREMO_NIVEL=1000
 VITE_ACESSO_USUARIO_SUPREMO_PAPEL=desenvolvedor
 CORS_ORIGENS_PERMITIDAS=https://analytics.rodogarcia.com.br
 ```
+
+O backend de produção deve rodar em `prod` na porta `5010`, e o frontend de produção não deve ser servido por `vite dev`. Na VM, use o lançador único:
+
+```powershell
+.\iniciar-prod.bat
+```
+
+Ele valida o ambiente, libera apenas as portas de produção, gera `frontend/dist` atualizado, abre o backend em um terminal externo, espera o healthcheck ficar `UP`, valida o preflight CORS da API local e abre o frontend estático em outro terminal externo.
+
+O Cloudflare Tunnel deve apontar `analytics.rodogarcia.com.br` para `http://127.0.0.1:5173` e `api-analytics.rodogarcia.com.br` para `http://127.0.0.1:5010`.
 
 Permissoes minimas esperadas para o usuario SQL da API no schema `acesso`:
 
@@ -82,8 +95,8 @@ Para permitir varios usuarios novos sem `chave_legado`, aplique a migration `V00
 
 Resultado esperado:
 
-- API em `http://localhost:5010`
-- UI em `http://localhost:5173`
+- API dev em `http://localhost:5011`
+- UI dev em `http://localhost:5174`
 
 ### Opcao 2: manual
 
@@ -98,7 +111,7 @@ Frontend:
 
 ```powershell
 cd .\frontend
-npm install
+npm install --legacy-peer-deps
 npm run dev
 ```
 
@@ -145,7 +158,7 @@ Script principal:
 
 Pre requisitos:
 
-- API local respondendo em `5010`
+- API dev local respondendo em `5011`
 - SQL Server acessivel com as credenciais do `.env`
 - ao menos um usuario ativo em `acesso.usuarios`
 
@@ -158,7 +171,7 @@ node scripts/validate-dashboard-consistency.mjs
 Execucao com periodo explicito:
 
 ```powershell
-node scripts/validate-dashboard-consistency.mjs --apiBaseUrl=http://localhost:5010 --dataInicio=2026-02-24 --dataFim=2026-03-26
+node scripts/validate-dashboard-consistency.mjs --apiBaseUrl=http://localhost:5011 --dataInicio=2026-02-24 --dataFim=2026-03-26
 ```
 
 Saida:

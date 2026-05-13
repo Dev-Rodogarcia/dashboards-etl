@@ -2,8 +2,12 @@ package com.dashboard.api.exception;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 
 import java.util.List;
@@ -54,5 +58,30 @@ class ManipuladorGlobalExcecoesTest {
         assertThat(body.status()).isEqualTo(400);
         assertThat(body.erro()).isEqualTo("Bad Request");
         assertThat(body.mensagem()).isEqualTo("Parâmetro obrigatório ausente: dataInicio.");
+    }
+
+    @Test
+    void deveRetornar400ParaCorpoInvalidoPorValidacao() throws Exception {
+        ManipuladorGlobalExcecoes handler = new ManipuladorGlobalExcecoes();
+        BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "loginRequest");
+        bindingResult.addError(new FieldError("loginRequest", "email", "não deve estar em branco"));
+        MethodParameter parameter = new MethodParameter(
+                ManipuladorGlobalExcecoesTest.class.getDeclaredMethod("endpointComValidacao", Object.class),
+                0
+        );
+
+        var resposta = handler.handleMethodArgumentNotValid(
+                new MethodArgumentNotValidException(parameter, bindingResult)
+        );
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        RespostaErroPadrao body = Objects.requireNonNull(resposta.getBody());
+        assertThat(body.status()).isEqualTo(400);
+        assertThat(body.erro()).isEqualTo("Bad Request");
+        assertThat(body.mensagem()).isEqualTo("Dados inválidos na requisição.");
+    }
+
+    @SuppressWarnings("unused")
+    private void endpointComValidacao(Object request) {
     }
 }

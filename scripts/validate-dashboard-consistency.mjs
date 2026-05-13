@@ -542,7 +542,7 @@ async function main() {
     dataInicio: args.dataInicio ?? '2026-03-01',
     dataFim: args.dataFim ?? '2026-03-31',
   };
-  const apiBaseUrl = args.apiBaseUrl ?? 'http://localhost:5010';
+  const apiBaseUrl = args.apiBaseUrl ?? 'http://localhost:5011';
   const apiUserEmail = resolveApiUserEmail(connection, args.apiUserEmail);
   const jwtSecret = args.jwtSecret ?? env.JWT_SECRET;
 

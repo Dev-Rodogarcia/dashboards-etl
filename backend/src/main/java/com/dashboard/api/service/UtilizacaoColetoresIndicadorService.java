@@ -21,6 +21,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.text.Normalizer;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -33,6 +35,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class UtilizacaoColetoresIndicadorService {
@@ -40,6 +46,7 @@ public class UtilizacaoColetoresIndicadorService {
     private static final Logger LOGGER = LoggerFactory.getLogger(UtilizacaoColetoresIndicadorService.class);
 
     private static final String CLASSIFICACAO_GERAL = "Geral";
+    private static final Duration CACHE_PONTOS_TTL = Duration.ofMinutes(2);
     private static final Set<String> TIPOS_ORDEM_CONFERENCIA = Set.of(
             "picking",
             "retorno",
@@ -65,6 +72,7 @@ public class UtilizacaoColetoresIndicadorService {
     private final EscopoFilialService escopoFilialService;
     private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
     private final KpiGoalService kpiGoalService;
+    private final ConcurrentMap<IndicadoresGestaoCacheUtils.CacheKey, IndicadoresGestaoCacheUtils.CacheEntry<List<UtilizacaoColetoresPonto>>> pontosCache = new ConcurrentHashMap<>();
 
     UtilizacaoColetoresIndicadorService(
             ValidadorPeriodoService validadorPeriodo,
@@ -249,6 +257,50 @@ public class UtilizacaoColetoresIndicadorService {
     private List<UtilizacaoColetoresPonto> buscarPontos(FiltroConsultaDTO filtro) {
         JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        if (!IndicadoresGestaoCacheUtils.contextoWebAtivo()) {
+            return carregarPontos(filtro, escopo, janela);
+        }
+        IndicadoresGestaoCacheUtils.CacheKey key = IndicadoresGestaoCacheUtils.chave(filtro, escopo);
+        Instant agora = Instant.now();
+        IndicadoresGestaoCacheUtils.CacheEntry<List<UtilizacaoColetoresPonto>> novaEntry = new IndicadoresGestaoCacheUtils.CacheEntry<>(
+                new CompletableFuture<>(),
+                agora.plus(CACHE_PONTOS_TTL)
+        );
+
+        IndicadoresGestaoCacheUtils.CacheEntry<List<UtilizacaoColetoresPonto>> entry = pontosCache.compute(key, (cacheKey, existente) ->
+                existente != null && existente.validaEm(agora) ? existente : novaEntry
+        );
+
+        if (entry == novaEntry) {
+            try {
+                List<UtilizacaoColetoresPonto> pontos = carregarPontos(filtro, escopo, janela);
+                novaEntry.future().complete(pontos);
+                if (pontos.isEmpty()) {
+                    pontosCache.remove(key, novaEntry);
+                }
+                return pontos;
+            } catch (RuntimeException ex) {
+                novaEntry.future().completeExceptionally(ex);
+                pontosCache.remove(key, novaEntry);
+                throw ex;
+            }
+        }
+
+        try {
+            return entry.future().join();
+        } catch (CompletionException ex) {
+            if (ex.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw ex;
+        }
+    }
+
+    private List<UtilizacaoColetoresPonto> carregarPontos(
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            JanelaOffsetDateTime janela
+    ) {
         Map<String, String> filiaisValidas = carregarFiliaisValidas();
         List<VisaoManifestosEntity> manifestos;
         List<VisaoInventarioEntity> ordens;

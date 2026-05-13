@@ -45,12 +45,12 @@ export function getApiErrorMessage(error: unknown, fallback = 'Não foi possíve
 
     if (status === 429) {
       return Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
-        ? `Muitas tentativas de autenticação. Aguarde ${formatarRetryAfter(retryAfterSeconds)} e tente novamente.`
-        : 'Muitas tentativas de autenticação. Aguarde alguns instantes e tente novamente.';
+        ? `Muitas requisições em pouco tempo. Aguarde ${formatarRetryAfter(retryAfterSeconds)} e tente novamente.`
+        : 'Muitas requisições em pouco tempo. Aguarde alguns instantes e tente novamente.';
     }
 
     if (status === 408 || status === 504 || errorCodeIndicaTimeout(error)) {
-      return 'A autenticação demorou mais do que o esperado. Verifique a conexão com a API e tente novamente.';
+      return 'A API demorou mais do que o esperado. Verifique a conexão e tente novamente.';
     }
 
     // Tenta o campo "mensagem" (formato do nosso ManipuladorGlobalExcecoes)

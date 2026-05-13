@@ -1,12 +1,13 @@
 package com.dashboard.api.security;
 
+import com.dashboard.api.exception.RespostaErroHttpWriter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -21,9 +22,14 @@ import java.util.List;
 public class FiltroApiKey extends OncePerRequestFilter {
 
     private final String apiKeyEsperada;
+    private final ObjectMapper objectMapper;
 
-    public FiltroApiKey(@Value("${api.interno.key}") String apiKeyEsperada) {
+    public FiltroApiKey(
+            @Value("${api.interno.key}") String apiKeyEsperada,
+            ObjectMapper objectMapper
+    ) {
         this.apiKeyEsperada = apiKeyEsperada;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -51,10 +57,12 @@ public class FiltroApiKey extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(autenticacao);
             filterChain.doFilter(request, response);
         } else {
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write(
-                    "{\"status\":401,\"erro\":\"Não autorizado\",\"mensagem\":\"API Key inválida ou ausente\"}"
+            RespostaErroHttpWriter.escrever(
+                    response,
+                    objectMapper,
+                    HttpStatus.UNAUTHORIZED,
+                    "Unauthorized",
+                    "API Key invalida ou ausente."
             );
         }
     }

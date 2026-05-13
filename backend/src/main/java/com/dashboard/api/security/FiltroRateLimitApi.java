@@ -1,13 +1,14 @@
 package com.dashboard.api.security;
 
+import com.dashboard.api.exception.RespostaErroHttpWriter;
 import com.dashboard.api.service.acesso.AcaoAudit;
 import com.dashboard.api.service.acesso.AuditService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,11 +26,13 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
             "/api/painel/contas-a-pagar",
             "/api/painel/cotacoes",
             "/api/dimensoes",
+            "/api/kpi-goals",
             "/api/painel/etl-saude",
             "/api/painel/executivo",
             "/api/painel/faturas",
             "/api/painel/faturas-por-cliente",
             "/api/painel/fretes",
+            "/api/painel/home/comunicados",
             "/api/painel/indicadores-gestao-a-vista",
             "/api/painel/manifestos",
             "/api/painel/tracking",
@@ -39,15 +42,18 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
     private final RateLimitService rateLimitService;
     private final AuditService auditService;
     private final IpClienteResolver ipClienteResolver;
+    private final ObjectMapper objectMapper;
 
     public FiltroRateLimitApi(
             RateLimitService rateLimitService,
             AuditService auditService,
-            IpClienteResolver ipClienteResolver
+            IpClienteResolver ipClienteResolver,
+            ObjectMapper objectMapper
     ) {
         this.rateLimitService = rateLimitService;
         this.auditService = auditService;
         this.ipClienteResolver = ipClienteResolver;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -77,15 +83,15 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
                     request.getRequestURI(),
                     "{\"janelaRequests\":" + decisao.totalNaJanela() + "}"
             );
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setHeader("Retry-After", String.valueOf(decisao.retryAfterSeconds()));
-            response.getWriter().write(
-                    "{\"status\":429,\"erro\":\"Too Many Requests\",\"mensagem\":\""
-                            + (exportacao
+            RespostaErroHttpWriter.escrever(
+                    response,
+                    objectMapper,
+                    HttpStatus.TOO_MANY_REQUESTS,
+                    "Too Many Requests",
+                    exportacao
                             ? "Limite temporário de exportações excedido."
-                            : "Limite temporário de requisições excedido.")
-                            + "\"}"
+                            : "Limite temporário de requisições excedido."
             );
             return;
         }

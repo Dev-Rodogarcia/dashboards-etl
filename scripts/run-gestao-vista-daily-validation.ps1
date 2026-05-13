@@ -1,7 +1,7 @@
 param(
     [string] $DataInicio = "2026-03-01",
     [string] $DataFim = "2026-03-31",
-    [string] $ApiBaseUrl = "http://localhost:5010",
+    [string] $ApiBaseUrl = "http://localhost:5011",
     [string] $Xlsx = "Análise - Divergências - Indicadores Projeto Gestão a Vista Operacional.xlsx"
 )
 

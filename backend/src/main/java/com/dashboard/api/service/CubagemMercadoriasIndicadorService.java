@@ -17,6 +17,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -25,6 +27,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +39,7 @@ public class CubagemMercadoriasIndicadorService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CubagemMercadoriasIndicadorService.class);
 
     private static final String STATUS_CANCELADO = "cancelado";
+    private static final Duration CACHE_REGISTROS_TTL = Duration.ofMinutes(2);
     private static final String PAGADOR_DOCS_EXCLUIDOS_PADRAO = """
             44699346000103;07668944000180;13190609000546;13190609000384;13190609000627;46928552000165;\
             14675270007381;56643018010390;14675270000450;14675270000298;05396883001510;05396883000386;\
@@ -48,6 +55,7 @@ public class CubagemMercadoriasIndicadorService {
     private final EscopoFilialService escopoFilialService;
     private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
     private final Set<String> pagadorDocsExcluidos;
+    private final ConcurrentMap<IndicadoresGestaoCacheUtils.CacheKey, IndicadoresGestaoCacheUtils.CacheEntry<List<CubagemRegistro>>> registrosCache = new ConcurrentHashMap<>();
 
     CubagemMercadoriasIndicadorService(
             ValidadorPeriodoService validadorPeriodo,
@@ -177,7 +185,50 @@ public class CubagemMercadoriasIndicadorService {
     private List<CubagemRegistro> buscarRegistros(FiltroConsultaDTO filtro) {
         JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        if (!IndicadoresGestaoCacheUtils.contextoWebAtivo()) {
+            return carregarRegistros(filtro, escopo, janela);
+        }
+        IndicadoresGestaoCacheUtils.CacheKey key = IndicadoresGestaoCacheUtils.chave(filtro, escopo);
+        Instant agora = Instant.now();
+        IndicadoresGestaoCacheUtils.CacheEntry<List<CubagemRegistro>> novaEntry = new IndicadoresGestaoCacheUtils.CacheEntry<>(
+                new CompletableFuture<>(),
+                agora.plus(CACHE_REGISTROS_TTL)
+        );
 
+        IndicadoresGestaoCacheUtils.CacheEntry<List<CubagemRegistro>> entry = registrosCache.compute(key, (cacheKey, existente) ->
+                existente != null && existente.validaEm(agora) ? existente : novaEntry
+        );
+
+        if (entry == novaEntry) {
+            try {
+                List<CubagemRegistro> registros = carregarRegistros(filtro, escopo, janela);
+                novaEntry.future().complete(registros);
+                if (registros.isEmpty()) {
+                    registrosCache.remove(key, novaEntry);
+                }
+                return registros;
+            } catch (RuntimeException ex) {
+                novaEntry.future().completeExceptionally(ex);
+                registrosCache.remove(key, novaEntry);
+                throw ex;
+            }
+        }
+
+        try {
+            return entry.future().join();
+        } catch (CompletionException ex) {
+            if (ex.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw ex;
+        }
+    }
+
+    private List<CubagemRegistro> carregarRegistros(
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            JanelaOffsetDateTime janela
+    ) {
         Map<Long, CubagemRegistro> porMinuta = new LinkedHashMap<>();
         List<VisaoFretesEntity> fretes;
         try {

@@ -14,10 +14,18 @@ cd /d "%~dp0"
 set "ROOT_DIR=%CD%"
 set "BACKEND_DIR=%ROOT_DIR%\backend"
 set "FRONTEND_DIR=%ROOT_DIR%\frontend"
-set "BACKEND_SCRIPT=%ROOT_DIR%\iniciar-backend.bat"
-set "FRONTEND_SCRIPT=%ROOT_DIR%\iniciar-front.bat"
-set "BACKEND_PORT=5010"
-set "FRONTEND_PORT=5173"
+set "BACKEND_MVNW=%BACKEND_DIR%\mvnw.cmd"
+set "BACKEND_POM=%BACKEND_DIR%\pom.xml"
+set "FRONTEND_PACKAGE=%FRONTEND_DIR%\package.json"
+set "BACKEND_LOG_DIR=%BACKEND_DIR%\logs"
+set "BACKEND_DEV_LOG=%BACKEND_LOG_DIR%\dashboard-api-dev.out.log"
+set "BACKEND_DEV_ERR=%BACKEND_LOG_DIR%\dashboard-api-dev.err.log"
+set "BACKEND_PID_FILE=%BACKEND_LOG_DIR%\dashboard-api-dev.pid"
+set "BACKEND_PORT=5011"
+set "FRONTEND_PORT=5174"
+set "LOCAL_API_URL=http://127.0.0.1:%BACKEND_PORT%"
+set "LOCAL_FRONTEND_ORIGINS=http://127.0.0.1:%FRONTEND_PORT%,http://localhost:%FRONTEND_PORT%"
+set "BACKEND_CMD=call "%BACKEND_MVNW%" -f "%BACKEND_POM%" spring-boot:run -Dspring-boot.run.profiles=dev"
 set "DRY_RUN=0"
 
 if /i "%~1"=="--dry-run" set "DRY_RUN=1"
@@ -30,14 +38,32 @@ echo   INICIAR DASHBOARDS - DEV
 echo ============================================
 echo.
 
-if not exist "%BACKEND_SCRIPT%" (
-    echo [ERRO] Arquivo nao encontrado: iniciar-backend.bat
+if not exist "%BACKEND_DIR%\" (
+    echo [ERRO] Pasta nao encontrada: backend
     pause
     exit /b 1
 )
 
-if not exist "%FRONTEND_SCRIPT%" (
-    echo [ERRO] Arquivo nao encontrado: iniciar-front.bat
+if not exist "%FRONTEND_DIR%\" (
+    echo [ERRO] Pasta nao encontrada: frontend
+    pause
+    exit /b 1
+)
+
+if not exist "%BACKEND_MVNW%" (
+    echo [ERRO] Arquivo nao encontrado: backend\mvnw.cmd
+    pause
+    exit /b 1
+)
+
+if not exist "%BACKEND_POM%" (
+    echo [ERRO] Arquivo nao encontrado: backend\pom.xml
+    pause
+    exit /b 1
+)
+
+if not exist "%FRONTEND_PACKAGE%" (
+    echo [ERRO] Arquivo nao encontrado: frontend\package.json
     pause
     exit /b 1
 )
@@ -74,22 +100,29 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Backend esperado em: http://127.0.0.1:%BACKEND_PORT%
-echo Frontend esperado em: http://127.0.0.1:%FRONTEND_PORT%
+echo Backend dev esperado em: http://127.0.0.1:%BACKEND_PORT%
+echo Frontend dev esperado em: http://127.0.0.1:%FRONTEND_PORT%
 echo.
-echo [INFO] O modo dev usa os mesmos scripts separados:
-echo        - iniciar-backend.bat
-echo        - iniciar-front.bat
-echo [INFO] Antes de iniciar, processos nas portas fixas serao encerrados.
-echo [INFO] Este modo injeta API local no frontend. Para Cloudflare/producao,
-echo        use iniciar-front.bat sem DASHBOARD_API_LOCAL para respeitar o .env.
+echo [INFO] O modo dev inicia diretamente:
+echo        - backend\mvnw.cmd spring-boot:run
+echo        - npm run dev
+echo [INFO] Antes de iniciar, apenas processos nas portas dev serao encerrados.
+echo [INFO] O backend roda em background e grava log em backend\logs.
+echo [INFO] O frontend roda neste terminal.
+echo [INFO] Este modo injeta API local no frontend: %LOCAL_API_URL%
+echo [INFO] Este modo libera CORS local para: %LOCAL_FRONTEND_ORIGINS%
+echo [INFO] Producao/Cloudflare permanece nas portas 5010 e 5173.
+echo [INFO] Para Cloudflare/producao, use iniciar-prod.bat.
 echo.
 
 if "%DRY_RUN%"=="1" (
     echo [DRY-RUN] liberar portas %BACKEND_PORT% e %FRONTEND_PORT%
-    echo [DRY-RUN] start "Dashboard API" cmd /k "set DASHBOARD_BACKEND_WINDOW=1&& call ""%BACKEND_SCRIPT%"""
+    echo [DRY-RUN] backend profile: dev
+    echo [DRY-RUN] backend CORS: %LOCAL_FRONTEND_ORIGINS%
+    echo [DRY-RUN] backend comando: backend\mvnw.cmd -f backend\pom.xml spring-boot:run -Dspring-boot.run.profiles=dev
+    echo [DRY-RUN] log backend: %BACKEND_DEV_LOG%
     echo [DRY-RUN] aguardar healthcheck http://127.0.0.1:%BACKEND_PORT%/actuator/health/liveness
-    echo [DRY-RUN] start "Dashboard UI" cmd /k "set DASHBOARD_FRONTEND_WINDOW=1&& set DASHBOARD_API_LOCAL=1&& call ""%FRONTEND_SCRIPT%"""
+    echo [DRY-RUN] frontend neste terminal: npm run dev -- --host 127.0.0.1 --port %FRONTEND_PORT%
     exit /b 0
 )
 
@@ -121,10 +154,36 @@ if errorlevel 1 (
     exit /b 1
 )
 
-start "Dashboard API" cmd /k "set DASHBOARD_BACKEND_WINDOW=1&& call ""%BACKEND_SCRIPT%"""
+if not exist "%BACKEND_LOG_DIR%\" mkdir "%BACKEND_LOG_DIR%"
+if exist "%BACKEND_DEV_LOG%" del /q "%BACKEND_DEV_LOG%" >nul 2>nul
+if exist "%BACKEND_DEV_ERR%" del /q "%BACKEND_DEV_ERR%" >nul 2>nul
 
 echo.
-echo [INFO] Aguardando backend responder antes de abrir o frontend...
+echo [INFO] Iniciando backend em background...
+set "SPRING_PROFILES_ACTIVE=dev"
+set "ENVIRONMENT=dev"
+set "SERVER_PORT=%BACKEND_PORT%"
+set "CORS_ORIGENS_PERMITIDAS=%LOCAL_FRONTEND_ORIGINS%"
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$env:SPRING_PROFILES_ACTIVE = 'dev';" ^
+  "$env:ENVIRONMENT = 'dev';" ^
+  "$env:SERVER_PORT = $env:BACKEND_PORT;" ^
+  "$env:CORS_ORIGENS_PERMITIDAS = $env:LOCAL_FRONTEND_ORIGINS;" ^
+  "$process = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d','/c',$env:BACKEND_CMD) -WorkingDirectory $env:ROOT_DIR -WindowStyle Hidden -RedirectStandardOutput $env:BACKEND_DEV_LOG -RedirectStandardError $env:BACKEND_DEV_ERR -PassThru;" ^
+  "Set-Content -Path $env:BACKEND_PID_FILE -Value $process.Id;" ^
+  "Write-Host ('[OK] Backend iniciado em background. PID=' + $process.Id);" ^
+  "Write-Host ('[INFO] Log backend: ' + $env:BACKEND_DEV_LOG);" ^
+  "exit 0"
+
+if errorlevel 1 (
+    echo.
+    echo [ERRO] Nao foi possivel iniciar o backend em background.
+    pause
+    exit /b 1
+)
+
+echo.
+echo [INFO] Aguardando backend responder antes de iniciar o frontend...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$url = 'http://127.0.0.1:%BACKEND_PORT%/actuator/health/liveness';" ^
   "$deadline = (Get-Date).AddSeconds(120);" ^
@@ -141,17 +200,32 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
 if errorlevel 1 (
     echo.
     echo [ERRO] Frontend nao iniciado porque o backend ainda nao ficou disponivel.
-    echo Verifique a janela "Dashboard API" para detalhes do erro.
+    echo Verifique os logs:
+    echo   %BACKEND_DEV_LOG%
+    echo   %BACKEND_DEV_ERR%
+    echo.
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+      "Write-Host '[INFO] Ultimas linhas do log do backend:';" ^
+      "Get-Content -Path $env:BACKEND_DEV_LOG -Tail 60 -ErrorAction SilentlyContinue;" ^
+      "Get-Content -Path $env:BACKEND_DEV_ERR -Tail 60 -ErrorAction SilentlyContinue;"
     pause
     exit /b 1
 )
 
-start "Dashboard UI" cmd /k "set DASHBOARD_FRONTEND_WINDOW=1&& set DASHBOARD_API_LOCAL=1&& call ""%FRONTEND_SCRIPT%"""
-
-echo [OK] Backend pronto e frontend iniciado pelos scripts separados.
-echo Feche cada janela individualmente para encerrar os processos.
 echo.
-exit /b 0
+echo [INFO] Iniciando frontend dev neste terminal...
+echo [INFO] Use Ctrl+C para encerrar o frontend. O backend sera encerrado na proxima execucao ao liberar a porta %BACKEND_PORT%.
+echo.
+
+cd /d "%FRONTEND_DIR%"
+set "DASHBOARD_FRONTEND_WINDOW=1"
+set "VITE_API_BASE_URL=%LOCAL_API_URL%"
+call npm run dev -- --host 127.0.0.1 --port %FRONTEND_PORT%
+set "EXIT_CODE=%ERRORLEVEL%"
+
+echo.
+echo [INFO] Frontend dev encerrado com codigo %EXIT_CODE%.
+exit /b %EXIT_CODE%
 
 :prefer_java_home
 if defined JAVA_HOME (

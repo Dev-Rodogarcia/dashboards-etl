@@ -9,11 +9,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.TransactionException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import jakarta.validation.ConstraintViolationException;
 
 import java.io.UncheckedIOException;
 import java.sql.SQLException;
@@ -23,6 +27,32 @@ import java.time.LocalDateTime;
 public class ManipuladorGlobalExcecoes {
 
     private static final Logger log = LoggerFactory.getLogger(ManipuladorGlobalExcecoes.class);
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<RespostaErroPadrao> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
+        log.warn("Corpo da requisição inválido: {}", ex.getMessage());
+
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.BAD_REQUEST,
+                "Bad Request",
+                "Dados inválidos na requisição."
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(resposta);
+    }
+
+    @ExceptionHandler({ConstraintViolationException.class, HandlerMethodValidationException.class})
+    public ResponseEntity<RespostaErroPadrao> handleValidationFailure(Exception ex) {
+        log.warn("Validação da requisição falhou: {}", ex.getMessage());
+
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.BAD_REQUEST,
+                "Bad Request",
+                "Dados inválidos na requisição."
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(resposta);
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<RespostaErroPadrao> handleIllegalArgument(IllegalArgumentException ex) {

@@ -9,6 +9,9 @@ import { AutenticacaoProvider } from './contexts/AutenticacaoContext.tsx'
 import { FiltroProvider } from './contexts/FiltroContext.tsx'
 import { PageHeaderProvider } from './contexts/PageHeaderContext.tsx'
 
+const dashboardBuildId = import.meta.env.VITE_DASHBOARD_BUILD_ID ?? 'dev';
+document.documentElement.dataset.dashboardBuildId = dashboardBuildId;
+
 const queryClient = new QueryClient();
 
 createRoot(document.getElementById('root')!).render(

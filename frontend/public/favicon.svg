@@ -1,3 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-label="Dashboards ETL">
   <circle cx="24" cy="24" r="22" fill="#21478A"/>
+  <path
+    d="M25.1 36.2C17.7 36.2 12 30.8 12 23.9C12 17 17.7 11.8 25 11.8C29.3 11.8 33 13.6 35.2 16.6L31 20.2C29.6 18.4 27.6 17.4 25.1 17.4C21 17.4 18 20.2 18 23.9C18 27.8 21.1 30.6 25.2 30.6C28.5 30.6 31 29.1 31.8 26.6H24.4V21.7H37.8C38 22.6 38.1 23.5 38.1 24.6C38.1 31.5 32.9 36.2 25.1 36.2Z"
+    fill="#FFFFFF"
+  />
 </svg>

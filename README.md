@@ -56,27 +56,28 @@ dashboards/
 
 ### Ambiente central (`.env`)
 
-Use `.env.example` como base. Este arquivo fica na raiz de `dashboards` e alimenta backend e frontend.
+Use `.env.example` como base para desenvolvimento local. Para a VM publicada via Cloudflare Tunnel, use `.env.production.example` e mantenha somente as origens reais de produção.
 
 ```env
-API_BASE_URL=http://localhost:5010
-VITE_API_BASE_URL=http://localhost:5010
+API_BASE_URL=http://127.0.0.1:5011
+VITE_API_BASE_URL=http://127.0.0.1:5011
 SERVER_ADDRESS=127.0.0.1
 DB_URL=jdbc:sqlserver://HOST:1433;databaseName=DASHBOARDS;encrypt=true;trustServerCertificate=true
 DB_USER=seu_usuario
 DB_PASSWORD=sua_senha
 JWT_SECRET=segredo-forte-unico-por-ambiente
 API_KEY=chave-forte-unica-para-rotas-internas
-CORS_ORIGENS_PERMITIDAS=http://localhost:5173,https://analytics.rodogarcia.com.br
+CORS_ORIGENS_PERMITIDAS=http://localhost:5174,http://127.0.0.1:5174
 ```
 
 Notas:
 
 - `JWT_SECRET` e `API_KEY` devem ser definidos explicitamente em todos os ambientes.
-- `VITE_API_BASE_URL` é lido pelo Vite a partir do mesmo `.env` central.
+- `VITE_API_BASE_URL` é obrigatório para `npm run build`; em produção use `https://api-analytics.rodogarcia.com.br`.
 - a migração legada JSON → SQL fica desabilitada por padrão e só deve ser habilitada de forma temporária via `ACL_LEGACY_MIGRATION_ENABLED=true`.
 - não versione usuários reais, hashes de senha ou artefatos de bootstrap no deploy.
 - em VM atras de Cloudflare Tunnel, mantenha `SERVER_ADDRESS=127.0.0.1` para a API responder apenas localmente ao `cloudflared`.
+- em produção, `CORS_ORIGENS_PERMITIDAS` deve ser exatamente `https://analytics.rodogarcia.com.br`, sem `localhost`.
 
 ## Como executar
 
@@ -88,8 +89,8 @@ Notas:
 
 O script abre duas janelas separadas e inicia:
 
-- API em `http://localhost:5010`
-- UI em `http://localhost:5173`
+- API dev em `http://localhost:5011`
+- UI dev em `http://localhost:5174`
 
 ### Opcao 2: manual
 
@@ -111,9 +112,17 @@ Frontend:
 
 ```powershell
 cd .\frontend
-npm install
+npm install --legacy-peer-deps
 npm run dev
 ```
+
+Backend e frontend de produção na VM:
+
+```powershell
+.\iniciar-prod.bat
+```
+
+O script valida o ambiente, libera apenas as portas de produção, gera `frontend/dist` atualizado, abre o backend em um terminal externo, espera o healthcheck ficar `UP`, valida o preflight CORS da API local e abre o frontend estático em outro terminal externo. O backend roda em `prod` na porta `5010` e aceita CORS somente de `https://analytics.rodogarcia.com.br`. O Cloudflare Tunnel deve continuar apontando `api-analytics.rodogarcia.com.br` para `5010` e `analytics.rodogarcia.com.br` para `5173`.
 
 ## Fluxo de acesso em desenvolvimento
 

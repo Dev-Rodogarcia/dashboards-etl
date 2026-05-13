@@ -40,7 +40,7 @@ describe('apiError', () => {
     expect(getApiErrorMessage(criarAxiosError({
       status: 429,
       headers: { 'retry-after': '90' },
-    }))).toBe('Muitas tentativas de autenticação. Aguarde 2 minutos e tente novamente.');
+    }))).toBe('Muitas requisições em pouco tempo. Aguarde 2 minutos e tente novamente.');
   });
 
   it('traduz timeout do axios para mensagem explicita e classifica como timeout', () => {
@@ -50,7 +50,7 @@ describe('apiError', () => {
     });
 
     expect(getApiErrorMessage(error)).toBe(
-      'A autenticação demorou mais do que o esperado. Verifique a conexão com a API e tente novamente.',
+      'A API demorou mais do que o esperado. Verifique a conexão e tente novamente.',
     );
     expect(getTipoErro(error)).toBe('timeout');
   });

@@ -68,7 +68,7 @@ class FaturasPorClienteServiceTest {
     }
 
     @Test
-    void buscarOverviewDeveNormalizarItensDaMesmaFaturaPorDocumento() {
+    void buscarOverviewDevePreservarItensDaMesmaFaturaComIdsDiferentes() {
         VisaoFaturasClienteEntity primeira = linha("uid-1", "DOC-1", "100.00", null, null, "Cliente A", "Filial 1",
                 LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 10), null,
                 LocalDateTime.of(2026, 3, 21, 10, 0));
@@ -90,9 +90,9 @@ class FaturasPorClienteServiceTest {
 
         FaturasPorClienteOverviewDTO overview = service.buscarOverview(filtroPadrao());
 
-        assertThat(overview.valorFaturado()).isEqualByComparingTo("175.00");
-        assertThat(overview.registrosFaturados()).isEqualTo(2);
-        assertThat(overview.clientesAtivos()).isEqualTo(2);
+        assertThat(overview.valorFaturado()).isEqualByComparingTo("275.00");
+        assertThat(overview.registrosFaturados()).isEqualTo(3);
+        assertThat(overview.clientesAtivos()).isEqualTo(3);
     }
 
     @Test

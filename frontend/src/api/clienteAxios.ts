@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
-import { API_BASE_URL, AUTH_REQUEST_TIMEOUT_MS } from '../config/api';
+import { API_BASE_URL, API_REQUEST_TIMEOUT_MS, AUTH_REQUEST_TIMEOUT_MS } from '../config/api';
 import type { LoginResponse } from '../types/auth';
 import { limparSessao, montarSessaoDoLogin, obterSessao, salvarSessao } from '../utils/gerenciadorSessao';
 import { ehSessaoExpiradaError, normalizarErroSessao } from '../utils/authSession';
@@ -12,6 +12,7 @@ export interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 const clienteAxios = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  timeout: API_REQUEST_TIMEOUT_MS,
   withCredentials: true,
 });
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AlertCircle, BarChart3, Boxes, Clock3, Gauge, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
@@ -337,6 +337,7 @@ export default function IndicadoresGestaoAVistaPage() {
 
   useEffect(() => {
     if (!goalsPanelOpen || goalsPanelBranchId || goalBranchOptions.length === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGoalsPanelBranchId(goalBranchOptions[0]);
     setGoalsHistoryPage(1);
   }, [goalBranchOptions, goalsPanelBranchId, goalsPanelOpen]);
@@ -383,17 +384,24 @@ export default function IndicadoresGestaoAVistaPage() {
   const indenizacaoRanking = useMemo(() => aggregateIndenizacaoRanking(indenizacaoSerie.data ?? []), [indenizacaoSerie.data]);
   const horariosRanking = useMemo(() => aggregateHorariosRanking(horariosSerie.data ?? []), [horariosSerie.data]);
   const selectedBranchForOverrides = filiaisSelecionadas.length === 1 ? filiaisSelecionadas[0] : null;
-  const globalGoalByIndicator: KpiGoalsMap = {
+  const globalGoalByIndicator = useMemo<KpiGoalsMap>(() => ({
     delivery_performance: performanceOverrides.data?.globalGoal ?? kpiGoals.data?.goals.delivery_performance ?? DEFAULT_KPI_GOALS.delivery_performance,
     collector_usage: coletoresOverrides.data?.globalGoal ?? kpiGoals.data?.goals.collector_usage ?? DEFAULT_KPI_GOALS.collector_usage,
     cargo_cubage: cubagemOverrides.data?.globalGoal ?? kpiGoals.data?.goals.cargo_cubage ?? DEFAULT_KPI_GOALS.cargo_cubage,
     cargo_indemnity: indenizacaoOverrides.data?.globalGoal ?? kpiGoals.data?.goals.cargo_indemnity ?? DEFAULT_KPI_GOALS.cargo_indemnity,
     cutoff_time: horariosOverrides.data?.globalGoal ?? kpiGoals.data?.goals.cutoff_time ?? DEFAULT_KPI_GOALS.cutoff_time,
-  };
-  const metaFilial = (sectionId: SectionId, branchName: string) => {
+  }), [
+    performanceOverrides.data?.globalGoal,
+    coletoresOverrides.data?.globalGoal,
+    cubagemOverrides.data?.globalGoal,
+    indenizacaoOverrides.data?.globalGoal,
+    horariosOverrides.data?.globalGoal,
+    kpiGoals.data?.goals,
+  ]);
+  const metaFilial = useCallback((sectionId: SectionId, branchName: string) => {
     const indicatorKey = SECTION_GOAL_KEYS[sectionId];
     return resolverMetaFilial(branchName, globalGoalByIndicator[indicatorKey], overridesByIndicator[indicatorKey]);
-  };
+  }, [globalGoalByIndicator, overridesByIndicator]);
   const goalOverridesNotice = (indicatorKey: KpiGoalIndicatorKey) => (
     <BranchGoalOverridesBanner
       indicatorKey={indicatorKey}
@@ -488,7 +496,7 @@ export default function IndicadoresGestaoAVistaPage() {
             `Fora do prazo: ${formatarNumero(item.entregasForaDoPrazo)}`,
           ],
         })
-  ), [goals, performanceRanking, performanceOverview.data?.pctNoPrazo, overridesByIndicator, globalGoalByIndicator]);
+  ), [goals, metaFilial, performanceRanking, performanceOverview.data?.pctNoPrazo]);
 
   const coletoresChartOption = useMemo(() => (
     coletoresRanking.length <= 1
@@ -518,7 +526,7 @@ export default function IndicadoresGestaoAVistaPage() {
             `Manifestos bipáveis: ${formatarNumero(item.totalManifestos)}`,
           ],
         })
-  ), [coletoresRanking, coletoresOverview.data?.pctUtilizacao, goals, overridesByIndicator, globalGoalByIndicator]);
+  ), [coletoresRanking, coletoresOverview.data?.pctUtilizacao, goals, metaFilial]);
 
   const cubagemChartOption = useMemo(() => (
     cubagemRanking.length <= 1
@@ -545,7 +553,7 @@ export default function IndicadoresGestaoAVistaPage() {
             `Sem cubagem: ${formatarNumero(item.fretesNaoCubados)}`,
           ],
         })
-  ), [cubagemRanking, cubagemOverview.data?.pctCubagem, goals, overridesByIndicator, globalGoalByIndicator]);
+  ), [cubagemRanking, cubagemOverview.data?.pctCubagem, goals, metaFilial]);
 
   const indenizacaoChartOption = useMemo(() => (
     indenizacaoRanking.length <= 1
@@ -576,7 +584,7 @@ export default function IndicadoresGestaoAVistaPage() {
           valueFormatter: (value) => formatarPorcentagem(value, 2),
           axisFormatter: (value) => formatarPorcentagem(value, 2),
         })
-  ), [goals, indenizacaoRanking, indenizacaoOverview.data?.pctIndenizacao, overridesByIndicator, globalGoalByIndicator]);
+  ), [goals, indenizacaoRanking, indenizacaoOverview.data?.pctIndenizacao, metaFilial]);
 
   const horariosChartOption = useMemo(() => (
     horariosRanking.length <= 1
@@ -603,7 +611,7 @@ export default function IndicadoresGestaoAVistaPage() {
             `Fora do horario: ${formatarNumero(item.saidasForaDoHorario)}`,
           ],
         })
-  ), [goals, horariosRanking, horariosOverview.data?.pctNoHorario, overridesByIndicator, globalGoalByIndicator]);
+  ), [goals, horariosRanking, horariosOverview.data?.pctNoHorario, metaFilial]);
 
   const performanceColumns: ColunaTabela<PerformanceEntregaRow>[] = [
     { chave: 'numeroMinuta', label: 'Minuta', fixo: true },

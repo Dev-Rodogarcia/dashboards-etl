@@ -17,14 +17,7 @@ import java.util.List;
 public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterDataSource {
 
     private static final String SQL = """
-            WITH paradas AS (
-                SELECT
-                    p.cod_solicitacao,
-                    MAX(p.data_extracao) AS parada_data_extracao
-                FROM [ETL_SISTEMA].dbo.raster_viagem_paradas p
-                GROUP BY p.cod_solicitacao
-            ),
-            viagens AS (
+            WITH viagens_base AS (
                 SELECT
                     v.cod_solicitacao,
                     v.status_viagem,
@@ -35,13 +28,38 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                     CAST(v.data_hora_prev_fim AS DATETIME2(0)) AS data_hora_prev_fim_at,
                     CAST(v.data_hora_identificou_fim_viagem AS DATETIME2(0)) AS data_hora_identificou_fim_at,
                     CAST(COALESCE(v.data_hora_real_fim, v.data_hora_prev_fim, v.data_hora_identificou_fim_viagem) AS DATETIME2(0)) AS data_corte_base_at,
+                    v.data_extracao
+                FROM [ETL_SISTEMA].dbo.raster_viagens v
+                WHERE COALESCE(v.data_hora_real_fim, v.data_hora_prev_fim, v.data_hora_identificou_fim_viagem) >= CAST(? AS DATE)
+                  AND COALESCE(v.data_hora_real_fim, v.data_hora_prev_fim, v.data_hora_identificou_fim_viagem) < DATEADD(DAY, 1, CAST(? AS DATE))
+            ),
+            paradas AS (
+                SELECT
+                    p.cod_solicitacao,
+                    MAX(p.data_extracao) AS parada_data_extracao
+                FROM [ETL_SISTEMA].dbo.raster_viagem_paradas p
+                INNER JOIN viagens_base vb
+                    ON vb.cod_solicitacao = p.cod_solicitacao
+                GROUP BY p.cod_solicitacao
+            ),
+            viagens AS (
+                SELECT
+                    v.cod_solicitacao,
+                    v.status_viagem,
+                    v.placa_veiculo,
+                    v.rota_limpa,
+                    v.data_hora_real_ini_at,
+                    v.data_hora_real_fim_at,
+                    v.data_hora_prev_fim_at,
+                    v.data_hora_identificou_fim_at,
+                    v.data_corte_base_at,
                     CASE
                         WHEN p.parada_data_extracao IS NULL THEN v.data_extracao
                         WHEN v.data_extracao IS NULL THEN p.parada_data_extracao
                         WHEN p.parada_data_extracao > v.data_extracao THEN p.parada_data_extracao
                         ELSE v.data_extracao
                     END AS data_extracao_at
-                FROM [ETL_SISTEMA].dbo.raster_viagens v
+                FROM viagens_base v
                 LEFT JOIN paradas p
                     ON p.cod_solicitacao = v.cod_solicitacao
             ),
@@ -194,7 +212,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
 
     @Override
     public List<VisaoHorariosCorteEntity> findByDataBetween(LocalDate dataInicio, LocalDate dataFim) {
-        return jdbcTemplate.query(SQL, this::mapRow, dataInicio, dataFim);
+        return jdbcTemplate.query(SQL, this::mapRow, dataInicio, dataFim, dataInicio, dataFim);
     }
 
     private VisaoHorariosCorteEntity mapRow(ResultSet rs, int rowNum) throws SQLException {

@@ -7,7 +7,7 @@ import path from 'node:path';
 const ROOT_DIR = process.cwd();
 const REPORTS_DIR = path.join(ROOT_DIR, 'reports');
 const DEFAULT_XLSX = path.join(ROOT_DIR, 'docs', 'Análise - Divergências - Indicadores Projeto Gestão a Vista Operacional.xlsx');
-const DEFAULT_API_BASE_URL = 'http://localhost:5010';
+const DEFAULT_API_BASE_URL = 'http://localhost:5011';
 
 const METRIC_TOLERANCES = {
   count: 0,

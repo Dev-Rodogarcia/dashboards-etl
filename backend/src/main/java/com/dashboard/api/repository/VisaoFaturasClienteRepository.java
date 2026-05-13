@@ -29,19 +29,29 @@ public interface VisaoFaturasClienteRepository extends JpaRepository<VisaoFatura
     );
 
     @Query(value = """
-            SELECT DISTINCT LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Documento]))) AS clienteCnpj
+            SELECT DISTINCT c.clienteCnpj
             FROM dbo.vw_faturas_por_cliente_powerbi
-            WHERE [Pagador do frete/Documento] IS NOT NULL
-              AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Documento]))) <> ''
+            CROSS APPLY (VALUES (
+                COALESCE(
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ]))), ''),
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Documento]))), '')
+                )
+            )) c(clienteCnpj)
+            WHERE c.clienteCnpj IS NOT NULL
             ORDER BY clienteCnpj
             """, nativeQuery = true)
     List<String> findDistinctClienteCnpj();
 
     @Query(value = """
-            SELECT DISTINCT LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Documento]))) AS clienteCnpj
+            SELECT DISTINCT c.clienteCnpj
             FROM dbo.vw_faturas_por_cliente_powerbi
-            WHERE [Pagador do frete/Documento] IS NOT NULL
-              AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Documento]))) <> ''
+            CROSS APPLY (VALUES (
+                COALESCE(
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ]))), ''),
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Documento]))), '')
+                )
+            )) c(clienteCnpj)
+            WHERE c.clienteCnpj IS NOT NULL
               AND LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial])))) IN (:filiais)
             ORDER BY clienteCnpj
             """, nativeQuery = true)

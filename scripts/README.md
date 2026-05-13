@@ -15,7 +15,7 @@ Este diretório contém a automação que compara os KPIs do SQL Server com os v
 
 ### Pré-requisitos
 
-- API local disponível em `http://localhost:5010`
+- API dev local disponível em `http://localhost:5011`
 - SQL Server acessível com as credenciais de `backend/.env`
 - `backend/.env` preenchido com `DB_URL`, `DB_USER`, `DB_PASSWORD` e `JWT_SECRET`
 - Pelo menos um usuário ativo em `acesso.usuarios`
@@ -37,7 +37,7 @@ node scripts/validate-dashboard-consistency.mjs --dataInicio=2026-03-01 --dataFi
 Com overrides opcionais:
 
 ```powershell
-node scripts/validate-dashboard-consistency.mjs --apiBaseUrl=http://localhost:5010 --apiUserEmail=desenvolvedor@rodogarcia.com.br
+node scripts/validate-dashboard-consistency.mjs --apiBaseUrl=http://localhost:5011 --apiUserEmail=desenvolvedor@rodogarcia.com.br
 ```
 
 Validação Gestão à Vista a partir do XLSX:
@@ -49,13 +49,13 @@ node scripts/validate-gestao-vista-xlsx-vs-dashboard.mjs --dataInicio=2026-03-01
 Com XLSX/API explícitos:
 
 ```powershell
-node scripts/validate-gestao-vista-xlsx-vs-dashboard.mjs --xlsx="Análise - Divergências - Indicadores Projeto Gestão a Vista Operacional.xlsx" --apiBaseUrl=http://localhost:5010
+node scripts/validate-gestao-vista-xlsx-vs-dashboard.mjs --xlsx="Análise - Divergências - Indicadores Projeto Gestão a Vista Operacional.xlsx" --apiBaseUrl=http://localhost:5011
 ```
 
 Runner para Agendador do Windows ou CI self-hosted:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\run-gestao-vista-daily-validation.ps1 -DataInicio 2026-03-01 -DataFim 2026-03-31 -ApiBaseUrl http://localhost:5010
+powershell -ExecutionPolicy Bypass -File scripts\run-gestao-vista-daily-validation.ps1 -DataInicio 2026-03-01 -DataFim 2026-03-31 -ApiBaseUrl http://localhost:5011
 ```
 
 ### Saída
