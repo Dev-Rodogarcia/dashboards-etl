@@ -26,6 +26,7 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { FaturaPorClienteResumoRow, FaturasPorClienteFiltro, FaturasPorClienteTopCliente } from '../types/faturasPorCliente';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
+import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 function rotuloTopCliente(item: FaturasPorClienteTopCliente): string {
   return item.clienteCnpj ? `${item.cliente} - ${item.clienteCnpj}` : item.cliente;
@@ -121,6 +122,12 @@ export default function FaturasPorClientePage() {
       },
     ],
   };
+  const statusTabelaOptions = combinarStatusOptions(
+    ['Faturado', 'Aguardando Faturamento'],
+    (statusProcesso.data ?? []).map((item) => item.statusProcesso),
+    (tabela.data?.conteudo ?? []).map((item) => item.statusProcesso),
+    filtros.statusProcesso,
+  );
 
   const colunasResumo: ColunaTabelaAnalitica<FaturaPorClienteResumoRow>[] = [
     { chave: 'idUnico', label: 'ID Único', fixo: true, largura: '180px', filtroTabela: 'codigo' },
@@ -203,7 +210,8 @@ export default function FaturasPorClientePage() {
         onMultiFilterChange={filtrosTabela.setMultiFilter}
         onColumnFilterChange={filtrosTabela.setColumnFilter}
         onClearFilters={filtrosTabela.clearTableFilters}
-        statusOptions={['Faturado', 'Aguardando Faturamento']}
+        statusOptions={statusTabelaOptions}
+        statusOptionsLoading={statusProcesso.isLoading}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

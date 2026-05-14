@@ -29,6 +29,7 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { FaturaReconciliacaoRow, FaturaResumoRow, FaturasFiltro } from '../types/faturas';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
+import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 export default function FaturasPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
@@ -102,6 +103,12 @@ export default function FaturasPage() {
       },
     ],
   };
+  const statusTabelaOptions = combinarStatusOptions(
+    ['Faturado', 'Aguardando Faturamento'],
+    (statusProcesso.data ?? []).map((item) => item.statusProcesso),
+    (tabela.data?.conteudo ?? []).map((item) => item.statusProcesso),
+    filtros.statusProcesso,
+  );
 
   const colunasResumo: ColunaTabelaAnalitica<FaturaResumoRow>[] = [
     { chave: 'documento', label: 'Documento', fixo: true, filtroTabela: 'codigo' },
@@ -213,7 +220,8 @@ export default function FaturasPage() {
             onMultiFilterChange={filtrosTabela.setMultiFilter}
             onColumnFilterChange={filtrosTabela.setColumnFilter}
             onClearFilters={filtrosTabela.clearTableFilters}
-            statusOptions={['Faturado', 'Aguardando Faturamento']}
+            statusOptions={statusTabelaOptions}
+            statusOptionsLoading={statusProcesso.isLoading}
             isLoading={tabela.isLoading}
             totalRegistros={tabela.data?.totalElementos}
             paginaAtual={paginacaoTabela.pagina}

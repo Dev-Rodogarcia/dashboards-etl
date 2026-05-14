@@ -29,6 +29,7 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { FreteResumoRow, FretesFiltro } from '../types/fretes';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
+import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 export default function FretesPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
@@ -69,6 +70,12 @@ export default function FretesPage() {
 
   const previsaoEntries = graficos.data?.previsaoPorStatus ?? [];
   const origemDestinoEntries = graficos.data?.topRotasPorReceita ?? [];
+  const statusTabelaOptions = combinarStatusOptions(
+    statusFretes.data,
+    previsaoEntries.map((item) => item.status),
+    (tabela.data?.conteudo ?? []).map((item) => item.status),
+    filtros.status,
+  );
 
   const previsaoOption: EChartsOption = {
     xAxis: { type: 'category', data: previsaoEntries.map((item) => item.status) },
@@ -187,7 +194,8 @@ export default function FretesPage() {
         onMultiFilterChange={filtrosTabela.setMultiFilter}
         onColumnFilterChange={filtrosTabela.setColumnFilter}
         onClearFilters={filtrosTabela.clearTableFilters}
-        statusOptions={statusFretes.data ?? []}
+        statusOptions={statusTabelaOptions}
+        statusOptionsLoading={statusFretes.isLoading}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

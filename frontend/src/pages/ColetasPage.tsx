@@ -20,6 +20,7 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ColetaResumoRow, ColetasFiltro } from '../types/coletas';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
+import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 export default function ColetasPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
@@ -60,6 +61,11 @@ export default function ColetasPage() {
   const slaPorFilial = graficos.data?.slaPorFilial ?? [];
   const regiaoVolume = graficos.data?.regiaoVolume ?? [];
   const aging = graficos.data?.agingAbertas ?? [];
+  const statusTabelaOptions = combinarStatusOptions(
+    statusData.map((item) => item.status),
+    (tabela.data?.conteudo ?? []).map((item) => item.status),
+    filtros.status,
+  );
 
   const statusOption: EChartsOption = {
     xAxis: { type: 'category', data: statusData.map((item) => item.status) },
@@ -180,7 +186,8 @@ export default function ColetasPage() {
         onMultiFilterChange={filtrosTabela.setMultiFilter}
         onColumnFilterChange={filtrosTabela.setColumnFilter}
         onClearFilters={filtrosTabela.clearTableFilters}
-        statusOptions={statusData.map((item) => item.status)}
+        statusOptions={statusTabelaOptions}
+        statusOptionsLoading={graficos.isLoading}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

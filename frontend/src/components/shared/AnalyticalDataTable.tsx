@@ -1,8 +1,9 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Funnel, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import type { ColunaTabela } from './DataTable';
+import { calcularLarguraMinimaTabela, getColumnSizingStyle } from './tableLayout';
 import type { TableColumnFilterValue, TableFilterField, TableFilters } from '../../types/tableFilters';
 
 export type ColunaTabelaAnalitica<T> = ColunaTabela<T> & {
@@ -23,6 +24,7 @@ interface AnalyticalDataTableProps<T> {
   onColumnFilterChange: (chaveColuna: string, valor: string | string[]) => void;
   onClearFilters: () => void;
   statusOptions?: string[];
+  statusOptionsLoading?: boolean;
   isLoading?: boolean;
   titulo?: string;
   totalRegistros?: number;
@@ -69,8 +71,34 @@ function TextFilter({
   placeholder: string;
   compact?: boolean;
 }) {
+  const [draftValue, setDraftValue] = useState(value);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    setDraftValue(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (draftValue === value) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => onChangeRef.current(draftValue), 350);
+    return () => window.clearTimeout(timeout);
+  }, [draftValue, value]);
+
+  function applyNow() {
+    if (draftValue !== value) {
+      onChangeRef.current(draftValue);
+    }
+  }
+
   return (
-    <div className="relative">
+    <div className={compact ? 'relative h-8' : 'relative h-9'}>
       <Search
         size={13}
         className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2"
@@ -79,11 +107,17 @@ function TextFilter({
       />
       <input
         type="search"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
+        value={draftValue}
+        onChange={(event) => setDraftValue(event.target.value)}
+        onBlur={applyNow}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            applyNow();
+          }
+        }}
         placeholder={placeholder}
         className={`w-full rounded-lg border pl-7 pr-2 text-xs outline-none transition-colors focus:border-[var(--color-primary)] ${
-          compact ? 'h-8 min-w-[132px]' : 'h-9'
+          compact ? 'h-8 min-w-0' : 'h-9'
         }`}
         style={{
           backgroundColor: 'var(--color-bg)',
@@ -101,15 +135,17 @@ function MultiSelectFilter({
   selecionados,
   onChange,
   compact = false,
+  isLoading = false,
 }: {
   label: string;
   opcoes: string[];
   selecionados: string[];
   onChange: (valores: string[]) => void;
   compact?: boolean;
+  isLoading?: boolean;
 }) {
   const labelId = useId();
-  const opcoesEfetivas = uniqueOptions(opcoes);
+  const opcoesEfetivas = uniqueOptions([...opcoes, ...selecionados]);
 
   return (
     <Popover>
@@ -118,15 +154,16 @@ function MultiSelectFilter({
           type="button"
           id={labelId}
           className={`flex w-full items-center justify-between gap-2 rounded-lg border px-2 text-left text-xs transition-colors hover:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] ${
-            compact ? 'h-8 min-w-[132px]' : 'h-9'
+            compact ? 'h-8 min-w-0' : 'h-9'
           }`}
           style={{
             backgroundColor: 'var(--color-bg)',
             borderColor: 'var(--color-border)',
             color: selecionados.length > 0 ? 'var(--color-text)' : 'var(--color-text-muted)',
           }}
+          aria-busy={isLoading}
         >
-          <span className="flex min-w-0 items-center gap-1.5">
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
             <Funnel size={12} aria-hidden="true" />
             <span className="truncate">{selecionados.length > 0 ? `${selecionados.length} selecionado(s)` : label}</span>
           </span>
@@ -166,7 +203,12 @@ function MultiSelectFilter({
               </label>
             );
           })}
-          {opcoesEfetivas.length === 0 && (
+          {opcoesEfetivas.length === 0 && isLoading && (
+            <p className="py-3 text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              Carregando...
+            </p>
+          )}
+          {opcoesEfetivas.length === 0 && !isLoading && (
             <p className="py-3 text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>
               Nenhuma opcao disponivel.
             </p>
@@ -183,6 +225,7 @@ function ColumnFilterControl({
   isStatus,
   filtros,
   statusOptions,
+  statusOptionsLoading,
   onColumnFilterChange,
 }: {
   chaveColuna: string;
@@ -190,6 +233,7 @@ function ColumnFilterControl({
   isStatus: boolean;
   filtros: TableFilters;
   statusOptions: string[];
+  statusOptionsLoading: boolean;
   onColumnFilterChange: (chaveColuna: string, valor: string | string[]) => void;
 }) {
   const valorAtual = filtros.columnFilters?.[chaveColuna];
@@ -202,6 +246,7 @@ function ColumnFilterControl({
         opcoes={statusOptions}
         selecionados={normalizarValorMulti(valorAtual)}
         onChange={(valores) => onColumnFilterChange(chaveColuna, valores)}
+        isLoading={statusOptionsLoading}
       />
     );
   }
@@ -234,12 +279,14 @@ function AdvancedFiltersContent({
   campos,
   filtros,
   statusOptions,
+  statusOptionsLoading,
   onTextFilterChange,
   onMultiFilterChange,
 }: {
   campos: TableFilterField[];
   filtros: TableFilters;
   statusOptions: string[];
+  statusOptionsLoading: boolean;
   onTextFilterChange: (campo: Exclude<keyof TableFilters, 'status' | 'columnFilters'>, valor: string) => void;
   onMultiFilterChange: (campo: Extract<keyof TableFilters, 'status'>, valores: string[]) => void;
 }) {
@@ -265,6 +312,7 @@ function AdvancedFiltersContent({
             opcoes={statusOptions}
             selecionados={filtros.status ?? []}
             onChange={(valores) => onMultiFilterChange('status', valores)}
+            isLoading={statusOptionsLoading}
           />
         </div>
       )}
@@ -299,11 +347,12 @@ function AdvancedFiltersButton<T>({
   filtros,
   hiddenActiveCount,
   statusOptions,
+  statusOptionsLoading,
   onTextFilterChange,
   onMultiFilterChange,
 }: Pick<
   AnalyticalDataTableProps<T>,
-  'colunas' | 'filtros' | 'hiddenActiveCount' | 'statusOptions' | 'onTextFilterChange' | 'onMultiFilterChange'
+  'colunas' | 'filtros' | 'hiddenActiveCount' | 'statusOptions' | 'statusOptionsLoading' | 'onTextFilterChange' | 'onMultiFilterChange'
 >) {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -318,6 +367,7 @@ function AdvancedFiltersButton<T>({
       campos={campos}
       filtros={filtros}
       statusOptions={statusOptionsEfetivas}
+      statusOptionsLoading={Boolean(statusOptionsLoading)}
       onTextFilterChange={onTextFilterChange}
       onMultiFilterChange={onMultiFilterChange}
     />
@@ -428,6 +478,7 @@ export default function AnalyticalDataTable<T>({
   onColumnFilterChange,
   onClearFilters,
   statusOptions,
+  statusOptionsLoading,
   isLoading,
   titulo,
   totalRegistros,
@@ -446,6 +497,7 @@ export default function AnalyticalDataTable<T>({
   const fimExibido = Math.min(inicio + dados.length, totalReal);
   const resumoRegistros = `${totalReal} registros encontrados`;
   const statusOptionsEfetivas = statusOptions ?? [];
+  const larguraMinimaTabela = calcularLarguraMinimaTabela(colunas);
 
   const dadosOrdenados = useMemo(() => {
     if (!ordenarPor || !colunaOrdenada || colunaOrdenada.ordenavel === false) {
@@ -513,7 +565,7 @@ export default function AnalyticalDataTable<T>({
       style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
     >
       <div
-        className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
+        className="flex min-h-[68px] flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
         style={{ borderColor: 'var(--color-border)' }}
       >
         <div>
@@ -538,6 +590,7 @@ export default function AnalyticalDataTable<T>({
             filtros={filtros}
             hiddenActiveCount={hiddenActiveCount}
             statusOptions={statusOptionsEfetivas}
+            statusOptionsLoading={statusOptionsLoading}
             onTextFilterChange={onTextFilterChange}
             onMultiFilterChange={onMultiFilterChange}
           />
@@ -577,37 +630,40 @@ export default function AnalyticalDataTable<T>({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-full text-sm">
+        <table className="w-max text-sm" style={{ minWidth: `max(100%, ${larguraMinimaTabela}px)` }}>
           <thead>
-            <tr className="border-b" style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
+            <tr className="h-10 border-b" style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
               {colunas.map((col) => (
                 <th
                   key={col.chave}
                   onClick={() => handleSort(col.chave, col.ordenavel !== false)}
-                  className={`px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider select-none ${
+                  title={col.label}
+                  className={`h-10 px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap select-none ${
                     col.ordenavel === false ? 'cursor-default' : 'cursor-pointer'
                   } ${col.fixo ? 'sticky left-0 z-10' : ''}`}
                   style={{
                     color: 'var(--color-text-muted)',
                     backgroundColor: col.fixo ? 'var(--color-bg)' : undefined,
-                    ...(col.largura ? { width: col.largura } : {}),
+                    ...getColumnSizingStyle(col.largura),
                   }}
                 >
-                  {col.label}
-                  {col.ordenavel !== false && ordenarPor === col.chave && (
-                    <span className="ml-1">{direcao === 'asc' ? '↑' : '↓'}</span>
-                  )}
+                  <span className="flex items-center gap-1">
+                    <span>{col.label}</span>
+                    {col.ordenavel !== false && ordenarPor === col.chave && (
+                      <span className="shrink-0">{direcao === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </span>
                 </th>
               ))}
             </tr>
-            <tr className="border-b" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
+            <tr className="h-12 border-b" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
               {colunas.map((col) => (
                 <th
                   key={`${col.chave}-filter`}
-                  className={`px-3 py-2 align-top ${col.fixo ? 'sticky left-0 z-10' : ''}`}
+                  className={`h-12 px-3 py-2 align-top ${col.fixo ? 'sticky left-0 z-10' : ''}`}
                   style={{
                     backgroundColor: col.fixo ? 'var(--color-card)' : undefined,
-                    ...(col.largura ? { width: col.largura } : {}),
+                    ...getColumnSizingStyle(col.largura),
                   }}
                 >
                   <ColumnFilterControl
@@ -616,6 +672,7 @@ export default function AnalyticalDataTable<T>({
                     isStatus={col.filtroTabela === 'status'}
                     filtros={filtros}
                     statusOptions={statusOptionsEfetivas}
+                    statusOptionsLoading={Boolean(statusOptionsLoading)}
                     onColumnFilterChange={onColumnFilterChange}
                   />
                 </th>
@@ -642,21 +699,27 @@ export default function AnalyticalDataTable<T>({
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-bg)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
                 >
-                  {colunas.map((col) => (
-                    <td
-                      key={col.chave}
-                      className={`px-3 py-2 whitespace-nowrap ${col.fixo ? 'sticky left-0' : ''}`}
-                      style={{
-                        color: 'var(--color-text)',
-                        backgroundColor: col.fixo ? 'var(--color-card)' : undefined,
-                        fontWeight: col.fixo ? 500 : undefined,
-                      }}
-                    >
-                      {col.formato
-                        ? col.formato(row[col.chave], row)
-                        : String(row[col.chave] ?? '—')}
-                    </td>
-                  ))}
+                  {colunas.map((col) => {
+                    const valor = row[col.chave];
+                    const conteudo = col.formato ? col.formato(valor, row) : String(valor ?? '—');
+
+                    return (
+                      <td
+                        key={col.chave}
+                        className={`px-3 py-2 align-middle whitespace-nowrap ${
+                          col.fixo ? 'sticky left-0' : ''
+                        }`}
+                        style={{
+                          color: 'var(--color-text)',
+                          backgroundColor: col.fixo ? 'var(--color-card)' : undefined,
+                          fontWeight: col.fixo ? 500 : undefined,
+                          ...getColumnSizingStyle(col.largura),
+                        }}
+                      >
+                        {conteudo}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             )}

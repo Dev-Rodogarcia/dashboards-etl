@@ -86,6 +86,7 @@ export function useFretesTabelaPaginada(
   return useQuery({
     queryKey: ['fretes', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarFretesTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
+    placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
     retry: 1,
   });

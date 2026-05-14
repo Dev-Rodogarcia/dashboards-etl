@@ -66,6 +66,7 @@ export function useColetasTabelaPaginada(
   return useQuery({
     queryKey: ['coletas', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarColetasTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
+    placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
     retry: 1,
   });

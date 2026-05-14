@@ -66,6 +66,7 @@ export function useContasAPagarTabelaPaginada(
   return useQuery({
     queryKey: ['contas-a-pagar', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarContasAPagarTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
+    placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
     retry: 1,
   });

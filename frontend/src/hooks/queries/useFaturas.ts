@@ -96,6 +96,7 @@ export function useFaturasTabelaPaginada(
   return useQuery({
     queryKey: ['faturas', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarFaturasTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
+    placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
     retry: 1,
   });

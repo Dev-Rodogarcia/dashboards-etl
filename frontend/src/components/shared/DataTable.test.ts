@@ -61,4 +61,26 @@ describe('DataTable', () => {
     expect(html).toContain('...');
     expect(html).toContain('504');
   });
+
+  it('permite scroll lateral com conteudo largo completo', () => {
+    type Row = { id: number; cliente: string; documento: string };
+    const Tabela = DataTable<Row>;
+    const html = renderToStaticMarkup(
+      createElement(Tabela, {
+        titulo: 'Fretes',
+        dados: [{ id: 1, cliente: 'Cliente com nome muito comprido', documento: 'Documento longo' }],
+        colunas: [
+          { chave: 'cliente', label: 'Cliente', largura: '160px' },
+          { chave: 'documento', label: 'Documento' },
+        ],
+        chaveLinha: 'id',
+      }),
+    );
+
+    expect(html).toContain('overflow-x-auto');
+    expect(html).toContain('w-max');
+    expect(html).toContain('whitespace-nowrap');
+    expect(html).toContain('Cliente com nome muito comprido');
+    expect(html).not.toContain('min-w-0 truncate');
+  });
 });

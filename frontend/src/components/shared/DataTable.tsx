@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { calcularLarguraMinimaTabela, getColumnSizingStyle } from './tableLayout';
 
 export interface ColunaTabela<T> {
   chave: keyof T & string;
@@ -126,6 +127,7 @@ export default function DataTable<T>({
     : totalReal > dados.length
     ? `${dados.length} de ${totalReal} registros carregados`
     : `${dados.length} registros carregados`;
+  const larguraMinimaTabela = calcularLarguraMinimaTabela(colunas);
   const itensPaginacao = useMemo<ItemPaginacao[]>(() => {
     if (totalPaginas <= 7) {
       return Array.from({ length: totalPaginas }, (_, index) => index + 1);
@@ -197,14 +199,15 @@ export default function DataTable<T>({
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-full text-sm">
+        <table className="w-max text-sm" style={{ minWidth: `max(100%, ${larguraMinimaTabela}px)` }}>
           <thead>
             <tr className="border-b" style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
               {colunas.map((col) => (
                 <th
                   key={col.chave}
                   onClick={() => handleSort(col.chave, col.ordenavel !== false)}
-                  className={`px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider select-none ${
+                  title={col.label}
+                  className={`px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap select-none ${
                     col.ordenavel === false ? 'cursor-default' : 'cursor-pointer'
                   } ${
                     col.fixo ? 'sticky left-0 z-10' : ''
@@ -212,13 +215,15 @@ export default function DataTable<T>({
                   style={{
                     color: 'var(--color-text-muted)',
                     backgroundColor: col.fixo ? 'var(--color-bg)' : undefined,
-                    ...(col.largura ? { width: col.largura } : {}),
+                    ...getColumnSizingStyle(col.largura),
                   }}
                 >
-                  {col.label}
-                  {col.ordenavel !== false && ordenarPor === col.chave && (
-                    <span className="ml-1">{direcao === 'asc' ? '↑' : '↓'}</span>
-                  )}
+                  <span className="flex items-center gap-1">
+                    <span>{col.label}</span>
+                    {col.ordenavel !== false && ordenarPor === col.chave && (
+                      <span className="shrink-0">{direcao === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </span>
                 </th>
               ))}
             </tr>
@@ -243,21 +248,27 @@ export default function DataTable<T>({
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-bg)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
                 >
-                  {colunas.map((col) => (
-                    <td
-                      key={col.chave}
-                      className={`px-3 py-2 whitespace-nowrap ${col.fixo ? 'sticky left-0' : ''}`}
-                      style={{
-                        color: 'var(--color-text)',
-                        backgroundColor: col.fixo ? 'var(--color-card)' : undefined,
-                        fontWeight: col.fixo ? 500 : undefined,
-                      }}
-                    >
-                      {col.formato
-                        ? col.formato(row[col.chave], row)
-                        : String(row[col.chave] ?? '—')}
-                    </td>
-                  ))}
+                  {colunas.map((col) => {
+                    const valor = row[col.chave];
+                    const conteudo = col.formato ? col.formato(valor, row) : String(valor ?? '—');
+
+                    return (
+                      <td
+                        key={col.chave}
+                        className={`px-3 py-2 align-middle whitespace-nowrap ${
+                          col.fixo ? 'sticky left-0' : ''
+                        }`}
+                        style={{
+                          color: 'var(--color-text)',
+                          backgroundColor: col.fixo ? 'var(--color-card)' : undefined,
+                          fontWeight: col.fixo ? 500 : undefined,
+                          ...getColumnSizingStyle(col.largura),
+                        }}
+                      >
+                        {conteudo}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             )}

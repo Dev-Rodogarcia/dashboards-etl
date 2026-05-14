@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { TableApiFilters, TableColumnFilterValue, TableFilters } from '../types/tableFilters';
 
@@ -14,8 +14,6 @@ const PARAMS = {
 
 const TABLE_PARAM_KEYS = Object.values(PARAMS);
 const COLUMN_PARAM_PREFIX = 't_col_';
-const DEBOUNCE_MS = 350;
-
 function limparTexto(valor: string | null): string | undefined {
   const texto = valor?.trim();
   return texto ? texto : undefined;
@@ -96,20 +94,9 @@ function aplicarValorColuna(params: URLSearchParams, chaveColuna: string, valor:
   }
 }
 
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setDebouncedValue(value), delayMs);
-    return () => window.clearTimeout(timeout);
-  }, [delayMs, value]);
-
-  return debouncedValue;
-}
-
-function toApiFilters(filtros: TableFilters, buscaDebounced: string | undefined): TableApiFilters {
+function toApiFilters(filtros: TableFilters): TableApiFilters {
   return {
-    tabelaBusca: buscaDebounced,
+    tabelaBusca: filtros.busca,
     tabelaCodigo: filtros.codigo,
     tabelaPlaca: filtros.placa,
     tabelaStatus: filtros.status && filtros.status.length > 0 ? filtros.status : undefined,
@@ -129,11 +116,10 @@ function countColumnFilters(columnFilters: Record<string, TableColumnFilterValue
 export function useAnalyticalTableFilters() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filtros = useMemo(() => lerFiltros(searchParams), [searchParams]);
-  const buscaDebounced = useDebouncedValue(filtros.busca, DEBOUNCE_MS);
 
   const apiFilters = useMemo(
-    () => toApiFilters(filtros, buscaDebounced),
-    [buscaDebounced, filtros],
+    () => toApiFilters(filtros),
+    [filtros],
   );
 
   const hiddenActiveCount = useMemo(
@@ -154,19 +140,19 @@ export function useAnalyticalTableFilters() {
   function setTextFilter(campo: Exclude<keyof TableFilters, 'status' | 'columnFilters'>, valor: string) {
     const next = new URLSearchParams(searchParams);
     aplicarValor(next, campo, valor);
-    setSearchParams(next, { replace: true });
+    setSearchParams(next, { replace: true, preventScrollReset: true });
   }
 
   function setMultiFilter(campo: Extract<keyof TableFilters, 'status'>, valores: string[]) {
     const next = new URLSearchParams(searchParams);
     aplicarValor(next, campo, valores);
-    setSearchParams(next, { replace: true });
+    setSearchParams(next, { replace: true, preventScrollReset: true });
   }
 
   function setColumnFilter(chaveColuna: string, valor: string | string[]) {
     const next = new URLSearchParams(searchParams);
     aplicarValorColuna(next, chaveColuna, valor);
-    setSearchParams(next, { replace: true });
+    setSearchParams(next, { replace: true, preventScrollReset: true });
   }
 
   function clearTableFilters() {
@@ -175,7 +161,7 @@ export function useAnalyticalTableFilters() {
     Array.from(next.keys())
       .filter((param) => param.startsWith(COLUMN_PARAM_PREFIX))
       .forEach((param) => next.delete(param));
-    setSearchParams(next, { replace: true });
+    setSearchParams(next, { replace: true, preventScrollReset: true });
   }
 
   return {

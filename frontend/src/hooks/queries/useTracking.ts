@@ -66,6 +66,7 @@ export function useTrackingTabelaPaginada(
   return useQuery({
     queryKey: ['tracking', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarTrackingTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
+    placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
     retry: 1,
   });

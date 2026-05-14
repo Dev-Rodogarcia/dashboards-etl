@@ -78,4 +78,18 @@ describe('AnalyticalDataTable', () => {
 
     expect(html).toContain('1 filtros ativos');
   });
+
+  it('permite scroll lateral com celulas completas', () => {
+    const html = renderTabela({
+      dados: [{ id: 1, status: 'Faturado', cliente: 'Cliente com nome muito comprido', valor: 100 }],
+    });
+
+    expect(html).toContain('overflow-x-auto');
+    expect(html).toContain('w-max');
+    expect(html).toContain('min-w-0');
+    expect(html).toContain('whitespace-nowrap');
+    expect(html).toContain('Cliente com nome muito comprido');
+    expect(html).not.toContain('table-fixed');
+    expect(html).not.toContain('min-w-0 truncate');
+  });
 });

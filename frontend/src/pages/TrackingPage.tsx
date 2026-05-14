@@ -19,6 +19,7 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { TrackingFiltro, TrackingRawRow } from '../types/tracking';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
+import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 export default function TrackingPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
@@ -57,6 +58,12 @@ export default function TrackingPage() {
   const statusData = graficos.data?.statusDistribuicao ?? [];
   const vencidasFilial = graficos.data?.previsaoVencidaPorFilialAtual ?? [];
   const valorRegiao = graficos.data?.valorPorRegiaoDestino ?? [];
+  const statusTabelaOptions = combinarStatusOptions(
+    ['Pendente', 'Em entrega', 'Em transferência', 'Manifestado', 'Finalizado'],
+    statusData.map((item) => item.status),
+    (tabela.data?.conteudo ?? []).map((item) => item.statusCarga),
+    filtros.statusCarga,
+  );
 
   const serieOption: EChartsOption = {
     legend: { bottom: 0 },
@@ -136,7 +143,8 @@ export default function TrackingPage() {
         onMultiFilterChange={filtrosTabela.setMultiFilter}
         onColumnFilterChange={filtrosTabela.setColumnFilter}
         onClearFilters={filtrosTabela.clearTableFilters}
-        statusOptions={['Pendente', 'Em entrega', 'Em transferência', 'Manifestado', 'Finalizado', ...(tabela.data?.conteudo ?? []).map((item) => item.statusCarga ?? '')]}
+        statusOptions={statusTabelaOptions}
+        statusOptionsLoading={graficos.isLoading}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

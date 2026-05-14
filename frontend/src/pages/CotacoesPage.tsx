@@ -19,6 +19,7 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { CotacaoResumoRow, CotacoesFiltro } from '../types/cotacoes';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
+import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 const ORDEM_FUNIL = ['Pendente', 'Convertida', 'Reprovada', 'Sem status'] as const;
 
@@ -76,6 +77,12 @@ export default function CotacoesPage() {
   const funil = graficos.data?.funil ?? [];
   const corredores = graficos.data?.corredoresMaisValiosos ?? [];
   const motivos = graficos.data?.motivosPerda ?? [];
+  const statusTabelaOptions = combinarStatusOptions(
+    ['Convertida', 'Reprovada', 'Pendente'],
+    funil.map((item) => item.etapa),
+    (tabela.data?.conteudo ?? []).map((item) => item.statusConversao),
+    filtros.statusConversao,
+  );
 
   const funilOrdenado = [
     ...ORDEM_FUNIL.flatMap((etapa) => {
@@ -236,7 +243,8 @@ export default function CotacoesPage() {
         onMultiFilterChange={filtrosTabela.setMultiFilter}
         onColumnFilterChange={filtrosTabela.setColumnFilter}
         onClearFilters={filtrosTabela.clearTableFilters}
-        statusOptions={['Convertida', 'Reprovada', 'Pendente', ...(tabela.data?.conteudo ?? []).map((item) => item.statusConversao ?? '')]}
+        statusOptions={statusTabelaOptions}
+        statusOptionsLoading={graficos.isLoading}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

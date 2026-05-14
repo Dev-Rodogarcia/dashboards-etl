@@ -19,6 +19,7 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ContaPagarResumoRow, ContasAPagarFiltro } from '../types/contasAPagar';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda } from '../utils/formatadores';
+import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 export default function ContasAPagarPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
@@ -56,6 +57,11 @@ export default function ContasAPagarPage() {
   const rankingFornecedor = graficos.data?.topFornecedores ?? [];
   const centroCusto = graficos.data?.centroCusto ?? [];
   const conciliacao = graficos.data?.conciliacao ?? [];
+  const statusTabelaOptions = combinarStatusOptions(
+    ['Sim', 'Não'],
+    (tabela.data?.conteudo ?? []).map((item) => item.statusPagamento),
+    filtros.pago,
+  );
 
   const serieOption: EChartsOption = {
     legend: { bottom: 0 },
@@ -147,7 +153,7 @@ export default function ContasAPagarPage() {
         onMultiFilterChange={filtrosTabela.setMultiFilter}
         onColumnFilterChange={filtrosTabela.setColumnFilter}
         onClearFilters={filtrosTabela.clearTableFilters}
-        statusOptions={['Sim', 'Não', ...(tabela.data?.conteudo ?? []).map((item) => item.statusPagamento ?? '')]}
+        statusOptions={statusTabelaOptions}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

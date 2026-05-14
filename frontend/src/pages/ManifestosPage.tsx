@@ -20,6 +20,7 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ManifestoResumoRow, ManifestosFiltro } from '../types/manifestos';
 import { CORES } from '../utils/chartColors';
 import { formatarMoeda, formatarNumero, formatarPeso } from '../utils/formatadores';
+import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 export default function ManifestosPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
@@ -59,6 +60,11 @@ export default function ManifestosPage() {
   const rankingMotorista = graficos.data?.rankingMotorista ?? [];
   const composicao = graficos.data?.composicaoCusto ?? [];
   const ocupacaoScatter = graficos.data?.ocupacaoScatter ?? [];
+  const statusTabelaOptions = combinarStatusOptions(
+    ['encerrado', 'em trânsito', 'pendente'],
+    (tabela.data?.conteudo ?? []).map((item) => item.status),
+    filtros.status,
+  );
 
   const custoOption: EChartsOption = {
     grid: { left: 10, containLabel: true },
@@ -182,7 +188,7 @@ export default function ManifestosPage() {
         onMultiFilterChange={filtrosTabela.setMultiFilter}
         onColumnFilterChange={filtrosTabela.setColumnFilter}
         onClearFilters={filtrosTabela.clearTableFilters}
-        statusOptions={['encerrado', 'em trânsito', 'pendente', ...(tabela.data?.conteudo ?? []).map((item) => item.status)]}
+        statusOptions={statusTabelaOptions}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}
