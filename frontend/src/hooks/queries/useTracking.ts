@@ -8,6 +8,7 @@ import {
   buscarTrackingTabelaTotal,
 } from '../../api/endpoints/trackingServico';
 import type { TrackingFiltro } from '../../types/tracking';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 const STALE_TIME = 5 * 60 * 1000;
 
@@ -56,10 +57,15 @@ export function useTrackingTabelaTotal(filtro: TrackingFiltro) {
   });
 }
 
-export function useTrackingTabelaPaginada(filtro: TrackingFiltro, pagina: number, tamanhoPagina: number) {
+export function useTrackingTabelaPaginada(
+  filtro: TrackingFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
+) {
   return useQuery({
-    queryKey: ['tracking', 'tabela-paginada', filtro, pagina, tamanhoPagina],
-    queryFn: () => buscarTrackingTabelaPaginada(filtro, pagina, tamanhoPagina),
+    queryKey: ['tracking', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
+    queryFn: () => buscarTrackingTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     staleTime: STALE_TIME,
     retry: 1,
   });

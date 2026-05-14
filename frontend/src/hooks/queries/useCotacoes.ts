@@ -8,6 +8,7 @@ import {
   buscarCotacoesTabelaTotal,
 } from '../../api/endpoints/cotacoesServico';
 import type { CotacoesFiltro } from '../../types/cotacoes';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 const STALE_TIME = 5 * 60 * 1000;
 
@@ -56,10 +57,15 @@ export function useCotacoesTabelaTotal(filtro: CotacoesFiltro) {
   });
 }
 
-export function useCotacoesTabelaPaginada(filtro: CotacoesFiltro, pagina: number, tamanhoPagina: number) {
+export function useCotacoesTabelaPaginada(
+  filtro: CotacoesFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
+) {
   return useQuery({
-    queryKey: ['cotacoes', 'tabela-paginada', filtro, pagina, tamanhoPagina],
-    queryFn: () => buscarCotacoesTabelaPaginada(filtro, pagina, tamanhoPagina),
+    queryKey: ['cotacoes', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
+    queryFn: () => buscarCotacoesTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     staleTime: STALE_TIME,
     retry: 1,
   });

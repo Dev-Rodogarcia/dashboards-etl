@@ -4,6 +4,7 @@ import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
 import type { TrackingCharts, TrackingFiltro, TrackingOverview, TrackingRawRow, TrackingTimelinePoint } from '../../types/tracking';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 type TrackingApiRow = TrackingRawRow & { pesoTaxado?: number; valorNf?: number };
 
@@ -70,12 +71,14 @@ export async function buscarTrackingTabelaPaginada(
   filtro: TrackingFiltro,
   pagina: number,
   tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
 ): Promise<PaginacaoResponse<TrackingRawRow>> {
   const resposta = await buscarTabelaPaginada<TrackingApiRow, TrackingFiltro>(
     '/api/painel/tracking/tabela/paginada',
     filtro,
     pagina,
     tamanhoPagina,
+    filtrosTabela,
   );
   return {
     ...resposta,
@@ -83,6 +86,6 @@ export async function buscarTrackingTabelaPaginada(
   };
 }
 
-export async function exportarTrackingCsv(filtro: TrackingFiltro): Promise<void> {
-  await baixarCsv('/api/painel/tracking/exportacao', filtro, 'localizacao-cargas');
+export async function exportarTrackingCsv(filtro: TrackingFiltro, filtrosTabela?: TableApiFilters): Promise<void> {
+  await baixarCsv('/api/painel/tracking/exportacao', filtro, 'localizacao-cargas', filtrosTabela);
 }

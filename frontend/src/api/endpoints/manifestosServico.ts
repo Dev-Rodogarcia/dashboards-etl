@@ -4,6 +4,7 @@ import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
 import type { ManifestoResumoRow, ManifestosCharts, ManifestosFiltro, ManifestosOverview, ManifestosTrendPoint } from '../../types/manifestos';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 export async function buscarManifestosOverview(filtro: ManifestosFiltro): Promise<ManifestosOverview> {
   const { data } = await clienteAxios.get<ManifestosOverview>('/api/painel/manifestos', {
@@ -47,10 +48,11 @@ export async function buscarManifestosTabelaPaginada(
   filtro: ManifestosFiltro,
   pagina: number,
   tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
 ): Promise<PaginacaoResponse<ManifestoResumoRow>> {
-  return buscarTabelaPaginada('/api/painel/manifestos/tabela/paginada', filtro, pagina, tamanhoPagina);
+  return buscarTabelaPaginada('/api/painel/manifestos/tabela/paginada', filtro, pagina, tamanhoPagina, filtrosTabela);
 }
 
-export async function exportarManifestosCsv(filtro: ManifestosFiltro): Promise<void> {
-  await baixarCsv('/api/painel/manifestos/exportacao', filtro, 'manifestos');
+export async function exportarManifestosCsv(filtro: ManifestosFiltro, filtrosTabela?: TableApiFilters): Promise<void> {
+  await baixarCsv('/api/painel/manifestos/exportacao', filtro, 'manifestos', filtrosTabela);
 }

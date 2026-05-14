@@ -1,15 +1,20 @@
 import clienteAxios from './clienteAxios';
 import { extrairNomeArquivo, salvarBlobComoArquivo } from './downloadArquivo';
 import { montarQueryParams } from './endpoints/queryParams';
+import { aplicarFiltrosTabelaParams } from './tableFilters';
 import { API_DOWNLOAD_TIMEOUT_MS } from '../config/api';
+import type { TableApiFilters } from '../types/tableFilters';
 
 export { extrairNomeArquivo, salvarBlobComoArquivo } from './downloadArquivo';
 
 export type FiltroCsv = { dataInicio: string; dataFim: string };
 
-export function criarConfigDownloadCsv<T extends FiltroCsv>(filtro: T) {
+export function criarConfigDownloadCsv<T extends FiltroCsv>(filtro: T, filtrosTabela?: TableApiFilters) {
+  const params = montarQueryParams(filtro);
+  aplicarFiltrosTabelaParams(params, filtrosTabela);
+
   return {
-    params: montarQueryParams(filtro),
+    params,
     responseType: 'blob' as const,
     timeout: API_DOWNLOAD_TIMEOUT_MS,
   };
@@ -83,8 +88,13 @@ async function validarRespostaCsv(blob: Blob, contentTypeHeader: string | undefi
   throw new Error(`A API retornou um arquivo em formato inesperado: ${contentType}.`);
 }
 
-export async function baixarCsv<T extends FiltroCsv>(endpoint: string, filtro: T, nomeFallback: string): Promise<void> {
-  const response = await clienteAxios.get<Blob>(endpoint, criarConfigDownloadCsv(filtro));
+export async function baixarCsv<T extends FiltroCsv>(
+  endpoint: string,
+  filtro: T,
+  nomeFallback: string,
+  filtrosTabela?: TableApiFilters,
+): Promise<void> {
+  const response = await clienteAxios.get<Blob>(endpoint, criarConfigDownloadCsv(filtro, filtrosTabela));
   const contentDisposition = normalizarHeader(response.headers['content-disposition']);
   const contentType = normalizarHeader(response.headers['content-type']);
   const nomeArquivo = extrairNomeArquivo(contentDisposition, `${nomeFallback}.csv`);

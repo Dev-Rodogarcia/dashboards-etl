@@ -3,7 +3,7 @@ import ColetasKpiGrid from '../components/domain/coletas/ColetasKpiGrid';
 import ColetasTrend from '../components/domain/coletas/ColetasTrend';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
-import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
+import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
@@ -15,6 +15,7 @@ import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useClientes, useFiliais, useUsuarios } from '../hooks/queries/useDimensoes';
 import { useColetasGraficos, useColetasOverview, useColetasSerie, useColetasTabelaPaginada } from '../hooks/queries/useColetas';
+import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ColetaResumoRow, ColetasFiltro } from '../types/coletas';
 import { CORES } from '../utils/chartColors';
@@ -45,8 +46,9 @@ export default function ColetasPage() {
   const overview = useColetasOverview(filtro);
   const serie = useColetasSerie(filtro);
   const graficos = useColetasGraficos(filtro);
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
-  const tabela = useColetasTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+  const filtrosTabela = useAnalyticalTableFilters();
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const tabela = useColetasTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
   usePageHeader({
     title: 'Coletas',
@@ -102,14 +104,14 @@ export default function ColetasPage() {
     series: [{ type: 'bar', data: aging.map((item) => item.total), itemStyle: { color: CORES.aviso } }],
   };
 
-  const colunas: ColunaTabela<ColetaResumoRow>[] = [
-    { chave: 'id', label: 'ID', fixo: true },
+  const colunas: ColunaTabelaAnalitica<ColetaResumoRow>[] = [
+    { chave: 'id', label: 'ID', fixo: true, filtroTabela: 'codigo' },
     { chave: 'coleta', label: 'Coleta' },
     { chave: 'solicitacao', label: 'Solicitacao' },
-    { chave: 'status', label: 'Status', formato: (valor) => <StatusBadge status={String(valor)} /> },
+    { chave: 'status', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
     { chave: 'filial', label: 'Filial' },
-    { chave: 'cliente', label: 'Cliente', largura: '220px' },
-    { chave: 'regiaoColeta', label: 'Regiao' },
+    { chave: 'cliente', label: 'Cliente', largura: '220px', filtroTabela: 'razaoSocial' },
+    { chave: 'regiaoColeta', label: 'Regiao', filtroTabela: 'origem' },
     { chave: 'volumes', label: 'Volumes' },
     { chave: 'pesoTaxado', label: 'Peso', formato: (valor) => formatarPeso(Number(valor ?? 0)) },
     { chave: 'valorNf', label: 'Valor NF', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
@@ -164,13 +166,21 @@ export default function ColetasPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="coletas" onExport={() => exportarColetasCsv(filtro)} />
+        <ExportButton nomeArquivo="coletas" onExport={() => exportarColetasCsv(filtro, filtrosTabela.apiFilters)} />
       </div>
-      <DataTable
+      <AnalyticalDataTable
         titulo="Coletas Analiticas"
         dados={tabela.data?.conteudo ?? []}
         colunas={colunas}
         chaveLinha="id"
+        filtros={filtrosTabela.filters}
+        hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+        hasAnyFilter={filtrosTabela.hasAnyFilter}
+        onTextFilterChange={filtrosTabela.setTextFilter}
+        onMultiFilterChange={filtrosTabela.setMultiFilter}
+        onColumnFilterChange={filtrosTabela.setColumnFilter}
+        onClearFilters={filtrosTabela.clearTableFilters}
+        statusOptions={statusData.map((item) => item.status)}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

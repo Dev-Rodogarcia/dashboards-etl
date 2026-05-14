@@ -5,7 +5,7 @@ import FretesKpiGrid from '../components/domain/fretes/FretesKpiGrid';
 import FretesReceitaTrend from '../components/domain/fretes/FretesReceitaTrend';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
-import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
+import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
@@ -24,6 +24,7 @@ import {
   useFretesTabelaPaginada,
   useFretesTopClientes,
 } from '../hooks/queries/useFretes';
+import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { FreteResumoRow, FretesFiltro } from '../types/fretes';
 import { CORES } from '../utils/chartColors';
@@ -53,8 +54,9 @@ export default function FretesPage() {
   const graficos = useFretesGraficos(filtro);
   const topClientes = useFretesTopClientes(filtro);
   const mixDoc = useFretesMixDocumental(filtro);
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
-  const tabela = useFretesTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+  const filtrosTabela = useAnalyticalTableFilters();
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const tabela = useFretesTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
   const filtroParaStatus: FretesFiltro = { dataInicio, dataFim, filiais: filtros.filiais, pagadores: filtros.pagadores };
   const statusFretes = useFretesStatus(filtroParaStatus);
@@ -107,19 +109,19 @@ export default function FretesPage() {
     },
   };
 
-  const colunas: ColunaTabela<FreteResumoRow>[] = [
-    { chave: 'id', label: 'ID', fixo: true },
+  const colunas: ColunaTabelaAnalitica<FreteResumoRow>[] = [
+    { chave: 'id', label: 'ID', fixo: true, filtroTabela: 'codigo' },
     { chave: 'dataFrete', label: 'Data' },
-    { chave: 'status', label: 'Status', formato: (valor) => <StatusBadge status={String(valor)} /> },
+    { chave: 'status', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
     { chave: 'filial', label: 'Filial' },
-    { chave: 'pagador', label: 'Pagador', largura: '220px' },
+    { chave: 'pagador', label: 'Pagador', largura: '220px', filtroTabela: 'razaoSocial' },
     { chave: 'documentoTipo', label: 'Documento' },
     { chave: 'valorFrete', label: 'Valor Frete', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'valorTotalServico', label: 'Receita', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'pesoTaxado', label: 'Peso', formato: (valor) => formatarPeso(Number(valor ?? 0)) },
     { chave: 'volumes', label: 'Volumes' },
-    { chave: 'origemUf', label: 'UF Origem' },
-    { chave: 'destinoUf', label: 'UF Destino' },
+    { chave: 'origemUf', label: 'UF Origem', filtroTabela: 'origem' },
+    { chave: 'destinoUf', label: 'UF Destino', filtroTabela: 'destino' },
     { chave: 'previsaoEntrega', label: 'Previsao' },
   ];
 
@@ -171,13 +173,21 @@ export default function FretesPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="fretes" onExport={() => exportarFretesCsv(filtro)} />
+        <ExportButton nomeArquivo="fretes" onExport={() => exportarFretesCsv(filtro, filtrosTabela.apiFilters)} />
       </div>
-      <DataTable
+      <AnalyticalDataTable
         titulo="Fretes Analiticos"
         dados={tabela.data?.conteudo ?? []}
         colunas={colunas}
         chaveLinha="id"
+        filtros={filtrosTabela.filters}
+        hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+        hasAnyFilter={filtrosTabela.hasAnyFilter}
+        onTextFilterChange={filtrosTabela.setTextFilter}
+        onMultiFilterChange={filtrosTabela.setMultiFilter}
+        onColumnFilterChange={filtrosTabela.setColumnFilter}
+        onClearFilters={filtrosTabela.clearTableFilters}
+        statusOptions={statusFretes.data ?? []}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

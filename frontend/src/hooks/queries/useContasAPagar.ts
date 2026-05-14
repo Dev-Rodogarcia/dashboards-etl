@@ -8,6 +8,7 @@ import {
   buscarContasAPagarTabelaTotal,
 } from '../../api/endpoints/contasAPagarServico';
 import type { ContasAPagarFiltro } from '../../types/contasAPagar';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 const STALE_TIME = 5 * 60 * 1000;
 
@@ -56,10 +57,15 @@ export function useContasAPagarTabelaTotal(filtro: ContasAPagarFiltro) {
   });
 }
 
-export function useContasAPagarTabelaPaginada(filtro: ContasAPagarFiltro, pagina: number, tamanhoPagina: number) {
+export function useContasAPagarTabelaPaginada(
+  filtro: ContasAPagarFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
+) {
   return useQuery({
-    queryKey: ['contas-a-pagar', 'tabela-paginada', filtro, pagina, tamanhoPagina],
-    queryFn: () => buscarContasAPagarTabelaPaginada(filtro, pagina, tamanhoPagina),
+    queryKey: ['contas-a-pagar', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
+    queryFn: () => buscarContasAPagarTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     staleTime: STALE_TIME,
     retry: 1,
   });

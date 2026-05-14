@@ -12,6 +12,7 @@ import type {
   FaturasPorClienteStatusProcesso,
   FaturasPorClienteTopCliente,
 } from '../../types/faturasPorCliente';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 export async function buscarFaturasPorClienteOverview(
   filtro: FaturasPorClienteFiltro
@@ -84,10 +85,11 @@ export async function buscarFaturasPorClienteTabelaPaginada(
   filtro: FaturasPorClienteFiltro,
   pagina: number,
   tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
 ): Promise<PaginacaoResponse<FaturaPorClienteResumoRow>> {
-  return buscarTabelaPaginada('/api/painel/faturas-por-cliente/tabela/paginada', filtro, pagina, tamanhoPagina);
+  return buscarTabelaPaginada('/api/painel/faturas-por-cliente/tabela/paginada', filtro, pagina, tamanhoPagina, filtrosTabela);
 }
 
-export async function exportarFaturasPorClienteCsv(filtro: FaturasPorClienteFiltro): Promise<void> {
-  await baixarCsv('/api/painel/faturas-por-cliente/exportacao', filtro, 'faturas-por-cliente');
+export async function exportarFaturasPorClienteCsv(filtro: FaturasPorClienteFiltro, filtrosTabela?: TableApiFilters): Promise<void> {
+  await baixarCsv('/api/painel/faturas-por-cliente/exportacao', filtro, 'faturas-por-cliente', filtrosTabela);
 }

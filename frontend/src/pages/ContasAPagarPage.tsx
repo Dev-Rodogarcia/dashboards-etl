@@ -2,7 +2,7 @@ import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import ContasAPagarKpiGrid from '../components/domain/contasAPagar/ContasAPagarKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
-import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
+import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
@@ -14,6 +14,7 @@ import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useFiliais, usePlanoContas } from '../hooks/queries/useDimensoes';
 import { useContasAPagarGraficos, useContasAPagarOverview, useContasAPagarSerie, useContasAPagarTabelaPaginada } from '../hooks/queries/useContasAPagar';
+import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ContaPagarResumoRow, ContasAPagarFiltro } from '../types/contasAPagar';
 import { CORES } from '../utils/chartColors';
@@ -42,8 +43,9 @@ export default function ContasAPagarPage() {
   const overview = useContasAPagarOverview(filtro);
   const serie = useContasAPagarSerie(filtro);
   const graficos = useContasAPagarGraficos(filtro);
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
-  const tabela = useContasAPagarTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+  const filtrosTabela = useAnalyticalTableFilters();
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const tabela = useContasAPagarTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
   usePageHeader({
     title: 'Contas a Pagar',
@@ -96,16 +98,16 @@ export default function ContasAPagarPage() {
     series: [{ type: 'pie', radius: ['40%', '68%'], data: conciliacao.map((item) => ({ name: item.status, value: item.valor })) }],
   };
 
-  const colunas: ColunaTabela<ContaPagarResumoRow>[] = [
-    { chave: 'lancamentoNumero', label: 'Lancamento', fixo: true },
+  const colunas: ColunaTabelaAnalitica<ContaPagarResumoRow>[] = [
+    { chave: 'lancamentoNumero', label: 'Lancamento', fixo: true, filtroTabela: 'codigo' },
     { chave: 'emissao', label: 'Emissao' },
     { chave: 'filial', label: 'Filial' },
-    { chave: 'fornecedor', label: 'Fornecedor', largura: '220px' },
+    { chave: 'fornecedor', label: 'Fornecedor', largura: '220px', filtroTabela: 'razaoSocial' },
     { chave: 'classificacao', label: 'Classificacao' },
     { chave: 'centroCusto', label: 'Centro Custo' },
     { chave: 'valorAPagar', label: 'Valor a Pagar', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'valorPago', label: 'Valor Pago', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
-    { chave: 'statusPagamento', label: 'Pagamento', formato: (valor) => <StatusBadge status={String(valor)} /> },
+    { chave: 'statusPagamento', label: 'Pagamento', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
   ];
 
   return (
@@ -131,13 +133,21 @@ export default function ContasAPagarPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="contas-a-pagar" onExport={() => exportarContasAPagarCsv(filtro)} />
+        <ExportButton nomeArquivo="contas-a-pagar" onExport={() => exportarContasAPagarCsv(filtro, filtrosTabela.apiFilters)} />
       </div>
-      <DataTable
+      <AnalyticalDataTable
         titulo="Lançamentos Analiticos"
         dados={tabela.data?.conteudo ?? []}
         colunas={colunas}
         chaveLinha="lancamentoNumero"
+        filtros={filtrosTabela.filters}
+        hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+        hasAnyFilter={filtrosTabela.hasAnyFilter}
+        onTextFilterChange={filtrosTabela.setTextFilter}
+        onMultiFilterChange={filtrosTabela.setMultiFilter}
+        onColumnFilterChange={filtrosTabela.setColumnFilter}
+        onClearFilters={filtrosTabela.clearTableFilters}
+        statusOptions={['Sim', 'Não', ...(tabela.data?.conteudo ?? []).map((item) => item.statusPagamento ?? '')]}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

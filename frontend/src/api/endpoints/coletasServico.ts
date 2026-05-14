@@ -4,6 +4,7 @@ import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
 import type { ColetaResumoRow, ColetasCharts, ColetasFiltro, ColetasOverview, ColetasTrendPoint } from '../../types/coletas';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 export async function buscarColetasOverview(filtro: ColetasFiltro): Promise<ColetasOverview> {
   const { data } = await clienteAxios.get<ColetasOverview>('/api/painel/coletas', {
@@ -47,10 +48,11 @@ export async function buscarColetasTabelaPaginada(
   filtro: ColetasFiltro,
   pagina: number,
   tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
 ): Promise<PaginacaoResponse<ColetaResumoRow>> {
-  return buscarTabelaPaginada('/api/painel/coletas/tabela/paginada', filtro, pagina, tamanhoPagina);
+  return buscarTabelaPaginada('/api/painel/coletas/tabela/paginada', filtro, pagina, tamanhoPagina, filtrosTabela);
 }
 
-export async function exportarColetasCsv(filtro: ColetasFiltro): Promise<void> {
-  await baixarCsv('/api/painel/coletas/exportacao', filtro, 'coletas');
+export async function exportarColetasCsv(filtro: ColetasFiltro, filtrosTabela?: TableApiFilters): Promise<void> {
+  await baixarCsv('/api/painel/coletas/exportacao', filtro, 'coletas', filtrosTabela);
 }

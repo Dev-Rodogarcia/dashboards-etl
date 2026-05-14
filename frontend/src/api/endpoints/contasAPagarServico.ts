@@ -10,6 +10,7 @@ import type {
   ContasAPagarMensalTrend,
   ContasAPagarOverview,
 } from '../../types/contasAPagar';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 export async function buscarContasAPagarOverview(filtro: ContasAPagarFiltro): Promise<ContasAPagarOverview> {
   const { data } = await clienteAxios.get<ContasAPagarOverview>('/api/painel/contas-a-pagar', {
@@ -53,10 +54,11 @@ export async function buscarContasAPagarTabelaPaginada(
   filtro: ContasAPagarFiltro,
   pagina: number,
   tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
 ): Promise<PaginacaoResponse<ContaPagarResumoRow>> {
-  return buscarTabelaPaginada('/api/painel/contas-a-pagar/tabela/paginada', filtro, pagina, tamanhoPagina);
+  return buscarTabelaPaginada('/api/painel/contas-a-pagar/tabela/paginada', filtro, pagina, tamanhoPagina, filtrosTabela);
 }
 
-export async function exportarContasAPagarCsv(filtro: ContasAPagarFiltro): Promise<void> {
-  await baixarCsv('/api/painel/contas-a-pagar/exportacao', filtro, 'contas-a-pagar');
+export async function exportarContasAPagarCsv(filtro: ContasAPagarFiltro, filtrosTabela?: TableApiFilters): Promise<void> {
+  await baixarCsv('/api/painel/contas-a-pagar/exportacao', filtro, 'contas-a-pagar', filtrosTabela);
 }

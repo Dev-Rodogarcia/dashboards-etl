@@ -11,6 +11,7 @@ import {
   buscarFaturasTopClientes,
 } from '../../api/endpoints/faturasServico';
 import type { FaturasFiltro } from '../../types/faturas';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 const STALE_TIME = 5 * 60 * 1000;
 
@@ -86,10 +87,15 @@ export function useFaturasTabelaTotal(filtro: FaturasFiltro) {
   });
 }
 
-export function useFaturasTabelaPaginada(filtro: FaturasFiltro, pagina: number, tamanhoPagina: number) {
+export function useFaturasTabelaPaginada(
+  filtro: FaturasFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
+) {
   return useQuery({
-    queryKey: ['faturas', 'tabela-paginada', filtro, pagina, tamanhoPagina],
-    queryFn: () => buscarFaturasTabelaPaginada(filtro, pagina, tamanhoPagina),
+    queryKey: ['faturas', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
+    queryFn: () => buscarFaturasTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     staleTime: STALE_TIME,
     retry: 1,
   });

@@ -8,6 +8,7 @@ import {
   buscarColetasTabelaTotal,
 } from '../../api/endpoints/coletasServico';
 import type { ColetasFiltro } from '../../types/coletas';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 const STALE_TIME = 5 * 60 * 1000;
 
@@ -56,10 +57,15 @@ export function useColetasTabelaTotal(filtro: ColetasFiltro) {
   });
 }
 
-export function useColetasTabelaPaginada(filtro: ColetasFiltro, pagina: number, tamanhoPagina: number) {
+export function useColetasTabelaPaginada(
+  filtro: ColetasFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
+) {
   return useQuery({
-    queryKey: ['coletas', 'tabela-paginada', filtro, pagina, tamanhoPagina],
-    queryFn: () => buscarColetasTabelaPaginada(filtro, pagina, tamanhoPagina),
+    queryKey: ['coletas', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
+    queryFn: () => buscarColetasTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     staleTime: STALE_TIME,
     retry: 1,
   });

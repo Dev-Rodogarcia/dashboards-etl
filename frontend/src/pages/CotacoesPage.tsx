@@ -2,7 +2,7 @@ import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import CotacoesKpiGrid from '../components/domain/cotacoes/CotacoesKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
-import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
+import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
@@ -14,6 +14,7 @@ import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useClientes, useFiliais } from '../hooks/queries/useDimensoes';
 import { useCotacoesGraficos, useCotacoesOverview, useCotacoesSerie, useCotacoesTabelaPaginada } from '../hooks/queries/useCotacoes';
+import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { CotacaoResumoRow, CotacoesFiltro } from '../types/cotacoes';
 import { CORES } from '../utils/chartColors';
@@ -62,8 +63,9 @@ export default function CotacoesPage() {
   const overview = useCotacoesOverview(filtro);
   const serie = useCotacoesSerie(filtro);
   const graficos = useCotacoesGraficos(filtro);
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
-  const tabela = useCotacoesTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+  const filtrosTabela = useAnalyticalTableFilters();
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const tabela = useCotacoesTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
   usePageHeader({
     title: 'Cotações',
@@ -180,14 +182,14 @@ export default function CotacoesPage() {
     series: [{ type: 'bar', data: motivos.map((item) => item.total), itemStyle: { color: CORES.aviso } }],
   };
 
-  const colunas: ColunaTabela<CotacaoResumoRow>[] = [
-    { chave: 'numeroCotacao', label: 'Cotacao', fixo: true },
+  const colunas: ColunaTabelaAnalitica<CotacaoResumoRow>[] = [
+    { chave: 'numeroCotacao', label: 'Cotacao', fixo: true, filtroTabela: 'codigo' },
     { chave: 'dataCotacao', label: 'Data' },
     { chave: 'filial', label: 'Filial' },
-    { chave: 'clientePagador', label: 'Pagador', largura: '220px' },
-    { chave: 'trecho', label: 'Trecho', largura: '220px' },
+    { chave: 'clientePagador', label: 'Pagador', largura: '220px', filtroTabela: 'razaoSocial' },
+    { chave: 'trecho', label: 'Trecho', largura: '220px', filtroTabela: 'origem' },
     { chave: 'valorFrete', label: 'Valor Frete', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
-    { chave: 'statusConversao', label: 'Status', formato: (valor) => <StatusBadge status={String(valor)} /> },
+    { chave: 'statusConversao', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
     { chave: 'motivoPerda', label: 'Motivo Perda', largura: '220px' },
   ];
 
@@ -220,13 +222,21 @@ export default function CotacoesPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="cotacoes" onExport={() => exportarCotacoesCsv(filtro)} />
+        <ExportButton nomeArquivo="cotacoes" onExport={() => exportarCotacoesCsv(filtro, filtrosTabela.apiFilters)} />
       </div>
-      <DataTable
+      <AnalyticalDataTable
         titulo="Cotacoes Analiticas"
         dados={tabela.data?.conteudo ?? []}
         colunas={colunas}
         chaveLinha="numeroCotacao"
+        filtros={filtrosTabela.filters}
+        hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+        hasAnyFilter={filtrosTabela.hasAnyFilter}
+        onTextFilterChange={filtrosTabela.setTextFilter}
+        onMultiFilterChange={filtrosTabela.setMultiFilter}
+        onColumnFilterChange={filtrosTabela.setColumnFilter}
+        onClearFilters={filtrosTabela.clearTableFilters}
+        statusOptions={['Convertida', 'Reprovada', 'Pendente', ...(tabela.data?.conteudo ?? []).map((item) => item.statusConversao ?? '')]}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

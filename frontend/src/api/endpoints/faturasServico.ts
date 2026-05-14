@@ -13,6 +13,7 @@ import type {
   FaturaReconciliacaoRow,
   FaturaResumoRow,
 } from '../../types/faturas';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 export async function buscarFaturasOverview(filtro: FaturasFiltro): Promise<FaturasOverview> {
   const { data } = await clienteAxios.get<FaturasOverview>('/api/painel/faturas', {
@@ -83,12 +84,13 @@ export async function buscarFaturasTabelaPaginada(
   filtro: FaturasFiltro,
   pagina: number,
   tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
 ): Promise<PaginacaoResponse<FaturaResumoRow>> {
-  return buscarTabelaPaginada('/api/painel/faturas/tabela/paginada', filtro, pagina, tamanhoPagina);
+  return buscarTabelaPaginada('/api/painel/faturas/tabela/paginada', filtro, pagina, tamanhoPagina, filtrosTabela);
 }
 
-export async function exportarFaturasProcessosCsv(filtro: FaturasFiltro): Promise<void> {
-  await baixarCsv('/api/painel/faturas/exportacao', filtro, 'faturas-processos');
+export async function exportarFaturasProcessosCsv(filtro: FaturasFiltro, filtrosTabela?: TableApiFilters): Promise<void> {
+  await baixarCsv('/api/painel/faturas/exportacao', filtro, 'faturas-processos', filtrosTabela);
 }
 
 export async function exportarFaturasFinanceirasCsv(filtro: FaturasFiltro): Promise<void> {

@@ -8,6 +8,7 @@ import {
   buscarManifestosTabelaTotal,
 } from '../../api/endpoints/manifestosServico';
 import type { ManifestosFiltro } from '../../types/manifestos';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 const STALE_TIME = 5 * 60 * 1000;
 
@@ -56,10 +57,15 @@ export function useManifestosTabelaTotal(filtro: ManifestosFiltro) {
   });
 }
 
-export function useManifestosTabelaPaginada(filtro: ManifestosFiltro, pagina: number, tamanhoPagina: number) {
+export function useManifestosTabelaPaginada(
+  filtro: ManifestosFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
+) {
   return useQuery({
-    queryKey: ['manifestos', 'tabela-paginada', filtro, pagina, tamanhoPagina],
-    queryFn: () => buscarManifestosTabelaPaginada(filtro, pagina, tamanhoPagina),
+    queryKey: ['manifestos', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
+    queryFn: () => buscarManifestosTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     staleTime: STALE_TIME,
     retry: 1,
   });

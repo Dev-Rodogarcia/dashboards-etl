@@ -2,7 +2,7 @@ import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import TrackingKpiGrid from '../components/domain/tracking/TrackingKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
-import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
+import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
@@ -14,6 +14,7 @@ import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useFiliais } from '../hooks/queries/useDimensoes';
 import { useTrackingGraficos, useTrackingOverview, useTrackingSerie, useTrackingTabelaPaginada } from '../hooks/queries/useTracking';
+import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { TrackingFiltro, TrackingRawRow } from '../types/tracking';
 import { CORES } from '../utils/chartColors';
@@ -43,8 +44,9 @@ export default function TrackingPage() {
   const overview = useTrackingOverview(filtro);
   const serie = useTrackingSerie(filtro);
   const graficos = useTrackingGraficos(filtro);
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
-  const tabela = useTrackingTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+  const filtrosTabela = useAnalyticalTableFilters();
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const tabela = useTrackingTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
   usePageHeader({
     title: 'Localização de Cargas',
@@ -85,13 +87,13 @@ export default function TrackingPage() {
     series: [{ type: 'bar', data: valorRegiao.map((item) => item.valorFrete), itemStyle: { color: CORES.secundaria } }],
   };
 
-  const colunas: ColunaTabela<TrackingRawRow>[] = [
-    { chave: 'numeroMinuta', label: 'Minuta', fixo: true },
+  const colunas: ColunaTabelaAnalitica<TrackingRawRow>[] = [
+    { chave: 'numeroMinuta', label: 'Minuta', fixo: true, filtroTabela: 'codigo' },
     { chave: 'dataFrete', label: 'Data' },
-    { chave: 'statusCarga', label: 'Status', formato: (valor) => <StatusBadge status={String(valor)} /> },
+    { chave: 'statusCarga', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
     { chave: 'filialEmissora', label: 'Filial Emissora' },
     { chave: 'filialAtual', label: 'Filial Atual' },
-    { chave: 'regiaoDestino', label: 'Regiao Destino' },
+    { chave: 'regiaoDestino', label: 'Regiao Destino', filtroTabela: 'destino' },
     { chave: 'pesoTaxadoRaw', label: 'Peso', formato: (valor) => formatarPeso(Number(valor ?? 0)) },
     { chave: 'valorFrete', label: 'Valor Frete', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'previsaoEntrega', label: 'Previsao' },
@@ -120,13 +122,21 @@ export default function TrackingPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="localizacao-cargas" onExport={() => exportarTrackingCsv(filtro)} />
+        <ExportButton nomeArquivo="localizacao-cargas" onExport={() => exportarTrackingCsv(filtro, filtrosTabela.apiFilters)} />
       </div>
-      <DataTable
+      <AnalyticalDataTable
         titulo="Localização de Cargas Analítica"
         dados={tabela.data?.conteudo ?? []}
         colunas={colunas}
         chaveLinha="numeroMinuta"
+        filtros={filtrosTabela.filters}
+        hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+        hasAnyFilter={filtrosTabela.hasAnyFilter}
+        onTextFilterChange={filtrosTabela.setTextFilter}
+        onMultiFilterChange={filtrosTabela.setMultiFilter}
+        onColumnFilterChange={filtrosTabela.setColumnFilter}
+        onClearFilters={filtrosTabela.clearTableFilters}
+        statusOptions={['Pendente', 'Em entrega', 'Em transferência', 'Manifestado', 'Finalizado', ...(tabela.data?.conteudo ?? []).map((item) => item.statusCarga ?? '')]}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

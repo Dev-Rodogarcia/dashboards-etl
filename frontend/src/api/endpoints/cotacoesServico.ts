@@ -4,6 +4,7 @@ import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
 import type { CotacaoResumoRow, CotacoesCharts, CotacoesFiltro, CotacoesOverview, CotacoesTrendPoint } from '../../types/cotacoes';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 export async function buscarCotacoesOverview(filtro: CotacoesFiltro): Promise<CotacoesOverview> {
   const { data } = await clienteAxios.get<CotacoesOverview>('/api/painel/cotacoes', {
@@ -47,10 +48,11 @@ export async function buscarCotacoesTabelaPaginada(
   filtro: CotacoesFiltro,
   pagina: number,
   tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
 ): Promise<PaginacaoResponse<CotacaoResumoRow>> {
-  return buscarTabelaPaginada('/api/painel/cotacoes/tabela/paginada', filtro, pagina, tamanhoPagina);
+  return buscarTabelaPaginada('/api/painel/cotacoes/tabela/paginada', filtro, pagina, tamanhoPagina, filtrosTabela);
 }
 
-export async function exportarCotacoesCsv(filtro: CotacoesFiltro): Promise<void> {
-  await baixarCsv('/api/painel/cotacoes/exportacao', filtro, 'cotacoes');
+export async function exportarCotacoesCsv(filtro: CotacoesFiltro, filtrosTabela?: TableApiFilters): Promise<void> {
+  await baixarCsv('/api/painel/cotacoes/exportacao', filtro, 'cotacoes', filtrosTabela);
 }

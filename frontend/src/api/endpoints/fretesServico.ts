@@ -12,6 +12,7 @@ import type {
   FretesTrendPoint,
   FreteResumoRow,
 } from '../../types/fretes';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 export async function buscarFretesOverview(filtro: FretesFiltro): Promise<FretesOverview> {
   const { data } = await clienteAxios.get<FretesOverview>('/api/painel/fretes', {
@@ -72,10 +73,11 @@ export async function buscarFretesTabelaPaginada(
   filtro: FretesFiltro,
   pagina: number,
   tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
 ): Promise<PaginacaoResponse<FreteResumoRow>> {
-  return buscarTabelaPaginada('/api/painel/fretes/tabela/paginada', filtro, pagina, tamanhoPagina);
+  return buscarTabelaPaginada('/api/painel/fretes/tabela/paginada', filtro, pagina, tamanhoPagina, filtrosTabela);
 }
 
-export async function exportarFretesCsv(filtro: FretesFiltro): Promise<void> {
-  await baixarCsv('/api/painel/fretes/exportacao', filtro, 'fretes');
+export async function exportarFretesCsv(filtro: FretesFiltro, filtrosTabela?: TableApiFilters): Promise<void> {
+  await baixarCsv('/api/painel/fretes/exportacao', filtro, 'fretes', filtrosTabela);
 }

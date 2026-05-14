@@ -3,7 +3,7 @@ import ChartWrapper from '../components/charts/ChartWrapper';
 import ManifestosKpiGrid from '../components/domain/manifestos/ManifestosKpiGrid';
 import ManifestosTrend from '../components/domain/manifestos/ManifestosTrend';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
-import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
+import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
@@ -15,6 +15,7 @@ import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useFiliais, useMotoristas, useVeiculos } from '../hooks/queries/useDimensoes';
 import { useManifestosGraficos, useManifestosOverview, useManifestosSerie, useManifestosTabelaPaginada } from '../hooks/queries/useManifestos';
+import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ManifestoResumoRow, ManifestosFiltro } from '../types/manifestos';
 import { CORES } from '../utils/chartColors';
@@ -44,8 +45,9 @@ export default function ManifestosPage() {
   const overview = useManifestosOverview(filtro);
   const serie = useManifestosSerie(filtro);
   const graficos = useManifestosGraficos(filtro);
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
-  const tabela = useManifestosTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+  const filtrosTabela = useAnalyticalTableFilters();
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const tabela = useManifestosTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
   usePageHeader({
     title: 'Manifestos',
@@ -104,12 +106,12 @@ export default function ManifestosPage() {
     },
   };
 
-  const colunas: ColunaTabela<ManifestoResumoRow>[] = [
-    { chave: 'numero', label: 'Manifesto', fixo: true },
-    { chave: 'status', label: 'Status', formato: (valor) => <StatusBadge status={String(valor)} /> },
+  const colunas: ColunaTabelaAnalitica<ManifestoResumoRow>[] = [
+    { chave: 'numero', label: 'Manifesto', fixo: true, filtroTabela: 'codigo' },
+    { chave: 'status', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
     { chave: 'filial', label: 'Filial' },
     { chave: 'motorista', label: 'Motorista' },
-    { chave: 'veiculoPlaca', label: 'Veiculo' },
+    { chave: 'veiculoPlaca', label: 'Veiculo', filtroTabela: 'placa' },
     { chave: 'dataCriacao', label: 'Criacao' },
     { chave: 'totalPesoTaxado', label: 'Peso', formato: (valor) => formatarPeso(Number(valor ?? 0)) },
     { chave: 'totalM3', label: 'M3', formato: (valor) => formatarNumero(Number(valor ?? 0), 2) },
@@ -166,13 +168,21 @@ export default function ManifestosPage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="manifestos" onExport={() => exportarManifestosCsv(filtro)} />
+        <ExportButton nomeArquivo="manifestos" onExport={() => exportarManifestosCsv(filtro, filtrosTabela.apiFilters)} />
       </div>
-      <DataTable
+      <AnalyticalDataTable
         titulo="Manifestos Analiticos"
         dados={tabela.data?.conteudo ?? []}
         colunas={colunas}
         chaveLinha="identificadorUnico"
+        filtros={filtrosTabela.filters}
+        hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+        hasAnyFilter={filtrosTabela.hasAnyFilter}
+        onTextFilterChange={filtrosTabela.setTextFilter}
+        onMultiFilterChange={filtrosTabela.setMultiFilter}
+        onColumnFilterChange={filtrosTabela.setColumnFilter}
+        onClearFilters={filtrosTabela.clearTableFilters}
+        statusOptions={['encerrado', 'em trânsito', 'pendente', ...(tabela.data?.conteudo ?? []).map((item) => item.status)]}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

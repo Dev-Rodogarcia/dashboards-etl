@@ -2,7 +2,7 @@ import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import FaturasPorClienteKpiGrid from '../components/domain/faturasPorCliente/FaturasPorClienteKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
-import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
+import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
@@ -21,6 +21,7 @@ import {
   useFaturasPorClienteTabelaPaginada,
   useFaturasPorClienteTopClientes,
 } from '../hooks/queries/useFaturasPorCliente';
+import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { FaturaPorClienteResumoRow, FaturasPorClienteFiltro, FaturasPorClienteTopCliente } from '../types/faturasPorCliente';
 import { CORES } from '../utils/chartColors';
@@ -57,8 +58,9 @@ export default function FaturasPorClientePage() {
   const aging = useFaturasPorClienteAging(filtro);
   const topClientes = useFaturasPorClienteTopClientes(filtro);
   const statusProcesso = useFaturasPorClienteStatusProcesso(filtro);
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
-  const tabela = useFaturasPorClienteTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+  const filtrosTabela = useAnalyticalTableFilters();
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const tabela = useFaturasPorClienteTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
   usePageHeader({
     title: 'Faturas por Cliente',
@@ -120,18 +122,18 @@ export default function FaturasPorClientePage() {
     ],
   };
 
-  const colunasResumo: ColunaTabela<FaturaPorClienteResumoRow>[] = [
-    { chave: 'idUnico', label: 'ID Único', fixo: true, largura: '180px' },
+  const colunasResumo: ColunaTabelaAnalitica<FaturaPorClienteResumoRow>[] = [
+    { chave: 'idUnico', label: 'ID Único', fixo: true, largura: '180px', filtroTabela: 'codigo' },
     { chave: 'documentoFatura', label: 'Documento', largura: '140px' },
     { chave: 'emissao', label: 'Emissão' },
     { chave: 'vencimento', label: 'Vencimento' },
     { chave: 'baixa', label: 'Baixa' },
     { chave: 'filial', label: 'Filial' },
-    { chave: 'clientePagador', label: 'Cliente', largura: '220px' },
+    { chave: 'clientePagador', label: 'Cliente', largura: '220px', filtroTabela: 'razaoSocial' },
     { chave: 'clienteCnpj', label: 'CNPJ', largura: '160px' },
     { chave: 'numeroCte', label: 'CT-e' },
     { chave: 'valorFaturado', label: 'Valor Faturado', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
-    { chave: 'statusProcesso', label: 'Status Processo', formato: (valor) => <StatusBadge status={String(valor)} /> },
+    { chave: 'statusProcesso', label: 'Status Processo', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
   ];
 
   return (
@@ -187,13 +189,21 @@ export default function FaturasPorClientePage() {
       </div>
 
       <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="faturas-por-cliente" onExport={() => exportarFaturasPorClienteCsv(filtro)} />
+        <ExportButton nomeArquivo="faturas-por-cliente" onExport={() => exportarFaturasPorClienteCsv(filtro, filtrosTabela.apiFilters)} />
       </div>
-      <DataTable
+      <AnalyticalDataTable
         titulo="Faturas por Cliente"
         dados={tabela.data?.conteudo ?? []}
         colunas={colunasResumo}
         chaveLinha="idUnico"
+        filtros={filtrosTabela.filters}
+        hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+        hasAnyFilter={filtrosTabela.hasAnyFilter}
+        onTextFilterChange={filtrosTabela.setTextFilter}
+        onMultiFilterChange={filtrosTabela.setMultiFilter}
+        onColumnFilterChange={filtrosTabela.setColumnFilter}
+        onClearFilters={filtrosTabela.clearTableFilters}
+        statusOptions={['Faturado', 'Aguardando Faturamento']}
         isLoading={tabela.isLoading}
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}

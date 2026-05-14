@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import FaturasKpiGrid from '../components/domain/faturas/FaturasKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
+import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
@@ -23,6 +24,7 @@ import {
   useFaturasTabelaPaginada,
   useFaturasTopClientes,
 } from '../hooks/queries/useFaturas';
+import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { FaturaReconciliacaoRow, FaturaResumoRow, FaturasFiltro } from '../types/faturas';
 import { CORES } from '../utils/chartColors';
@@ -55,8 +57,9 @@ export default function FaturasPage() {
   const topClientes = useFaturasTopClientes(filtro);
   const statusProcesso = useFaturasStatusProcesso(filtro);
   const reconciliacao = useFaturasReconciliacao(filtro, 80);
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
-  const tabela = useFaturasTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+  const filtrosTabela = useAnalyticalTableFilters();
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const tabela = useFaturasTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
   const hasFinancialData = overview.data?.hasFinancialData ?? true;
 
   usePageHeader({
@@ -100,17 +103,17 @@ export default function FaturasPage() {
     ],
   };
 
-  const colunasResumo: ColunaTabela<FaturaResumoRow>[] = [
-    { chave: 'documento', label: 'Documento', fixo: true },
+  const colunasResumo: ColunaTabelaAnalitica<FaturaResumoRow>[] = [
+    { chave: 'documento', label: 'Documento', fixo: true, filtroTabela: 'codigo' },
     { chave: 'emissao', label: 'Emissao' },
     { chave: 'vencimento', label: 'Vencimento' },
     { chave: 'filial', label: 'Filial' },
-    { chave: 'clientePagador', label: 'Cliente', largura: '220px' },
+    { chave: 'clientePagador', label: 'Cliente', largura: '220px', filtroTabela: 'razaoSocial' },
     { chave: 'valorOperacional', label: 'Operacional', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'valorFinanceiro', label: 'Financeiro', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'valorPago', label: 'Pago', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'valorAberto', label: 'Aberto', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
-    { chave: 'statusProcesso', label: 'Processo', formato: (valor) => <StatusBadge status={String(valor)} /> },
+    { chave: 'statusProcesso', label: 'Processo', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
   ];
 
   const colunasReconciliacao: ColunaTabela<FaturaReconciliacaoRow>[] = [
@@ -190,7 +193,7 @@ export default function FaturasPage() {
             <ExportButton
               nomeArquivo="faturas-processos"
               label="Exportar processos"
-              onExport={() => exportarFaturasProcessosCsv(filtro)}
+              onExport={() => exportarFaturasProcessosCsv(filtro, filtrosTabela.apiFilters)}
             />
             <ExportButton
               nomeArquivo="faturas-titulos-financeiros"
@@ -198,11 +201,19 @@ export default function FaturasPage() {
               onExport={() => exportarFaturasFinanceirasCsv(filtro)}
             />
           </div>
-          <DataTable
+          <AnalyticalDataTable
             titulo="Titulos e Processos"
             dados={tabela.data?.conteudo ?? []}
             colunas={colunasResumo}
             chaveLinha="uniqueId"
+            filtros={filtrosTabela.filters}
+            hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+            hasAnyFilter={filtrosTabela.hasAnyFilter}
+            onTextFilterChange={filtrosTabela.setTextFilter}
+            onMultiFilterChange={filtrosTabela.setMultiFilter}
+            onColumnFilterChange={filtrosTabela.setColumnFilter}
+            onClearFilters={filtrosTabela.clearTableFilters}
+            statusOptions={['Faturado', 'Aguardando Faturamento']}
             isLoading={tabela.isLoading}
             totalRegistros={tabela.data?.totalElementos}
             paginaAtual={paginacaoTabela.pagina}

@@ -4,6 +4,7 @@ import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -106,6 +107,124 @@ class DashboardExportSqlBuilderTest {
         assertThat(query.sql()).contains("PARTITION BY");
         assertThat(query.sql()).contains("PARTITION BY [ID Único]");
         assertThat(query.params().getValues()).containsKey("filtro_clientesCnpj");
+    }
+
+    @Test
+    void buildSelectDeveAplicarCodigoTabelaComIgualdadeNumerica() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FRETES,
+                filtro(Map.of("tabelaCodigo", List.of("12345"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("TRY_CONVERT(BIGINT, [ID]) = :filtro_tabelaCodigoNumero");
+        assertThat(query.sql()).contains("TRY_CONVERT(BIGINT, [Nº Minuta]) = :filtro_tabelaCodigoNumero");
+        assertThat(query.sql()).doesNotContain(":filtro_tabelaCodigoPrefixo");
+        assertThat(query.params().getValues()).containsEntry("filtro_tabelaCodigoNumero", 12345L);
+    }
+
+    @Test
+    void buildSelectNaoDeveGerarLikeAmploParaTextoCurtoTabela() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FRETES,
+                filtro(Map.of("tabelaRazaoSocial", List.of("ab"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).doesNotContain("filtro_tabelaRazaoSocial");
+    }
+
+    @Test
+    void buildSelectDeveMapearTabelaStatusProcessoCalculado() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FATURAS_PROCESSOS,
+                filtro(Map.of("tabelaStatus", List.of("Faturado"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("[Fatura/N° Documento] IS NOT NULL");
+        assertThat(query.sql()).contains("faturado");
+    }
+
+    @Test
+    void buildSelectDeveAplicarFiltroPorColunaCodigoComIgualdadeNumerica() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FRETES,
+                filtro(Map.of("tabelaColuna.id", List.of("12345"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("TRY_CONVERT(BIGINT, [ID]) = :filtro_tabelaColuna_id");
+        assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_id", 12345L);
+    }
+
+    @Test
+    void buildSelectNaoDeveGerarLikeAmploParaTextoCurtoPorColuna() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FRETES,
+                filtro(Map.of("tabelaColuna.pagador", List.of("ab"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).doesNotContain("filtro_tabelaColuna_pagador");
+    }
+
+    @Test
+    void buildSelectDeveAplicarFiltroPorColunaNumeroComDecimalSeguro() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FRETES,
+                filtro(Map.of("tabelaColuna.valorFrete", List.of("123,45"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("TRY_CONVERT(DECIMAL(19,4), [Valor Frete]) = :filtro_tabelaColuna_valorFrete");
+        assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_valorFrete", new BigDecimal("123.45"));
+    }
+
+    @Test
+    void buildSelectDeveAplicarFiltroPorColunaStatusComIn() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FRETES,
+                filtro(Map.of("tabelaColuna.status", List.of("Entregue", "Pendente"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Status])))) IN (:filtro_tabelaColuna_status)");
+        assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_status", List.of("entregue", "pendente"));
+    }
+
+    @Test
+    void buildSelectDeveAplicarFiltroEspecialDocumentoTipoFretes() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FRETES,
+                filtro(Map.of("tabelaColuna.documentoTipo", List.of("CT-e"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("CASE WHEN [CT-e ID] IS NOT NULL THEN 'ct-e'");
+        assertThat(query.sql()).contains(":filtro_tabelaColuna_documentoTipo");
+    }
+
+    @Test
+    void buildSelectDeveAplicarFiltroEspecialFinanceiroFaturas() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FATURAS_PROCESSOS,
+                filtro(Map.of("tabelaColuna.valorPago", List.of("99.90"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("[vw_faturas_graphql_powerbi] financeiro");
+        assertThat(query.sql()).contains("financeiro.[Valor Pago]");
+        assertThat(query.sql()).contains(":filtro_tabelaColuna_valorPago");
     }
 
     private static FiltroConsultaDTO filtro(Map<String, List<String>> filtros) {
