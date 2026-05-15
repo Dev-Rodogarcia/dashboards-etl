@@ -24,16 +24,18 @@ export default function ChartCard({
       className={`rounded-[20px] border p-4 shadow-sm ${className}`}
       style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
     >
-      <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-        {titulo}
-      </h3>
+      <div className="mb-3 flex items-center justify-between gap-3 border-b pb-3" style={{ borderColor: 'var(--color-border)' }}>
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+          {titulo}
+        </h3>
+      </div>
 
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
         </div>
       ) : erro ? (
-        <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-red-200 bg-red-50 px-6 text-center text-sm text-red-700">
+        <div className="flex h-64 items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm" style={{ borderColor: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)', color: '#dc2626' }}>
           {erro}
         </div>
       ) : (!isLoading && isEmpty) ? (

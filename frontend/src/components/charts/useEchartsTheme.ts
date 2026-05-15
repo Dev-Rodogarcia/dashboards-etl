@@ -1,12 +1,26 @@
 import type { EChartsOption } from 'echarts';
+import { useTheme } from 'next-themes';
 import { PALETA_SERIES } from '../../utils/chartColors';
 
 export function useEchartsTheme() {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const axisColor = isDark ? '#94a3b8' : '#6b7280';
+  const axisLineColor = isDark ? '#334155' : '#e5e7eb';
+  const splitLineColor = isDark ? '#1f2937' : '#f3f4f6';
+  const tooltipBg = isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.95)';
+  const tooltipBorder = isDark ? '#334155' : '#e5e7eb';
+  const tooltipText = isDark ? '#e5e7eb' : '#374151';
+  const palette = isDark
+    ? ['#60a5fa', '#f97316', '#34d399', '#f87171', '#a78bfa', '#22d3ee', '#f472b6', '#a3e635', '#facc15', '#c4b5fd']
+    : [...PALETA_SERIES];
+
   const baseOption: EChartsOption = {
-    color: [...PALETA_SERIES],
+    color: palette,
     textStyle: {
       fontFamily: 'Inter, system-ui, sans-serif',
       fontSize: 12,
+      color: axisColor,
     },
     grid: {
       top: 40,
@@ -17,11 +31,11 @@ export function useEchartsTheme() {
     },
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderColor: '#e5e7eb',
+      backgroundColor: tooltipBg,
+      borderColor: tooltipBorder,
       borderWidth: 1,
       textStyle: {
-        color: '#374151',
+        color: tooltipText,
         fontSize: 12,
       },
     },
@@ -29,19 +43,20 @@ export function useEchartsTheme() {
       bottom: 0,
       textStyle: {
         fontSize: 11,
-        color: '#6b7280',
+        color: axisColor,
       },
     },
     xAxis: {
-      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      axisLine: { lineStyle: { color: axisLineColor } },
       axisTick: { show: false },
-      axisLabel: { color: '#6b7280', fontSize: 11 },
+      axisLabel: { color: axisColor, fontSize: 11 },
     },
     yAxis: {
       axisLine: { show: false },
       axisTick: { show: false },
-      splitLine: { lineStyle: { color: '#f3f4f6' } },
-      axisLabel: { color: '#6b7280', fontSize: 11 },
+      splitLine: { lineStyle: { color: splitLineColor } },
+      axisLabel: { color: axisColor, fontSize: 11 },
+      nameTextStyle: { color: axisColor, fontSize: 11 },
     },
   };
 

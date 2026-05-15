@@ -87,7 +87,7 @@ const DEFAULT_KPI_GOALS: KpiGoalsMap = {
   cargo_indemnity: 2,
   cutoff_time: 98,
 };
-const KPI_GOAL_HISTORY_PAGE_SIZE = 10;
+const KPI_GOAL_HISTORY_PAGE_SIZE = 30;
 
 const SECTION_GOAL_KEYS: Record<SectionId, KpiGoalIndicatorKey> = {
   performance: 'delivery_performance',

@@ -31,23 +31,75 @@ export default function EtlSaudePage() {
     updatedAt: overview.data?.updatedAt ?? null,
   });
 
-  const categorias = graficos.data?.categoriasErro ?? [];
+  const serieDados = serie.data ?? [];
+  const categorias = (graficos.data?.categoriasErro ?? []).slice(0, 10).reverse();
+  const erroSerie = serie.isError ? getApiErrorMessage(serie.error, 'Erro ao carregar série do ETL.') : null;
+  const erroGraficos = graficos.isError ? getApiErrorMessage(graficos.error, 'Erro ao carregar categorias de erro.') : null;
 
-  const serieOption: EChartsOption = {
+  const execucoesOption: EChartsOption = {
     legend: { bottom: 0 },
-    xAxis: { type: 'category', data: (serie.data ?? []).map((item) => item.date) },
+    tooltip: { trigger: 'axis' },
+    grid: { top: 34, right: 18, bottom: 46, left: 42 },
+    xAxis: { type: 'category', data: serieDados.map((item) => item.date) },
     yAxis: { type: 'value' },
     series: [
-      { name: 'Execucoes', type: 'bar', data: (serie.data ?? []).map((item) => item.execucoes) },
-      { name: 'Erros', type: 'line', data: (serie.data ?? []).map((item) => item.erros) },
-      { name: 'Volume', type: 'line', data: (serie.data ?? []).map((item) => item.volumeProcessado) },
+      {
+        name: 'Execuções',
+        type: 'bar',
+        barMaxWidth: 28,
+        data: serieDados.map((item) => item.execucoes),
+      },
+      {
+        name: 'Erros',
+        type: 'line',
+        smooth: true,
+        symbolSize: 7,
+        data: serieDados.map((item) => item.erros),
+      },
+    ],
+  };
+
+  const duracaoVolumeOption: EChartsOption = {
+    legend: { bottom: 0 },
+    tooltip: { trigger: 'axis' },
+    grid: { top: 42, right: 54, bottom: 46, left: 48 },
+    xAxis: { type: 'category', data: serieDados.map((item) => item.date) },
+    yAxis: [
+      { type: 'value', name: 'Duração (s)' },
+      { type: 'value', name: 'Volume' },
+    ],
+    series: [
+      {
+        name: 'Duração média',
+        type: 'line',
+        smooth: true,
+        symbolSize: 7,
+        yAxisIndex: 0,
+        data: serieDados.map((item) => item.duracaoMedia),
+      },
+      {
+        name: 'Volume processado',
+        type: 'bar',
+        barMaxWidth: 28,
+        yAxisIndex: 1,
+        data: serieDados.map((item) => item.volumeProcessado),
+      },
     ],
   };
 
   const categoriasOption: EChartsOption = {
-    xAxis: { type: 'category', data: categorias.map((item) => item.categoria) },
-    yAxis: { type: 'value' },
-    series: [{ type: 'bar', data: categorias.map((item) => item.total) }],
+    tooltip: { trigger: 'axis' },
+    grid: { top: 18, right: 24, bottom: 24, left: 160 },
+    xAxis: { type: 'value' },
+    yAxis: { type: 'category', data: categorias.map((item) => item.categoria) },
+    series: [
+      {
+        name: 'Erros',
+        type: 'bar',
+        barMaxWidth: 22,
+        data: categorias.map((item) => item.total),
+      },
+    ],
   };
 
   const colunas: ColunaTabela<EtlExecucaoRow>[] = [
@@ -71,8 +123,31 @@ export default function EtlSaudePage() {
       {overview.data && <EtlSaudeKpiGrid overview={overview.data} />}
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <ChartWrapper titulo="Timeline de Execuções" option={serieOption} isLoading={serie.isLoading} isEmpty={(serie.data ?? []).length === 0} />
-        <ChartWrapper titulo="Categorias de Erro" option={categoriasOption} isLoading={graficos.isLoading} isEmpty={categorias.length === 0} />
+        <ChartWrapper
+          titulo="Execuções x Erros por Dia"
+          option={execucoesOption}
+          isLoading={serie.isLoading}
+          isEmpty={serieDados.length === 0}
+          erro={erroSerie}
+          altura={320}
+        />
+        <ChartWrapper
+          titulo="Duração Média x Volume"
+          option={duracaoVolumeOption}
+          isLoading={serie.isLoading}
+          isEmpty={serieDados.length === 0}
+          erro={erroSerie}
+          altura={320}
+        />
+        <ChartWrapper
+          titulo="Categorias de Erro"
+          option={categoriasOption}
+          isLoading={graficos.isLoading}
+          isEmpty={categorias.length === 0}
+          erro={erroGraficos}
+          altura={320}
+          className="xl:col-span-2"
+        />
       </div>
 
       <div className="mb-3 flex justify-end">

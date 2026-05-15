@@ -420,21 +420,28 @@ export default function KpiGoalsManagerPanel({
                 {historyTotalElements} registro{historyTotalElements === 1 ? '' : 's'}
               </span>
             </div>
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
               {isHistoryLoading ? (
-                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Carregando histórico...</p>
+                <p className="text-sm md:col-span-2 xl:col-span-3" style={{ color: 'var(--color-text-muted)' }}>Carregando histórico...</p>
               ) : historyItems.length === 0 ? (
-                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Sem histórico para esta filial.</p>
+                <p className="text-sm md:col-span-2 xl:col-span-3" style={{ color: 'var(--color-text-muted)' }}>Sem histórico para esta filial.</p>
               ) : (
                 historyItems.map((item, index) => (
-                  <div key={`${item.updatedAt}-${item.indicatorKey}-${index}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: 'var(--color-text-subtle)' }}>
-                    <span className="font-semibold" style={{ color: 'var(--color-text)' }}>
+                  <div
+                    key={`${item.updatedAt}-${item.indicatorKey}-${index}`}
+                    className="flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs"
+                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-subtle)' }}
+                  >
+                    <span className="shrink-0 font-semibold" style={{ color: 'var(--color-text)' }}>
                       {item.updatedAt ? formatarDataHora(item.updatedAt) : '—'}
                     </span>
-                    <span>{item.updatedBy?.name ?? 'Usuário não identificado'}</span>
-                    <span>{GOAL_LABELS[item.indicatorKey]}</span>
-                    <span>{formatGoal(item.oldValue)} → {formatGoal(item.newValue)}</span>
-                    <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: 'rgba(33, 71, 138, 0.12)', color: 'var(--color-primary)' }}>
+                    <span className="min-w-0 flex-1 truncate" title={`${item.updatedBy?.name ?? 'Usuário não identificado'} · ${GOAL_LABELS[item.indicatorKey]}`}>
+                      {item.updatedBy?.name ?? 'Usuário não identificado'} · {GOAL_LABELS[item.indicatorKey]}
+                    </span>
+                    <span className="shrink-0 font-semibold" style={{ color: 'var(--color-text)' }}>
+                      {formatGoal(item.oldValue)} → {formatGoal(item.newValue)}
+                    </span>
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: 'rgba(33, 71, 138, 0.12)', color: 'var(--color-primary)' }}>
                       {ACTION_LABELS[item.action]}
                     </span>
                   </div>
