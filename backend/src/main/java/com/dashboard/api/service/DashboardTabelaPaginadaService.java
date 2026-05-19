@@ -177,6 +177,7 @@ public class DashboardTabelaPaginadaService {
     private FreteResumoDTO mapearFrete(Map<String, Object> row) {
         return new FreteResumoDTO(
                 longo(row, "ID"),
+                longo(row, "Nº Minuta", "N° Minuta"),
                 texto(row, "Data frete"),
                 texto(row, "Status"),
                 texto(row, "Filial"),
@@ -245,6 +246,9 @@ public class DashboardTabelaPaginadaService {
     }
 
     private CotacaoResumoDTO mapearCotacao(Map<String, Object> row) {
+        BigDecimal pesoTaxado = decimal(row, "Peso taxado", "Peso Taxado", "Peso");
+        BigDecimal valorNf = decimal(row, "Valor NF");
+        BigDecimal valorFrete = decimal(row, "Valor frete", "Valor Frete");
         return new CotacaoResumoDTO(
                 longo(row, "N° Cotação", "Nº Cotação", "N° Cotacao", "Nº Cotacao"),
                 texto(row, "Data Cotação", "Data Cotacao"),
@@ -253,12 +257,19 @@ public class DashboardTabelaPaginadaService {
                 texto(row, "Cliente Pagador"),
                 texto(row, "Cliente"),
                 texto(row, "Trecho"),
-                decimal(row, "Peso taxado"),
-                decimal(row, "Valor NF"),
-                decimal(row, "Valor frete"),
-                texto(row, "Tabela"),
+                valorFrete,
                 texto(row, "Status Conversão", "Status Conversao"),
                 texto(row, "Motivo Perda"),
+                texto(row, "Tipo de operação", "Tipo de operacao", "Classificação", "Classificacao"),
+                inteiro(row, "Volume", "Volumes"),
+                pesoTaxado,
+                dividir(valorFrete, pesoTaxado),
+                decimal(row, "Min. Frete/KG", "Min. R$/KG"),
+                valorNf,
+                percentualDecimal(valorFrete, valorNf),
+                texto(row, "Tabela"),
+                texto(row, "Origem"),
+                texto(row, "Destino"),
                 texto(row, "CT-e/Data de emissão", "CT-e/Data de emissao"),
                 texto(row, "Nfse/Data de emissão", "Nfse/Data de emissao")
         );
@@ -508,6 +519,23 @@ public class DashboardTabelaPaginadaService {
 
     private BigDecimal decimal(Map<String, Object> row, String... colunas) {
         return decimalObjeto(valor(row, colunas));
+    }
+
+    private BigDecimal dividir(BigDecimal valor, BigDecimal total) {
+        if (total == null || total.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return ConsultaFiltroUtils.zeroSeNulo(valor)
+                .divide(total, 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal percentualDecimal(BigDecimal valor, BigDecimal total) {
+        if (total == null || total.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return ConsultaFiltroUtils.zeroSeNulo(valor)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(total, 2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal decimalObjeto(Object valor) {

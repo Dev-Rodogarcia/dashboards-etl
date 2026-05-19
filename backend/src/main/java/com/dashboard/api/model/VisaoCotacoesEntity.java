@@ -43,11 +43,17 @@ public class VisaoCotacoesEntity {
     @Column(name = "[UF Origem]")
     private String ufOrigem;
 
+    @Column(name = "[Origem]")
+    private String origem;
+
     @Column(name = "[Cidade Destino]")
     private String cidadeDestino;
 
     @Column(name = "[UF Destino]")
     private String ufDestino;
+
+    @Column(name = "[Destino]")
+    private String destino;
 
     @Column(name = "[Trecho]")
     private String trecho;
@@ -63,6 +69,9 @@ public class VisaoCotacoesEntity {
 
     @Column(name = "[Valor frete]")
     private BigDecimal valorFrete;
+
+    @Column(name = "[Min. Frete/KG]")
+    private BigDecimal minFreteKg;
 
     @Column(name = "[Tabela]")
     private String tabela;
@@ -124,12 +133,20 @@ public class VisaoCotacoesEntity {
         return ufOrigem;
     }
 
+    public String getOrigem() {
+        return origem;
+    }
+
     public String getCidadeDestino() {
         return cidadeDestino;
     }
 
     public String getUfDestino() {
         return ufDestino;
+    }
+
+    public String getDestino() {
+        return destino;
     }
 
     public String getTrecho() {
@@ -150,6 +167,10 @@ public class VisaoCotacoesEntity {
 
     public BigDecimal getValorFrete() {
         return valorFrete;
+    }
+
+    public BigDecimal getMinFreteKg() {
+        return minFreteKg;
     }
 
     public String getTabela() {

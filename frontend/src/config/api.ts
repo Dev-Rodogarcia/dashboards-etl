@@ -1,17 +1,38 @@
 const API_LOCAL_DEV_BASE_URL = 'http://127.0.0.1:5011';
+const API_LOCAL_DEV_PORT = '5011';
+const API_LOCAL_DEV_HOSTS = new Set(['127.0.0.1', 'localhost']);
 
 function normalizarBaseUrl(baseUrl: string): string {
   return baseUrl.trim().replace(/\/+$/, '');
 }
 
-function resolverApiBaseUrl(): string {
-  const envBaseUrl = normalizarBaseUrl(String(import.meta.env.VITE_API_BASE_URL ?? ''));
-  if (envBaseUrl) {
-    return envBaseUrl;
+function validarDevBaseUrl(baseUrl: string): string {
+  try {
+    const parsedUrl = new URL(baseUrl);
+    const port = parsedUrl.port || (parsedUrl.protocol === 'http:' ? '80' : '');
+    const origemPermitida =
+      parsedUrl.protocol === 'http:' &&
+      API_LOCAL_DEV_HOSTS.has(parsedUrl.hostname) &&
+      port === API_LOCAL_DEV_PORT;
+
+    if (origemPermitida) {
+      return parsedUrl.origin;
+    }
+  } catch {
+    // A mensagem unica abaixo deixa claro qual contrato foi violado.
   }
 
+  throw new Error('Frontend DEV deve consumir apenas http://127.0.0.1:5011 ou http://localhost:5011.');
+}
+
+function resolverApiBaseUrl(): string {
+  const envBaseUrl = normalizarBaseUrl(String(import.meta.env.VITE_API_BASE_URL ?? ''));
   if (import.meta.env.DEV) {
-    return API_LOCAL_DEV_BASE_URL;
+    return validarDevBaseUrl(envBaseUrl || API_LOCAL_DEV_BASE_URL);
+  }
+
+  if (envBaseUrl) {
+    return envBaseUrl;
   }
 
   throw new Error('VITE_API_BASE_URL é obrigatória para builds de produção.');

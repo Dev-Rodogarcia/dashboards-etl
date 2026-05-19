@@ -1,6 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   buscarFretesGraficos,
+  buscarFretesMetas,
+  buscarFretesMetasConfiguracoes,
   buscarFretesMixDocumental,
   buscarFretesOverview,
   buscarFretesSerie,
@@ -8,8 +10,10 @@ import {
   buscarFretesTabelaPaginada,
   buscarFretesTabelaTotal,
   buscarFretesTopClientes,
+  removerFretesMetaConfiguracao,
+  salvarFretesMetaConfiguracao,
 } from '../../api/endpoints/fretesServico';
-import type { FretesFiltro } from '../../types/fretes';
+import type { FretesFiltro, FretesGoalConfigPayload } from '../../types/fretes';
 import type { TableApiFilters } from '../../types/tableFilters';
 
 const STALE_TIME = 5 * 60 * 1000;
@@ -56,6 +60,45 @@ export function useFretesGraficos(filtro: FretesFiltro) {
     queryFn: () => buscarFretesGraficos(filtro),
     staleTime: STALE_TIME,
     retry: 1,
+  });
+}
+
+export function useFretesMetas(filtro: FretesFiltro) {
+  return useQuery({
+    queryKey: ['fretes', 'metas', filtro],
+    queryFn: () => buscarFretesMetas(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFretesMetasConfiguracoes(ano: number, mes: number, enabled = true) {
+  return useQuery({
+    queryKey: ['fretes', 'metas-configuracoes', ano, mes],
+    queryFn: () => buscarFretesMetasConfiguracoes(ano, mes),
+    staleTime: STALE_TIME,
+    retry: false,
+    enabled,
+  });
+}
+
+export function useSalvarFretesMetaConfiguracao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: FretesGoalConfigPayload) => salvarFretesMetaConfiguracao(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fretes'] });
+    },
+  });
+}
+
+export function useRemoverFretesMetaConfiguracao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ branchId, ano, mes }: { branchId: string; ano: number; mes: number }) => removerFretesMetaConfiguracao(branchId, ano, mes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fretes'] });
+    },
   });
 }
 

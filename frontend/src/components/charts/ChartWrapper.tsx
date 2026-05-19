@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import type { ReactNode } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import ChartCard from '../shared/ChartCard';
@@ -7,17 +8,21 @@ import { useEchartsTheme } from './useEchartsTheme';
 interface ChartWrapperProps {
   titulo: string;
   option: EChartsOption;
+  actions?: ReactNode;
+  onEvents?: Record<string, (params: unknown) => void>;
   isLoading?: boolean;
   isEmpty?: boolean;
   emptyMessage?: string;
   erro?: string | null;
-  altura?: number;
+  altura?: number | string;
   className?: string;
 }
 
 function ChartWrapperInner({
   titulo,
   option,
+  actions,
+  onEvents,
   isLoading,
   isEmpty,
   emptyMessage,
@@ -73,15 +78,19 @@ function ChartWrapperInner({
     xAxis: mergeAxis(baseOption.xAxis, option.xAxis),
     yAxis: mergeAxis(baseOption.yAxis, option.yAxis),
   };
+  const chartHeight = typeof altura === 'number' ? altura : altura;
 
   return (
-    <ChartCard titulo={titulo} isLoading={isLoading} isEmpty={isEmpty} emptyMessage={emptyMessage} erro={erro} className={className}>
-      <ReactECharts
-        option={mergedOption}
-        style={{ height: altura }}
-        opts={{ renderer: 'canvas' }}
-        notMerge
-      />
+    <ChartCard titulo={titulo} actions={actions} isLoading={isLoading} isEmpty={isEmpty} emptyMessage={emptyMessage} erro={erro} className={className}>
+      <div className="h-full min-h-0">
+        <ReactECharts
+          option={mergedOption}
+          style={{ height: chartHeight }}
+          opts={{ renderer: 'canvas' }}
+          onEvents={onEvents}
+          notMerge
+        />
+      </div>
     </ChartCard>
   );
 }

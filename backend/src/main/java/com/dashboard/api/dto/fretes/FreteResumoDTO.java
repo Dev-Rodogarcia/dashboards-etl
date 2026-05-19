@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 public record FreteResumoDTO(
         Long id,
+        Long numeroMinuta,
         String dataFrete,
         String status,
         String filial,

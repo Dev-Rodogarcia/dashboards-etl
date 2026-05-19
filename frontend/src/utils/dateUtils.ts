@@ -11,16 +11,38 @@ export function dataHojeLocal(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function formatarDataLocal(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** Retorna a data de N dias atrás em formato YYYY-MM-DD no fuso local. */
 export function dataNDiasAtrasLocal(dias: number): string {
   const d = new Date();
   d.setDate(d.getDate() - dias);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return formatarDataLocal(d);
 }
 
 /** Retorna a data de 30 dias atrás em formato YYYY-MM-DD no fuso local. */
 export function data30DiasAtrasLocal(): string {
   return dataNDiasAtrasLocal(30);
+}
+
+/** Retorna o primeiro dia do mês atual em formato YYYY-MM-DD no fuso local. */
+export function primeiroDiaMesAtualLocal(): string {
+  const hoje = new Date();
+  return formatarDataLocal(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+}
+
+/** Retorna o primeiro dia do mês anterior em formato YYYY-MM-DD no fuso local. */
+export function primeiroDiaMesPassadoLocal(): string {
+  const hoje = new Date();
+  return formatarDataLocal(new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1));
+}
+
+/** Retorna o último dia do mês anterior em formato YYYY-MM-DD no fuso local. */
+export function ultimoDiaMesPassadoLocal(): string {
+  const hoje = new Date();
+  return formatarDataLocal(new Date(hoje.getFullYear(), hoje.getMonth(), 0));
 }
 
 /**

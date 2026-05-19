@@ -79,6 +79,51 @@ class CotacoesServiceTest {
                 .isEqualTo(OffsetDateTime.of(2026, 3, 24, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
     }
 
+    @Test
+    void buscarGraficosDeveNormalizarTiposOperacaoParaLtlFtlPtl() {
+        when(repository.findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(any(), any())).thenReturn(List.of(
+                cotacao(1L, "Convertida", null, "SP > RJ", "100.00", "FRACIONADA", "PADRÃO"),
+                cotacao(2L, "Pendente", null, "SP > RJ", "200.00", "FECHADA", "PADRÃO"),
+                cotacao(3L, "Perdida", "Sem espaço", "SP > RJ", "300.00", "FRAC / DED", "PADRÃO")
+        ));
+
+        CotacoesChartsDTO graficos = service.buscarGraficos(filtroPadrao());
+
+        assertThat(graficos.conversaoPorTipoOperacao())
+                .extracting(item -> item.nome())
+                .contains("LTL", "FTL", "PTL");
+
+        assertThat(graficos.conversaoPorTipoOperacao())
+                .filteredOn(item -> item.nome().equals("LTL"))
+                .singleElement()
+                .satisfies(item -> {
+                    assertThat(item.valorPotencial()).isEqualByComparingTo("100.00");
+                    assertThat(item.valorConvertido()).isEqualByComparingTo("100.00");
+                    assertThat(item.cotacoes()).isEqualTo(1);
+                    assertThat(item.convertidas()).isEqualTo(1);
+                });
+
+        assertThat(graficos.conversaoPorTipoOperacao())
+                .filteredOn(item -> item.nome().equals("FTL"))
+                .singleElement()
+                .satisfies(item -> {
+                    assertThat(item.valorPotencial()).isEqualByComparingTo("200.00");
+                    assertThat(item.valorConvertido()).isEqualByComparingTo("0.00");
+                    assertThat(item.cotacoes()).isEqualTo(1);
+                    assertThat(item.convertidas()).isEqualTo(0);
+                });
+
+        assertThat(graficos.conversaoPorTipoOperacao())
+                .filteredOn(item -> item.nome().equals("PTL"))
+                .singleElement()
+                .satisfies(item -> {
+                    assertThat(item.valorPotencial()).isEqualByComparingTo("300.00");
+                    assertThat(item.valorConvertido()).isEqualByComparingTo("0.00");
+                    assertThat(item.cotacoes()).isEqualTo(1);
+                    assertThat(item.reprovadas()).isEqualTo(1);
+                });
+    }
+
     private static FiltroConsultaDTO filtroPadrao() {
         return new FiltroConsultaDTO(LocalDate.of(2026, 2, 21), LocalDate.of(2026, 3, 23), Map.of());
     }
@@ -90,11 +135,25 @@ class CotacoesServiceTest {
             String trecho,
             String valorFrete
     ) {
+        return cotacao(sequenceCode, statusConversao, motivoPerda, trecho, valorFrete, null, null);
+    }
+
+    private static VisaoCotacoesEntity cotacao(
+            Long sequenceCode,
+            String statusConversao,
+            String motivoPerda,
+            String trecho,
+            String valorFrete,
+            String tipoOperacao,
+            String tabela
+    ) {
         VisaoCotacoesEntity entity = Objects.requireNonNull(novaInstancia(VisaoCotacoesEntity.class));
         ReflectionTestUtils.setField(entity, "sequenceCode", sequenceCode);
         ReflectionTestUtils.setField(entity, "statusConversao", statusConversao);
         ReflectionTestUtils.setField(entity, "motivoPerda", motivoPerda);
         ReflectionTestUtils.setField(entity, "trecho", trecho);
+        ReflectionTestUtils.setField(entity, "tipoOperacao", tipoOperacao);
+        ReflectionTestUtils.setField(entity, "tabela", tabela);
         ReflectionTestUtils.setField(entity, "valorFrete", new BigDecimal(valorFrete));
         ReflectionTestUtils.setField(entity, "pesoTaxado", new BigDecimal("10.00"));
         ReflectionTestUtils.setField(entity, "dataCotacao", OffsetDateTime.of(2026, 3, 20, 10, 0, 0, 0, ZoneOffset.UTC));

@@ -723,7 +723,7 @@ export default function IndicadoresGestaoAVistaPage() {
   const panoramaItems: PanoramaOperacionalItem[] = [
     {
       id: 'performance',
-      title: 'Performance de Entrega',
+      title: 'Nova Tela de Fretes - Performance',
       value: formatarPorcentagem(performanceOverview.data?.pctNoPrazo ?? 0),
       statusLabel: performanceAssessment.label,
       tone: performanceAssessment.tone,
@@ -829,7 +829,7 @@ export default function IndicadoresGestaoAVistaPage() {
 
       <div className="mb-5 grid grid-cols-1 gap-3 xl:grid-cols-5">
         <IndicadoresGestaoSummaryCard
-          title="Performance de Entrega"
+          title="Nova Tela de Fretes = Performance"
           description="Pontualidade por previsão de entrega, incluindo registros em aberto no denominador."
           value={formatarPorcentagem(performanceOverview.data?.pctNoPrazo ?? 0)}
           detail={`${formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0)} no prazo de ${formatarNumero(performanceOverview.data?.totalEntregas ?? 0)} · ${performanceGapLabel}`}
@@ -888,7 +888,7 @@ export default function IndicadoresGestaoAVistaPage() {
       <IndicadoresGestaoPanoramaSection items={panoramaItems} />
 
       <IndicadoresGestaoSection
-        title="Performance de Entrega"
+        title="Nova Tela de Fretes = Performance"
         description="Piores filiais performance por pontualidade, usando previsão de entrega e registros em aberto no denominador."
         goalLabel={goals.performance.label}
         goalTone={performanceAssessment.tone}

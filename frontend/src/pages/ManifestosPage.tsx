@@ -51,7 +51,7 @@ export default function ManifestosPage() {
   const tabela = useManifestosTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
   usePageHeader({
-    title: 'Manifestos',
+    title: 'Manifestos - Performance de Veículos',
     description: 'Custos, ocupacao de carga e performance por motorista.',
     updatedAt: overview.data?.updatedAt ?? null,
   });

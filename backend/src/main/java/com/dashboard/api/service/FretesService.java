@@ -5,6 +5,8 @@ import com.dashboard.api.dto.fretes.FreteResumoDTO;
 import com.dashboard.api.dto.fretes.FretesChartsDTO;
 import com.dashboard.api.dto.fretes.FretesClienteRankingDTO;
 import com.dashboard.api.dto.fretes.FretesDocumentMixDTO;
+import com.dashboard.api.dto.fretes.FretesFaturamentoGrupoDTO;
+import com.dashboard.api.dto.fretes.FretesGoalSummaryDTO;
 import com.dashboard.api.dto.fretes.FretesOrigemDestinoDTO;
 import com.dashboard.api.dto.fretes.FretesOverviewDTO;
 import com.dashboard.api.dto.fretes.FretesPrevisaoPorStatusDTO;
@@ -26,9 +28,12 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,12 +46,13 @@ public class FretesService {
     private final VisaoFretesRepository repository;
     private final EscopoFilialService escopoFilialService;
     private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
+    private final FretesGoalService fretesGoalService;
 
     FretesService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoFretesRepository repository
     ) {
-        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
+        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao(), null);
     }
 
     @Autowired
@@ -54,12 +60,23 @@ public class FretesService {
             ValidadorPeriodoService validadorPeriodo,
             VisaoFretesRepository repository,
             EscopoFilialService escopoFilialService,
-            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper,
+            FretesGoalService fretesGoalService
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.repository = repository;
         this.escopoFilialService = escopoFilialService;
         this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
+        this.fretesGoalService = fretesGoalService;
+    }
+
+    FretesService(
+            ValidadorPeriodoService validadorPeriodo,
+            VisaoFretesRepository repository,
+            EscopoFilialService escopoFilialService,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
+    ) {
+        this(validadorPeriodo, repository, escopoFilialService, periodoOffsetDateTimeHelper, null);
     }
 
     public FretesOverviewDTO buscarOverview(LocalDate dataInicio, LocalDate dataFim) {
@@ -73,10 +90,15 @@ public class FretesService {
         int totalFretes = fretes.size();
 
         if (totalFretes == 0) {
+            FretesGoalSummaryDTO metas = buscarResumoMetas(filtro, List.of());
             return new FretesOverviewDTO(
                     java.time.LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                     0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-                    BigDecimal.ZERO, 0, 0.0, 0.0, 0
+                    BigDecimal.ZERO, 0, 0.0, 0.0, 0,
+                    metas.metaFaturamento(),
+                    metas.percentualAtingimentoFaturamento(),
+                    metas.metaFretes(),
+                    metas.percentualAtingimentoFretes()
             );
         }
 
@@ -112,6 +134,8 @@ public class FretesService {
 
         log.info("Overview fretes calculado: totalFretes={}, periodo={} a {}", totalFretes, filtro.dataInicio(), filtro.dataFim());
 
+        FretesGoalSummaryDTO metas = buscarResumoMetas(filtro, fretes);
+
         return new FretesOverviewDTO(
                 ConsultaFiltroUtils.latestUpdate(fretes, VisaoFretesEntity::getDataExtracao),
                 totalFretes,
@@ -122,8 +146,17 @@ public class FretesService {
                 volumesTotais,
                 pctCteEmitido,
                 pctNfseEmitida,
-                fretesPrevisaoVencida
+                fretesPrevisaoVencida,
+                metas.metaFaturamento(),
+                metas.percentualAtingimentoFaturamento(),
+                metas.metaFretes(),
+                metas.percentualAtingimentoFretes()
         );
+    }
+
+    public FretesGoalSummaryDTO buscarResumoMetas(FiltroConsultaDTO filtro) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        return buscarResumoMetas(filtro, buscarRegistros(filtro));
     }
 
     public List<FretesTrendPointDTO> buscarSerieTemporal(LocalDate dataInicio, LocalDate dataFim) {
@@ -235,6 +268,7 @@ public class FretesService {
                 ).getContent().stream()
                 .map(f -> new FreteResumoDTO(
                         f.getId(),
+                        f.getNumeroMinuta(),
                         f.getDataFrete() != null ? f.getDataFrete().toString() : null,
                         f.getStatus(),
                         f.getFilialNome(),
@@ -283,7 +317,7 @@ public class FretesService {
                             rota[0],
                             rota[1],
                             entry.getValue().stream()
-                                    .map(VisaoFretesEntity::getSubtotal)
+                                    .map(VisaoFretesEntity::getValorTotal)
                                     .map(ConsultaFiltroUtils::zeroSeNulo)
                                     .reduce(BigDecimal.ZERO, BigDecimal::add)
                                     .setScale(2, RoundingMode.HALF_UP),
@@ -296,11 +330,110 @@ public class FretesService {
                 .limit(10)
                 .toList();
 
-        return new FretesChartsDTO(previsaoPorStatus, topRotasPorReceita);
+        List<FretesFaturamentoGrupoDTO> faturamentoPorClassificacao = agruparFaturamento(
+                fretes,
+                this::classificacaoFaturamento,
+                "Sem classificação",
+                8
+        );
+
+        List<FretesFaturamentoGrupoDTO> faturamentoPorResponsavelDestino = agruparFaturamento(
+                fretes,
+                this::responsavelDestino,
+                "Responsável não informado",
+                10
+        );
+
+        List<FretesFaturamentoGrupoDTO> faturamentoPorUfOrigem = agruparFaturamento(
+                fretes,
+                VisaoFretesEntity::getOrigemUf,
+                "UF não informada",
+                10
+        );
+
+        List<FretesFaturamentoGrupoDTO> faturamentoPorUfDestino = agruparFaturamento(
+                fretes,
+                VisaoFretesEntity::getDestinoUf,
+                "UF não informada",
+                10
+        );
+
+        List<FretesFaturamentoGrupoDTO> faturamentoPorCidadeDestino = agruparFaturamento(
+                fretes,
+                VisaoFretesEntity::getDestinoCidade,
+                "Cidade não informada",
+                10
+        );
+
+        return new FretesChartsDTO(
+                previsaoPorStatus,
+                topRotasPorReceita,
+                faturamentoPorClassificacao,
+                faturamentoPorResponsavelDestino,
+                faturamentoPorUfOrigem,
+                faturamentoPorUfDestino,
+                faturamentoPorCidadeDestino
+        );
     }
 
     private List<VisaoFretesEntity> buscarRegistros(FiltroConsultaDTO filtro) {
         return repository.findAll(criarSpecification(filtro));
+    }
+
+    private FretesGoalSummaryDTO buscarResumoMetas(FiltroConsultaDTO filtro, List<VisaoFretesEntity> fretes) {
+        if (fretesGoalService == null) {
+            return fallbackResumoMetas(filtro, fretes);
+        }
+        try {
+            return fretesGoalService.buscarResumo(
+                    filtro.dataInicio(),
+                    filtro.dataFim(),
+                    realizadosPorFilial(fretes),
+                    filtro.valores("filiais")
+            );
+        } catch (RuntimeException ex) {
+            log.warn("Não foi possível carregar metas de fretes. O relatório seguirá sem metas configuradas. Motivo: {}", ex.getMessage());
+            return fallbackResumoMetas(filtro, fretes);
+        }
+    }
+
+    private FretesGoalSummaryDTO fallbackResumoMetas(FiltroConsultaDTO filtro, List<VisaoFretesEntity> fretes) {
+        BigDecimal realizadoFaturamento = fretes.stream()
+                .map(VisaoFretesEntity::getValorTotal)
+                .map(ConsultaFiltroUtils::zeroSeNulo)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+        return new FretesGoalSummaryDTO(
+                filtro.dataInicio().format(DATE_FMT),
+                filtro.dataFim().format(DATE_FMT),
+                BigDecimal.ZERO,
+                realizadoFaturamento,
+                0.0,
+                0,
+                fretes.size(),
+                0.0,
+                List.of()
+        );
+    }
+
+    private List<FretesGoalService.FretesBranchRealizado> realizadosPorFilial(List<VisaoFretesEntity> fretes) {
+        return fretes.stream()
+                .collect(Collectors.groupingBy(
+                        frete -> textoOuPadrao(frete.getFilialNome(), "Filial não informada"),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ))
+                .entrySet().stream()
+                .map(entry -> new FretesGoalService.FretesBranchRealizado(
+                        entry.getKey(),
+                        entry.getValue().stream()
+                                .map(VisaoFretesEntity::getValorTotal)
+                                .map(ConsultaFiltroUtils::zeroSeNulo)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                                .setScale(2, RoundingMode.HALF_UP),
+                        entry.getValue().size()
+                ))
+                .toList();
     }
 
     private double percentual(long valor, int total) {
@@ -331,6 +464,61 @@ public class FretesService {
 
     private String textoOuPadrao(String valor, String padrao) {
         return Objects.requireNonNullElse(valor, "").isBlank() ? padrao : valor;
+    }
+
+    private List<FretesFaturamentoGrupoDTO> agruparFaturamento(
+            List<VisaoFretesEntity> fretes,
+            Function<VisaoFretesEntity, String> groupExtractor,
+            String fallback,
+            int limite
+    ) {
+        return fretes.stream()
+                .collect(Collectors.groupingBy(f -> textoOuPadrao(groupExtractor.apply(f), fallback)))
+                .entrySet().stream()
+                .map(entry -> new FretesFaturamentoGrupoDTO(
+                        entry.getKey(),
+                        entry.getValue().stream()
+                                .map(VisaoFretesEntity::getValorTotal)
+                                .map(ConsultaFiltroUtils::zeroSeNulo)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                                .setScale(2, RoundingMode.HALF_UP),
+                        entry.getValue().size()
+                ))
+                .sorted(Comparator.comparing(FretesFaturamentoGrupoDTO::receita).reversed()
+                        .thenComparing(FretesFaturamentoGrupoDTO::nome))
+                .limit(limite)
+                .toList();
+    }
+
+    private String classificacaoFaturamento(VisaoFretesEntity frete) {
+        String classificacao = textoOuPadrao(frete.getClassificacaoNome(), "Sem classificação");
+        String normalizada = classificacao.toUpperCase(Locale.ROOT);
+
+        if (normalizada.contains("FTL")) {
+            return "FTL";
+        }
+        if (normalizada.contains("LTL")) {
+            return "LTL";
+        }
+        if (normalizada.contains("PTL")) {
+            return "PTL";
+        }
+
+        return classificacao;
+    }
+
+    private String responsavelDestino(VisaoFretesEntity frete) {
+        String responsavel = textoOuPadrao(frete.getResponsavelRegiaoDestino(), "");
+        if (!responsavel.isBlank()) {
+            return responsavel;
+        }
+
+        String filialEmissora = textoOuPadrao(frete.getFilialEmissora(), "");
+        if (!filialEmissora.isBlank()) {
+            return filialEmissora;
+        }
+
+        return textoOuPadrao(frete.getFilialNome(), "Responsável não informado");
     }
 
     @NonNull

@@ -721,6 +721,7 @@ class DashboardExportSqlBuilder {
             }
             case FRETES -> {
                 put(colunas, "id", codigo("[ID]"));
+                put(colunas, "numeroMinuta", codigo("[Nº Minuta]", "[N° Minuta]"));
                 put(colunas, "dataFrete", data("[Data frete]"));
                 put(colunas, "status", status("[Status]"));
                 put(colunas, "filial", texto("[Filial]"));
@@ -767,6 +768,16 @@ class DashboardExportSqlBuilder {
                 put(colunas, "valorFrete", numero("[Valor frete]"));
                 put(colunas, "statusConversao", status("[Status Conversão]"));
                 put(colunas, "motivoPerda", texto("[Motivo Perda]"));
+                put(colunas, "tipoOperacao", texto("[Tipo de operação]"));
+                put(colunas, "volumes", numero("[Volume]"));
+                put(colunas, "pesoTaxado", numero("[Peso taxado]"));
+                put(colunas, "fretePorKg", numero("CASE WHEN TRY_CONVERT(decimal(18,6), [Peso taxado]) > 0 THEN TRY_CONVERT(decimal(18,6), [Valor frete]) / TRY_CONVERT(decimal(18,6), [Peso taxado]) ELSE 0 END"));
+                put(colunas, "minFreteKg", numero("[Min. Frete/KG]"));
+                put(colunas, "valorNf", numero("[Valor NF]"));
+                put(colunas, "percentualNf", numero("CASE WHEN TRY_CONVERT(decimal(18,6), [Valor NF]) > 0 THEN (TRY_CONVERT(decimal(18,6), [Valor frete]) * 100) / TRY_CONVERT(decimal(18,6), [Valor NF]) ELSE 0 END"));
+                put(colunas, "tabela", texto("[Tabela]"));
+                put(colunas, "origem", texto("[Origem]"));
+                put(colunas, "destino", texto("[Destino]"));
             }
             case CONTAS_A_PAGAR -> {
                 put(colunas, "lancamentoNumero", codigo("[Lançamento a Pagar/N°]"));

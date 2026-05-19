@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.cotacoes.CotacoesAgrupamentoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesChartsDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesCorredorValiosoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesFunilDTO;
@@ -27,8 +28,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -72,8 +75,18 @@ public class CotacoesService {
         if (totalCotacoes == 0) {
             return new CotacoesOverviewDTO(
                     java.time.LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-                    0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-                    0.0, 0.0, 0.0, 0.0
+                    0,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
             );
         }
 
@@ -81,6 +94,15 @@ public class CotacoesService {
                 .map(VisaoCotacoesEntity::getValorFrete)
                 .map(ConsultaFiltroUtils::zeroSeNulo)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal valorConvertido = cotacoes.stream()
+                .filter(this::isConvertida)
+                .map(VisaoCotacoesEntity::getValorFrete)
+                .map(ConsultaFiltroUtils::zeroSeNulo)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long convertidas = cotacoes.stream().filter(this::isConvertida).count();
+        long reprovadas = cotacoes.stream().filter(this::isReprovada).count();
 
         BigDecimal freteMedio = valorPotencial.divide(BigDecimal.valueOf(totalCotacoes), 2, RoundingMode.HALF_UP);
 
@@ -101,16 +123,17 @@ public class CotacoesService {
                 : BigDecimal.ZERO;
 
         double taxaConversaoCte = percentual(cotacoes.stream()
-                .filter(c -> "Convertida".equalsIgnoreCase(c.getStatusConversao()) && c.getCteEmissao() != null)
+                .filter(c -> isConvertida(c) && c.getCteEmissao() != null)
                 .count(), totalCotacoes);
 
         double taxaConversaoNfse = percentual(cotacoes.stream()
                 .filter(c -> c.getNfseEmissao() != null)
                 .count(), totalCotacoes);
 
-        double taxaReprovacao = percentual(cotacoes.stream()
-                .filter(c -> "Reprovada".equalsIgnoreCase(c.getStatusConversao()))
-                .count(), totalCotacoes);
+        double conversaoValor = percentual(valorConvertido, valorPotencial);
+        double conversaoQuantidade = percentual(convertidas, totalCotacoes);
+        double taxaAprovacao = percentual(totalCotacoes - reprovadas, totalCotacoes);
+        double taxaReprovacao = percentual(reprovadas, totalCotacoes);
 
         double tempoMedioConversaoHoras = cotacoes.stream()
                 .filter(c -> c.getCteEmissao() != null && c.getDataCotacao() != null)
@@ -124,8 +147,12 @@ public class CotacoesService {
                 ConsultaFiltroUtils.latestUpdate(cotacoes, VisaoCotacoesEntity::getDataExtracao),
                 totalCotacoes,
                 valorPotencial.setScale(2, RoundingMode.HALF_UP),
+                valorConvertido.setScale(2, RoundingMode.HALF_UP),
                 freteMedio,
                 freteKgMedio,
+                conversaoValor,
+                conversaoQuantidade,
+                taxaAprovacao,
                 taxaConversaoCte,
                 taxaConversaoNfse,
                 taxaReprovacao,
@@ -143,9 +170,18 @@ public class CotacoesService {
                 .sorted(Map.Entry.comparingByKey())
                 .map(entry -> {
                     List<VisaoCotacoesEntity> grupo = entry.getValue();
-                    int convertidas = (int) grupo.stream().filter(c -> "Convertida".equalsIgnoreCase(c.getStatusConversao())).count();
-                    int reprovadas = (int) grupo.stream().filter(c -> "Reprovada".equalsIgnoreCase(c.getStatusConversao())).count();
-                    return new CotacoesTrendPointDTO(entry.getKey().format(DATE_FMT), grupo.size(), convertidas, reprovadas);
+                    int convertidas = (int) grupo.stream().filter(this::isConvertida).count();
+                    int reprovadas = (int) grupo.stream().filter(this::isReprovada).count();
+                    BigDecimal valorPotencial = somarValorFrete(grupo);
+                    BigDecimal valorConvertido = somarValorFrete(grupo.stream().filter(this::isConvertida).toList());
+                    return new CotacoesTrendPointDTO(
+                            entry.getKey().format(DATE_FMT),
+                            grupo.size(),
+                            convertidas,
+                            reprovadas,
+                            valorPotencial,
+                            valorConvertido
+                    );
                 })
                 .toList();
     }
@@ -163,23 +199,7 @@ public class CotacoesService {
                     ).stream()
                     .sorted(Comparator.comparing(VisaoCotacoesEntity::getDataCotacao, Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(limiteAplicado)
-                    .map(c -> new CotacaoResumoDTO(
-                            c.getSequenceCode(),
-                            c.getDataCotacao() != null ? c.getDataCotacao().toString() : null,
-                            c.getFilial(),
-                            c.getSolicitante(),
-                            c.getClientePagador(),
-                            c.getCliente(),
-                            c.getTrecho(),
-                            ConsultaFiltroUtils.zeroSeNulo(c.getPesoTaxado()).setScale(2, RoundingMode.HALF_UP),
-                            ConsultaFiltroUtils.zeroSeNulo(c.getValorNf()).setScale(2, RoundingMode.HALF_UP),
-                            ConsultaFiltroUtils.zeroSeNulo(c.getValorFrete()).setScale(2, RoundingMode.HALF_UP),
-                            c.getTabela(),
-                            c.getStatusConversao(),
-                            c.getMotivoPerda(),
-                            c.getCteEmissao() != null ? c.getCteEmissao().toString() : null,
-                            c.getNfseEmissao() != null ? c.getNfseEmissao().toString() : null
-                    ))
+                    .map(this::toResumo)
                     .toList();
         }
 
@@ -187,24 +207,38 @@ public class CotacoesService {
                         criarSpecification(filtro),
                         PageRequest.of(0, limiteAplicado, Sort.by(Sort.Direction.DESC, "dataCotacao"))
                 ).getContent().stream()
-                .map(c -> new CotacaoResumoDTO(
-                        c.getSequenceCode(),
-                        c.getDataCotacao() != null ? c.getDataCotacao().toString() : null,
-                        c.getFilial(),
-                        c.getSolicitante(),
-                        c.getClientePagador(),
-                        c.getCliente(),
-                        c.getTrecho(),
-                        ConsultaFiltroUtils.zeroSeNulo(c.getPesoTaxado()).setScale(2, RoundingMode.HALF_UP),
-                        ConsultaFiltroUtils.zeroSeNulo(c.getValorNf()).setScale(2, RoundingMode.HALF_UP),
-                        ConsultaFiltroUtils.zeroSeNulo(c.getValorFrete()).setScale(2, RoundingMode.HALF_UP),
-                        c.getTabela(),
-                        c.getStatusConversao(),
-                        c.getMotivoPerda(),
-                        c.getCteEmissao() != null ? c.getCteEmissao().toString() : null,
-                        c.getNfseEmissao() != null ? c.getNfseEmissao().toString() : null
-                ))
+                .map(this::toResumo)
                 .toList();
+    }
+
+    private CotacaoResumoDTO toResumo(VisaoCotacoesEntity c) {
+        BigDecimal pesoTaxado = ConsultaFiltroUtils.zeroSeNulo(c.getPesoTaxado()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal valorNf = ConsultaFiltroUtils.zeroSeNulo(c.getValorNf()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal valorFrete = ConsultaFiltroUtils.zeroSeNulo(c.getValorFrete()).setScale(2, RoundingMode.HALF_UP);
+        return new CotacaoResumoDTO(
+                c.getSequenceCode(),
+                c.getDataCotacao() != null ? c.getDataCotacao().toString() : null,
+                c.getFilial(),
+                c.getSolicitante(),
+                c.getClientePagador(),
+                c.getCliente(),
+                c.getTrecho(),
+                valorFrete,
+                c.getStatusConversao(),
+                c.getMotivoPerda(),
+                c.getTipoOperacao(),
+                c.getVolume(),
+                pesoTaxado,
+                dividir(valorFrete, pesoTaxado),
+                ConsultaFiltroUtils.zeroSeNulo(c.getMinFreteKg()).setScale(2, RoundingMode.HALF_UP),
+                valorNf,
+                percentualDecimal(valorFrete, valorNf),
+                c.getTabela(),
+                textoOuPadrao(c.getOrigem(), cidadeUf(c.getCidadeOrigem(), c.getUfOrigem())),
+                textoOuPadrao(c.getDestino(), cidadeUf(c.getCidadeDestino(), c.getUfDestino())),
+                c.getCteEmissao() != null ? c.getCteEmissao().toString() : null,
+                c.getNfseEmissao() != null ? c.getNfseEmissao().toString() : null
+        );
     }
 
     public CotacoesChartsDTO buscarGraficos(FiltroConsultaDTO filtro) {
@@ -213,9 +247,13 @@ public class CotacoesService {
         List<VisaoCotacoesEntity> cotacoes = buscarRegistros(filtro);
 
         List<CotacoesFunilDTO> funil = cotacoes.stream()
-                .collect(Collectors.groupingBy(c -> textoOuPadrao(c.getStatusConversao(), "Sem status"), Collectors.counting()))
+                .collect(Collectors.groupingBy(c -> textoOuPadrao(c.getStatusConversao(), "Sem status")))
                 .entrySet().stream()
-                .map(entry -> new CotacoesFunilDTO(entry.getKey(), entry.getValue().intValue()))
+                .map(entry -> new CotacoesFunilDTO(
+                        entry.getKey(),
+                        entry.getValue().size(),
+                        somarValorFrete(entry.getValue())
+                ))
                 .sorted(Comparator.comparing(CotacoesFunilDTO::total).reversed()
                         .thenComparing(CotacoesFunilDTO::etapa))
                 .toList();
@@ -237,17 +275,116 @@ public class CotacoesService {
                 .limit(10)
                 .toList();
 
-        List<CotacoesMotivoPerdaDTO> motivosPerda = cotacoes.stream()
-                .map(VisaoCotacoesEntity::getMotivoPerda)
-                .filter(this::temTexto)
-                .collect(Collectors.groupingBy(motivo -> motivo, Collectors.counting()))
+        List<CotacoesMotivoPerdaDTO> motivosPerda = agruparPerdas(
+                cotacoes,
+                VisaoCotacoesEntity::getMotivoPerda,
+                "Sem motivo",
+                10
+        );
+
+        List<CotacoesAgrupamentoDTO> trechosMaisValiosos = agruparCotacoes(
+                cotacoes,
+                VisaoCotacoesEntity::getTrecho,
+                "Sem trecho",
+                10
+        );
+        List<CotacoesAgrupamentoDTO> trechosPorUfOrigem = agruparCotacoes(
+                cotacoes,
+                VisaoCotacoesEntity::getUfOrigem,
+                "Sem UF origem",
+                10
+        );
+        List<CotacoesAgrupamentoDTO> trechosPorUfDestino = agruparCotacoes(
+                cotacoes,
+                VisaoCotacoesEntity::getUfDestino,
+                "Sem UF destino",
+                10
+        );
+        List<CotacoesAgrupamentoDTO> conversaoPorTipoOperacao = agruparCotacoes(
+                cotacoes,
+                c -> normalizarTipoOperacao(c.getTipoOperacao(), c.getTabela()),
+                "Outros",
+                10
+        );
+        List<CotacoesMotivoPerdaDTO> perdasPorCliente = agruparPerdas(
+                cotacoes,
+                VisaoCotacoesEntity::getClientePagador,
+                "Sem cliente",
+                10
+        );
+        List<CotacoesMotivoPerdaDTO> perdasPorTrecho = agruparPerdas(
+                cotacoes,
+                VisaoCotacoesEntity::getTrecho,
+                "Sem trecho",
+                10
+        );
+
+        return new CotacoesChartsDTO(
+                funil,
+                corredoresMaisValiosos,
+                motivosPerda,
+                trechosMaisValiosos,
+                trechosPorUfOrigem,
+                trechosPorUfDestino,
+                conversaoPorTipoOperacao,
+                perdasPorCliente,
+                perdasPorTrecho
+        );
+    }
+
+    private List<CotacoesAgrupamentoDTO> agruparCotacoes(
+            List<VisaoCotacoesEntity> cotacoes,
+            Function<VisaoCotacoesEntity, String> groupBy,
+            String padrao,
+            int limite
+    ) {
+        return cotacoes.stream()
+                .collect(Collectors.groupingBy(c -> textoOuPadrao(groupBy.apply(c), padrao)))
+                .entrySet().stream()
+                .map(entry -> {
+                    List<VisaoCotacoesEntity> grupo = entry.getValue();
+                    BigDecimal valorPotencial = somarValorFrete(grupo);
+                    BigDecimal valorConvertido = somarValorFrete(grupo.stream().filter(this::isConvertida).toList());
+                    int convertidas = (int) grupo.stream().filter(this::isConvertida).count();
+                    int reprovadas = (int) grupo.stream().filter(this::isReprovada).count();
+                    return new CotacoesAgrupamentoDTO(
+                            entry.getKey(),
+                            valorPotencial,
+                            valorConvertido,
+                            grupo.size(),
+                            convertidas,
+                            reprovadas
+                    );
+                })
+                .sorted(Comparator.comparing(CotacoesAgrupamentoDTO::valorPotencial).reversed()
+                        .thenComparing(CotacoesAgrupamentoDTO::nome))
+                .limit(limite)
+                .toList();
+    }
+
+    private List<CotacoesMotivoPerdaDTO> agruparPerdas(
+            List<VisaoCotacoesEntity> cotacoes,
+            Function<VisaoCotacoesEntity, String> groupBy,
+            String padrao,
+            int limite
+    ) {
+        return cotacoes.stream()
+                .filter(this::isReprovada)
+                .collect(Collectors.groupingBy(c -> textoOuPadrao(groupBy.apply(c), padrao), Collectors.counting()))
                 .entrySet().stream()
                 .map(entry -> new CotacoesMotivoPerdaDTO(entry.getKey(), entry.getValue().intValue()))
                 .sorted(Comparator.comparing(CotacoesMotivoPerdaDTO::total).reversed()
                         .thenComparing(CotacoesMotivoPerdaDTO::motivo))
+                .limit(limite)
                 .toList();
+    }
 
-        return new CotacoesChartsDTO(funil, corredoresMaisValiosos, motivosPerda);
+    private BigDecimal somarValorFrete(List<VisaoCotacoesEntity> cotacoes) {
+        return cotacoes.stream()
+                .map(VisaoCotacoesEntity::getValorFrete)
+                .map(ConsultaFiltroUtils::zeroSeNulo)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
     }
 
     private List<VisaoCotacoesEntity> buscarRegistros(FiltroConsultaDTO filtro) {
@@ -262,6 +399,34 @@ public class CotacoesService {
         return repository.findAll(criarSpecification(filtro));
     }
 
+    private double percentual(BigDecimal valor, BigDecimal total) {
+        if (total == null || total.compareTo(BigDecimal.ZERO) == 0) {
+            return 0.0;
+        }
+
+        return ConsultaFiltroUtils.zeroSeNulo(valor)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(total, 2, RoundingMode.HALF_UP)
+                .doubleValue();
+    }
+
+    private BigDecimal dividir(BigDecimal valor, BigDecimal total) {
+        if (total == null || total.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return ConsultaFiltroUtils.zeroSeNulo(valor)
+                .divide(total, 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal percentualDecimal(BigDecimal valor, BigDecimal total) {
+        if (total == null || total.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return ConsultaFiltroUtils.zeroSeNulo(valor)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(total, 2, RoundingMode.HALF_UP);
+    }
+
     private double percentual(long valor, int total) {
         if (total == 0) {
             return 0.0;
@@ -273,12 +438,56 @@ public class CotacoesService {
                 .doubleValue();
     }
 
+    private boolean isConvertida(VisaoCotacoesEntity cotacao) {
+        String status = normalizarStatus(cotacao.getStatusConversao());
+        return "convertida".equals(status) || "convertido".equals(status);
+    }
+
+    private boolean isReprovada(VisaoCotacoesEntity cotacao) {
+        String status = normalizarStatus(cotacao.getStatusConversao());
+        return "reprovada".equals(status)
+                || "reprovado".equals(status)
+                || "perdida".equals(status)
+                || "perdido".equals(status);
+    }
+
+    private String normalizarStatus(String status) {
+        return status == null ? "" : status.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizarTipoOperacao(String tipoOperacao, String tabela) {
+        String texto = ((tipoOperacao == null ? "" : tipoOperacao) + " " + (tabela == null ? "" : tabela)).toUpperCase(Locale.ROOT);
+        if (texto.contains("PTL") || texto.contains("FRAC / DED") || (texto.contains("FRAC") && texto.contains("DED")) || texto.contains("PARCIAL")) {
+            return "PTL";
+        }
+        if (texto.contains("FTL") || texto.contains("FECHAD") || texto.contains("DEDICAD")) {
+            return "FTL";
+        }
+        if (texto.contains("LTL") || texto.contains("FRACIONAD")) {
+            return "LTL";
+        }
+        return textoOuPadrao(tipoOperacao, "Outros");
+    }
+
     private boolean temTexto(String valor) {
         return valor != null && !valor.isBlank();
     }
 
     private String textoOuPadrao(String valor, String padrao) {
         return Objects.requireNonNullElse(valor, "").isBlank() ? padrao : valor;
+    }
+
+    private String cidadeUf(String cidade, String uf) {
+        if (!temTexto(cidade) && !temTexto(uf)) {
+            return null;
+        }
+        if (!temTexto(cidade)) {
+            return uf;
+        }
+        if (!temTexto(uf)) {
+            return cidade;
+        }
+        return cidade + " - " + uf;
     }
 
     @NonNull

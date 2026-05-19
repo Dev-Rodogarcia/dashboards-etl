@@ -1,5 +1,12 @@
 import { useMemo } from 'react';
-import { dataHojeLocal, dataNDiasAtrasLocal, normalizarPeriodo } from '../../utils/dateUtils';
+import {
+  dataHojeLocal,
+  dataNDiasAtrasLocal,
+  normalizarPeriodo,
+  primeiroDiaMesAtualLocal,
+  primeiroDiaMesPassadoLocal,
+  ultimoDiaMesPassadoLocal,
+} from '../../utils/dateUtils';
 
 interface DateRangePickerProps {
   dataInicio: string;
@@ -9,14 +16,21 @@ interface DateRangePickerProps {
   onRangeChange?: (inicio: string, fim: string) => void;
 }
 
-// Atalhos corporativos: semana, quinzena, mês, bimestre, trimestre, semestre
-const PRESETS = [
-  { label: '7d',   dias: 7   },
-  { label: '15d',  dias: 15  },
-  { label: '30d',  dias: 30  },
-  { label: '60d',  dias: 60  },
-  { label: '90d',  dias: 90  },
-  { label: '180d', dias: 180 },
+type DatePreset = {
+  label: string;
+  getRange: () => { dataInicio: string; dataFim: string };
+};
+
+// Atalhos corporativos: semana, quinzena, mês, bimestre, trimestre, semestre e períodos mensais fechados.
+const PRESETS: DatePreset[] = [
+  { label: '7d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(7), dataFim: dataHojeLocal() }) },
+  { label: '15d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(15), dataFim: dataHojeLocal() }) },
+  { label: '30d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(30), dataFim: dataHojeLocal() }) },
+  { label: '60d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(60), dataFim: dataHojeLocal() }) },
+  { label: '90d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(90), dataFim: dataHojeLocal() }) },
+  { label: '180d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(180), dataFim: dataHojeLocal() }) },
+  { label: 'Este mês', getRange: () => ({ dataInicio: primeiroDiaMesAtualLocal(), dataFim: dataHojeLocal() }) },
+  { label: 'Mês passado', getRange: () => ({ dataInicio: primeiroDiaMesPassadoLocal(), dataFim: ultimoDiaMesPassadoLocal() }) },
 ];
 
 const inputClass =
@@ -33,15 +47,16 @@ export default function DateRangePicker({
 }: DateRangePickerProps) {
   // Detecta qual preset está ativo comparando datas com timezone local
   const presetAtivo = useMemo(() => {
-    const hoje = dataHojeLocal();
-    for (const { label, dias } of PRESETS) {
-      if (dataFim === hoje && dataInicio === dataNDiasAtrasLocal(dias)) return label;
+    for (const { label, getRange } of PRESETS) {
+      const range = getRange();
+      if (dataFim === range.dataFim && dataInicio === range.dataInicio) return label;
     }
     return null;
   }, [dataInicio, dataFim]);
 
-  function aplicarPreset(dias: number) {
-    const p = normalizarPeriodo(dataNDiasAtrasLocal(dias), dataHojeLocal());
+  function aplicarPreset(preset: DatePreset) {
+    const range = preset.getRange();
+    const p = normalizarPeriodo(range.dataInicio, range.dataFim);
     if (onRangeChange) {
       onRangeChange(p.dataInicio, p.dataFim);
     } else {
@@ -123,13 +138,14 @@ export default function DateRangePicker({
           Atalho
         </span>
         <div className="grid grid-cols-3 gap-1 sm:flex sm:flex-wrap">
-          {PRESETS.map(({ label, dias }) => {
+          {PRESETS.map((preset) => {
+            const { label } = preset;
             const ativo = presetAtivo === label;
             return (
               <button
                 key={label}
                 type="button"
-                onClick={() => aplicarPreset(dias)}
+                onClick={() => aplicarPreset(preset)}
                 aria-pressed={ativo}
                 className="cursor-pointer rounded-lg border px-2.5 py-2 text-xs font-semibold
                            transition-all duration-150 active:scale-[0.97]

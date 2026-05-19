@@ -12,5 +12,9 @@ public record FretesOverviewDTO(
     int volumesTotais,
     double pctCteEmitido,
     double pctNfseEmitida,
-    int fretesPrevisaoVencida
+    int fretesPrevisaoVencida,
+    BigDecimal metaFaturamento,
+    double percentualAtingimentoFaturamento,
+    int metaFretes,
+    double percentualAtingimentoFretes
 ) {}

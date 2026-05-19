@@ -6,12 +6,19 @@ export interface CotacaoResumoRow {
   clientePagador: string | null;
   cliente: string | null;
   trecho: string | null;
-  pesoTaxado: number;
-  valorNf: number;
   valorFrete: number;
-  tabela: string | null;
   statusConversao: string | null;
   motivoPerda: string | null;
+  tipoOperacao: string | null;
+  volumes: number | null;
+  pesoTaxado: number;
+  fretePorKg: number;
+  minFreteKg: number;
+  valorNf: number;
+  percentualNf: number;
+  tabela: string | null;
+  origem: string | null;
+  destino: string | null;
   cteDataEmissao: string | null;
   nfseDataEmissao: string | null;
 }
@@ -22,8 +29,12 @@ export interface CotacoesOverview {
   updatedAt: string;
   totalCotacoes: number;
   valorPotencial: number;
+  valorConvertido: number;
   freteMedio: number;
   freteKgMedio: number;
+  conversaoValor: number;
+  conversaoQuantidade: number;
+  taxaAprovacao: number;
   taxaConversaoCte: number;
   taxaConversaoNfse: number;
   taxaReprovacao: number;
@@ -35,11 +46,14 @@ export interface CotacoesTrendPoint {
   cotacoes: number;
   convertidas: number;
   reprovadas: number;
+  valorPotencial: number;
+  valorConvertido: number;
 }
 
 export interface CotacoesFunil {
   etapa: string;
   total: number;
+  valor: number;
 }
 
 export interface CotacoesCorredorValioso {
@@ -53,10 +67,25 @@ export interface CotacoesMotivoPerda {
   total: number;
 }
 
+export interface CotacoesAgrupamento {
+  nome: string;
+  valorPotencial: number;
+  valorConvertido: number;
+  cotacoes: number;
+  convertidas: number;
+  reprovadas: number;
+}
+
 export interface CotacoesCharts {
   funil: CotacoesFunil[];
   corredoresMaisValiosos: CotacoesCorredorValioso[];
   motivosPerda: CotacoesMotivoPerda[];
+  trechosMaisValiosos: CotacoesAgrupamento[];
+  trechosPorUfOrigem: CotacoesAgrupamento[];
+  trechosPorUfDestino: CotacoesAgrupamento[];
+  conversaoPorTipoOperacao: CotacoesAgrupamento[];
+  perdasPorCliente: CotacoesMotivoPerda[];
+  perdasPorTrecho: CotacoesMotivoPerda[];
 }
 
 export interface CotacoesFiltro {

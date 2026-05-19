@@ -13,6 +13,10 @@ interface KpiCardProps {
   valor: string;
   icone?: ReactNode;
   tone?: GoalTone;
+  metaLabel?: string;
+  metaValue?: string | null;
+  helperText?: string | null;
+  helperTone?: GoalTone;
   progressPct?: number | null;
   trend?: {
     valor: number;
@@ -20,9 +24,21 @@ interface KpiCardProps {
   };
 }
 
-export default function KpiCard({ label, valor, icone, tone = 'neutral', progressPct, trend }: KpiCardProps) {
+export default function KpiCard({
+  label,
+  valor,
+  icone,
+  tone = 'neutral',
+  metaLabel,
+  metaValue,
+  helperText,
+  helperTone,
+  progressPct,
+  trend,
+}: KpiCardProps) {
   const flexBasis = getFlexBasis(valor);
   const style = getGoalToneStyle(tone);
+  const helperStyle = getGoalToneStyle(helperTone ?? tone);
   const secondaryColor = tone === 'neutral' ? 'var(--color-text-subtle)' : style.text;
   const iconNode = icone ?? createElement(resolveKpiIcon(label), { size: 16, 'aria-hidden': 'true' });
   const widthPct = Math.max(0, Math.min(progressPct ?? 0, 100));
@@ -56,6 +72,18 @@ export default function KpiCard({ label, valor, icone, tone = 'neutral', progres
       >
         {valor}
       </span>
+
+      {metaLabel && (
+        <span className="text-xs font-medium" style={{ color: 'var(--color-text-subtle)' }}>
+          {metaLabel}: <strong style={{ color: secondaryColor }}>{metaValue?.trim() ? metaValue : '—'}</strong>
+        </span>
+      )}
+
+      {helperText && (
+        <span className="text-xs font-medium leading-tight" style={{ color: helperStyle.text }}>
+          {helperText}
+        </span>
+      )}
 
       {progressPct != null && (
         <div className="mt-1">

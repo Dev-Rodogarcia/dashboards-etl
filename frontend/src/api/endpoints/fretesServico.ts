@@ -8,6 +8,9 @@ import type {
   FretesClienteRanking,
   FretesDocumentMix,
   FretesFiltro,
+  FretesGoalConfig,
+  FretesGoalConfigPayload,
+  FretesGoalSummary,
   FretesOverview,
   FretesTrendPoint,
   FreteResumoRow,
@@ -50,6 +53,31 @@ export async function buscarFretesGraficos(filtro: FretesFiltro): Promise<Fretes
     params: montarQueryParams(filtro),
   });
   return data;
+}
+
+export async function buscarFretesMetas(filtro: FretesFiltro): Promise<FretesGoalSummary> {
+  const { data } = await clienteAxios.get<FretesGoalSummary>('/api/painel/fretes/metas', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarFretesMetasConfiguracoes(ano: number, mes: number): Promise<FretesGoalConfig[]> {
+  const { data } = await clienteAxios.get<FretesGoalConfig[]>('/api/painel/fretes/metas/configuracoes', {
+    params: { ano, mes },
+  });
+  return data;
+}
+
+export async function salvarFretesMetaConfiguracao(payload: FretesGoalConfigPayload): Promise<FretesGoalConfig> {
+  const { data } = await clienteAxios.put<FretesGoalConfig>('/api/painel/fretes/metas/configuracoes', payload);
+  return data;
+}
+
+export async function removerFretesMetaConfiguracao(branchId: string, ano: number, mes: number): Promise<void> {
+  await clienteAxios.delete('/api/painel/fretes/metas/configuracoes', {
+    params: { branchId, ano, mes },
+  });
 }
 
 export async function buscarFretesTabela(

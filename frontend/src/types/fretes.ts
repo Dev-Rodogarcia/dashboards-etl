@@ -1,5 +1,6 @@
 export interface FreteResumoRow {
   id: number;
+  numeroMinuta: number | null;
   dataFrete: string | null;
   status: string;
   filial: string | null;
@@ -19,6 +20,10 @@ export interface FreteResumoRow {
   valorIcms: number;
   valorPis: number;
   valorCofins: number;
+  metaFaturamento?: number;
+  percentualAtingimentoFaturamento?: number;
+  metaFretes?: number;
+  percentualAtingimentoFretes?: number;
 }
 
 export type FreteRow = FreteResumoRow;
@@ -34,6 +39,10 @@ export interface FretesOverview {
   pctCteEmitido: number;
   pctNfseEmitida: number;
   fretesPrevisaoVencida: number;
+  metaFaturamento: number;
+  percentualAtingimentoFaturamento: number;
+  metaFretes: number;
+  percentualAtingimentoFretes: number;
 }
 
 export interface FretesTrendPoint {
@@ -68,9 +77,20 @@ export interface FretesOrigemDestino {
   fretes: number;
 }
 
+export interface FretesFaturamentoGrupo {
+  nome: string;
+  receita: number;
+  fretes: number;
+}
+
 export interface FretesCharts {
   previsaoPorStatus: FretesPrevisaoVencida[];
   topRotasPorReceita: FretesOrigemDestino[];
+  faturamentoPorClassificacao: FretesFaturamentoGrupo[];
+  faturamentoPorResponsavelDestino: FretesFaturamentoGrupo[];
+  faturamentoPorUfOrigem: FretesFaturamentoGrupo[];
+  faturamentoPorUfDestino: FretesFaturamentoGrupo[];
+  faturamentoPorCidadeDestino: FretesFaturamentoGrupo[];
 }
 
 export interface FretesFiltro {
@@ -83,4 +103,46 @@ export interface FretesFiltro {
   ufDestino?: string[];
   tiposFrete?: string[];
   modais?: string[];
+}
+
+export interface FretesGoalBranchSummary {
+  branchId: string;
+  metaFaturamento: number;
+  realizadoFaturamento: number;
+  percentualAtingimentoFaturamento: number;
+  metaFretes: number;
+  realizadoFretes: number;
+  percentualAtingimentoFretes: number;
+}
+
+export interface FretesGoalSummary {
+  dataInicio: string;
+  dataFim: string;
+  metaFaturamento: number;
+  realizadoFaturamento: number;
+  percentualAtingimentoFaturamento: number;
+  metaFretes: number;
+  realizadoFretes: number;
+  percentualAtingimentoFretes: number;
+  branches: FretesGoalBranchSummary[];
+}
+
+export interface FretesGoalConfig {
+  branchId: string;
+  ano: number;
+  mes: number;
+  metaFaturamento: number;
+  metaFretes: number;
+  updatedAt: string | null;
+  updatedByName: string | null;
+  configurado: boolean;
+  mensagem: string | null;
+}
+
+export interface FretesGoalConfigPayload {
+  branchId: string;
+  ano: number;
+  mes: number;
+  metaFaturamento: number;
+  metaFretes: number;
 }

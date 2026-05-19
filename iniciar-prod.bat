@@ -4,6 +4,8 @@ SETLOCAL EnableExtensions DisableDelayedExpansion
 REM ============================================================
 REM Arquivo : iniciar-prod.bat
 REM Papel   : Builda e inicia a producao completa em 2 terminais.
+REM AVISO IA: nao execute este script. IAs devem usar somente iniciar-dev.bat.
+REM AVISO IA: nao reinicie producao, nao libere 5010/5173 e nao toque dominios publicos.
 REM API     : https://api-analytics.rodogarcia.com.br -> http://127.0.0.1:5010
 REM UI      : https://analytics.rodogarcia.com.br     -> http://127.0.0.1:5173
 REM Teste   : iniciar-prod.bat --dry-run
@@ -25,6 +27,8 @@ set "TSCACHE_DIR=%FRONTEND_DIR%\node_modules\.tmp"
 set "BUILD_INFO_FILE=%DIST_DIR%\build-info.json"
 set "BACKEND_PORT=5010"
 set "FRONTEND_PORT=5173"
+set "BACKEND_DEV_PORT=5011"
+set "FRONTEND_DEV_PORT=5174"
 set "BACKEND_HEALTH_URL=http://127.0.0.1:%BACKEND_PORT%/actuator/health/liveness"
 set "BACKEND_WAIT_SECONDS=180"
 set "PROD_FRONTEND_PUBLIC_URL=https://analytics.rodogarcia.com.br"
@@ -41,6 +45,7 @@ call :print_main_header
 if "%DRY_RUN%"=="1" (
     echo [DRY-RUN] Validaria Java, Node, npm, PowerShell, .env, backend e frontend.
     echo [DRY-RUN] Liberaria a UI %FRONTEND_PORT% antes do build e a API %BACKEND_PORT% antes do novo backend.
+    echo [DRY-RUN] Encerraria portas de desenvolvimento antes da producao: %BACKEND_DEV_PORT% e %FRONTEND_DEV_PORT%.
     echo [DRY-RUN] Geraria build atualizado em frontend\dist antes de abrir a UI.
     echo [DRY-RUN] API publica usada no build: %PROD_API_PUBLIC_URL%
     echo [DRY-RUN] CORS esperado na API: %PROD_FRONTEND_PUBLIC_URL%
@@ -66,6 +71,14 @@ echo [INFO] Cloudflare Tunnel esperado:
 echo        %PROD_API_PUBLIC_URL% -^> http://127.0.0.1:%BACKEND_PORT%
 echo        %PROD_FRONTEND_PUBLIC_URL% -^> http://127.0.0.1:%FRONTEND_PORT%
 echo.
+
+call :stop_dev_ports
+if errorlevel 1 (
+    echo.
+    echo [ERRO] Nao foi possivel encerrar as portas de desenvolvimento.
+    pause
+    exit /b 1
+)
 
 call :ensure_frontend_dependencies
 if errorlevel 1 exit /b 1
@@ -328,6 +341,9 @@ if not exist "%DIST_DIR%\index.html" (
     exit /b 1
 )
 
+call :validate_static_dist
+if errorlevel 1 exit /b 1
+
 where npm >nul 2>nul
 if errorlevel 1 (
     echo [ERRO] npm nao encontrado no PATH.
@@ -336,12 +352,33 @@ if errorlevel 1 (
 
 exit /b 0
 
+:validate_static_dist
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$index = Join-Path $env:DIST_DIR 'index.html';" ^
+  "if (-not (Test-Path -LiteralPath $index)) { Write-Host '[ERRO] dist/index.html nao encontrado.'; exit 1 }" ^
+  "$indexHtml = Get-Content -LiteralPath $index -Raw;" ^
+  "$devMarkers = @('/@vite/client', '/@react-refresh', '/src/main.tsx', '/src/main.jsx', '/node_modules/', '/@fs/');" ^
+  "foreach ($marker in $devMarkers) { if ($indexHtml.Contains($marker)) { Write-Host ('[ERRO] dist/index.html contem marcador de Vite dev: ' + $marker); exit 2 } }" ^
+  "$assetsDir = Join-Path $env:DIST_DIR 'assets';" ^
+  "if (-not (Test-Path -LiteralPath $assetsDir)) { Write-Host '[ERRO] dist/assets nao encontrado.'; exit 3 }" ^
+  "$assets = Get-ChildItem -LiteralPath $assetsDir -File -ErrorAction SilentlyContinue | Where-Object { @('.js', '.css') -contains $_.Extension.ToLowerInvariant() };" ^
+  "if (-not $assets) { Write-Host '[ERRO] Build estatico sem assets JS/CSS em dist/assets.'; exit 4 }" ^
+  "$maps = Get-ChildItem -LiteralPath $env:DIST_DIR -Recurse -Filter '*.map' -File -ErrorAction SilentlyContinue;" ^
+  "if ($maps) { Write-Host '[ERRO] Build de producao contem sourcemaps .map e pode expor a arvore de fontes no DevTools.'; exit 5 }" ^
+  "Write-Host '[OK] dist validado como build estatico de producao.';" ^
+  "exit 0"
+exit /b %ERRORLEVEL%
+
 :release_ports
 set "PORT_LIST=%~1"
 if "%PORT_LIST%"=="" set "PORT_LIST=%BACKEND_PORT%,%FRONTEND_PORT%"
 echo [INFO] Liberando porta(s) de producao: %PORT_LIST%...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ports = $env:PORT_LIST -split ',' | Where-Object { $_ -match '\S' } | ForEach-Object { [int]$_.Trim() };" ^
+  "$allowed = @([int]$env:BACKEND_PORT, [int]$env:FRONTEND_PORT);" ^
+  "$forbidden = @([int]$env:BACKEND_DEV_PORT, [int]$env:FRONTEND_DEV_PORT);" ^
+  "if ($ports | Where-Object { $forbidden -contains $_ }) { Write-Host '[ERRO] Script PROD tentou operar em porta de desenvolvimento.'; exit 4 }" ^
+  "if ($ports | Where-Object { $allowed -notcontains $_ }) { Write-Host '[ERRO] Script PROD recebeu porta fora do contrato 5010/5173.'; exit 5 }" ^
   "foreach ($port in $ports) {" ^
   "  $listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue;" ^
   "  if (-not $listeners) { Write-Host ('[OK] Porta ' + $port + ' livre.'); continue }" ^
@@ -358,6 +395,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "  $restantes = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue;" ^
   "  if ($restantes) { Write-Host ('[ERRO] Porta ' + $port + ' continuou em uso.'); exit 2 }" ^
   "  Write-Host ('[OK] Porta ' + $port + ' liberada.');" ^
+  "}" ^
+  "exit 0"
+exit /b %ERRORLEVEL%
+
+:stop_dev_ports
+set "DEV_PORT_LIST=%BACKEND_DEV_PORT%,%FRONTEND_DEV_PORT%"
+echo [INFO] Encerrando servidores DEV antes da producao: %DEV_PORT_LIST%...
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ports = $env:DEV_PORT_LIST -split ',' | Where-Object { $_ -match '\S' } | ForEach-Object { [int]$_.Trim() };" ^
+  "foreach ($port in $ports) {" ^
+  "  $listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue;" ^
+  "  if (-not $listeners) { Write-Host ('[OK] Porta DEV ' + $port + ' livre.'); continue }" ^
+  "  $processIds = $listeners | Select-Object -ExpandProperty OwningProcess -Unique;" ^
+  "  foreach ($procId in $processIds) {" ^
+  "    $proc = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $procId) -ErrorAction SilentlyContinue;" ^
+  "    $name = if ($proc) { $proc.Name } else { 'processo' };" ^
+  "    $cmd = if ($proc) { $proc.CommandLine } else { '' };" ^
+  "    Write-Host ('[INFO] Encerrando porta DEV ' + $port + ' PID=' + $procId + ' | ' + $name);" ^
+  "    if ($cmd) { Write-Host ('       ' + $cmd) }" ^
+  "    try { Stop-Process -Id $procId -Force -ErrorAction Stop } catch { Write-Host ('[ERRO] Falha ao encerrar PID=' + $procId + ': ' + $_.Exception.Message); exit 1 }" ^
+  "  }" ^
+  "  Start-Sleep -Milliseconds 800;" ^
+  "  $restantes = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue;" ^
+  "  if ($restantes) { Write-Host ('[ERRO] Porta DEV ' + $port + ' continuou em uso.'); exit 2 }" ^
+  "  Write-Host ('[OK] Porta DEV ' + $port + ' encerrada.');" ^
   "}" ^
   "exit 0"
 exit /b %ERRORLEVEL%
@@ -432,6 +494,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
 
 if errorlevel 1 (
     echo [ERRO] Build de producao gerou artefatos invalidos.
+    exit /b 1
+)
+
+call :validate_static_dist
+if errorlevel 1 (
+    echo [ERRO] Build de producao contem marcadores invalidos.
     exit /b 1
 )
 

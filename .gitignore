@@ -5,6 +5,7 @@
 !**/.env.sample
 !**/.env.*.example
 !**/.env.*.sample
+!.env.development
 !backend/src/main/resources/.env.properties
 .envrc
 .direnv/
@@ -177,3 +178,14 @@ ehthumbs.db
 # Runtime local do backend nunca deve ser versionado
 backend/storage/*
 !backend/storage/access-control.sample.json
+
+# Bancos/arquivos locais
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+*.backup
+*.dump
+*.pdf
+*.xlsx
+*.docx

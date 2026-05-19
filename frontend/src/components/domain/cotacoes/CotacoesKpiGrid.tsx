@@ -12,12 +12,12 @@ export default function CotacoesKpiGrid({ overview }: CotacoesKpiGridProps) {
     <KpiGrid count={8}>
       <KpiCard label="Total Cotações" valor={formatarNumero(overview.totalCotacoes)} />
       <KpiCard label="Potencial (R$)" valor={formatarMoeda(overview.valorPotencial)} />
+      <KpiCard label="Convertido (R$)" valor={formatarMoeda(overview.valorConvertido)} />
       <KpiCard label="Frete Médio" valor={formatarMoeda(overview.freteMedio)} />
       <KpiCard label="Frete/KG" valor={formatarMoeda(overview.freteKgMedio)} />
-      <KpiCard label="Conv. CT-e %" valor={formatarPorcentagem(overview.taxaConversaoCte)} />
-      <KpiCard label="Conv. NFS-e %" valor={formatarPorcentagem(overview.taxaConversaoNfse)} />
-      <KpiCard label="Reprovação %" valor={formatarPorcentagem(overview.taxaReprovacao)} />
-      <KpiCard label="Conv. Médio (h)" valor={formatarNumero(overview.tempoMedioConversaoHoras, 1)} />
+      <KpiCard label="Conversão Valor" valor={formatarPorcentagem(overview.conversaoValor)} />
+      <KpiCard label="Conversão Quantidade" valor={formatarPorcentagem(overview.conversaoQuantidade)} />
+      <KpiCard label="Aprovação %" valor={formatarPorcentagem(overview.taxaAprovacao)} />
     </KpiGrid>
   );
 }

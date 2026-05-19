@@ -45,8 +45,10 @@ docs/
 
 ## Fatos operacionais que devem permanecer alinhados
 
-- API local: `http://localhost:5010`
-- UI local: `http://localhost:5173`
+- API DEV local: `http://localhost:5011`
+- UI DEV local: `http://localhost:5174`
+- API PROD local: `http://localhost:5010`
+- UI PROD local: `http://localhost:5173`
 - periodo maximo aceito: `365 dias`
 - timeout JPA: `30000 ms`
 - timezone canonico para filtros `DATETIMEOFFSET`: `America/Sao_Paulo`

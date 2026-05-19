@@ -9,6 +9,7 @@ const publicDir = path.resolve(__dirname, '..', 'dist');
 const buildInfoPath = path.join(publicDir, 'build-info.json');
 const host = process.env.FRONTEND_HOST || '127.0.0.1';
 const port = Number(process.env.FRONTEND_PORT || 5173);
+validateStaticBuild();
 const buildId = readBuildId();
 
 const blockedDevPaths = [
@@ -36,6 +37,58 @@ function readBuildId() {
       : 'unknown';
   } catch {
     return 'unknown';
+  }
+}
+
+function failStartup(message) {
+  console.error(`[ERRO] ${message}`);
+  process.exit(1);
+}
+
+function hasSourceMapFile(directory) {
+  if (!fs.existsSync(directory)) {
+    return false;
+  }
+
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory() && hasSourceMapFile(entryPath)) {
+      return true;
+    }
+    if (entry.isFile() && entry.name.endsWith('.map')) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function validateStaticBuild() {
+  const indexPath = path.join(publicDir, 'index.html');
+  const assetsDir = path.join(publicDir, 'assets');
+
+  if (!fs.existsSync(indexPath)) {
+    failStartup('Build estatico nao encontrado em frontend/dist/index.html. Execute iniciar-prod.bat.');
+  }
+
+  const indexHtml = fs.readFileSync(indexPath, 'utf8');
+  const devMarkers = ['/@vite/client', '/@react-refresh', '/src/main.tsx', '/src/main.jsx', '/node_modules/', '/@fs/'];
+  const devMarker = devMarkers.find((marker) => indexHtml.includes(marker));
+  if (devMarker) {
+    failStartup(`dist/index.html contem marcador de Vite dev: ${devMarker}`);
+  }
+
+  if (!fs.existsSync(assetsDir)) {
+    failStartup('Build estatico sem pasta frontend/dist/assets.');
+  }
+
+  const assets = fs.readdirSync(assetsDir).filter((name) => /\.(js|css)$/i.test(name));
+  if (assets.length === 0) {
+    failStartup('Build estatico sem assets JS/CSS em frontend/dist/assets.');
+  }
+
+  if (hasSourceMapFile(publicDir)) {
+    failStartup('Build de producao contem sourcemaps .map; isso exporia a arvore de fontes no DevTools.');
   }
 }
 

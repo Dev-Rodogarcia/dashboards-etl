@@ -5,6 +5,9 @@ import {
   dataHojeLocal,
   dataNDiasAtrasLocal,
   normalizarPeriodo,
+  primeiroDiaMesAtualLocal,
+  primeiroDiaMesPassadoLocal,
+  ultimoDiaMesPassadoLocal,
 } from './dateUtils';
 
 // Congela o relógio em 2026-03-26 às 22:00 no fuso local (UTC-3 = 01:00 UTC do dia 27)
@@ -55,6 +58,31 @@ describe('data30DiasAtrasLocal', () => {
     vi.useFakeTimers();
     vi.setSystemTime(DATA_FROZEN);
     expect(data30DiasAtrasLocal()).toBe(dataNDiasAtrasLocal(30));
+  });
+});
+
+describe('atalhos mensais locais', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('retorna primeiro dia do mês atual e hoje para o atalho Este mês', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(DATA_FROZEN);
+    expect(primeiroDiaMesAtualLocal()).toBe('2026-03-01');
+    expect(dataHojeLocal()).toBe('2026-03-26');
+  });
+
+  it('retorna primeiro e último dia do mês passado', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(DATA_FROZEN);
+    expect(primeiroDiaMesPassadoLocal()).toBe('2026-02-01');
+    expect(ultimoDiaMesPassadoLocal()).toBe('2026-02-28');
+  });
+
+  it('atravessa virada de ano para mês passado', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-15T12:00:00.000Z'));
+    expect(primeiroDiaMesPassadoLocal()).toBe('2025-12-01');
+    expect(ultimoDiaMesPassadoLocal()).toBe('2025-12-31');
   });
 });
 
