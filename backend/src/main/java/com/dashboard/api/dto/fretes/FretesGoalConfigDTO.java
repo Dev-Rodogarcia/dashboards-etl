@@ -7,7 +7,6 @@ public record FretesGoalConfigDTO(
         int ano,
         int mes,
         BigDecimal metaFaturamento,
-        int metaFretes,
         String updatedAt,
         String updatedByName,
         boolean configurado,

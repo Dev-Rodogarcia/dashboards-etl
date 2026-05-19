@@ -88,7 +88,7 @@ public class FretesGoalService {
                     GoalTotals meta = metasPorFilial.getOrDefault(branchId, GoalTotals.zero());
                     FretesBranchRealizado realizado = realizadoPorFilial.getOrDefault(
                             branchId,
-                            new FretesBranchRealizado(branchId, BigDecimal.ZERO, 0)
+                            new FretesBranchRealizado(branchId, BigDecimal.ZERO)
                     );
                     return toBranchSummary(branchId, meta, realizado);
                 })
@@ -100,8 +100,6 @@ public class FretesGoalService {
                 .map(FretesGoalBranchSummaryDTO::realizadoFaturamento)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
-        int metaFretes = metasPeriodo.aggregate().metaFretes();
-        int realizadoFretes = branches.stream().mapToInt(FretesGoalBranchSummaryDTO::realizadoFretes).sum();
 
         return new FretesGoalSummaryDTO(
                 dataInicio.format(DATE_FMT),
@@ -109,9 +107,6 @@ public class FretesGoalService {
                 metaFaturamento,
                 realizadoFaturamento,
                 percentual(realizadoFaturamento, metaFaturamento),
-                metaFretes,
-                realizadoFretes,
-                percentual(realizadoFretes, metaFretes),
                 branches
         );
     }
@@ -125,7 +120,7 @@ public class FretesGoalService {
             }
 
             String sql = """
-                    SELECT g.branch_id, g.ano, g.mes, g.meta_faturamento, g.meta_fretes,
+                    SELECT g.branch_id, g.ano, g.mes, g.meta_faturamento,
                            g.updated_at, u.nome AS updated_by_name
                     FROM acesso.fretes_goals g
                     LEFT JOIN acesso.usuarios u ON u.id = g.updated_by_user_id
@@ -152,7 +147,6 @@ public class FretesGoalService {
         Objects.requireNonNull(request, "request é obrigatório.");
         validarAnoMes(request.ano(), request.mes());
         BigDecimal metaFaturamento = normalizarMetaFaturamento(request.metaFaturamento());
-        int metaFretes = normalizarMetaFretes(request.metaFretes());
         String branchId = normalizarBranchId(request.branchId());
         UsuarioEntity usuario = usuarioAutenticado(usuarioEmail);
 
@@ -161,7 +155,6 @@ public class FretesGoalService {
                 .addValue("ano", request.ano())
                 .addValue("mes", request.mes())
                 .addValue("metaFaturamento", metaFaturamento)
-                .addValue("metaFretes", metaFretes)
                 .addValue("updatedByUserId", usuario.getId());
 
         jdbcTemplate.update("""
@@ -172,12 +165,11 @@ public class FretesGoalService {
                   AND target.mes = source.mes
                 WHEN MATCHED THEN
                     UPDATE SET meta_faturamento = :metaFaturamento,
-                               meta_fretes = :metaFretes,
                                updated_by_user_id = :updatedByUserId,
                                updated_at = SYSUTCDATETIME()
                 WHEN NOT MATCHED THEN
-                    INSERT (branch_id, ano, mes, meta_faturamento, meta_fretes, updated_by_user_id)
-                    VALUES (:branchId, :ano, :mes, :metaFaturamento, :metaFretes, :updatedByUserId);
+                    INSERT (branch_id, ano, mes, meta_faturamento, updated_by_user_id)
+                    VALUES (:branchId, :ano, :mes, :metaFaturamento, :updatedByUserId);
                 """, params);
 
         return buscarConfiguracao(branchId, request.ano(), request.mes())
@@ -211,13 +203,11 @@ public class FretesGoalService {
                         ano SMALLINT NOT NULL,
                         mes TINYINT NOT NULL,
                         meta_faturamento DECIMAL(18,2) NOT NULL CONSTRAINT DF_fretes_goals_meta_faturamento DEFAULT 0,
-                        meta_fretes INT NOT NULL CONSTRAINT DF_fretes_goals_meta_fretes DEFAULT 0,
                         created_at DATETIME2(0) NOT NULL CONSTRAINT DF_fretes_goals_created_at DEFAULT SYSUTCDATETIME(),
                         updated_at DATETIME2(0) NOT NULL CONSTRAINT DF_fretes_goals_updated_at DEFAULT SYSUTCDATETIME(),
                         updated_by_user_id BIGINT NULL,
                         CONSTRAINT CK_fretes_goals_mes CHECK (mes BETWEEN 1 AND 12),
-                        CONSTRAINT CK_fretes_goals_meta_faturamento CHECK (meta_faturamento >= 0),
-                        CONSTRAINT CK_fretes_goals_meta_fretes CHECK (meta_fretes >= 0)
+                        CONSTRAINT CK_fretes_goals_meta_faturamento CHECK (meta_faturamento >= 0)
                     );
                 END
                 """);
@@ -253,7 +243,7 @@ public class FretesGoalService {
         List<Integer> meses = slices.stream().map(YearMonthSlice::mes).distinct().toList();
 
         String sql = """
-                SELECT branch_id, ano, mes, meta_faturamento, meta_fretes
+                SELECT branch_id, ano, mes, meta_faturamento
                 FROM acesso.fretes_goals
                 WHERE ano IN (:anos)
                   AND mes IN (:meses)
@@ -264,7 +254,7 @@ public class FretesGoalService {
                         .addValue("meses", meses),
                 (rs, rowNum) -> Map.entry(
                         new GoalKey(rs.getString("branch_id"), rs.getInt("ano"), rs.getInt("mes")),
-                        new GoalTotals(rs.getBigDecimal("meta_faturamento"), rs.getInt("meta_fretes"))
+                        new GoalTotals(rs.getBigDecimal("meta_faturamento"))
                 ))
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(
@@ -337,22 +327,17 @@ public class FretesGoalService {
     private FretesGoalBranchSummaryDTO toBranchSummary(String branchId, GoalTotals meta, FretesBranchRealizado realizado) {
         BigDecimal metaFaturamento = meta.metaFaturamento().setScale(2, RoundingMode.HALF_UP);
         BigDecimal realizadoFaturamento = realizado.realizadoFaturamento().setScale(2, RoundingMode.HALF_UP);
-        int metaFretes = meta.metaFretes();
-        int realizadoFretes = realizado.realizadoFretes();
         return new FretesGoalBranchSummaryDTO(
                 branchId,
                 metaFaturamento,
                 realizadoFaturamento,
-                percentual(realizadoFaturamento, metaFaturamento),
-                metaFretes,
-                realizadoFretes,
-                percentual(realizadoFretes, metaFretes)
+                percentual(realizadoFaturamento, metaFaturamento)
         );
     }
 
     private Optional<FretesGoalConfigDTO> buscarConfiguracao(String branchId, int ano, int mes) {
         String sql = """
-                SELECT g.branch_id, g.ano, g.mes, g.meta_faturamento, g.meta_fretes,
+                SELECT g.branch_id, g.ano, g.mes, g.meta_faturamento,
                        g.updated_at, u.nome AS updated_by_name
                 FROM acesso.fretes_goals g
                 LEFT JOIN acesso.usuarios u ON u.id = g.updated_by_user_id
@@ -375,7 +360,6 @@ public class FretesGoalService {
                 rs.getInt("ano"),
                 rs.getInt("mes"),
                 rs.getBigDecimal("meta_faturamento").setScale(2, RoundingMode.HALF_UP),
-                rs.getInt("meta_fretes"),
                 updatedAt != null ? updatedAt.toLocalDateTime().format(DATE_TIME_FMT) : null,
                 rs.getString("updated_by_name"),
                 true,
@@ -389,7 +373,6 @@ public class FretesGoalService {
                 ano,
                 mes,
                 BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
-                0,
                 null,
                 null,
                 false,
@@ -425,14 +408,6 @@ public class FretesGoalService {
         return normalized;
     }
 
-    private int normalizarMetaFretes(Integer value) {
-        int normalized = Optional.ofNullable(value).orElse(0);
-        if (normalized < 0) {
-            throw new IllegalArgumentException("Meta de fretes não pode ser negativa.");
-        }
-        return normalized;
-    }
-
     private double percentual(BigDecimal realizado, BigDecimal meta) {
         if (meta == null || meta.compareTo(BigDecimal.ZERO) <= 0) {
             return BigDecimal.ZERO.doubleValue();
@@ -443,16 +418,6 @@ public class FretesGoalService {
                 .doubleValue();
     }
 
-    private double percentual(int realizado, int meta) {
-        if (meta <= 0) {
-            return 0.0;
-        }
-        return BigDecimal.valueOf(realizado)
-                .multiply(BigDecimal.valueOf(100))
-                .divide(BigDecimal.valueOf(meta), 2, RoundingMode.HALF_UP)
-                .doubleValue();
-    }
-
     private UsuarioEntity usuarioAutenticado(String usuarioEmail) {
         return usuarioRepository.findByEmailIgnoreCase(Objects.toString(usuarioEmail, ""))
                 .orElseThrow(() -> new IllegalArgumentException("Usuário autenticado não encontrado."));
@@ -460,8 +425,7 @@ public class FretesGoalService {
 
     public record FretesBranchRealizado(
             String branchId,
-            BigDecimal realizadoFaturamento,
-            int realizadoFretes
+            BigDecimal realizadoFaturamento
     ) {
     }
 
@@ -479,16 +443,13 @@ public class FretesGoalService {
         }
     }
 
-    private record GoalTotals(BigDecimal metaFaturamento, int metaFretes) {
+    private record GoalTotals(BigDecimal metaFaturamento) {
         static GoalTotals zero() {
-            return new GoalTotals(BigDecimal.ZERO, 0);
+            return new GoalTotals(BigDecimal.ZERO);
         }
 
         GoalTotals add(GoalTotals other) {
-            return new GoalTotals(
-                    metaFaturamento.add(other.metaFaturamento),
-                    metaFretes + other.metaFretes
-            );
+            return new GoalTotals(metaFaturamento.add(other.metaFaturamento));
         }
 
     }

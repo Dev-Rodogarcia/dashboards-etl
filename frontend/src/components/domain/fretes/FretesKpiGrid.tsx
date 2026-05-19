@@ -1,16 +1,14 @@
 import KpiCard from '../../shared/KpiCard';
 import KpiGrid from '../../shared/KpiGrid';
-import type { FretesOverview } from '../../../types/fretes';
+import type { FretesFaturamentoDiario, FretesOverview } from '../../../types/fretes';
 import { formatarMoeda, formatarNumero, formatarPorcentagem, formatarPeso } from '../../../utils/formatadores';
 import type { GoalTone } from '../../../utils/indicadoresGestaoVistaUi';
 
 interface FretesKpiGridProps {
   overview: FretesOverview;
   metaFaturamento: number;
-  metaFretes: number;
-  faturamentoLiquido: number;
   progressoMeta: number;
-  progressoMetaFretes: number;
+  faturamentoDiario?: FretesFaturamentoDiario | null;
   metasIndisponiveis?: boolean;
 }
 
@@ -19,7 +17,6 @@ interface MetaKpiState {
   helperText: string;
   tone: GoalTone;
   progressPct: number | null;
-  percentValue: string;
 }
 
 function resolverMetaKpiState({
@@ -41,7 +38,6 @@ function resolverMetaKpiState({
       helperText: 'Metas indisponíveis (API offline)',
       tone: 'error',
       progressPct: null,
-      percentValue: '—',
     };
   }
 
@@ -51,7 +47,6 @@ function resolverMetaKpiState({
       helperText: 'Meta não configurada',
       tone: 'empty',
       progressPct: null,
-      percentValue: '—',
     };
   }
 
@@ -61,17 +56,14 @@ function resolverMetaKpiState({
     helperText: atingiu ? 'Acima da meta' : 'Abaixo da meta',
     tone: atingiu ? 'positive' : 'negative',
     progressPct: progresso,
-    percentValue: formatarPorcentagem(progresso),
   };
 }
 
 export default function FretesKpiGrid({
   overview,
   metaFaturamento,
-  metaFretes,
-  faturamentoLiquido,
   progressoMeta,
-  progressoMetaFretes,
+  faturamentoDiario,
   metasIndisponiveis,
 }: FretesKpiGridProps) {
   const faturamentoMeta = resolverMetaKpiState({
@@ -81,42 +73,40 @@ export default function FretesKpiGrid({
     formatMeta: formatarMoeda,
     metasIndisponiveis,
   });
-  const fretesMeta = resolverMetaKpiState({
-    realizado: overview.totalFretes,
-    meta: metaFretes,
-    progresso: progressoMetaFretes,
-    formatMeta: formatarNumero,
-    metasIndisponiveis,
-  });
+  const tendenciaPercentual = faturamentoDiario?.tendenciaPercentual ?? 0;
+  const tendenciaPercentualExibicao = tendenciaPercentual * 100;
+  const tendenciaTone = tendenciaPercentual < 0 ? 'negative' : 'positive';
 
   return (
     <KpiGrid count={8}>
       <KpiCard
-        label="Fretes / Meta"
+        label="Fretes"
         valor={formatarNumero(overview.totalFretes)}
-        metaLabel="Meta"
-        metaValue={fretesMeta.metaValue}
-        helperText={fretesMeta.helperText}
-        tone={fretesMeta.tone}
-        helperTone={fretesMeta.tone}
-        progressPct={fretesMeta.progressPct}
       />
       <KpiCard
-        label="Faturamento / Meta"
+        label="Faturamento (Realizado)"
         valor={formatarMoeda(overview.receitaBruta)}
-        metaLabel="Meta"
-        metaValue={faturamentoMeta.metaValue}
+      />
+      <KpiCard label="Faturamento Líquido" valor={formatarMoeda(overview.valorFrete)} />
+      <KpiCard label="Ticket Médio" valor={formatarMoeda(overview.ticketMedio)} />
+      <KpiCard label="Peso Taxado" valor={formatarPeso(overview.pesoTaxadoTotal)} />
+      <KpiCard label="Volumes" valor={formatarNumero(overview.volumesTotais)} />
+      <KpiCard
+        label="Meta Faturamento"
+        valor={faturamentoMeta.metaValue}
         helperText={faturamentoMeta.helperText}
         tone={faturamentoMeta.tone}
         helperTone={faturamentoMeta.tone}
         progressPct={faturamentoMeta.progressPct}
       />
-      <KpiCard label="Faturamento Líquido" valor={formatarMoeda(faturamentoLiquido)} />
-      <KpiCard label="Ticket Médio" valor={formatarMoeda(overview.ticketMedio)} />
-      <KpiCard label="Peso Taxado" valor={formatarPeso(overview.pesoTaxadoTotal)} />
-      <KpiCard label="Volumes" valor={formatarNumero(overview.volumesTotais)} />
-      <KpiCard label="Meta Fat. %" valor={faturamentoMeta.percentValue} helperText={faturamentoMeta.helperText} tone={faturamentoMeta.tone} />
-      <KpiCard label="Meta Fretes %" valor={fretesMeta.percentValue} helperText={fretesMeta.helperText} tone={fretesMeta.tone} />
+      <KpiCard
+        label="Tendência %"
+        valor={formatarPorcentagem(tendenciaPercentualExibicao)}
+        valorClassName={`text-4xl font-bold ${tendenciaPercentual < 0 ? 'text-red-600' : 'text-green-600'}`}
+        helperText={`Tendência: ${formatarMoeda(faturamentoDiario?.tendenciaFaturamento ?? 0)}`}
+        tone={tendenciaTone}
+        helperTone={tendenciaTone}
+      />
     </KpiGrid>
   );
 }

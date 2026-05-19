@@ -22,8 +22,6 @@ export interface FreteResumoRow {
   valorCofins: number;
   metaFaturamento?: number;
   percentualAtingimentoFaturamento?: number;
-  metaFretes?: number;
-  percentualAtingimentoFretes?: number;
 }
 
 export type FreteRow = FreteResumoRow;
@@ -41,8 +39,19 @@ export interface FretesOverview {
   fretesPrevisaoVencida: number;
   metaFaturamento: number;
   percentualAtingimentoFaturamento: number;
-  metaFretes: number;
-  percentualAtingimentoFretes: number;
+  faturamentoDiario: FretesFaturamentoDiario;
+}
+
+export interface FretesFaturamentoDiario {
+  totalDiasUteisMes: number;
+  diasUteisDecorridos: number;
+  diasUteisRestantes: number;
+  metaDiariaBase: number;
+  faturamentoDiarioReal: number;
+  metaDiariaDinamica: number;
+  faturamentoFaltante: number;
+  tendenciaFaturamento: number;
+  tendenciaPercentual: number;
 }
 
 export interface FretesTrendPoint {
@@ -110,9 +119,6 @@ export interface FretesGoalBranchSummary {
   metaFaturamento: number;
   realizadoFaturamento: number;
   percentualAtingimentoFaturamento: number;
-  metaFretes: number;
-  realizadoFretes: number;
-  percentualAtingimentoFretes: number;
 }
 
 export interface FretesGoalSummary {
@@ -121,9 +127,6 @@ export interface FretesGoalSummary {
   metaFaturamento: number;
   realizadoFaturamento: number;
   percentualAtingimentoFaturamento: number;
-  metaFretes: number;
-  realizadoFretes: number;
-  percentualAtingimentoFretes: number;
   branches: FretesGoalBranchSummary[];
 }
 
@@ -132,7 +135,6 @@ export interface FretesGoalConfig {
   ano: number;
   mes: number;
   metaFaturamento: number;
-  metaFretes: number;
   updatedAt: string | null;
   updatedByName: string | null;
   configurado: boolean;
@@ -144,5 +146,4 @@ export interface FretesGoalConfigPayload {
   ano: number;
   mes: number;
   metaFaturamento: number;
-  metaFretes: number;
 }

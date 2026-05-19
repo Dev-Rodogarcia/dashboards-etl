@@ -4,7 +4,7 @@ import { AxiosError } from 'axios';
 import { Eye, Save, Trash2 } from 'lucide-react';
 import type { FretesGoalConfig, FretesGoalConfigPayload } from '../../../types/fretes';
 import { getApiErrorMessage } from '../../../utils/apiError';
-import { formatarDataHora, formatarMoeda, formatarNumero } from '../../../utils/formatadores';
+import { formatarDataHora, formatarMoeda } from '../../../utils/formatadores';
 
 interface FretesGoalsManagerPanelProps {
   open: boolean;
@@ -45,17 +45,12 @@ function normalizeCurrency(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function normalizeInteger(value: string) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0;
-}
-
 function getMetasErrorMessage(error: unknown): string {
   if (error instanceof AxiosError && (!error.response || error.response.status >= 500)) {
     return 'Metas indisponíveis (API offline)';
   }
 
-  return getApiErrorMessage(error, 'Não foi possível carregar as metas de fretes.');
+  return getApiErrorMessage(error, 'Não foi possível carregar as metas de faturamento.');
 }
 
 export default function FretesGoalsManagerPanel({
@@ -75,7 +70,6 @@ export default function FretesGoalsManagerPanel({
 }: FretesGoalsManagerPanelProps) {
   const [branchId, setBranchId] = useState(GLOBAL_BRANCH_ID);
   const [metaFaturamentoDraft, setMetaFaturamentoDraft] = useState<string | null>(null);
-  const [metaFretesDraft, setMetaFretesDraft] = useState<string | null>(null);
   const configs = useMemo(() => data ?? [], [data]);
   const configsCadastradas = useMemo(
     () => configs.filter((item) => item.configurado !== false),
@@ -103,7 +97,6 @@ export default function FretesGoalsManagerPanel({
     return Array.from({ length: 7 }, (_, index) => current - 2 + index);
   }, []);
   const metaFaturamentoValue = metaFaturamentoDraft ?? String(configAtual?.metaFaturamento ?? 0);
-  const metaFretesValue = metaFretesDraft ?? String(configAtual?.metaFretes ?? 0);
 
   if (!open) {
     return null;
@@ -116,7 +109,6 @@ export default function FretesGoalsManagerPanel({
       ano,
       mes,
       metaFaturamento: normalizeCurrency(metaFaturamentoValue),
-      metaFretes: normalizeInteger(metaFretesValue),
     });
   }
 
@@ -124,7 +116,7 @@ export default function FretesGoalsManagerPanel({
     <section
       className="mb-4 rounded-[20px] border p-5 shadow-sm"
       style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
-      aria-label="Gerenciamento de metas de fretes"
+      aria-label="Gerenciamento de metas de faturamento"
     >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -132,7 +124,7 @@ export default function FretesGoalsManagerPanel({
             Gerenciar Metas
           </h2>
           <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
-            Metas mensais de faturamento e quantidade de fretes por filial.
+            Metas mensais de faturamento por filial.
           </p>
         </div>
         {isLoading ? (
@@ -167,7 +159,6 @@ export default function FretesGoalsManagerPanel({
             value={ano}
             onChange={(event) => {
               setMetaFaturamentoDraft(null);
-              setMetaFretesDraft(null);
               onPeriodChange(Number(event.target.value), mes);
             }}
             className={`h-11 rounded-xl border px-3 text-sm ${FOCUS_RING_CLASS}`}
@@ -182,7 +173,6 @@ export default function FretesGoalsManagerPanel({
             value={mes}
             onChange={(event) => {
               setMetaFaturamentoDraft(null);
-              setMetaFretesDraft(null);
               onPeriodChange(ano, Number(event.target.value));
             }}
             className={`h-11 rounded-xl border px-3 text-sm ${FOCUS_RING_CLASS}`}
@@ -198,7 +188,6 @@ export default function FretesGoalsManagerPanel({
             onChange={(event) => {
               setBranchId(event.target.value);
               setMetaFaturamentoDraft(null);
-              setMetaFretesDraft(null);
             }}
             className={`h-11 rounded-xl border px-3 text-sm ${FOCUS_RING_CLASS}`}
             style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
@@ -216,18 +205,6 @@ export default function FretesGoalsManagerPanel({
             step="0.01"
             value={metaFaturamentoValue}
             onChange={(event) => setMetaFaturamentoDraft(event.target.value)}
-            className={`h-11 rounded-xl border px-3 text-sm tabular-nums ${FOCUS_RING_CLASS}`}
-            style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-          />
-        </label>
-        <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
-          Meta Fretes
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={metaFretesValue}
-            onChange={(event) => setMetaFretesDraft(event.target.value)}
             className={`h-11 rounded-xl border px-3 text-sm tabular-nums ${FOCUS_RING_CLASS}`}
             style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
           />
@@ -275,9 +252,6 @@ export default function FretesGoalsManagerPanel({
                     <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{config.branchId}</span>
                     <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
                       Fat. {formatarMoeda(config.metaFaturamento)}
-                    </span>
-                    <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
-                      Fretes {formatarNumero(config.metaFretes)}
                     </span>
                   </div>
                   <p className="mt-1 text-xs" style={{ color: 'var(--color-text-subtle)' }}>

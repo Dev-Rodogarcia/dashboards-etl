@@ -6,9 +6,6 @@ public record FretesGoalBranchSummaryDTO(
         String branchId,
         BigDecimal metaFaturamento,
         BigDecimal realizadoFaturamento,
-        double percentualAtingimentoFaturamento,
-        int metaFretes,
-        int realizadoFretes,
-        double percentualAtingimentoFretes
+        double percentualAtingimentoFaturamento
 ) {
 }

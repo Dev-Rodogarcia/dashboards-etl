@@ -15,6 +15,5 @@ public record FretesOverviewDTO(
     int fretesPrevisaoVencida,
     BigDecimal metaFaturamento,
     double percentualAtingimentoFaturamento,
-    int metaFretes,
-    double percentualAtingimentoFretes
+    FretesFaturamentoDiarioDTO faturamentoDiario
 ) {}

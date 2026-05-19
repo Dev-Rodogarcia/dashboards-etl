@@ -34,40 +34,37 @@ class FretesGoalServiceTest {
 
     @Test
     void buscarResumoUsaMetaGlobalMensalSemRatearPelosDiasNemMultiplicarPelasFiliais() {
-        metas(new MetaRow(null, 2026, 5, "700000.00", 6000000));
+        metas(new MetaRow(null, 2026, 5, "700000.00"));
 
         var resumo = service.buscarResumo(
                 LocalDate.of(2026, 4, 19),
                 LocalDate.of(2026, 5, 19),
-                List.of(realizado("SPO", "1000.00", 10), realizado("REC", "2000.00", 20)),
+                List.of(realizado("SPO", "1000.00"), realizado("REC", "2000.00")),
                 List.of()
         );
 
         assertThat(resumo.metaFaturamento()).isEqualByComparingTo("700000.00");
-        assertThat(resumo.metaFretes()).isEqualTo(6000000);
         assertThat(resumo.realizadoFaturamento()).isEqualByComparingTo("3000.00");
-        assertThat(resumo.realizadoFretes()).isEqualTo(30);
         assertThat(resumo.branches())
-                .extracting(FretesGoalBranchSummaryDTO::metaFretes)
-                .containsOnly(0);
+                .extracting(FretesGoalBranchSummaryDTO::metaFaturamento)
+                .containsOnly(BigDecimal.ZERO.setScale(2));
     }
 
     @Test
     void buscarResumoSomaMetasEspecificasQuandoNaoExisteMetaGlobal() {
         metas(
-                new MetaRow("REC", 2026, 5, "1000.00", 10),
-                new MetaRow("SPO", 2026, 5, "2000.00", 20)
+                new MetaRow("REC", 2026, 5, "1000.00"),
+                new MetaRow("SPO", 2026, 5, "2000.00")
         );
 
         var resumo = service.buscarResumo(
                 LocalDate.of(2026, 5, 1),
                 LocalDate.of(2026, 5, 31),
-                List.of(realizado("SPO", "3000.00", 30), realizado("REC", "1500.00", 15)),
+                List.of(realizado("SPO", "3000.00"), realizado("REC", "1500.00")),
                 List.of()
         );
 
         assertThat(resumo.metaFaturamento()).isEqualByComparingTo("3000.00");
-        assertThat(resumo.metaFretes()).isEqualTo(30);
         assertThat(resumo.branches()).extracting(FretesGoalBranchSummaryDTO::branchId)
                 .containsExactly("REC", "SPO");
         assertThat(resumo.branches()).extracting(FretesGoalBranchSummaryDTO::metaFaturamento)
@@ -76,49 +73,45 @@ class FretesGoalServiceTest {
 
     @Test
     void buscarResumoComFiltroDeFilialNaoUsaMetaGlobalComoMetaDaFilial() {
-        metas(new MetaRow(null, 2026, 5, "700000.00", 6000000));
+        metas(new MetaRow(null, 2026, 5, "700000.00"));
 
         var resumo = service.buscarResumo(
                 LocalDate.of(2026, 5, 1),
                 LocalDate.of(2026, 5, 31),
-                List.of(realizado("SPO", "3000.00", 30)),
+                List.of(realizado("SPO", "3000.00")),
                 List.of("SPO")
         );
 
         assertThat(resumo.metaFaturamento()).isEqualByComparingTo("0.00");
-        assertThat(resumo.metaFretes()).isZero();
         assertThat(resumo.branches()).singleElement().satisfies(branch -> {
             assertThat(branch.branchId()).isEqualTo("SPO");
             assertThat(branch.metaFaturamento()).isEqualByComparingTo("0.00");
-            assertThat(branch.metaFretes()).isZero();
         });
     }
 
     @Test
     void buscarResumoComFiltroDeFilialUsaMetaEspecificaDaFilial() {
         metas(
-                new MetaRow(null, 2026, 5, "700000.00", 6000000),
-                new MetaRow("SPO", 2026, 5, "1000.00", 10)
+                new MetaRow(null, 2026, 5, "700000.00"),
+                new MetaRow("SPO", 2026, 5, "1000.00")
         );
 
         var resumo = service.buscarResumo(
                 LocalDate.of(2026, 5, 1),
                 LocalDate.of(2026, 5, 31),
-                List.of(realizado("SPO", "3000.00", 30)),
+                List.of(realizado("SPO", "3000.00")),
                 List.of("SPO")
         );
 
         assertThat(resumo.metaFaturamento()).isEqualByComparingTo("1000.00");
-        assertThat(resumo.metaFretes()).isEqualTo(10);
         assertThat(resumo.branches()).singleElement().satisfies(branch -> {
             assertThat(branch.branchId()).isEqualTo("SPO");
             assertThat(branch.metaFaturamento()).isEqualByComparingTo("1000.00");
-            assertThat(branch.metaFretes()).isEqualTo(10);
         });
     }
 
-    private FretesGoalService.FretesBranchRealizado realizado(String branchId, String faturamento, int fretes) {
-        return new FretesGoalService.FretesBranchRealizado(branchId, new BigDecimal(faturamento), fretes);
+    private FretesGoalService.FretesBranchRealizado realizado(String branchId, String faturamento) {
+        return new FretesGoalService.FretesBranchRealizado(branchId, new BigDecimal(faturamento));
     }
 
     private void metas(MetaRow... rows) {
@@ -134,7 +127,6 @@ class FretesGoalServiceTest {
                     case "getInt" -> switch (String.valueOf(args[0])) {
                         case "ano" -> row.ano();
                         case "mes" -> row.mes();
-                        case "meta_fretes" -> row.metaFretes();
                         default -> 0;
                     };
                     case "getBigDecimal" -> "meta_faturamento".equals(args[0]) ? new BigDecimal(row.metaFaturamento()) : BigDecimal.ZERO;
@@ -240,6 +232,6 @@ class FretesGoalServiceTest {
         }
     }
 
-    private record MetaRow(String branchId, int ano, int mes, String metaFaturamento, int metaFretes) {
+    private record MetaRow(String branchId, int ano, int mes, String metaFaturamento) {
     }
 }

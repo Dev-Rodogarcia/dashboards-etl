@@ -5,6 +5,7 @@ import com.dashboard.api.dto.fretes.FreteResumoDTO;
 import com.dashboard.api.dto.fretes.FretesChartsDTO;
 import com.dashboard.api.dto.fretes.FretesClienteRankingDTO;
 import com.dashboard.api.dto.fretes.FretesDocumentMixDTO;
+import com.dashboard.api.dto.fretes.FretesFaturamentoDiarioDTO;
 import com.dashboard.api.dto.fretes.FretesFaturamentoGrupoDTO;
 import com.dashboard.api.dto.fretes.FretesGoalSummaryDTO;
 import com.dashboard.api.dto.fretes.FretesOrigemDestinoDTO;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.DayOfWeek;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -97,8 +99,7 @@ public class FretesService {
                     BigDecimal.ZERO, 0, 0.0, 0.0, 0,
                     metas.metaFaturamento(),
                     metas.percentualAtingimentoFaturamento(),
-                    metas.metaFretes(),
-                    metas.percentualAtingimentoFretes()
+                    calcularFaturamentoDiario(filtro.dataFim(), metas.metaFaturamento(), BigDecimal.ZERO)
             );
         }
 
@@ -149,8 +150,7 @@ public class FretesService {
                 fretesPrevisaoVencida,
                 metas.metaFaturamento(),
                 metas.percentualAtingimentoFaturamento(),
-                metas.metaFretes(),
-                metas.percentualAtingimentoFretes()
+                calcularFaturamentoDiario(filtro.dataFim(), metas.metaFaturamento(), receitaBruta)
         );
     }
 
@@ -409,11 +409,69 @@ public class FretesService {
                 BigDecimal.ZERO,
                 realizadoFaturamento,
                 0.0,
-                0,
-                fretes.size(),
-                0.0,
                 List.of()
         );
+    }
+
+    private FretesFaturamentoDiarioDTO calcularFaturamentoDiario(
+            LocalDate referencia,
+            BigDecimal metaFaturamento,
+            BigDecimal realizadoFaturamento
+    ) {
+        BigDecimal meta = ConsultaFiltroUtils.zeroSeNulo(metaFaturamento).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal realizado = ConsultaFiltroUtils.zeroSeNulo(realizadoFaturamento).setScale(2, RoundingMode.HALF_UP);
+        int totalDiasUteisMes = Math.max(1, contarDiasUteis(
+                referencia.withDayOfMonth(1),
+                referencia.withDayOfMonth(referencia.lengthOfMonth())
+        ));
+        int diasUteisDecorridos = Math.max(1, contarDiasUteis(referencia.withDayOfMonth(1), referencia));
+        int diasUteisRestantes = Math.max(0, totalDiasUteisMes - diasUteisDecorridos);
+        int divisorDiasRestantes = Math.max(1, diasUteisRestantes);
+
+        BigDecimal metaDiariaBase = dividir(meta, totalDiasUteisMes);
+        BigDecimal faturamentoDiarioReal = dividir(realizado, diasUteisDecorridos);
+        BigDecimal faturamentoFaltante = meta.subtract(realizado).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal metaDiariaDinamica = dividir(faturamentoFaltante, divisorDiasRestantes);
+        BigDecimal tendenciaFaturamento = faturamentoDiarioReal
+                .multiply(BigDecimal.valueOf(totalDiasUteisMes))
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal tendenciaPercentual = meta.compareTo(BigDecimal.ZERO) > 0
+                ? tendenciaFaturamento.divide(meta, 6, RoundingMode.HALF_UP).subtract(BigDecimal.ONE)
+                : BigDecimal.ZERO.setScale(6, RoundingMode.HALF_UP);
+
+        return new FretesFaturamentoDiarioDTO(
+                totalDiasUteisMes,
+                diasUteisDecorridos,
+                diasUteisRestantes,
+                metaDiariaBase,
+                faturamentoDiarioReal,
+                metaDiariaDinamica,
+                faturamentoFaltante,
+                tendenciaFaturamento,
+                tendenciaPercentual
+        );
+    }
+
+    private int contarDiasUteis(LocalDate inicio, LocalDate fim) {
+        if (inicio.isAfter(fim)) {
+            return 0;
+        }
+
+        int total = 0;
+        for (LocalDate data = inicio; !data.isAfter(fim); data = data.plusDays(1)) {
+            DayOfWeek dia = data.getDayOfWeek();
+            if (dia != DayOfWeek.SATURDAY && dia != DayOfWeek.SUNDAY) {
+                total++;
+            }
+        }
+        return total;
+    }
+
+    private BigDecimal dividir(BigDecimal valor, int divisor) {
+        if (divisor <= 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return valor.divide(BigDecimal.valueOf(divisor), 2, RoundingMode.HALF_UP);
     }
 
     private List<FretesGoalService.FretesBranchRealizado> realizadosPorFilial(List<VisaoFretesEntity> fretes) {
@@ -430,8 +488,7 @@ public class FretesService {
                                 .map(VisaoFretesEntity::getValorTotal)
                                 .map(ConsultaFiltroUtils::zeroSeNulo)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add)
-                                .setScale(2, RoundingMode.HALF_UP),
-                        entry.getValue().size()
+                                .setScale(2, RoundingMode.HALF_UP)
                 ))
                 .toList();
     }

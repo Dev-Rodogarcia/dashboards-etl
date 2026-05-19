@@ -6,7 +6,6 @@ public record FretesGoalConfigRequestDTO(
         String branchId,
         int ano,
         int mes,
-        BigDecimal metaFaturamento,
-        Integer metaFretes
+        BigDecimal metaFaturamento
 ) {
 }

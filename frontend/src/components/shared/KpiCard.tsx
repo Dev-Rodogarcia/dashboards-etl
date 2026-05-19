@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from 'react';
+import { createElement, type CSSProperties, type ReactNode } from 'react';
 import { resolveKpiIcon } from './kpiIconResolver';
 import { getGoalToneStyle, type GoalTone } from '../../utils/indicadoresGestaoVistaUi';
 
@@ -11,6 +11,8 @@ function getFlexBasis(valor: string): number {
 interface KpiCardProps {
   label: string;
   valor: string;
+  valorClassName?: string;
+  valorStyle?: CSSProperties;
   icone?: ReactNode;
   tone?: GoalTone;
   metaLabel?: string;
@@ -27,6 +29,8 @@ interface KpiCardProps {
 export default function KpiCard({
   label,
   valor,
+  valorClassName,
+  valorStyle,
   icone,
   tone = 'neutral',
   metaLabel,
@@ -67,8 +71,8 @@ export default function KpiCard({
       </div>
 
       <span
-        className="text-2xl font-bold truncate"
-        style={{ color: 'var(--color-text)' }}
+        className={valorClassName ?? 'text-2xl font-bold truncate'}
+        style={valorStyle ?? (valorClassName ? undefined : { color: 'var(--color-text)' })}
       >
         {valor}
       </span>

@@ -9,9 +9,6 @@ public record FretesGoalSummaryDTO(
         BigDecimal metaFaturamento,
         BigDecimal realizadoFaturamento,
         double percentualAtingimentoFaturamento,
-        int metaFretes,
-        int realizadoFretes,
-        double percentualAtingimentoFretes,
         List<FretesGoalBranchSummaryDTO> branches
 ) {
 }

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Minus, Pause, Play, Settings } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Minus, Settings } from 'lucide-react';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import FretesGoalsManagerPanel from '../components/domain/fretes/FretesGoalsManagerPanel';
@@ -666,7 +666,7 @@ function FaturamentoEvolutionCard({
   faturamentoDiarioReal,
   diferencaDiaria,
   faturamentoFaltante,
-  faturamentoDiarioMinimo,
+  metaDiariaDinamica,
 }: {
   dados: FretesTrendPoint[];
   isLoading?: boolean;
@@ -677,7 +677,7 @@ function FaturamentoEvolutionCard({
   faturamentoDiarioReal: number;
   diferencaDiaria: number;
   faturamentoFaltante: number;
-  faturamentoDiarioMinimo: number;
+  metaDiariaDinamica: number;
 }) {
   const option = useMemo(
     () => buildEvolutionOption(dados, drillLevel, dataFim, metaDiaria),
@@ -689,7 +689,7 @@ function FaturamentoEvolutionCard({
     { label: 'Faturamento Diário Real', value: formatarMoeda(faturamentoDiarioReal), tone: 'neutral' },
     { label: 'Diferença', value: formatarMoeda(diferencaDiaria), tone: diferencaDiaria < 0 ? 'danger' : 'success' },
     { label: 'Faturamento Faltante', value: formatarMoeda(faturamentoFaltante), tone: 'neutral' },
-    { label: 'Faturamento Diário Mínimo', value: formatarMoeda(faturamentoDiarioMinimo), tone: 'neutral' },
+    { label: 'Meta Diária Dinâmica', value: formatarMoeda(metaDiariaDinamica), tone: 'neutral' },
   ];
 
   return (
@@ -751,96 +751,10 @@ function TopClientesTableCard({
   anteriores: FretesClienteRanking[];
   isLoading?: boolean;
 }) {
-  const [paused, setPaused] = useState(false);
-  const [hoverPaused, setHoverPaused] = useState(false);
-  const tickerRef = useRef<HTMLDivElement>(null);
   const rows = useMemo(() => buildTopClientesRows(atuais, anteriores), [atuais, anteriores]);
-  const shouldAnimate = rows.length > 4;
   const totalAnterior = rows.reduce((acc, item) => acc + item.mesAnterior, 0);
   const totalAtual = rows.reduce((acc, item) => acc + item.mesAtual, 0);
   const variacaoTotal = percentualVariacao(totalAtual, totalAnterior);
-  const isTickerPaused = paused || hoverPaused || !shouldAnimate;
-
-  useEffect(() => {
-    const frameId = window.requestAnimationFrame(() => {
-      if (tickerRef.current) {
-        tickerRef.current.scrollTop = 0;
-      }
-    });
-
-    return () => window.cancelAnimationFrame(frameId);
-  }, [rows]);
-
-  useEffect(() => {
-    if (isTickerPaused) return undefined;
-
-    let frameId = 0;
-    let timerId = 0;
-    let previousTimestamp: number | null = null;
-    const speedPxPerSecond = 22;
-
-    const stopFrame = () => {
-      if (frameId) {
-        window.cancelAnimationFrame(frameId);
-        frameId = 0;
-      }
-      previousTimestamp = null;
-    };
-
-    const tick = (timestamp: number) => {
-      const container = tickerRef.current;
-      if (!container) {
-        frameId = window.requestAnimationFrame(tick);
-        return;
-      }
-
-      const maxScrollTop = container.scrollHeight - container.clientHeight;
-      if (maxScrollTop <= 1) {
-        previousTimestamp = timestamp;
-        frameId = window.requestAnimationFrame(tick);
-        return;
-      }
-
-      const previous = previousTimestamp ?? timestamp;
-      const elapsed = Math.min(timestamp - previous, 80);
-      previousTimestamp = timestamp;
-
-      const nextScrollTop = container.scrollTop + (elapsed / 1000) * speedPxPerSecond;
-      if (nextScrollTop >= maxScrollTop - 1) {
-        container.scrollTop = 0;
-        previousTimestamp = null;
-      } else {
-        container.scrollTop = nextScrollTop;
-      }
-
-      frameId = window.requestAnimationFrame(tick);
-    };
-
-    const startFrame = () => {
-      if (!frameId) {
-        frameId = window.requestAnimationFrame(tick);
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stopFrame();
-      } else {
-        startFrame();
-      }
-    };
-
-    timerId = window.setTimeout(() => {
-      startFrame();
-    }, 120);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.clearTimeout(timerId);
-      stopFrame();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isTickerPaused, rows]);
 
   function renderVariacao(value: number) {
     if (value > 0) {
@@ -855,19 +769,6 @@ function TopClientesTableCard({
   return (
     <ChartCard
       titulo="Top 10 Clientes"
-      actions={(
-        <button
-          type="button"
-          title={paused ? 'Iniciar carrossel' : 'Pausar carrossel'}
-          aria-label={paused ? 'Iniciar carrossel' : 'Pausar carrossel'}
-          disabled={!shouldAnimate}
-          onClick={() => setPaused((current) => !current)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border transition disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
-        >
-          {paused ? <Play size={14} /> : <Pause size={14} />}
-        </button>
-      )}
       isLoading={isLoading}
       isEmpty={rows.length === 0}
       className="h-full"
@@ -894,10 +795,7 @@ function TopClientesTableCard({
           </table>
 
           <div
-            ref={tickerRef}
             className="min-h-0 flex-1 overflow-y-auto"
-            onMouseEnter={() => setHoverPaused(true)}
-            onMouseLeave={() => setHoverPaused(false)}
           >
             <table className="w-full table-fixed text-sm">
               <colgroup>
@@ -1012,32 +910,21 @@ export default function FretesPage() {
 
   const canManageFretesGoals = canAccess('can_manage_kpi_goals');
 
-  const referencia = parseDateLocal(dataFim);
   const overviewData = overview.data;
   const metasData = metas.data;
   const metasIndisponiveis = metas.isError;
   const metaFaturamento = metasIndisponiveis
     ? 0
     : metasData?.metaFaturamento ?? overviewData?.metaFaturamento ?? 0;
-  const metaFretes = metasIndisponiveis
-    ? 0
-    : metasData?.metaFretes ?? overviewData?.metaFretes ?? 0;
-  const faturamentoLiquido = overviewData?.valorFrete ?? 0;
   const progressoMeta = metaFaturamento > 0
     ? (metasData?.percentualAtingimentoFaturamento ?? overviewData?.percentualAtingimentoFaturamento ?? 0)
     : 0;
-  const progressoMetaFretes = metaFretes > 0
-    ? (metasData?.percentualAtingimentoFretes ?? overviewData?.percentualAtingimentoFretes ?? 0)
-    : 0;
-  const diasUteisMes = countBusinessDaysInMonth(referencia.getFullYear(), referencia.getMonth());
-  const diasUteisDecorridos = Math.max(1, countBusinessDays(new Date(referencia.getFullYear(), referencia.getMonth(), 1), referencia));
-  const diasUteisRestantes = Math.max(1, diasUteisMes - diasUteisDecorridos);
-  const diasUteisPeriodo = Math.max(1, countBusinessDays(parseDateLocal(dataInicio), parseDateLocal(dataFim)));
-  const metaDiaria = metaFaturamento > 0 ? metaFaturamento / diasUteisPeriodo : 0;
-  const faturamentoDiarioReal = (overviewData?.receitaBruta ?? 0) / diasUteisDecorridos;
+  const faturamentoDiario = overviewData?.faturamentoDiario;
+  const metaDiaria = faturamentoDiario?.metaDiariaBase ?? 0;
+  const faturamentoDiarioReal = faturamentoDiario?.faturamentoDiarioReal ?? 0;
   const diferencaDiaria = faturamentoDiarioReal - metaDiaria;
-  const faturamentoFaltante = Math.max(metaFaturamento - (overviewData?.receitaBruta ?? 0), 0);
-  const faturamentoDiarioMinimo = faturamentoFaltante / diasUteisRestantes;
+  const faturamentoFaltante = faturamentoDiario?.faturamentoFaltante ?? 0;
+  const metaDiariaDinamica = faturamentoDiario?.metaDiariaDinamica ?? 0;
 
   const classificacaoEntries = useMemo(
     () => groupTopWithOthers(graficos.data?.faturamentoPorClassificacao ?? [], 5),
@@ -1129,8 +1016,6 @@ export default function FretesPage() {
         ...row,
         metaFaturamento: metaAplicada?.metaFaturamento ?? 0,
         percentualAtingimentoFaturamento: metaAplicada?.percentualAtingimentoFaturamento ?? 0,
-        metaFretes: metaAplicada?.metaFretes ?? 0,
-        percentualAtingimentoFretes: metaAplicada?.percentualAtingimentoFretes ?? 0,
       };
     })
   ), [metasData, metasPorFilial, tabela.data, usarMetaGlobalNaTabela]);
@@ -1173,12 +1058,6 @@ export default function FretesPage() {
     {
       chave: 'percentualAtingimentoFaturamento',
       label: '% Ating. Fat.',
-      formato: renderMetaPercentualTabela,
-    },
-    { chave: 'metaFretes', label: 'Meta Fretes', formato: (valor) => Number(valor ?? 0) > 0 ? formatarNumero(Number(valor ?? 0)) : '—' },
-    {
-      chave: 'percentualAtingimentoFretes',
-      label: '% Ating. Fretes',
       formato: renderMetaPercentualTabela,
     },
     { chave: 'pesoTaxado', label: 'Peso', formato: (valor) => formatarPeso(Number(valor ?? 0)) },
@@ -1270,10 +1149,8 @@ export default function FretesPage() {
         <FretesKpiGrid
           overview={overview.data}
           metaFaturamento={metaFaturamento}
-          metaFretes={metaFretes}
-          faturamentoLiquido={faturamentoLiquido}
           progressoMeta={progressoMeta}
-          progressoMetaFretes={progressoMetaFretes}
+          faturamentoDiario={faturamentoDiario}
           metasIndisponiveis={metasIndisponiveis}
         />
       )}
@@ -1290,7 +1167,7 @@ export default function FretesPage() {
             faturamentoDiarioReal={faturamentoDiarioReal}
             diferencaDiaria={diferencaDiaria}
             faturamentoFaltante={faturamentoFaltante}
-            faturamentoDiarioMinimo={faturamentoDiarioMinimo}
+            metaDiariaDinamica={metaDiariaDinamica}
           />
         </div>
         <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-3`}>
