@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { data30DiasAtrasLocal, dataHojeLocal } from '../utils/dateUtils';
+import { dataHojeLocal, primeiroDiaMesAtualLocal } from '../utils/dateUtils';
 
 interface FiltroContexto {
   dataInicio: string;
@@ -44,7 +44,7 @@ function lerFiltros(params: URLSearchParams): Record<string, string[]> {
 export function FiltroProvider({ children }: { children: ReactNode }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const dataInicio = searchParams.get('dataInicio') ?? data30DiasAtrasLocal();
+  const dataInicio = searchParams.get('dataInicio') ?? primeiroDiaMesAtualLocal();
   const dataFim = searchParams.get('dataFim') ?? dataHojeLocal();
   const filtros = useMemo(() => lerFiltros(searchParams), [searchParams]);
 
