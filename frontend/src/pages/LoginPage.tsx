@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
+import { BarChart3, Eye, EyeOff, Loader2, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { useAutenticacao } from '../contexts/AutenticacaoContext';
 import { firstAccessibleRoute } from '../utils/accessControl';
 import { getApiErrorMessage } from '../utils/apiError';
@@ -10,8 +12,12 @@ export default function LoginPage() {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const { usuario: sessao, carregandoSessao, login } = useAutenticacao();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
+
+  const isDarkTheme = theme === 'dark';
 
   useEffect(() => {
     if (!carregandoSessao && sessao?.token) {
@@ -38,63 +44,202 @@ export default function LoginPage() {
     }
   }
 
+  function toggleTheme() {
+    setTheme(isDarkTheme ? 'light' : 'dark');
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4">
-      <form onSubmit={handleSubmit} className="flex w-full max-w-md flex-col gap-4 rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-bold text-[#21478A]">Acesso à plataforma</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Controle de acesso por setor com área administrativa.
-          </p>
-          {carregandoSessao && (
-            <p className="mt-2 text-xs text-orange-600">
-              Validando a sessão salva nesta aba...
-            </p>
-          )}
+    <div
+      className="flex min-h-screen flex-col transition-colors duration-300"
+      style={{ backgroundColor: 'var(--color-bg)' }}
+    >
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between p-4 sm:p-6">
+        <div className="flex items-center gap-3">
+          <img
+            src="/logo.png"
+            alt="Logo da empresa"
+            className="h-7 w-auto object-contain transition-all duration-200 dark:brightness-0 dark:invert"
+          />
+          <div className="hidden h-4 w-[1px] sm:block" style={{ backgroundColor: 'var(--color-border)' }} />
+          <span className="hidden text-[11px] font-bold uppercase tracking-wider sm:block" style={{ color: 'var(--color-text-muted)' }}>
+            Portal de Indicadores
+          </span>
         </div>
 
-        {erro && (
-          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {erro}
-          </p>
-        )}
-
-        <label className="space-y-1">
-          <span className="text-sm font-medium text-gray-700">E-mail</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
-            required
-          />
-        </label>
-
-        <label className="space-y-1">
-          <span className="text-sm font-medium text-gray-700">Senha</span>
-          <input
-            type="password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
-            required
-          />
-        </label>
-
         <button
-          type="submit"
-          disabled={carregando}
-          className="rounded-xl bg-[#21478A] py-2.5 font-medium text-white disabled:opacity-50"
+          type="button"
+          onClick={toggleTheme}
+          title={isDarkTheme ? 'Alternar para tema claro' : 'Alternar para tema escuro'}
+          aria-label={isDarkTheme ? 'Alternar para tema claro' : 'Alternar para tema escuro'}
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+          style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
         >
-          {carregando ? 'Entrando...' : 'Entrar'}
+          {isDarkTheme ? <Sun size={16} /> : <Moon size={16} />}
         </button>
+      </div>
 
-        {carregando && (
-          <p className="text-xs text-gray-500">
-            Validando credenciais e preparando a sessão...
-          </p>
-        )}
-      </form>
+      <div className="flex flex-1 items-center justify-center px-4 py-6">
+        <div className="flex w-full max-w-[780px] flex-col items-stretch gap-5 md:flex-row">
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-1 flex-col gap-5 rounded-[24px] border p-7 shadow-sm transition-all duration-300 hover:shadow-md"
+            style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+          >
+            <div className="flex flex-col gap-2">
+              <div className="space-y-1">
+                <h1 className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>
+                  Acesso à Plataforma
+                </h1>
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                  Insira suas credenciais corporativas para entrar na sua conta
+                </p>
+              </div>
+
+              {carregandoSessao && (
+                <div
+                  className="mt-1 self-start rounded-lg px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider"
+                  style={{ backgroundColor: 'var(--color-warning-badge-bg)', color: 'var(--color-warning-badge-text)' }}
+                >
+                  Validando sessão salva...
+                </div>
+              )}
+            </div>
+
+            {erro && (
+              <div
+                role="alert"
+                className="rounded-xl border px-3.5 py-2.5 text-xs font-medium"
+                style={{
+                  backgroundColor: 'var(--color-negative-badge-bg)',
+                  color: 'var(--color-negative-badge-text)',
+                  borderColor: 'var(--color-negative-border)',
+                }}
+              >
+                {erro}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>E-mail</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu.email@empresa.com"
+                  className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                  style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                  required
+                />
+              </label>
+
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>Senha</span>
+                <div className="relative w-full">
+                  <input
+                    type={mostrarSenha ? 'text' : 'password'}
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full rounded-xl border py-2.5 pl-3.5 pr-11 text-sm outline-none transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                    style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenha((prev) => !prev)}
+                    title={mostrarSenha ? 'Ocultar senha' : 'Exibir senha'}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                    style={{ color: 'var(--color-text-muted)' }}
+                  >
+                    {mostrarSenha ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={carregando}
+              className="w-full cursor-pointer rounded-xl py-3 text-sm font-semibold shadow-sm transition-all duration-150 hover:shadow focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 active:scale-[0.98] disabled:opacity-50"
+              style={{ backgroundColor: 'var(--color-primary)', color: '#ffffff' }}
+            >
+              {carregando ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Entrando...</span>
+                </span>
+              ) : (
+                <span>Acessar plataforma</span>
+              )}
+            </button>
+
+            {carregando && (
+              <p className="text-center text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                Preparando painel e validando credenciais...
+              </p>
+            )}
+
+            <div className="flex items-center justify-center gap-1.5 border-t pt-4 text-[11px]" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
+              <ShieldCheck size={13} style={{ color: 'var(--color-primary)' }} />
+              <span>Acesso restrito e criptografado SSL</span>
+            </div>
+          </form>
+
+          <aside
+            className="hidden w-[300px] flex-none flex-col justify-between rounded-[24px] border p-7 shadow-sm transition-all duration-300 hover:shadow-md md:flex"
+            style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+          >
+            <div className="space-y-4">
+              <div
+                className="flex h-11 w-11 items-center justify-center rounded-xl"
+                style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-primary)' }}
+              >
+                <BarChart3 size={20} />
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+                  Portal corporativo
+                </span>
+                <h2 className="text-xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>
+                  Indicadores em um só lugar
+                </h2>
+                <p className="text-sm leading-6" style={{ color: 'var(--color-text-muted)' }}>
+                  Acesse os painéis da empresa com segurança e visualize as áreas liberadas para o seu perfil.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t pt-5" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
+                <ShieldCheck size={15} style={{ color: 'var(--color-primary)' }} />
+                <span>Acesso seguro por usuário</span>
+              </div>
+              <p className="text-[11px] leading-5" style={{ color: 'var(--color-text-muted)' }}>
+                As permissões são aplicadas automaticamente após o login.
+              </p>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <footer
+        className="mt-auto w-full py-6 text-center text-[11px]"
+        style={{ color: 'var(--color-text-muted)' }}
+      >
+        Desenvolvido por{' '}
+        <a
+          href="https://www.linkedin.com/in/dev-lucasandrade/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium hover:underline"
+          style={{ color: 'var(--color-primary)' }}
+        >
+          @valentelucass
+        </a>
+        {' '} • Suporte: lucasmac.dev@gmail.com
+      </footer>
     </div>
   );
 }

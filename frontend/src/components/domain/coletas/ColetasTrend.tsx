@@ -13,6 +13,7 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
     xAxis: {
       type: 'category' as const,
       data: dados.map((d) => formatarDataCurta(d.date)),
+      boundaryGap: false,
     },
     yAxis: {
       type: 'value' as const,
@@ -22,6 +23,7 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
       {
         name: 'Total',
         type: 'line' as const,
+        areaStyle: {},
         data: dados.map((d) => d.total),
         itemStyle: { color: CORES.primaria },
         smooth: true,
@@ -29,6 +31,7 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
       {
         name: 'Finalizadas',
         type: 'line' as const,
+        areaStyle: {},
         data: dados.map((d) => d.finalizadas),
         itemStyle: { color: CORES.sucesso },
         smooth: true,
@@ -36,6 +39,7 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
       {
         name: 'Canceladas',
         type: 'line' as const,
+        areaStyle: {},
         data: dados.map((d) => d.canceladas),
         itemStyle: { color: CORES.perigo },
         smooth: true,
@@ -43,6 +47,7 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
       {
         name: 'Em Tratativa',
         type: 'line' as const,
+        areaStyle: {},
         data: dados.map((d) => d.emTratativa),
         itemStyle: { color: CORES.alerta },
         smooth: true,

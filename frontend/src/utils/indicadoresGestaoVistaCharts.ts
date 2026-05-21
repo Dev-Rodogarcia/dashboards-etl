@@ -33,9 +33,27 @@ function truncarRotulo(label: string, limite = 26): string {
   return `${label.slice(0, limite - 1)}…`;
 }
 
+function resolveCssColor(colorStr: string): string {
+  if (typeof window === 'undefined' || !colorStr.startsWith('var(')) {
+    return colorStr;
+  }
+  const match = colorStr.match(/var\(([^,\s)]+)(?:,\s*([^)]+))?\)/);
+  if (!match) {
+    return colorStr;
+  }
+  const varName = match[1].trim();
+  const fallback = (match[2] || '').trim();
+  try {
+    const value = window.getComputedStyle(document.documentElement).getPropertyValue(varName);
+    return value.trim() || fallback || '#64748b';
+  } catch {
+    return fallback || '#64748b';
+  }
+}
+
 function resolveColor(value: number, threshold: number, mode: GoalMode): string {
   const tone = resolverTomMetaPorValor(value, threshold, mode);
-  return getGoalToneStyle(tone).fill;
+  return resolveCssColor(getGoalToneStyle(tone).fill);
 }
 
 function defaultAxisFormatter(value: number): string {

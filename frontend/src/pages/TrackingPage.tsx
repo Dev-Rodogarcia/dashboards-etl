@@ -67,13 +67,49 @@ export default function TrackingPage() {
 
   const serieOption: EChartsOption = {
     legend: { bottom: 0 },
-    xAxis: { type: 'category', data: (serie.data ?? []).map((item) => item.date) },
+    xAxis: {
+      type: 'category',
+      data: (serie.data ?? []).map((item) => item.date),
+      boundaryGap: false,
+    },
     yAxis: { type: 'value' },
     series: [
-      { name: 'Pendente', type: 'line', data: (serie.data ?? []).map((item) => item.pendente), itemStyle: { color: CORES.aviso } },
-      { name: 'Em entrega', type: 'line', data: (serie.data ?? []).map((item) => item.emEntrega), itemStyle: { color: CORES.primaria } },
-      { name: 'Em transferencia', type: 'line', data: (serie.data ?? []).map((item) => item.emTransferencia), itemStyle: { color: CORES.secundaria } },
-      { name: 'Finalizado', type: 'line', data: (serie.data ?? []).map((item) => item.finalizado), itemStyle: { color: CORES.sucesso } },
+      {
+        name: 'Pendente',
+        type: 'line',
+        stack: 'total',
+        areaStyle: {},
+        smooth: true,
+        data: (serie.data ?? []).map((item) => item.pendente),
+        itemStyle: { color: CORES.aviso },
+      },
+      {
+        name: 'Em entrega',
+        type: 'line',
+        stack: 'total',
+        areaStyle: {},
+        smooth: true,
+        data: (serie.data ?? []).map((item) => item.emEntrega),
+        itemStyle: { color: CORES.primaria },
+      },
+      {
+        name: 'Em transferencia',
+        type: 'line',
+        stack: 'total',
+        areaStyle: {},
+        smooth: true,
+        data: (serie.data ?? []).map((item) => item.emTransferencia),
+        itemStyle: { color: CORES.secundaria },
+      },
+      {
+        name: 'Finalizado',
+        type: 'line',
+        stack: 'total',
+        areaStyle: {},
+        smooth: true,
+        data: (serie.data ?? []).map((item) => item.finalizado),
+        itemStyle: { color: CORES.sucesso },
+      },
     ],
   };
 

@@ -416,26 +416,11 @@ function buildClassificacaoDonutOption(dados: ChartDatum[], selectedName: string
         return `${truncateLabel(name, 18)}\n${formatarMoeda(value)} · ${formatarPorcentagem(percent, 1)}`;
       },
     },
-    graphic: [
-      {
-        type: 'text',
-        left: '25%',
-        top: '42%',
-        style: {
-          text: `Total\n${formatarMoeda(total)}`,
-          align: 'center',
-          fill: 'var(--color-text)',
-          fontSize: 13,
-          fontWeight: 700,
-          lineHeight: 21,
-        },
-      },
-    ],
     series: [
       {
         type: 'pie',
-        radius: ['48%', '72%'],
-        center: ['32%', '52%'],
+        radius: ['40%', '70%'],
+        center: ['32%', '50%'],
         data: dados.map((item, index) => ({
           name: item.nome,
           value: item.receita,

@@ -443,30 +443,25 @@ export default function TopNav() {
                     </div>
                   </nav>
 
-                  <AnimatePresence>
-                    {drawerScrollState.canScrollUp && (
-                      <motion.div
-                        key="scroll-up"
-                        className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pb-8 pt-3 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--top"
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                      >
-                        <ChevronUp size={18} />
-                      </motion.div>
-                    )}
-                    {drawerScrollState.canScrollDown && (
-                      <motion.div
-                        key="scroll-down"
-                        className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-3 pt-8 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--bottom"
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 8 }}
-                      >
-                        <ChevronDown size={18} />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <div
+                    className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pb-8 pt-3 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--top"
+                    style={{
+                      opacity: drawerScrollState.canScrollUp ? 1 : 0,
+                      transform: drawerScrollState.canScrollUp ? 'translateY(0)' : 'translateY(-8px)',
+                    }}
+                  >
+                    <ChevronUp size={18} />
+                  </div>
+
+                  <div
+                    className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-3 pt-8 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--bottom"
+                    style={{
+                      opacity: drawerScrollState.canScrollDown ? 1 : 0,
+                      transform: drawerScrollState.canScrollDown ? 'translateY(0)' : 'translateY(8px)',
+                    }}
+                  >
+                    <ChevronDown size={18} />
+                  </div>
                 </div>
               </motion.aside>
             </>

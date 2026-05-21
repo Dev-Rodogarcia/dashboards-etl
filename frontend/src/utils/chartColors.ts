@@ -38,4 +38,7 @@ export const CORES_STATUS: Record<string, string> = {
   'em transferência': '#6366f1',
   manifestado: '#7c3aed',
   aguardando: '#d1d5db',
+  'no prazo': '#10b981',
+  'fora do prazo': '#ef4444',
+  'em aberto': '#f97316',
 };
