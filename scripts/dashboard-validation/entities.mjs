@@ -144,16 +144,20 @@ FROM base`,
 WITH base AS (
     SELECT *
     FROM dbo.vw_fretes_powerbi
-    WHERE [Data frete] >= @DataInicioOffset
-      AND [Data frete] < @DataFimExclusivoOffset
+    WHERE [data_referencia_faturamento] >= @DataInicioOffset
+      AND [data_referencia_faturamento] < @DataFimExclusivoOffset
 )`,
       select: `
 SELECT
     COUNT(*) AS total_fretes,
-    SUM(ISNULL([Valor Total do Serviço], 0)) AS receita_bruta,
-    SUM(ISNULL([Valor Frete], 0)) AS valor_frete,
+    SUM(CASE WHEN [is_elegivel_faturamento] = 1 THEN ISNULL([Valor Total do Serviço], 0) ELSE 0 END) AS receita_bruta,
+    SUM(CASE WHEN [is_elegivel_faturamento] = 1 THEN ISNULL([Valor Frete], 0) ELSE 0 END) AS valor_frete,
     CAST(
-        SUM(ISNULL([Valor Total do Serviço], 0)) / NULLIF(COUNT(*), 0)
+        COALESCE(
+            SUM(CASE WHEN [is_elegivel_faturamento] = 1 THEN ISNULL([Valor Total do Serviço], 0) ELSE 0 END)
+            / NULLIF(SUM(CASE WHEN [is_elegivel_faturamento] = 1 THEN 1 ELSE 0 END), 0),
+            0
+        )
         AS DECIMAL(18, 2)
     ) AS ticket_medio,
     SUM(ISNULL([Kg Taxado], 0)) AS peso_taxado_total,
@@ -587,12 +591,16 @@ FROM base`,
     sql: (period) => buildSqlJsonQuery({
       period,
       cte: `
-WITH fretes AS (
-    SELECT
-        SUM(ISNULL([Valor Total do Serviço], 0)) AS receita_operacional
+WITH fretes_base AS (
+    SELECT *
     FROM dbo.vw_fretes_powerbi
-    WHERE [Data frete] >= @DataInicioOffset
-      AND [Data frete] < @DataFimExclusivoOffset
+    WHERE [data_referencia_faturamento] >= @DataInicioOffset
+      AND [data_referencia_faturamento] < @DataFimExclusivoOffset
+),
+fretes AS (
+    SELECT
+        SUM(CASE WHEN [is_elegivel_faturamento] = 1 THEN ISNULL([Valor Total do Serviço], 0) ELSE 0 END) AS receita_operacional
+    FROM fretes_base
 ),
 titulos AS (
     SELECT

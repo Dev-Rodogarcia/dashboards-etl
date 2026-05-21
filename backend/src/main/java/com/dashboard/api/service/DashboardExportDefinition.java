@@ -28,7 +28,7 @@ public enum DashboardExportDefinition {
             "fretes",
             "[vw_fretes_powerbi]",
             DateMode.OFFSET_DATE_TIME,
-            "[Data frete]",
+            "[data_referencia_faturamento]",
             List.of("[Filial]"),
             Map.of(
                     "filiais", List.of("[Filial]"),
@@ -39,7 +39,7 @@ public enum DashboardExportDefinition {
                     "tiposFrete", List.of("[Tipo Frete]"),
                     "modais", List.of("[Modal]")
             ),
-            List.of("[Data frete] DESC", "[Nº Minuta] DESC"),
+            List.of("[data_referencia_faturamento] DESC", "[Nº Minuta] DESC"),
             null
     ),
     TRACKING(

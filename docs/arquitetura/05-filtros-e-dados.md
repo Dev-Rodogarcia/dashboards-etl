@@ -62,7 +62,7 @@ O filtro representa dia civil local, mas a coluna representa instante.
 
 Modulos:
 
-- Fretes -> `dataFrete`
+- Fretes -> `dataReferenciaFaturamento` (`data_referencia_faturamento` na view: CT-e emissão com fallback em data do frete)
 - Tracking -> `dataFrete`
 - Manifestos -> `dataCriacao`
 - Cotacoes -> `dataCotacao`

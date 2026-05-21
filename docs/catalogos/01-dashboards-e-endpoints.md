@@ -6,7 +6,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Coletas | `/coletas` | `coletas` | `/api/painel/coletas` | `/serie`, `/graficos`, `/tabela` | `ColetasService` | `solicitacao` | `LocalDate` |
 | Manifestos | `/manifestos` | `manifestos` | `/api/painel/manifestos` | `/serie`, `/graficos`, `/tabela` | `ManifestosService` | `dataCriacao` | `DATETIMEOFFSET` |
-| Fretes | `/fretes` | `fretes` | `/api/painel/fretes` | `/serie`, `/top-clientes`, `/mix-documental`, `/graficos`, `/tabela` | `FretesService` | `dataFrete` | `DATETIMEOFFSET` |
+| Fretes | `/fretes` | `fretes` | `/api/painel/fretes` | `/serie`, `/top-clientes`, `/mix-documental`, `/graficos`, `/tabela` | `FretesService` | `dataReferenciaFaturamento` | `DATETIMEOFFSET` |
 | Tracking | `/tracking` | `tracking` | `/api/painel/tracking` | `/serie`, `/graficos`, `/tabela` | `TrackingService` | `dataFrete` | `DATETIMEOFFSET` |
 | Faturas | `/faturas` | `faturas` | `/api/painel/faturas` | `/mensal`, `/aging`, `/top-clientes`, `/status-processo`, `/reconciliacao`, `/tabela` | `FaturasService` | `emissao` e `dataEmissaoCte` | misto |
 | Faturas por Cliente | `/faturas-por-cliente` | `faturasPorCliente` | `/api/painel/faturas-por-cliente` | `/mensal`, `/aging`, `/top-clientes`, `/status-processo`, `/tabela` | `FaturasPorClienteService` | `dataEmissaoCte` | `DATETIMEOFFSET` |

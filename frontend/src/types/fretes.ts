@@ -2,6 +2,7 @@ export interface FreteResumoRow {
   id: number;
   numeroMinuta: number | null;
   dataFrete: string | null;
+  dataFaturamentoOrigem?: string | null;
   status: string;
   filial: string | null;
   pagador: string | null;

@@ -722,7 +722,7 @@ class DashboardExportSqlBuilder {
             case FRETES -> {
                 put(colunas, "id", codigo("[ID]"));
                 put(colunas, "numeroMinuta", codigo("[Nº Minuta]", "[N° Minuta]"));
-                put(colunas, "dataFrete", data("[Data frete]"));
+                put(colunas, "dataFrete", data("[data_referencia_faturamento]"));
                 put(colunas, "status", status("[Status]"));
                 put(colunas, "filial", texto("[Filial]"));
                 put(colunas, "pagador", texto("[Pagador]"));

@@ -9,6 +9,7 @@ export interface ColunaTabela<T> {
   largura?: string;
   fixo?: boolean;
   ordenavel?: boolean;
+  tooltip?: string;
 }
 
 type ItemPaginacao = number | 'ellipsis-start' | 'ellipsis-end';
@@ -206,7 +207,7 @@ export default function DataTable<T>({
                 <th
                   key={col.chave}
                   onClick={() => handleSort(col.chave, col.ordenavel !== false)}
-                  title={col.label}
+                  title={col.tooltip ?? col.label}
                   className={`px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap select-none ${
                     col.ordenavel === false ? 'cursor-default' : 'cursor-pointer'
                   } ${

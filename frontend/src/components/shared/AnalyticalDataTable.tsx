@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Funnel, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Funnel, Info, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import type { ColunaTabela } from './DataTable';
 import { calcularLarguraMinimaTabela, getColumnSizingStyle } from './tableLayout';
@@ -637,7 +637,7 @@ export default function AnalyticalDataTable<T>({
                 <th
                   key={col.chave}
                   onClick={() => handleSort(col.chave, col.ordenavel !== false)}
-                  title={col.label}
+                  title={col.tooltip ?? col.label}
                   className={`h-10 px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap select-none ${
                     col.ordenavel === false ? 'cursor-default' : 'cursor-pointer'
                   } ${col.fixo ? 'sticky left-0 z-10' : ''}`}
@@ -649,6 +649,20 @@ export default function AnalyticalDataTable<T>({
                 >
                   <span className="flex items-center gap-1">
                     <span>{col.label}</span>
+                    {col.tooltip ? (
+                      <span
+                        className="inline-flex shrink-0 normal-case"
+                        title={col.tooltip}
+                        aria-label={col.tooltip}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <Info
+                          size={12}
+                          style={{ color: 'var(--color-text-muted)' }}
+                          aria-hidden="true"
+                        />
+                      </span>
+                    ) : null}
                     {col.ordenavel !== false && ordenarPor === col.chave && (
                       <span className="shrink-0">{direcao === 'asc' ? '↑' : '↓'}</span>
                     )}

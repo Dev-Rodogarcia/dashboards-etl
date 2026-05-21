@@ -6,6 +6,7 @@ public record FreteResumoDTO(
         Long id,
         Long numeroMinuta,
         String dataFrete,
+        String dataFaturamentoOrigem,
         String status,
         String filial,
         String pagador,

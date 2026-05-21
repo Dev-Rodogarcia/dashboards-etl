@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Info } from 'lucide-react';
 import {
   dataHojeLocal,
   dataNDiasAtrasLocal,
@@ -14,6 +15,8 @@ interface DateRangePickerProps {
   onDataInicioChange: (valor: string) => void;
   onDataFimChange: (valor: string) => void;
   onRangeChange?: (inicio: string, fim: string) => void;
+  label?: string;
+  helpText?: string;
 }
 
 type DatePreset = {
@@ -44,6 +47,8 @@ export default function DateRangePicker({
   onDataInicioChange,
   onDataFimChange,
   onRangeChange,
+  label,
+  helpText,
 }: DateRangePickerProps) {
   // Detecta qual preset está ativo comparando datas com timezone local
   const presetAtivo = useMemo(() => {
@@ -82,7 +87,24 @@ export default function DateRangePicker({
   }
 
   return (
-    <div className="flex flex-wrap items-end gap-4">
+    <div className="flex flex-col gap-1">
+      {label ? (
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
+            {label}
+          </span>
+          {helpText ? (
+            <span className="inline-flex shrink-0" title={helpText} aria-label={helpText}>
+              <Info
+                size={13}
+                style={{ color: 'var(--color-text-muted)' }}
+                aria-hidden="true"
+              />
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="flex flex-wrap items-end gap-4">
       {/* Bloco: campos De / Até */}
       <div className="flex items-end gap-2">
         <div className="flex flex-col gap-1">
@@ -182,6 +204,7 @@ export default function DateRangePicker({
           })}
         </div>
       </div>
+    </div>
     </div>
   );
 }

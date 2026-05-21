@@ -76,14 +76,14 @@ describe('indicadoresGestaoVistaUi', () => {
 
   it('usa amarelo no tom de atencao para nao confundir com vermelho', () => {
     expect(getGoalToneStyle('warning')).toMatchObject({
-      border: '#facc15',
-      text: '#713f12',
-      fill: '#facc15',
+      border: 'var(--color-warning-border, #facc15)',
+      text: 'var(--color-warning-text, #713f12)',
+      fill: 'var(--color-warning-fill, #facc15)',
     });
     expect(getGoalToneStyle('empty')).toMatchObject({
-      border: '#facc15',
-      text: '#713f12',
-      fill: '#facc15',
+      border: 'var(--color-warning-border, #facc15)',
+      text: 'var(--color-warning-text, #713f12)',
+      fill: 'var(--color-warning-fill, #facc15)',
     });
   });
 

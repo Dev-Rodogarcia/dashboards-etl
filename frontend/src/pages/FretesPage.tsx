@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Minus, Settings } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Info, Minus, Settings } from 'lucide-react';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import FretesGoalsManagerPanel from '../components/domain/fretes/FretesGoalsManagerPanel';
@@ -65,6 +65,7 @@ const RESPONSAVEL_DRILL_LEVELS: Array<{ value: ResponsavelDrillLevel; label: str
   { value: 'uf', label: 'UF' },
   { value: 'cidade', label: 'Cidade' },
 ];
+const FATURAMENTO_DATE_HELP = 'Usa a emissão do CT-e quando existir; se não existir, usa a data do frete.';
 const KPI_CARD_HEIGHT_CLASS = 'h-[25rem] min-h-0';
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1030,9 +1031,20 @@ export default function FretesPage() {
     return <span className={numberValue >= 100 ? 'font-semibold text-emerald-600' : 'font-semibold text-red-600'}>{formatarPorcentagem(numberValue, 1)}</span>;
   }
 
+  function renderDataFaturamentoTabela(valor: unknown, row: FreteResumoRow) {
+    const texto = valor ? String(valor) : '—';
+    const origem = row.dataFaturamentoOrigem ?? 'Origem não informada';
+    return (
+      <span className="inline-flex items-center gap-1" title={`Origem desta data: ${origem}`}>
+        <span>{texto}</span>
+        <Info size={12} className="shrink-0" style={{ color: 'var(--color-text-muted)' }} aria-hidden="true" />
+      </span>
+    );
+  }
+
   const colunas: ColunaTabelaAnalitica<FreteResumoRow>[] = [
     { chave: 'numeroMinuta', label: 'Nº Minuta', fixo: true, filtroTabela: 'codigo' },
-    { chave: 'dataFrete', label: 'Data' },
+    { chave: 'dataFrete', label: 'Data Faturamento', largura: '170px', tooltip: FATURAMENTO_DATE_HELP, formato: renderDataFaturamentoTabela },
     { chave: 'status', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
     { chave: 'filial', label: 'Filial' },
     { chave: 'pagador', label: 'Pagador', largura: '220px', filtroTabela: 'razaoSocial' },
@@ -1072,6 +1084,8 @@ export default function FretesPage() {
         ) : null}
       >
         <DateRangePicker
+          label="Data de Faturamento (Emissão/Ocorrência)"
+          helpText={FATURAMENTO_DATE_HELP}
           dataInicio={dataInicio}
           dataFim={dataFim}
           onDataInicioChange={setDataInicio}

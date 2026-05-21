@@ -26,8 +26,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -89,6 +89,7 @@ public class FretesService {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
         List<VisaoFretesEntity> fretes = buscarRegistros(filtro);
+        List<VisaoFretesEntity> fretesFaturamento = fretesElegiveisParaFaturamento(fretes);
         int totalFretes = fretes.size();
 
         if (totalFretes == 0) {
@@ -103,17 +104,13 @@ public class FretesService {
             );
         }
 
-        BigDecimal receitaBruta = fretes.stream()
-                .map(VisaoFretesEntity::getValorTotal)
-                .map(ConsultaFiltroUtils::zeroSeNulo)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal receitaBruta = somar(fretesFaturamento, VisaoFretesEntity::getValorTotal);
 
-        BigDecimal valorFrete = fretes.stream()
-                .map(VisaoFretesEntity::getSubtotal)
-                .map(ConsultaFiltroUtils::zeroSeNulo)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal valorFrete = somar(fretesFaturamento, VisaoFretesEntity::getSubtotal);
 
-        BigDecimal ticketMedio = receitaBruta.divide(BigDecimal.valueOf(totalFretes), 2, RoundingMode.HALF_UP);
+        BigDecimal ticketMedio = fretesFaturamento.isEmpty()
+                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                : receitaBruta.divide(BigDecimal.valueOf(fretesFaturamento.size()), 2, RoundingMode.HALF_UP);
 
         BigDecimal pesoTaxadoTotal = fretes.stream()
                 .map(VisaoFretesEntity::getPesoTaxado)
@@ -135,7 +132,7 @@ public class FretesService {
 
         log.info("Overview fretes calculado: totalFretes={}, periodo={} a {}", totalFretes, filtro.dataInicio(), filtro.dataFim());
 
-        FretesGoalSummaryDTO metas = buscarResumoMetas(filtro, fretes);
+        FretesGoalSummaryDTO metas = buscarResumoMetas(filtro, fretesFaturamento);
 
         return new FretesOverviewDTO(
                 ConsultaFiltroUtils.latestUpdate(fretes, VisaoFretesEntity::getDataExtracao),
@@ -156,7 +153,7 @@ public class FretesService {
 
     public FretesGoalSummaryDTO buscarResumoMetas(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
-        return buscarResumoMetas(filtro, buscarRegistros(filtro));
+        return buscarResumoMetas(filtro, fretesElegiveisParaFaturamento(buscarRegistros(filtro)));
     }
 
     public List<FretesTrendPointDTO> buscarSerieTemporal(LocalDate dataInicio, LocalDate dataFim) {
@@ -166,26 +163,17 @@ public class FretesService {
     public List<FretesTrendPointDTO> buscarSerieTemporal(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
-        Map<LocalDate, List<VisaoFretesEntity>> agrupado = buscarRegistros(filtro).stream()
-                .filter(f -> f.getDataFrete() != null)
-                .collect(Collectors.groupingBy(f -> f.getDataFrete().toLocalDate()));
+        Map<LocalDate, List<VisaoFretesEntity>> agrupado = fretesElegiveisParaFaturamento(buscarRegistros(filtro)).stream()
+                .filter(f -> dataReferenciaPeriodo(f) != null)
+                .collect(Collectors.groupingBy(this::dataReferenciaPeriodo));
 
         return agrupado.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(entry -> {
                     List<VisaoFretesEntity> grupo = entry.getValue();
 
-                    BigDecimal receitaBruta = grupo.stream()
-                            .map(VisaoFretesEntity::getValorTotal)
-                            .map(ConsultaFiltroUtils::zeroSeNulo)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add)
-                            .setScale(2, RoundingMode.HALF_UP);
-
-                    BigDecimal valorFrete = grupo.stream()
-                            .map(VisaoFretesEntity::getSubtotal)
-                            .map(ConsultaFiltroUtils::zeroSeNulo)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add)
-                            .setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal receitaBruta = somar(grupo, VisaoFretesEntity::getValorTotal).setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal valorFrete = somar(grupo, VisaoFretesEntity::getSubtotal).setScale(2, RoundingMode.HALF_UP);
 
                     return new FretesTrendPointDTO(
                             entry.getKey().format(DATE_FMT),
@@ -205,15 +193,12 @@ public class FretesService {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
         int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 10, 50);
 
-        return buscarRegistros(filtro).stream()
+        return fretesElegiveisParaFaturamento(buscarRegistros(filtro)).stream()
                 .filter(f -> f.getPagadorNome() != null && !f.getPagadorNome().isBlank())
                 .collect(Collectors.groupingBy(VisaoFretesEntity::getPagadorNome))
                 .entrySet().stream()
                 .map(entry -> {
-                    BigDecimal receita = entry.getValue().stream()
-                            .map(VisaoFretesEntity::getValorTotal)
-                            .map(ConsultaFiltroUtils::zeroSeNulo)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    BigDecimal receita = somar(entry.getValue(), VisaoFretesEntity::getValorTotal)
                             .setScale(2, RoundingMode.HALF_UP);
 
                     int totalFretes = entry.getValue().size();
@@ -264,12 +249,13 @@ public class FretesService {
 
         return repository.findAll(
                         criarSpecification(filtro),
-                        PageRequest.of(0, limiteAplicado, Sort.by(Sort.Direction.DESC, "dataFrete"))
+                        PageRequest.of(0, limiteAplicado, Sort.by(Sort.Direction.DESC, "dataReferenciaFaturamento"))
                 ).getContent().stream()
                 .map(f -> new FreteResumoDTO(
                         f.getId(),
                         f.getNumeroMinuta(),
-                        f.getDataFrete() != null ? f.getDataFrete().toString() : null,
+                        f.getDataReferenciaFaturamento() != null ? f.getDataReferenciaFaturamento().toString() : null,
+                        origemDataFaturamento(f),
                         f.getStatus(),
                         f.getFilialNome(),
                         f.getPagadorNome(),
@@ -296,6 +282,7 @@ public class FretesService {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
         List<VisaoFretesEntity> fretes = buscarRegistros(filtro);
+        List<VisaoFretesEntity> fretesFaturamento = fretesElegiveisParaFaturamento(fretes);
 
         List<FretesPrevisaoPorStatusDTO> previsaoPorStatus = fretes.stream()
                 .collect(Collectors.groupingBy(f -> textoOuPadrao(f.getStatus(), "Sem status")))
@@ -308,7 +295,7 @@ public class FretesService {
                 .sorted(Comparator.comparing(FretesPrevisaoPorStatusDTO::status))
                 .toList();
 
-        List<FretesOrigemDestinoDTO> topRotasPorReceita = fretes.stream()
+        List<FretesOrigemDestinoDTO> topRotasPorReceita = fretesFaturamento.stream()
                 .collect(Collectors.groupingBy(f -> rotaKey(f.getOrigemUf(), f.getDestinoUf())))
                 .entrySet().stream()
                 .map(entry -> {
@@ -316,10 +303,7 @@ public class FretesService {
                     return new FretesOrigemDestinoDTO(
                             rota[0],
                             rota[1],
-                            entry.getValue().stream()
-                                    .map(VisaoFretesEntity::getValorTotal)
-                                    .map(ConsultaFiltroUtils::zeroSeNulo)
-                                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                            somar(entry.getValue(), VisaoFretesEntity::getValorTotal)
                                     .setScale(2, RoundingMode.HALF_UP),
                             entry.getValue().size()
                     );
@@ -331,35 +315,35 @@ public class FretesService {
                 .toList();
 
         List<FretesFaturamentoGrupoDTO> faturamentoPorClassificacao = agruparFaturamento(
-                fretes,
+                fretesFaturamento,
                 this::classificacaoFaturamento,
                 "Sem classificação",
                 8
         );
 
         List<FretesFaturamentoGrupoDTO> faturamentoPorResponsavelDestino = agruparFaturamento(
-                fretes,
+                fretesFaturamento,
                 this::responsavelDestino,
                 "Responsável não informado",
                 10
         );
 
         List<FretesFaturamentoGrupoDTO> faturamentoPorUfOrigem = agruparFaturamento(
-                fretes,
+                fretesFaturamento,
                 VisaoFretesEntity::getOrigemUf,
                 "UF não informada",
                 10
         );
 
         List<FretesFaturamentoGrupoDTO> faturamentoPorUfDestino = agruparFaturamento(
-                fretes,
+                fretesFaturamento,
                 VisaoFretesEntity::getDestinoUf,
                 "UF não informada",
                 10
         );
 
         List<FretesFaturamentoGrupoDTO> faturamentoPorCidadeDestino = agruparFaturamento(
-                fretes,
+                fretesFaturamento,
                 VisaoFretesEntity::getDestinoCidade,
                 "Cidade não informada",
                 10
@@ -398,10 +382,7 @@ public class FretesService {
     }
 
     private FretesGoalSummaryDTO fallbackResumoMetas(FiltroConsultaDTO filtro, List<VisaoFretesEntity> fretes) {
-        BigDecimal realizadoFaturamento = fretes.stream()
-                .map(VisaoFretesEntity::getValorTotal)
-                .map(ConsultaFiltroUtils::zeroSeNulo)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
+        BigDecimal realizadoFaturamento = somar(fretes, VisaoFretesEntity::getValorTotal)
                 .setScale(2, RoundingMode.HALF_UP);
         return new FretesGoalSummaryDTO(
                 filtro.dataInicio().format(DATE_FMT),
@@ -523,6 +504,33 @@ public class FretesService {
         return Objects.requireNonNullElse(valor, "").isBlank() ? padrao : valor;
     }
 
+    private BigDecimal somar(List<VisaoFretesEntity> fretes, Function<VisaoFretesEntity, BigDecimal> extractor) {
+        return fretes.stream()
+                .map(extractor)
+                .map(ConsultaFiltroUtils::zeroSeNulo)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private List<VisaoFretesEntity> fretesElegiveisParaFaturamento(List<VisaoFretesEntity> fretes) {
+        return fretes.stream()
+                .filter(this::freteElegivelParaFaturamento)
+                .toList();
+    }
+
+    private boolean freteElegivelParaFaturamento(VisaoFretesEntity frete) {
+        return Boolean.TRUE.equals(frete.getElegivelFaturamento());
+    }
+
+    private String origemDataFaturamento(VisaoFretesEntity frete) {
+        return frete.getCteEmissao() != null ? "CT-e Emissão" : "Data do Frete";
+    }
+
+    private LocalDate dataReferenciaPeriodo(VisaoFretesEntity frete) {
+        return frete.getDataReferenciaFaturamento() != null
+                ? frete.getDataReferenciaFaturamento().toLocalDate()
+                : null;
+    }
+
     private List<FretesFaturamentoGrupoDTO> agruparFaturamento(
             List<VisaoFretesEntity> fretes,
             Function<VisaoFretesEntity, String> groupExtractor,
@@ -534,10 +542,7 @@ public class FretesService {
                 .entrySet().stream()
                 .map(entry -> new FretesFaturamentoGrupoDTO(
                         entry.getKey(),
-                        entry.getValue().stream()
-                                .map(VisaoFretesEntity::getValorTotal)
-                                .map(ConsultaFiltroUtils::zeroSeNulo)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                        somar(entry.getValue(), VisaoFretesEntity::getValorTotal)
                                 .setScale(2, RoundingMode.HALF_UP),
                         entry.getValue().size()
                 ))
@@ -584,8 +589,7 @@ public class FretesService {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 
         return ConsultaSpecificationUtils.allOf(
-                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataFrete", janela.inicioInclusivo()),
-                ConsultaSpecificationUtils.lessThan("dataFrete", janela.fimExclusivo()),
+                periodoPorEmissaoCteOuDataFrete(janela),
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "filialNome"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filiais", "filialNome"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "status", "status"),
@@ -594,6 +598,14 @@ public class FretesService {
                 ConsultaSpecificationUtils.filtroTexto(filtro, "ufDestino", "destinoUf"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "tiposFrete", "tipoFrete"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "modais", "modal")
+        );
+    }
+
+    @NonNull
+    private Specification<VisaoFretesEntity> periodoPorEmissaoCteOuDataFrete(JanelaOffsetDateTime janela) {
+        return ConsultaSpecificationUtils.allOf(
+                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataReferenciaFaturamento", janela.inicioInclusivo()),
+                ConsultaSpecificationUtils.lessThan("dataReferenciaFaturamento", janela.fimExclusivo())
         );
     }
 

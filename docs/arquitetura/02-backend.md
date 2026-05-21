@@ -114,7 +114,7 @@ Use quando a view representa instante real, com offset.
 
 Exemplos:
 
-- `fretes.dataFrete`
+- `fretes.dataReferenciaFaturamento`
 - `tracking.dataFrete`
 - `manifestos.dataCriacao`
 - `cotacoes.dataCotacao`

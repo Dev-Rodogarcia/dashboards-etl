@@ -178,7 +178,8 @@ public class DashboardTabelaPaginadaService {
         return new FreteResumoDTO(
                 longo(row, "ID"),
                 longo(row, "Nº Minuta", "N° Minuta"),
-                texto(row, "Data frete"),
+                texto(row, "data_referencia_faturamento", "Data frete"),
+                origemDataFaturamento(row),
                 texto(row, "Status"),
                 texto(row, "Filial"),
                 texto(row, "Pagador"),
@@ -405,6 +406,11 @@ public class DashboardTabelaPaginadaService {
             return "NFS-e";
         }
         return "Pendente";
+    }
+
+    private String origemDataFaturamento(Map<String, Object> row) {
+        String cteEmissao = texto(row, "CT-e Emissão", "CT-e Emissao");
+        return cteEmissao != null && !cteEmissao.isBlank() ? "CT-e Emissão" : "Data do Frete";
     }
 
     private BigDecimal valorOperacionalFatura(Map<String, Object> row) {

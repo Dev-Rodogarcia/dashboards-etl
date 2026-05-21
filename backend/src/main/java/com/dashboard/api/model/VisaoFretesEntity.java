@@ -164,6 +164,12 @@ public class VisaoFretesEntity {
     @Column(name = "[CT-e Emissão]")
     private OffsetDateTime cteEmissao;
 
+    @Column(name = "[data_referencia_faturamento]")
+    private OffsetDateTime dataReferenciaFaturamento;
+
+    @Column(name = "[is_elegivel_faturamento]")
+    private Boolean elegivelFaturamento;
+
     @Column(name = "[CT-e ID]")
     private Long cteId;
 
@@ -385,6 +391,14 @@ public class VisaoFretesEntity {
 
     public OffsetDateTime getCteEmissao() {
         return cteEmissao;
+    }
+
+    public OffsetDateTime getDataReferenciaFaturamento() {
+        return dataReferenciaFaturamento;
+    }
+
+    public Boolean getElegivelFaturamento() {
+        return elegivelFaturamento;
     }
 
     public Long getCteId() {

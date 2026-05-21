@@ -30,7 +30,8 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("TRY_CONVERT(datetimeoffset, [Data frete]) >= :inicioOffset AND TRY_CONVERT(datetimeoffset, [Data frete]) < :fimOffset");
+        assertThat(query.sql()).contains("TRY_CONVERT(datetimeoffset, [data_referencia_faturamento]) >= :inicioOffset AND TRY_CONVERT(datetimeoffset, [data_referencia_faturamento]) < :fimOffset");
+        assertThat(query.sql()).contains("ORDER BY [data_referencia_faturamento] DESC");
         assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial])))) IN (:escopoFiliais)");
         assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Status])))) IN (:filtro_status)");
         assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador])))) IN (:filtro_pagadores)");
