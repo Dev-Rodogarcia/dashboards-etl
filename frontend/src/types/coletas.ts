@@ -53,11 +53,16 @@ export interface ColetasSlaPorFilial {
   total: number;
 }
 
-export interface ColetasRegiaoVolume {
+export interface ColetasRegiaoOrigem {
   regiao: string;
   totalColetas: number;
   pesoTaxado: number;
-  volumes: number;
+}
+
+export interface ColetasCidadeOrigem {
+  cidade: string;
+  totalColetas: number;
+  pesoTaxado: number;
 }
 
 export interface ColetasAgingBucket {
@@ -68,7 +73,7 @@ export interface ColetasAgingBucket {
 export interface ColetasCharts {
   statusDistribuicao: ColetasStatusDistribuicao[];
   slaPorFilial: ColetasSlaPorFilial[];
-  regiaoVolume: ColetasRegiaoVolume[];
+  regioesOrigem: ColetasRegiaoOrigem[];
   agingAbertas: ColetasAgingBucket[];
 }
 

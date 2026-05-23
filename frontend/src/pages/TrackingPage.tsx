@@ -96,6 +96,12 @@ function corStatusRosca(status: string, index: number): string {
   return STATUS_ROSCA_CORES[status.toLowerCase()] ?? PALETA_SERIES[index % PALETA_SERIES.length];
 }
 
+function codigoFilialAtual(valor: string): string {
+  const texto = valor.trim();
+  const prefixo = texto.split(/\s*[-–—]\s*/)[0]?.trim() || texto;
+  return prefixo.slice(0, 3).toUpperCase();
+}
+
 function MatrizRegiaoDestino({
   linhas,
   statusSelecionados,
@@ -110,6 +116,7 @@ function MatrizRegiaoDestino({
   const paginaAtual = Math.min(pagina, totalPaginas - 1);
   const inicio = paginaAtual * REGIOES_POR_PAGINA;
   const linhasVisiveis = linhas.slice(inicio, inicio + REGIOES_POR_PAGINA);
+  const linhasReserva = linhas.length > 0 ? Math.max(0, REGIOES_POR_PAGINA - linhasVisiveis.length) : 0;
 
   return (
     <section className="mb-6 flex h-full min-h-0 flex-col rounded-[20px] border p-4 shadow-sm" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
@@ -194,6 +201,26 @@ function MatrizRegiaoDestino({
               </div>
             );
           })}
+          {Array.from({ length: linhasReserva }, (_, index) => (
+            <div
+              key={`reserva-matriz-${index}`}
+              aria-hidden="true"
+              className="pointer-events-none invisible hidden rounded-lg border px-3 py-2.5 md:block"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
+              <div className="grid grid-cols-[5.75rem_minmax(5.8rem,1fr)_minmax(6.1rem,1fr)_minmax(6.1rem,1fr)_minmax(4.25rem,0.74fr)_minmax(4.75rem,0.74fr)] items-center gap-2">
+                <div className="min-w-0">
+                  <div className="text-[23px] font-extrabold leading-none">---</div>
+                  <div className="mt-0.5 text-[11px] font-medium">Reserva</div>
+                </div>
+                <MetricCell label="Peso Taxado" value="0 kg" />
+                <MetricCell label="Valor Frete" value="R$ 0,00" />
+                <MetricCell label="Valor NF" value="R$ 0,00" />
+                <MetricCell label="Volumes" value="0" />
+                <MetricCell label="Fora do Prazo" value="0" />
+              </div>
+            </div>
+          ))}
           {linhas.length === 0 && (
             <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
               Nenhuma carga encontrada.
@@ -279,7 +306,12 @@ export default function TrackingPage() {
   };
 
   const activeFilters: ActiveFilter[] = [
-    { label: 'Filial Atual', count: filtros.filialAtual?.length ?? 0, onRemove: () => setFiltro('filialAtual', []) },
+    {
+      label: 'Filial Atual',
+      count: filtros.filialAtual?.length ?? 0,
+      valueLabel: codigoFilialAtual(filialAtualSelecionada),
+      onRemove: () => setFiltro('filialAtual', []),
+    },
     { label: 'Status', count: filtros.statusCarga?.length ?? 0, onRemove: () => setFiltro('statusCarga', []) },
   ];
 
@@ -446,8 +478,8 @@ export default function TrackingPage() {
         </section>
       )}
 
-      {dashboard.isError && <MensagemErro mensagem={getApiErrorMessage(dashboard.error, 'Erro ao carregar localização de cargas.')} tipo={getTipoErro(dashboard.error)} />}
-      {dashboard.data && <TrackingKpiGrid overview={dashboard.data.overview} />}
+      {dashboardHabilitado && dashboard.isError && <MensagemErro mensagem={getApiErrorMessage(dashboard.error, 'Erro ao carregar localização de cargas.')} tipo={getTipoErro(dashboard.error)} />}
+      {dashboardHabilitado && dashboard.data && <TrackingKpiGrid overview={dashboard.data.overview} />}
 
       {dashboardHabilitado && (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.18fr)_minmax(360px,0.82fr)]">

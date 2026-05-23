@@ -23,33 +23,45 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
       {
         name: 'Total',
         type: 'line' as const,
-        areaStyle: {},
         data: dados.map((d) => d.total),
         itemStyle: { color: CORES.primaria },
+        lineStyle: { width: 2 },
+        showSymbol: true,
+        symbol: 'circle',
+        symbolSize: 5,
         smooth: true,
       },
       {
         name: 'Finalizadas',
         type: 'line' as const,
-        areaStyle: {},
         data: dados.map((d) => d.finalizadas),
         itemStyle: { color: CORES.sucesso },
+        lineStyle: { width: 2 },
+        showSymbol: true,
+        symbol: 'circle',
+        symbolSize: 5,
         smooth: true,
       },
       {
         name: 'Canceladas',
         type: 'line' as const,
-        areaStyle: {},
         data: dados.map((d) => d.canceladas),
         itemStyle: { color: CORES.perigo },
+        lineStyle: { width: 2 },
+        showSymbol: true,
+        symbol: 'circle',
+        symbolSize: 5,
         smooth: true,
       },
       {
         name: 'Em Tratativa',
         type: 'line' as const,
-        areaStyle: {},
         data: dados.map((d) => d.emTratativa),
         itemStyle: { color: CORES.alerta },
+        lineStyle: { width: 2 },
+        showSymbol: true,
+        symbol: 'circle',
+        symbolSize: 5,
         smooth: true,
       },
     ],
@@ -57,7 +69,7 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
 
   return (
     <ChartWrapper
-      titulo="Coletas por Dia"
+      titulo="Coletas por dia, mês e ano"
       option={option}
       isLoading={isLoading}
       isEmpty={dados.length === 0}

@@ -28,6 +28,7 @@ export function useTrackingDashboard(filtro: TrackingFiltro, enabled = true) {
     queryKey: ['tracking', 'dashboard', filtro],
     queryFn: () => buscarTrackingDashboard(filtro),
     enabled,
+    placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
     retry: 1,
   });

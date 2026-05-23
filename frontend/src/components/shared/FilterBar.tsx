@@ -7,6 +7,7 @@ import { Calendar, ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 export interface ActiveFilter {
   label: string;
   count: number;
+  valueLabel?: string;
   onRemove: () => void;
 }
 
@@ -40,13 +41,16 @@ function useIsMobile() {
 }
 
 // ── sub-components ────────────────────────────────────────────────────
-function FilterBadge({ label, count, onRemove }: ActiveFilter) {
+function FilterBadge({ label, count, valueLabel, onRemove }: ActiveFilter) {
+  const displayValue = valueLabel?.trim() ? valueLabel : String(count);
+
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-all duration-150"
       style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', color: 'var(--color-primary)' }}
+      title={`${label}: ${displayValue}`}
     >
-      {label}: {count}
+      <span className="inline-block max-w-48 truncate align-bottom">{label}: {displayValue}</span>
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onRemove(); }}

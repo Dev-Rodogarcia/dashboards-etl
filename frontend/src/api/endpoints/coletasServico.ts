@@ -3,7 +3,7 @@ import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
-import type { ColetaResumoRow, ColetasCharts, ColetasFiltro, ColetasOverview, ColetasTrendPoint } from '../../types/coletas';
+import type { ColetaResumoRow, ColetasCharts, ColetasCidadeOrigem, ColetasFiltro, ColetasOverview, ColetasTrendPoint } from '../../types/coletas';
 import type { TableApiFilters } from '../../types/tableFilters';
 
 export async function buscarColetasOverview(filtro: ColetasFiltro): Promise<ColetasOverview> {
@@ -23,6 +23,15 @@ export async function buscarColetasSerie(filtro: ColetasFiltro): Promise<Coletas
 export async function buscarColetasGraficos(filtro: ColetasFiltro): Promise<ColetasCharts> {
   const { data } = await clienteAxios.get<ColetasCharts>('/api/painel/coletas/graficos', {
     params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarColetasCidadesOrigem(filtro: ColetasFiltro, regiao: string): Promise<ColetasCidadeOrigem[]> {
+  const params = montarQueryParams(filtro);
+  params.set('regiao', regiao);
+  const { data } = await clienteAxios.get<ColetasCidadeOrigem[]>('/api/painel/coletas/graficos/cidades', {
+    params,
   });
   return data;
 }

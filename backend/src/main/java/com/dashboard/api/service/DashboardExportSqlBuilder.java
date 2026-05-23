@@ -134,6 +134,13 @@ class DashboardExportSqlBuilder {
             LocalDate dataInicio,
             LocalDate dataFim
     ) {
+        if (definition.dateMode() == DashboardExportDefinition.DateMode.NATIVE_LOCAL_DATE) {
+            where.add(definition.dateColumn() + " BETWEEN :dataInicio AND :dataFim");
+            params.addValue("dataInicio", dataInicio);
+            params.addValue("dataFim", dataFim);
+            return;
+        }
+
         if (definition.dateMode() == DashboardExportDefinition.DateMode.LOCAL_DATE) {
             String colunaData = "TRY_CONVERT(date, " + definition.dateColumn() + ")";
             where.add(colunaData + " BETWEEN :dataInicio AND :dataFim");

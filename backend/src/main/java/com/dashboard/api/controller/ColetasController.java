@@ -3,6 +3,7 @@ package com.dashboard.api.controller;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.coletas.ColetaResumoDTO;
 import com.dashboard.api.dto.coletas.ColetasChartsDTO;
+import com.dashboard.api.dto.coletas.ColetasCidadeOrigemDTO;
 import com.dashboard.api.dto.coletas.ColetasOverviewDTO;
 import com.dashboard.api.dto.coletas.ColetasTrendPointDTO;
 import com.dashboard.api.service.ColetasService;
@@ -55,6 +56,18 @@ public class ColetasController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(coletasService.buscarGraficos(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
+    @GetMapping("/graficos/cidades")
+    public ResponseEntity<List<ColetasCidadeOrigemDTO>> cidadesPorRegiao(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam String regiao,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(coletasService.buscarCidadesPorRegiao(
+                FiltroRequestMapper.from(dataInicio, dataFim, params),
+                regiao
+        ));
     }
 
     @GetMapping("/tabela")

@@ -4,8 +4,9 @@ import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.coletas.ColetaResumoDTO;
 import com.dashboard.api.dto.coletas.ColetasAgingBucketDTO;
 import com.dashboard.api.dto.coletas.ColetasChartsDTO;
+import com.dashboard.api.dto.coletas.ColetasCidadeOrigemDTO;
 import com.dashboard.api.dto.coletas.ColetasOverviewDTO;
-import com.dashboard.api.dto.coletas.ColetasRegiaoVolumeDTO;
+import com.dashboard.api.dto.coletas.ColetasRegiaoOrigemDTO;
 import com.dashboard.api.dto.coletas.ColetasSlaPorFilialDTO;
 import com.dashboard.api.dto.coletas.ColetasStatusDistribuicaoDTO;
 import com.dashboard.api.dto.coletas.ColetasTrendPointDTO;
@@ -38,20 +39,28 @@ public class ColetasService {
 
     private static final Logger log = LoggerFactory.getLogger(ColetasService.class);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final List<String> ORDEM_AGING = List.of("0-2 dias", "3-5 dias", "6-10 dias", "11+ dias");
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoColetasRepository repository;
     private final EscopoFilialService escopoFilialService;
+    private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
+    private final ColetasAgregadosSqlRepository agregadosSqlRepository;
+    private final ColetasViewContractValidator contractValidator;
 
     public ColetasService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoColetasRepository repository,
-            EscopoFilialService escopoFilialService
+            EscopoFilialService escopoFilialService,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper,
+            ColetasAgregadosSqlRepository agregadosSqlRepository,
+            ColetasViewContractValidator contractValidator
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.repository = repository;
         this.escopoFilialService = escopoFilialService;
+        this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
+        this.agregadosSqlRepository = agregadosSqlRepository;
+        this.contractValidator = contractValidator;
     }
 
     public ColetasOverviewDTO buscarOverview(LocalDate dataInicio, LocalDate dataFim) {
@@ -194,6 +203,7 @@ public class ColetasService {
 
     public ColetasChartsDTO buscarGraficos(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        contractValidator.validarSolicitacaoNativa();
 
         List<VisaoColetasEntity> coletas = buscarRegistros(filtro);
 
@@ -227,38 +237,24 @@ public class ColetasService {
                 .limit(8)
                 .toList();
 
-        List<ColetasRegiaoVolumeDTO> regiaoVolume = coletas.stream()
-                .collect(Collectors.groupingBy(c -> textoOuPadrao(c.getRegiaoColeta(), "Sem regiao")))
-                .entrySet().stream()
-                .map(entry -> new ColetasRegiaoVolumeDTO(
-                        entry.getKey(),
-                        entry.getValue().size(),
-                        entry.getValue().stream()
-                                .map(VisaoColetasEntity::getPesoTaxado)
-                                .map(ConsultaFiltroUtils::zeroSeNulo)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                                .setScale(2, RoundingMode.HALF_UP),
-                        entry.getValue().stream().mapToInt(c -> ConsultaFiltroUtils.zeroSeNulo(c.getVolumes())).sum()
-                ))
-                .sorted(Comparator.comparing(ColetasRegiaoVolumeDTO::totalColetas).reversed()
-                        .thenComparing(ColetasRegiaoVolumeDTO::regiao))
-                .toList();
+        List<ColetasRegiaoOrigemDTO> regioesOrigem = agregadosSqlRepository.buscarRegioesOrigem(filtro);
+        List<ColetasAgingBucketDTO> agingAbertas = agregadosSqlRepository.buscarAgingAbertas(
+                filtro,
+                periodoOffsetDateTimeHelper.hoje()
+        );
 
-        Map<String, Integer> agingBuckets = new LinkedHashMap<>();
-        for (VisaoColetasEntity coleta : coletas) {
-            if (isFinalizada(coleta) || "Cancelada".equalsIgnoreCase(coleta.getStatus())) {
-                continue;
-            }
+        return new ColetasChartsDTO(statusDistribuicao, slaPorFilial, regioesOrigem, agingAbertas);
+    }
 
-            String faixa = agingBucket(coleta.getSolicitacao());
-            agingBuckets.put(faixa, agingBuckets.getOrDefault(faixa, 0) + 1);
+    public List<ColetasCidadeOrigemDTO> buscarCidadesPorRegiao(FiltroConsultaDTO filtro, String regiao) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        contractValidator.validarSolicitacaoNativa();
+
+        if (!temTexto(regiao)) {
+            return List.of();
         }
 
-        List<ColetasAgingBucketDTO> agingAbertas = ORDEM_AGING.stream()
-                .map(faixa -> new ColetasAgingBucketDTO(faixa, agingBuckets.getOrDefault(faixa, 0)))
-                .toList();
-
-        return new ColetasChartsDTO(statusDistribuicao, slaPorFilial, regiaoVolume, agingAbertas);
+        return agregadosSqlRepository.buscarCidadesOrigem(filtro, regiao.trim());
     }
 
     @SuppressWarnings("null")
@@ -290,20 +286,6 @@ public class ColetasService {
                 .multiply(BigDecimal.valueOf(100))
                 .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP)
                 .doubleValue();
-    }
-
-    private String agingBucket(LocalDate solicitacao) {
-        long dias = solicitacao == null ? 0 : ChronoUnit.DAYS.between(solicitacao, LocalDate.now());
-        if (dias <= 2) {
-            return "0-2 dias";
-        }
-        if (dias <= 5) {
-            return "3-5 dias";
-        }
-        if (dias <= 10) {
-            return "6-10 dias";
-        }
-        return "11+ dias";
     }
 
     private boolean temTexto(String valor) {

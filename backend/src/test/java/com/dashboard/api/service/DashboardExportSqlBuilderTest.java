@@ -68,6 +68,21 @@ class DashboardExportSqlBuilderTest {
     }
 
     @Test
+    void buildSelectColetasDeveUsarSolicitacaoComoDataNativa() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.COLETAS,
+                filtro(Map.of()),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("[Solicitacao] BETWEEN :dataInicio AND :dataFim");
+        assertThat(query.sql()).doesNotContain("TRY_CONVERT(date, [Solicitacao])");
+        assertThat(query.params().getValues()).containsEntry("dataInicio", LocalDate.of(2026, 3, 17));
+        assertThat(query.params().getValues()).containsEntry("dataFim", LocalDate.of(2026, 4, 16));
+    }
+
+    @Test
     void buildDistinctDeveIgnorarProprioFiltroDeStatusFretes() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildDistinct(
                 DashboardExportDefinition.FRETES,

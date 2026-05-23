@@ -2,10 +2,9 @@ package com.dashboard.api.dto.coletas;
 
 import java.math.BigDecimal;
 
-public record ColetasRegiaoVolumeDTO(
+public record ColetasRegiaoOrigemDTO(
         String regiao,
         int totalColetas,
-        BigDecimal pesoTaxado,
-        int volumes
+        BigDecimal pesoTaxado
 ) {
 }

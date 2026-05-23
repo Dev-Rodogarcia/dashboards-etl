@@ -5,7 +5,7 @@ import java.util.List;
 public record ColetasChartsDTO(
         List<ColetasStatusDistribuicaoDTO> statusDistribuicao,
         List<ColetasSlaPorFilialDTO> slaPorFilial,
-        List<ColetasRegiaoVolumeDTO> regiaoVolume,
+        List<ColetasRegiaoOrigemDTO> regioesOrigem,
         List<ColetasAgingBucketDTO> agingAbertas
 ) {
 }

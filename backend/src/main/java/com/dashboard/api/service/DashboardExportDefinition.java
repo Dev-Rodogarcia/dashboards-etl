@@ -10,7 +10,7 @@ public enum DashboardExportDefinition {
             "coletas",
             "coletas",
             "[vw_coletas_powerbi]",
-            DateMode.LOCAL_DATE,
+            DateMode.NATIVE_LOCAL_DATE,
             "[Solicitacao]",
             List.of("[Filial]"),
             Map.of(
@@ -261,6 +261,7 @@ public enum DashboardExportDefinition {
 
     enum DateMode {
         LOCAL_DATE,
+        NATIVE_LOCAL_DATE,
         OFFSET_DATE_TIME
     }
 

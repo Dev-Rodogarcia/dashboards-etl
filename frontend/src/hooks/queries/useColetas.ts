@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import {
+  buscarColetasCidadesOrigem,
   buscarColetasGraficos,
   buscarColetasOverview,
   buscarColetasSerie,
@@ -34,6 +35,16 @@ export function useColetasGraficos(filtro: ColetasFiltro) {
   return useQuery({
     queryKey: ['coletas', 'graficos', filtro],
     queryFn: () => buscarColetasGraficos(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useColetasCidadesOrigem(filtro: ColetasFiltro, regiao: string | null) {
+  return useQuery({
+    queryKey: ['coletas', 'graficos', 'cidades-origem', filtro, regiao],
+    queryFn: () => buscarColetasCidadesOrigem(filtro, regiao ?? ''),
+    enabled: Boolean(regiao),
     staleTime: STALE_TIME,
     retry: 1,
   });
