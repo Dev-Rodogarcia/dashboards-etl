@@ -5,12 +5,14 @@ import { fileURLToPath } from 'node:url';
 import handler from 'serve-handler';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const publicDir = path.resolve(__dirname, '..', 'dist');
+const publicDir = process.env.FRONTEND_DIST_DIR
+  ? path.resolve(process.env.FRONTEND_DIST_DIR)
+  : path.resolve(__dirname, '..', 'dist-prod');
 const buildInfoPath = path.join(publicDir, 'build-info.json');
 const host = process.env.FRONTEND_HOST || '127.0.0.1';
 const port = Number(process.env.FRONTEND_PORT || 5173);
-validateStaticBuild();
-const buildId = readBuildId();
+const buildInfo = validateStaticBuild();
+const buildId = buildInfo.buildId;
 
 const blockedDevPaths = [
   /^\/@vite(?:\/|$)/,
@@ -29,15 +31,21 @@ function requestPath(url) {
   }
 }
 
-function readBuildId() {
+function readBuildInfo() {
+  if (!fs.existsSync(buildInfoPath)) {
+    failStartup('Metadados do build nao encontrados em frontend/dist-prod/build-info.json. Execute iniciar-prod.bat.');
+  }
+
   try {
     const parsed = JSON.parse(fs.readFileSync(buildInfoPath, 'utf8'));
-    return typeof parsed.buildId === 'string' && parsed.buildId.trim()
-      ? parsed.buildId.trim()
-      : 'unknown';
+    if (typeof parsed.buildId === 'string' && parsed.buildId.trim()) {
+      return { ...parsed, buildId: parsed.buildId.trim() };
+    }
   } catch {
-    return 'unknown';
+    failStartup('Metadados do build invalidos em frontend/dist-prod/build-info.json. Execute iniciar-prod.bat.');
   }
+
+  failStartup('Metadados do build sem buildId em frontend/dist-prod/build-info.json. Execute iniciar-prod.bat.');
 }
 
 function failStartup(message) {
@@ -68,28 +76,30 @@ function validateStaticBuild() {
   const assetsDir = path.join(publicDir, 'assets');
 
   if (!fs.existsSync(indexPath)) {
-    failStartup('Build estatico nao encontrado em frontend/dist/index.html. Execute iniciar-prod.bat.');
+    failStartup('Build estatico nao encontrado em frontend/dist-prod/index.html. Execute iniciar-prod.bat.');
   }
 
   const indexHtml = fs.readFileSync(indexPath, 'utf8');
   const devMarkers = ['/@vite/client', '/@react-refresh', '/src/main.tsx', '/src/main.jsx', '/node_modules/', '/@fs/'];
   const devMarker = devMarkers.find((marker) => indexHtml.includes(marker));
   if (devMarker) {
-    failStartup(`dist/index.html contem marcador de Vite dev: ${devMarker}`);
+    failStartup(`dist-prod/index.html contem marcador de Vite dev: ${devMarker}`);
   }
 
   if (!fs.existsSync(assetsDir)) {
-    failStartup('Build estatico sem pasta frontend/dist/assets.');
+    failStartup('Build estatico sem pasta frontend/dist-prod/assets.');
   }
 
   const assets = fs.readdirSync(assetsDir).filter((name) => /\.(js|css)$/i.test(name));
   if (assets.length === 0) {
-    failStartup('Build estatico sem assets JS/CSS em frontend/dist/assets.');
+    failStartup('Build estatico sem assets JS/CSS em frontend/dist-prod/assets.');
   }
 
   if (hasSourceMapFile(publicDir)) {
     failStartup('Build de producao contem sourcemaps .map; isso exporia a arvore de fontes no DevTools.');
   }
+
+  return readBuildInfo();
 }
 
 function applySecurityHeaders(request, response) {

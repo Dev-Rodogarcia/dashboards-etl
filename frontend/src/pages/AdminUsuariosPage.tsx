@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Eye, MoreHorizontal, Pencil, Trash2, Upload, UserX } from 'lucide-react';
+import { Eye, MoreHorizontal, Pencil, Upload, UserX } from 'lucide-react';
 import PermissionOverrideMatrix from '../components/admin/PermissionOverrideMatrix';
 import UsuariosImportacaoModal from '../components/admin/UsuariosImportacaoModal';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
@@ -10,7 +10,6 @@ import {
   useAtualizarUsuario,
   useCatalogoPermissoes,
   useCriarUsuario,
-  useExcluirUsuarioDefinitivamente,
   useExcluirUsuario,
   usePapeisAdmin,
   useSetoresAdmin,
@@ -419,7 +418,7 @@ function renderUsuarioDetailsPopover(row: UsuarioRow) {
 }
 
 export default function AdminUsuariosPage() {
-  const { canHardDeleteUsers, isAdminPlataforma, isDesenvolvedor } = usePermissions();
+  const { isAdminPlataforma, isDesenvolvedor } = usePermissions();
   const catalogo = useCatalogoPermissoes();
   const papeis = usePapeisAdmin();
   const setores = useSetoresAdmin();
@@ -428,15 +427,12 @@ export default function AdminUsuariosPage() {
   const criarUsuario = useCriarUsuario();
   const atualizarUsuario = useAtualizarUsuario();
   const excluirUsuario = useExcluirUsuario();
-  const excluirUsuarioDefinitivamente = useExcluirUsuarioDefinitivamente();
 
   const [editing, setEditing] = useState<UsuarioAdmin | null>(null);
   const [form, setForm] = useState<UsuarioPayload>(FORM_INICIAL);
   const [erro, setErro] = useState('');
   const [overrideState, setOverrideState] = useState<PermissionOverrideStateMap>(createEmptyPermissionOverrideState());
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [usuarioParaExcluir, setUsuarioParaExcluir] = useState<UsuarioAdmin | null>(null);
-  const [confirmacaoExclusao, setConfirmacaoExclusao] = useState('');
   const isMobileUsersTable = useIsMobileUsersTable();
   const podeOperarPapelElevado = isAdminPlataforma || isDesenvolvedor;
   const filiaisDisponiveis = filiais.data ?? [];
@@ -656,30 +652,6 @@ export default function AdminUsuariosPage() {
     }
   }
 
-  function abrirModalExclusao(usuario: UsuarioAdmin) {
-    setErro('');
-    setConfirmacaoExclusao('');
-    setUsuarioParaExcluir(usuario);
-  }
-
-  function fecharModalExclusao() {
-    if (excluirUsuarioDefinitivamente.isPending) return;
-    setUsuarioParaExcluir(null);
-    setConfirmacaoExclusao('');
-  }
-
-  async function confirmarExclusaoDefinitiva() {
-    if (!usuarioParaExcluir || confirmacaoExclusao !== 'EXCLUIR') return;
-
-    try {
-      await excluirUsuarioDefinitivamente.mutateAsync(usuarioParaExcluir.id);
-      if (editing?.id === usuarioParaExcluir.id) resetForm();
-      fecharModalExclusao();
-    } catch (error) {
-      setErro(getApiErrorMessage(error));
-    }
-  }
-
   const salvando =
     criarUsuario.isPending
     || atualizarUsuario.isPending
@@ -690,7 +662,6 @@ export default function AdminUsuariosPage() {
   function renderActionMenu(row: UsuarioRow) {
     const usuarioSupremo = row.papel === PAPEL_DESENVOLVEDOR;
     const bloqueado = usuarioSupremo || (!podeOperarPapelElevado && row.papel !== 'usuario_comum');
-    const podeExcluirDefinitivamente = canHardDeleteUsers && !usuarioSupremo;
     const podeGerenciarMetas = Boolean(row.permissoesEfetivas.can_manage_kpi_goals);
     const podeGerenciarComunicacoes = Boolean(row.permissoesEfetivas.can_manage_communications || row.permissoesEfetivas.homeComunicados);
     const operacaoRapidaBloqueada = bloqueado || atualizarUsuario.isPending;
@@ -759,23 +730,6 @@ export default function AdminUsuariosPage() {
             />
             <span>Permitir alterar comunicações</span>
           </DropdownMenuItem>
-          {podeExcluirDefinitivamente && (
-            <>
-              <DropdownMenuSeparator
-                className="mx-2 my-1 h-px"
-                style={{ backgroundColor: 'var(--color-border)' }}
-              />
-              <DropdownMenuItem
-                disabled={excluirUsuarioDefinitivamente.isPending}
-                onSelect={() => abrirModalExclusao(row)}
-                className="gap-2 font-semibold"
-                style={{ color: '#dc2626' }}
-              >
-                <Trash2 size={14} />
-                Excluir definitivamente
-              </DropdownMenuItem>
-            </>
-          )}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -1175,53 +1129,6 @@ export default function AdminUsuariosPage() {
         isLoading={usuarios.isLoading}
         colunas={isMobileUsersTable ? colunasUsuariosMobile : colunasUsuariosDesktop}
       />
-
-      {usuarioParaExcluir && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-lg rounded-2xl border p-5 shadow-xl" style={SURFACE_STYLE}>
-            <div className="space-y-2">
-              <h2 className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>Excluir usuário</h2>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-subtle)' }}>
-                Esta ação remove definitivamente a conta de {usuarioParaExcluir.email} e limpa vínculos de acesso, sessões e referências dependentes.
-              </p>
-            </div>
-
-            <label className="mt-5 block space-y-2">
-              <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                Digite EXCLUIR para confirmar
-              </span>
-              <input
-                value={confirmacaoExclusao}
-                onChange={(event) => setConfirmacaoExclusao(event.target.value)}
-                className="w-full rounded-xl border px-3 py-2.5 font-mono"
-                style={FIELD_STYLE}
-                autoFocus
-              />
-            </label>
-
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={fecharModalExclusao}
-                disabled={excluirUsuarioDefinitivamente.isPending}
-                className="rounded-xl border px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-                style={SECONDARY_BUTTON_STYLE}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={confirmarExclusaoDefinitiva}
-                disabled={confirmacaoExclusao !== 'EXCLUIR' || excluirUsuarioDefinitivamente.isPending}
-                className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ backgroundColor: '#dc2626' }}
-              >
-                Excluir definitivamente
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <UsuariosImportacaoModal open={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
     </div>

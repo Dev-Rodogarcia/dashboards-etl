@@ -36,6 +36,7 @@ export interface SetorAdmin {
   nome: string;
   descricao: string | null;
   sistema: boolean;
+  ativo: boolean;
   totalUsuarios: number;
   templatePermissoes: PermissionMap;
   filiaisPermitidas: string[];

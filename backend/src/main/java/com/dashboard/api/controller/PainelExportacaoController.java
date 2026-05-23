@@ -8,6 +8,7 @@ import com.dashboard.api.service.DashboardExportService;
 import com.dashboard.api.service.IndenizacaoMercadoriasIndicadorService;
 import com.dashboard.api.service.IndicadoresGestaoAVistaService;
 import com.dashboard.api.service.PerformanceEntregaIndicadorService;
+import com.dashboard.api.service.TrackingService;
 import com.dashboard.api.service.UtilizacaoColetoresIndicadorService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,6 +31,7 @@ public class PainelExportacaoController {
     private final CubagemMercadoriasIndicadorService cubagemMercadoriasService;
     private final IndenizacaoMercadoriasIndicadorService indenizacaoMercadoriasService;
     private final IndicadoresGestaoAVistaService horariosCorteService;
+    private final TrackingService trackingService;
 
     public PainelExportacaoController(
             DashboardExportService dashboardExportService,
@@ -37,7 +39,8 @@ public class PainelExportacaoController {
             UtilizacaoColetoresIndicadorService utilizacaoColetoresService,
             CubagemMercadoriasIndicadorService cubagemMercadoriasService,
             IndenizacaoMercadoriasIndicadorService indenizacaoMercadoriasService,
-            IndicadoresGestaoAVistaService horariosCorteService
+            IndicadoresGestaoAVistaService horariosCorteService,
+            TrackingService trackingService
     ) {
         this.dashboardExportService = dashboardExportService;
         this.performanceEntregaService = performanceEntregaService;
@@ -45,6 +48,7 @@ public class PainelExportacaoController {
         this.cubagemMercadoriasService = cubagemMercadoriasService;
         this.indenizacaoMercadoriasService = indenizacaoMercadoriasService;
         this.horariosCorteService = horariosCorteService;
+        this.trackingService = trackingService;
     }
 
     @GetMapping("/coletas/exportacao")
@@ -94,7 +98,7 @@ public class PainelExportacaoController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
     ) {
-        return exportar(DashboardExportDefinition.TRACKING, dataInicio, dataFim, params);
+        return dashboardExportService.exportar(DashboardExportDefinition.TRACKING, filtroTracking(dataInicio, dataFim, params));
     }
 
     @GetMapping("/tracking/tabela/total")
@@ -104,7 +108,9 @@ public class PainelExportacaoController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
     ) {
-        return total(DashboardExportDefinition.TRACKING, dataInicio, dataFim, params);
+        return ResponseEntity.ok(new TotalRegistrosDTO(
+                dashboardExportService.total(DashboardExportDefinition.TRACKING, filtroTracking(dataInicio, dataFim, params))
+        ));
     }
 
     @GetMapping("/manifestos/exportacao")
@@ -334,5 +340,9 @@ public class PainelExportacaoController {
 
     private FiltroConsultaDTO filtro(LocalDate dataInicio, LocalDate dataFim, MultiValueMap<String, String> params) {
         return FiltroRequestMapper.from(dataInicio, dataFim, params);
+    }
+
+    private FiltroConsultaDTO filtroTracking(LocalDate dataInicio, LocalDate dataFim, MultiValueMap<String, String> params) {
+        return trackingService.normalizarFiltroComFilialAtualObrigatoria(filtro(dataInicio, dataFim, params));
     }
 }

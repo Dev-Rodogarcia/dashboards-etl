@@ -1,10 +1,13 @@
 package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.PaginaDTO;
+import com.dashboard.api.dto.tracking.TrackingDashboardDTO;
 import com.dashboard.api.dto.tracking.TrackingChartsDTO;
 import com.dashboard.api.dto.tracking.TrackingOverviewDTO;
 import com.dashboard.api.dto.tracking.TrackingResumoDTO;
 import com.dashboard.api.dto.tracking.TrackingTimelinePointDTO;
+import com.dashboard.api.service.DashboardTabelaPaginadaService;
 import com.dashboard.api.service.TrackingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +29,11 @@ public class TrackingController {
 
     private static final Logger log = LoggerFactory.getLogger(TrackingController.class);
     private final TrackingService trackingService;
+    private final DashboardTabelaPaginadaService tabelaPaginadaService;
 
-    public TrackingController(TrackingService trackingService) {
+    public TrackingController(TrackingService trackingService, DashboardTabelaPaginadaService tabelaPaginadaService) {
         this.trackingService = trackingService;
+        this.tabelaPaginadaService = tabelaPaginadaService;
     }
 
     @GetMapping
@@ -39,6 +44,14 @@ public class TrackingController {
         FiltroConsultaDTO filtro = FiltroRequestMapper.from(dataInicio, dataFim, params);
         log.info("GET /api/painel/tracking - periodo: {} a {}", dataInicio, dataFim);
         return ResponseEntity.ok(trackingService.buscarOverview(filtro));
+    }
+
+    @GetMapping("/dashboard")
+    public ResponseEntity<TrackingDashboardDTO> dashboard(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(trackingService.buscarDashboard(FiltroRequestMapper.from(dataInicio, dataFim, params)));
     }
 
     @GetMapping("/serie")
@@ -64,5 +77,18 @@ public class TrackingController {
             @RequestParam(defaultValue = "100") int limite,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(trackingService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
+    }
+
+    @GetMapping("/detalhes")
+    public ResponseEntity<PaginaDTO<TrackingResumoDTO>> detalhes(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam MultiValueMap<String, String> params) {
+        FiltroConsultaDTO filtroObrigatorio = trackingService.normalizarFiltroComFilialAtualObrigatoria(
+                FiltroRequestMapper.from(dataInicio, dataFim, params)
+        );
+        return ResponseEntity.ok(tabelaPaginadaService.buscarTracking(filtroObrigatorio, page, size));
     }
 }

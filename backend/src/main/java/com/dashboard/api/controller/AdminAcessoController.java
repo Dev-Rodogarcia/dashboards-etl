@@ -18,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -104,8 +105,7 @@ public class AdminAcessoController {
     @DeleteMapping("/usuarios/{usuarioId}/hard-delete")
     @PreAuthorize("@acessoSeguranca.podeExcluirUsuario()")
     public ResponseEntity<Void> excluirUsuarioDefinitivamente(@PathVariable Long usuarioId) {
-        gestaoUsuarioService.excluirUsuarioDefinitivamente(usuarioId);
-        return ResponseEntity.noContent().build();
+        throw new AccessDeniedException("Exclusão definitiva de usuários está desabilitada; use inativação.");
     }
 
     @GetMapping("/papeis")

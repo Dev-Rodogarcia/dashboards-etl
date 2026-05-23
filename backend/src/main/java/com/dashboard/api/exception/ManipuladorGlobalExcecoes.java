@@ -15,6 +15,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import jakarta.validation.ConstraintViolationException;
@@ -92,6 +93,21 @@ public class ManipuladorGlobalExcecoes {
         RespostaErroPadrao resposta = criarResposta(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(resposta);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<RespostaErroPadrao> handleResponseStatus(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        HttpStatus statusSeguro = status != null ? status : HttpStatus.INTERNAL_SERVER_ERROR;
+        String mensagem = ex.getReason() != null && !ex.getReason().isBlank()
+                ? ex.getReason()
+                : statusSeguro.getReasonPhrase();
+
+        log.warn("Requisição recusada: status={} mensagem={}", ex.getStatusCode().value(), mensagem);
+
+        RespostaErroPadrao resposta = criarResposta(statusSeguro, statusSeguro.getReasonPhrase(), mensagem);
+
+        return ResponseEntity.status(ex.getStatusCode()).body(resposta);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

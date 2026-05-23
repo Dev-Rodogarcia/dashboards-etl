@@ -46,7 +46,7 @@ public class GestaoSetorService {
 
     @Transactional(readOnly = true)
     public List<SetorDTO> listarSetores() {
-        List<SetorEntity> setores = setorRepository.findAll();
+        List<SetorEntity> setores = setorRepository.findAllByAtivoTrue();
         return setores.stream()
                 .sorted((a, b) -> a.getNome().compareToIgnoreCase(b.getNome()))
                 .map(this::mapearSetor)
@@ -107,12 +107,8 @@ public class GestaoSetorService {
             throw new IllegalStateException("Setores do sistema não podem ser excluídos.");
         }
 
-        if (usuarioRepository.countBySetorId(setorIdNonNull) > 0) {
-            throw new IllegalStateException("Não é possível excluir um setor que possui usuários vinculados.");
-        }
-
-        templateRepository.deleteAllBySetorId(setorIdNonNull);
-        setorRepository.delete(setor);
+        setor.setAtivo(false);
+        setorRepository.save(setor);
         auditService.registrar(AcaoAudit.SETOR_EXCLUIDO, null, null, "setor:" + setor.getChave(), null);
     }
 
@@ -126,6 +122,7 @@ public class GestaoSetorService {
                 setor.getNome(),
                 setor.getDescricao(),
                 setor.isSistema(),
+                setor.isAtivo(),
                 totalUsuarios,
                 permissoes,
                 listarFiliaisPermitidas(setor)

@@ -201,32 +201,7 @@ public class GestaoUsuarioService {
 
     @Transactional
     public void excluirUsuarioDefinitivamente(Long usuarioId) {
-        Long usuarioIdNonNull = Objects.requireNonNull(usuarioId, "usuarioId é obrigatório.");
-        UsuarioEntity operador = usuarioAutenticado();
-        Long operadorId = Objects.requireNonNull(operador.getId(), "usuario.id é obrigatório.");
-
-        if (!permissaoResolver.ehDesenvolvedor(operadorId) && !permissaoResolver.ehAdminPlataforma(operadorId)) {
-            throw new AccessDeniedException("Usuário autenticado não pode excluir usuários definitivamente.");
-        }
-        if (Objects.equals(operadorId, usuarioIdNonNull)) {
-            throw new AccessDeniedException("Usuário autenticado não pode excluir a própria conta.");
-        }
-
-        UsuarioEntity usuario = usuarioRepository.findById(usuarioIdNonNull)
-                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
-
-        validarOperacaoContraUsuarioSupremo(usuario);
-
-        auditService.registrarSync(
-                AcaoAudit.USUARIO_EXCLUIDO,
-                operadorId,
-                operador.getLogin(),
-                "usuario",
-                "{\"alvoUsuarioId\":" + usuarioIdNonNull + ",\"alvoEmail\":\"" + escapeJson(usuario.getEmail()) + "\"}"
-        );
-
-        dependenciaCleanupService.limparDependencias(usuarioIdNonNull);
-        usuarioRepository.delete(usuario);
+        throw new AccessDeniedException("Exclusão definitiva de usuários está desabilitada; use inativação.");
     }
 
     @Transactional(readOnly = true)

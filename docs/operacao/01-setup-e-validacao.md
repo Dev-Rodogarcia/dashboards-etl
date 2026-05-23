@@ -5,23 +5,25 @@
 - Java 17 ou superior
 - Node.js com npm
 - acesso ao SQL Server usado pela API
-- arquivo `.env` na raiz de `dashboards`
+- arquivo `.env.development.local` na raiz de `dashboards` para DEV local
 
 ## Configuracao de ambiente
 
-### Arquivo central
+### Arquivos de ambiente
 
-Arquivo:
+Arquivos:
 
-- `.env`
+- `.env`: reservado para produção
+- `.env.development`: frontend Vite dev, versionado
+- `.env.development.local`: backend DEV, ignorado pelo Git
 
-Variaveis minimas:
+Variaveis minimas em `.env.development.local`:
 
 ```env
 API_BASE_URL=http://localhost:5011
 VITE_API_BASE_URL=http://localhost:5011
 SERVER_ADDRESS=127.0.0.1
-DB_URL=jdbc:sqlserver://HOST:1433;databaseName=ETL_SISTEMA;encrypt=true;trustServerCertificate=true
+DB_URL=jdbc:sqlserver://HOST_DEV:1433;databaseName=DASHBOARDS_DEV;encrypt=true;trustServerCertificate=true
 DB_USER=seu_usuario
 DB_PASSWORD=sua_senha
 JWT_SECRET=segredo-forte
@@ -34,6 +36,8 @@ ACESSO_USUARIO_SUPREMO_PAPEL=desenvolvedor
 ACESSO_USUARIO_SUPREMO_NIVEL=1000
 VITE_ACESSO_USUARIO_SUPREMO_PAPEL=desenvolvedor
 ```
+
+Copie `.env.development.local.example` para `.env.development.local` e aponte `DB_URL` para um banco diferente de `DASHBOARDS`. O script `iniciar-dev.bat` e o backend recusam `databaseName=DASHBOARDS` no profile `dev`.
 
 Configuracoes importantes no `application.yml`:
 
@@ -71,7 +75,7 @@ O backend de produção deve rodar em `prod` na porta `5010`, e o frontend de pr
 .\iniciar-prod.bat
 ```
 
-Ele valida o ambiente, libera apenas as portas de produção, gera `frontend/dist` atualizado, abre o backend em um terminal externo, espera o healthcheck ficar `UP`, valida o preflight CORS da API local e abre o frontend estático em outro terminal externo.
+Ele valida o ambiente, exige checkout limpo na branch principal, libera apenas as portas de produção, gera `frontend/dist-prod` atualizado, abre o backend em um terminal externo, espera o healthcheck ficar `UP`, valida o preflight CORS da API local e abre o frontend estático em outro terminal externo. As portas DEV `5011/5174` não são encerradas por esse fluxo.
 
 O Cloudflare Tunnel deve apontar `analytics.rodogarcia.com.br` para `http://127.0.0.1:5173` e `api-analytics.rodogarcia.com.br` para `http://127.0.0.1:5010`.
 
@@ -149,6 +153,8 @@ npm run lint
 npm run build
 npm run check:encoding
 ```
+
+`npm run build` gera apenas o build de checagem em `frontend/.tmp/build-check`. O diretório servido em produção, `frontend/dist-prod`, deve ser gerado somente por `.\iniciar-prod.bat`.
 
 ## Validacao automatica do BI
 

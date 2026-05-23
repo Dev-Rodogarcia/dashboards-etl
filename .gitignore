@@ -50,6 +50,7 @@
 # Frontend / Node
 **/node_modules/
 **/dist/
+**/dist-prod/
 **/dist-ssr/
 **/coverage/
 **/*.tsbuildinfo

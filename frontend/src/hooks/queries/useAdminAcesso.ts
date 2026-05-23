@@ -10,9 +10,8 @@ import {
   criarUsuario,
   excluirSetor,
   excluirUsuario,
-  excluirUsuarioDefinitivamente,
 } from '../../api/endpoints/adminAcessoServico';
-import type { SetorPayload, UsuarioAdmin, UsuarioPayload } from '../../types/access';
+import type { SetorPayload, UsuarioPayload } from '../../types/access';
 
 export function useCatalogoPermissoes() {
   return useQuery({
@@ -101,20 +100,6 @@ export function useExcluirUsuario() {
   return useMutation({
     mutationFn: (id: string) => excluirUsuario(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'usuarios'] });
-    },
-  });
-}
-
-export function useExcluirUsuarioDefinitivamente() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => excluirUsuarioDefinitivamente(id),
-    onSuccess: (_data, id) => {
-      queryClient.setQueryData<UsuarioAdmin[]>(
-        ['admin', 'acesso', 'usuarios'],
-        (usuarios) => usuarios?.filter((usuario) => usuario.id !== id),
-      );
       queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'usuarios'] });
     },
   });

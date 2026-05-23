@@ -12,6 +12,7 @@ import com.dashboard.api.dto.fretes.FreteResumoDTO;
 import com.dashboard.api.dto.manifestos.ManifestoResumoDTO;
 import com.dashboard.api.dto.tracking.TrackingResumoDTO;
 import com.dashboard.api.service.DashboardTabelaPaginadaService;
+import com.dashboard.api.service.TrackingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.MultiValueMap;
@@ -27,9 +28,11 @@ import java.time.LocalDate;
 public class PainelTabelaPaginadaController {
 
     private final DashboardTabelaPaginadaService tabelaPaginadaService;
+    private final TrackingService trackingService;
 
-    public PainelTabelaPaginadaController(DashboardTabelaPaginadaService tabelaPaginadaService) {
+    public PainelTabelaPaginadaController(DashboardTabelaPaginadaService tabelaPaginadaService, TrackingService trackingService) {
         this.tabelaPaginadaService = tabelaPaginadaService;
+        this.trackingService = trackingService;
     }
 
     @GetMapping("/coletas/tabela/paginada")
@@ -65,7 +68,7 @@ public class PainelTabelaPaginadaController {
             @RequestParam(defaultValue = "10") int tamanhoPagina,
             @RequestParam MultiValueMap<String, String> params
     ) {
-        return ResponseEntity.ok(tabelaPaginadaService.buscarTracking(filtro(dataInicio, dataFim, params), pagina, tamanhoPagina));
+        return ResponseEntity.ok(tabelaPaginadaService.buscarTracking(filtroTracking(dataInicio, dataFim, params), pagina, tamanhoPagina));
     }
 
     @GetMapping("/manifestos/tabela/paginada")
@@ -142,5 +145,9 @@ public class PainelTabelaPaginadaController {
 
     private FiltroConsultaDTO filtro(LocalDate dataInicio, LocalDate dataFim, MultiValueMap<String, String> params) {
         return FiltroRequestMapper.from(dataInicio, dataFim, params);
+    }
+
+    private FiltroConsultaDTO filtroTracking(LocalDate dataInicio, LocalDate dataFim, MultiValueMap<String, String> params) {
+        return trackingService.normalizarFiltroComFilialAtualObrigatoria(filtro(dataInicio, dataFim, params));
     }
 }

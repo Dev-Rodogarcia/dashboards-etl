@@ -1,9 +1,10 @@
 import clienteAxios from '../clienteAxios';
 import { baixarCsv } from '../downloadCsv';
+import { aplicarFiltrosTabelaParams } from '../tableFilters';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
-import type { TrackingCharts, TrackingFiltro, TrackingOverview, TrackingRawRow, TrackingTimelinePoint } from '../../types/tracking';
+import type { TrackingCharts, TrackingDashboard, TrackingFiltro, TrackingOverview, TrackingRawRow, TrackingTimelinePoint } from '../../types/tracking';
 import type { TableApiFilters } from '../../types/tableFilters';
 
 type TrackingApiRow = TrackingRawRow & { pesoTaxado?: number; valorNf?: number };
@@ -31,6 +32,13 @@ function normalizarTrackingRow(item: TrackingApiRow): TrackingRawRow {
 
 export async function buscarTrackingOverview(filtro: TrackingFiltro): Promise<TrackingOverview> {
   const { data } = await clienteAxios.get<TrackingOverview>('/api/painel/tracking', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarTrackingDashboard(filtro: TrackingFiltro): Promise<TrackingDashboard> {
+  const { data } = await clienteAxios.get<TrackingDashboard>('/api/painel/tracking/dashboard', {
     params: montarQueryParams(filtro),
   });
   return data;
@@ -83,6 +91,24 @@ export async function buscarTrackingTabelaPaginada(
   return {
     ...resposta,
     conteudo: resposta.conteudo.map(normalizarTrackingRow),
+  };
+}
+
+export async function buscarTrackingDetalhesPaginada(
+  filtro: TrackingFiltro,
+  page: number,
+  size: number,
+  filtrosTabela?: TableApiFilters,
+): Promise<PaginacaoResponse<TrackingRawRow>> {
+  const params = montarQueryParams(filtro);
+  aplicarFiltrosTabelaParams(params, filtrosTabela);
+  params.set('page', String(page));
+  params.set('size', String(size));
+
+  const { data } = await clienteAxios.get<PaginacaoResponse<TrackingApiRow>>('/api/painel/tracking/detalhes', { params });
+  return {
+    ...data,
+    conteudo: data.conteudo.map(normalizarTrackingRow),
   };
 }
 

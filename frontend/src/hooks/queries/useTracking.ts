@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   buscarTrackingGraficos,
+  buscarTrackingDashboard,
+  buscarTrackingDetalhesPaginada,
   buscarTrackingOverview,
   buscarTrackingSerie,
   buscarTrackingTabela,
@@ -16,6 +18,16 @@ export function useTrackingOverview(filtro: TrackingFiltro) {
   return useQuery({
     queryKey: ['tracking', 'overview', filtro],
     queryFn: () => buscarTrackingOverview(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useTrackingDashboard(filtro: TrackingFiltro, enabled = true) {
+  return useQuery({
+    queryKey: ['tracking', 'dashboard', filtro],
+    queryFn: () => buscarTrackingDashboard(filtro),
+    enabled,
     staleTime: STALE_TIME,
     retry: 1,
   });
@@ -66,6 +78,23 @@ export function useTrackingTabelaPaginada(
   return useQuery({
     queryKey: ['tracking', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarTrackingTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
+    placeholderData: (previousData) => previousData,
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useTrackingDetalhesPaginada(
+  filtro: TrackingFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['tracking', 'detalhes', filtro, pagina, tamanhoPagina, filtrosTabela],
+    queryFn: () => buscarTrackingDetalhesPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
+    enabled,
     placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
     retry: 1,

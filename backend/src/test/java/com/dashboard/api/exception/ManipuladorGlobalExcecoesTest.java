@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Objects;
@@ -79,6 +80,21 @@ class ManipuladorGlobalExcecoesTest {
         assertThat(body.status()).isEqualTo(400);
         assertThat(body.erro()).isEqualTo("Bad Request");
         assertThat(body.mensagem()).isEqualTo("Dados inválidos na requisição.");
+    }
+
+    @Test
+    void devePreservarStatusDeResponseStatusException() {
+        ManipuladorGlobalExcecoes handler = new ManipuladorGlobalExcecoes();
+
+        var resposta = handler.handleResponseStatus(
+                new ResponseStatusException(HttpStatus.BAD_REQUEST, "Filial Atual é obrigatória.")
+        );
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        RespostaErroPadrao body = Objects.requireNonNull(resposta.getBody());
+        assertThat(body.status()).isEqualTo(400);
+        assertThat(body.erro()).isEqualTo("Bad Request");
+        assertThat(body.mensagem()).isEqualTo("Filial Atual é obrigatória.");
     }
 
     @SuppressWarnings("unused")

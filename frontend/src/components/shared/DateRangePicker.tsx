@@ -1,13 +1,7 @@
 import { useMemo } from 'react';
 import { Info } from 'lucide-react';
-import {
-  dataHojeLocal,
-  dataNDiasAtrasLocal,
-  normalizarPeriodo,
-  primeiroDiaMesAtualLocal,
-  primeiroDiaMesPassadoLocal,
-  ultimoDiaMesPassadoLocal,
-} from '../../utils/dateUtils';
+import { normalizarPeriodo } from '../../utils/dateUtils';
+import { DATE_RANGE_PRESETS, type DatePreset } from './dateRangePresets';
 
 interface DateRangePickerProps {
   dataInicio: string;
@@ -18,23 +12,6 @@ interface DateRangePickerProps {
   label?: string;
   helpText?: string;
 }
-
-type DatePreset = {
-  label: string;
-  getRange: () => { dataInicio: string; dataFim: string };
-};
-
-// Atalhos corporativos: semana, quinzena, mês, bimestre, trimestre, semestre e períodos mensais fechados.
-const PRESETS: DatePreset[] = [
-  { label: '7d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(7), dataFim: dataHojeLocal() }) },
-  { label: '15d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(15), dataFim: dataHojeLocal() }) },
-  { label: '30d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(30), dataFim: dataHojeLocal() }) },
-  { label: '60d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(60), dataFim: dataHojeLocal() }) },
-  { label: '90d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(90), dataFim: dataHojeLocal() }) },
-  { label: '180d', getRange: () => ({ dataInicio: dataNDiasAtrasLocal(180), dataFim: dataHojeLocal() }) },
-  { label: 'Este mês', getRange: () => ({ dataInicio: primeiroDiaMesAtualLocal(), dataFim: dataHojeLocal() }) },
-  { label: 'Mês passado', getRange: () => ({ dataInicio: primeiroDiaMesPassadoLocal(), dataFim: ultimoDiaMesPassadoLocal() }) },
-];
 
 const inputClass =
   'cursor-pointer rounded-lg border px-3 py-2 text-sm shadow-sm transition-all duration-150 ' +
@@ -52,7 +29,7 @@ export default function DateRangePicker({
 }: DateRangePickerProps) {
   // Detecta qual preset está ativo comparando datas com timezone local
   const presetAtivo = useMemo(() => {
-    for (const { label, getRange } of PRESETS) {
+    for (const { label, getRange } of DATE_RANGE_PRESETS) {
       const range = getRange();
       if (dataFim === range.dataFim && dataInicio === range.dataInicio) return label;
     }
@@ -160,7 +137,7 @@ export default function DateRangePicker({
           Atalho
         </span>
         <div className="grid grid-cols-3 gap-1 sm:flex sm:flex-wrap">
-          {PRESETS.map((preset) => {
+          {DATE_RANGE_PRESETS.map((preset) => {
             const { label } = preset;
             const ativo = presetAtivo === label;
             return (

@@ -65,9 +65,13 @@ O frontend implementa roteamento seguro e autorização granular por setor para 
 
 ## ⚙️ Variáveis de Ambiente & Configurações
 
-O monorepo utiliza arquivos `.env` para orquestrar as portas e origens corretas por ambiente. Utilize o arquivo `.env.example` como base local.
+O monorepo separa os arquivos de ambiente por finalidade:
 
-### Template Padrão de Configurações (`.env`)
+- `.env`: reservado para produção/Cloudflare.
+- `.env.development`: versionado, usado apenas pelo Vite dev para apontar para `http://127.0.0.1:5011`.
+- `.env.development.local`: ignorado pelo Git, usado pelo backend DEV com credenciais e banco separados. Copie de `.env.development.local.example`.
+
+### Template de Configurações DEV (`.env.development.local`)
 
 ```properties
 # --- Servidor do Backend API ---
@@ -76,7 +80,7 @@ API_BASE_URL=http://127.0.0.1:5011
 VITE_API_BASE_URL=http://127.0.0.1:5011
 
 # --- Banco de Dados Principal ---
-DB_URL=jdbc:sqlserver://HOST:1433;databaseName=DASHBOARDS;encrypt=true;trustServerCertificate=true
+DB_URL=jdbc:sqlserver://HOST_DEV:1433;databaseName=DASHBOARDS_DEV;encrypt=true;trustServerCertificate=true
 DB_USER=seu_usuario
 DB_PASSWORD=sua_senha
 
@@ -95,6 +99,8 @@ AUTH_REFRESH_COOKIE_SECURE=false
 # --- Migração Temporária ---
 ACL_LEGACY_MIGRATION_ENABLED=false
 ```
+
+Para desenvolvimento, `DB_URL` deve ficar em `.env.development.local` e usar `databaseName` diferente de `DASHBOARDS`, por exemplo `DASHBOARDS_DEV`. O backend aborta o startup se o profile `dev` tentar usar o banco de produção.
 
 > [!WARNING]
 > **Segurança em Produção:**
@@ -117,7 +123,7 @@ dashboards/
 │   ├── mvnw.cmd           # Executável do Maven no Windows
 │   └── pom.xml            # Gerenciador de dependências Maven
 ├── frontend/              # Código-fonte da aplicação React
-│   ├── dist/              # Build estático gerado para produção
+│   ├── dist-prod/         # Build estático gerado exclusivamente por iniciar-prod.bat
 │   ├── node_modules/      # Dependências do Node.js
 │   ├── public/            # Ativos públicos (favicons, imagens estáticas)
 │   ├── src/               # Componentes, Páginas, Hooks e Contexts React
@@ -149,7 +155,7 @@ Para compilar e subir o bundle otimizado simulando o ambiente de produção loca
 .\iniciar-prod.bat
 ```
 * O script valida se as variáveis necessárias estão ativas.
-* Compila o frontend gerando a pasta `dist`.
+* Compila o frontend gerando a pasta `dist-prod`.
 * Valida a inicialização da API na porta de produção `5010`.
 * Executa testes automáticos de integridade (preflight CORS) antes de finalizar.
 

@@ -228,6 +228,21 @@ class DashboardExportSqlBuilderTest {
         assertThat(query.sql()).contains(":filtro_tabelaColuna_valorPago");
     }
 
+    @Test
+    void buildSelectTrackingDeveFiltrarPesoComConversaoDecimalSegura() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.TRACKING,
+                filtro(Map.of("tabelaColuna.pesoTaxadoRaw", List.of("123,45"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("TRY_CONVERT(DECIMAL(19,4), [Peso Taxado])");
+        assertThat(query.sql()).contains("TRY_CONVERT(DECIMAL(19,4), REPLACE(REPLACE(CONVERT(NVARCHAR(50), [Peso Taxado]), '.', ''), ',', '.'))");
+        assertThat(query.sql()).contains(":filtro_tabelaColuna_pesoTaxadoRaw");
+        assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_pesoTaxadoRaw", new BigDecimal("123.45"));
+    }
+
     private static FiltroConsultaDTO filtro(Map<String, List<String>> filtros) {
         return new FiltroConsultaDTO(LocalDate.of(2026, 3, 17), LocalDate.of(2026, 4, 16), filtros);
     }

@@ -18,7 +18,7 @@ No host `analytics.rodogarcia.com.br`, bloquear:
 - `/@fs/*`
 - `/vite.svg`
 
-Esses caminhos pertencem ao Vite Dev Server e não devem existir quando o frontend estiver servido a partir de `frontend/dist`.
+Esses caminhos pertencem ao Vite Dev Server e não devem existir quando o frontend estiver servido a partir de `frontend/dist-prod`.
 
 No host `api-analytics.rodogarcia.com.br`, bloquear requests com header `Origin` local:
 

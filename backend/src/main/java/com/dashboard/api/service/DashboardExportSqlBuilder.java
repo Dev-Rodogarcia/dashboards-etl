@@ -98,6 +98,16 @@ class DashboardExportSqlBuilder {
         return new ExportSql(Objects.requireNonNull(sql, "sql"), parts.params());
     }
 
+    ExportSql buildFilteredSource(
+            DashboardExportDefinition definition,
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            Set<String> filtrosIgnorados
+    ) {
+        SqlParts parts = buildBase(definition, filtro, escopo, filtrosIgnorados);
+        return new ExportSql("FROM " + definition.viewName() + " base WHERE " + parts.where(), parts.params());
+    }
+
     private SqlParts buildBase(
             DashboardExportDefinition definition,
             FiltroConsultaDTO filtro,
@@ -742,7 +752,7 @@ class DashboardExportSqlBuilder {
                 put(colunas, "filialEmissora", texto("[Filial Emissora]"));
                 put(colunas, "filialAtual", texto("[Filial Atual]"));
                 put(colunas, "regiaoDestino", texto("[Região Destino]"));
-                put(colunas, "pesoTaxadoRaw", numero("REPLACE([Peso Taxado], ',', '.')"));
+                put(colunas, "pesoTaxadoRaw", numero(trackingPesoTaxadoSql()));
                 put(colunas, "valorFrete", numero("[Valor Frete]"));
                 put(colunas, "previsaoEntrega", data("[Previsão Entrega/Previsão de entrega]"));
             }
@@ -864,6 +874,17 @@ class DashboardExportSqlBuilder {
 
     private String documentoTipoFreteSql() {
         return "(CASE WHEN [CT-e ID] IS NOT NULL THEN 'ct-e' WHEN [Nº NFS-e] IS NOT NULL THEN 'nfs-e' ELSE 'pendente' END)";
+    }
+
+    private String trackingPesoTaxadoSql() {
+        return """
+                COALESCE(
+                    TRY_CONVERT(DECIMAL(19,4), [Peso Taxado]),
+                    TRY_CONVERT(DECIMAL(19,4), REPLACE(CONVERT(NVARCHAR(50), [Peso Taxado]), ',', '.')),
+                    TRY_CONVERT(DECIMAL(19,4), REPLACE(REPLACE(CONVERT(NVARCHAR(50), [Peso Taxado]), '.', ''), ',', '.')),
+                    0
+                )
+                """;
     }
 
     private String valorOperacionalFaturaSql() {

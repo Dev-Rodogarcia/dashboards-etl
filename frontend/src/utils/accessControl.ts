@@ -104,10 +104,6 @@ export function isAdminAcesso(user: UsuarioPapel | null): boolean {
   return isDesenvolvedor(user) || isAdminPlataforma(user) || hasRole(user, PAPEL_ADMIN_ACESSO);
 }
 
-export function canHardDeleteUsers(user: UsuarioPapel | null): boolean {
-  return isDesenvolvedor(user) || isAdminPlataforma(user);
-}
-
 export function canAccess(user: IUsuarioSessao | null, permission?: PermissionKey): boolean {
   if (!user) return false;
   if (isDesenvolvedor(user) || isAdminPlataforma(user)) return true;

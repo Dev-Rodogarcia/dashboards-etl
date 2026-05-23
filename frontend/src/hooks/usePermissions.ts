@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useAutenticacao } from '../contexts/AutenticacaoContext';
 import {
-  canHardDeleteUsers,
   canAccess,
   createEmptyPermissionMap,
   hasRole,
@@ -15,7 +14,6 @@ export function usePermissions() {
   const { usuario } = useAutenticacao();
 
   return useMemo(() => ({
-    canHardDeleteUsers: canHardDeleteUsers(usuario),
     isDesenvolvedor: isDesenvolvedor(usuario),
     isAdminAcesso: isAdminAcesso(usuario),
     isAdminPlataforma: isAdminPlataforma(usuario),

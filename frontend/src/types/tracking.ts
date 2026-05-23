@@ -32,6 +32,16 @@ export interface TrackingOverview {
   pctFinalizado: number;
 }
 
+export interface TrackingMatrizRegiao {
+  siglaRegiaoDestino: string;
+  responsavelRegiaoDestino: string;
+  pesoTaxado: number;
+  valorFrete: number;
+  valorNota: number;
+  volumes: number;
+  foraDoPrazo: number;
+}
+
 export interface TrackingStatusDistribuicao {
   status: string;
   total: number;
@@ -61,6 +71,12 @@ export interface TrackingCharts {
   statusDistribuicao: TrackingStatusDistribuicao[];
   previsaoVencidaPorFilialAtual: TrackingPrevisaoVencidaFilial[];
   valorPorRegiaoDestino: TrackingValorPorRegiao[];
+}
+
+export interface TrackingDashboard {
+  overview: TrackingOverview;
+  matrizRegiaoDestino: TrackingMatrizRegiao[];
+  graficos: TrackingCharts;
 }
 
 export interface TrackingTimelinePoint {

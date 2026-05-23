@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node ./scripts/validate-prod-env.mjs && tsc -b && vite build",
+    "build": "node ./scripts/validate-prod-env.mjs && tsc -b && vite build --outDir .tmp/build-check --emptyOutDir",
+    "build:prod": "node ./scripts/validate-prod-env.mjs && tsc -b && vite build --outDir dist-prod --emptyOutDir",
     "check:encoding": "node ./scripts/check-encoding.mjs",
     "lint": "eslint .",
     "audit:prod": "npm audit --omit=dev --audit-level=high",

@@ -22,7 +22,7 @@ set "ENV_FILE=%ROOT_DIR%\.env"
 set "BACKEND_MVNW=%BACKEND_DIR%\mvnw.cmd"
 set "BACKEND_POM=%BACKEND_DIR%\pom.xml"
 set "FRONTEND_PACKAGE=%FRONTEND_DIR%\package.json"
-set "DIST_DIR=%FRONTEND_DIR%\dist"
+set "DIST_DIR=%FRONTEND_DIR%\dist-prod"
 set "VITE_CACHE_DIR=%FRONTEND_DIR%\node_modules\.vite"
 set "TSCACHE_DIR=%FRONTEND_DIR%\node_modules\.tmp"
 set "BUILD_INFO_FILE=%DIST_DIR%\build-info.json"
@@ -34,20 +34,28 @@ set "BACKEND_HEALTH_URL=http://127.0.0.1:%BACKEND_PORT%/actuator/health/liveness
 set "BACKEND_WAIT_SECONDS=180"
 set "PROD_FRONTEND_PUBLIC_URL=https://analytics.rodogarcia.com.br"
 set "PROD_API_PUBLIC_URL=https://api-analytics.rodogarcia.com.br"
+set "PROD_ALLOWED_BRANCH=main"
 set "DRY_RUN=0"
 
 if /i "%~1"=="--backend-worker" goto backend_worker
 if /i "%~1"=="--frontend-worker" goto frontend_worker
+
+:parse_main_args
+if "%~1"=="" goto main_args_done
 if /i "%~1"=="--dry-run" set "DRY_RUN=1"
+shift
+goto parse_main_args
+:main_args_done
 
 call :prefer_java_home
 call :print_main_header
 
 if "%DRY_RUN%"=="1" (
     echo [DRY-RUN] Validaria Java, Node, npm, PowerShell, .env, backend e frontend.
+    echo [DRY-RUN] Exigiria worktree limpa e branch %PROD_ALLOWED_BRANCH% antes do build de producao.
     echo [DRY-RUN] Liberaria a UI %FRONTEND_PORT% antes do build e a API %BACKEND_PORT% antes do novo backend.
-    echo [DRY-RUN] Encerraria portas de desenvolvimento antes da producao: %BACKEND_DEV_PORT% e %FRONTEND_DEV_PORT%.
-    echo [DRY-RUN] Geraria build atualizado em frontend\dist antes de abrir a UI.
+    echo [DRY-RUN] Nao encerraria nem tocaria portas de desenvolvimento: %BACKEND_DEV_PORT% e %FRONTEND_DEV_PORT%.
+    echo [DRY-RUN] Geraria build atualizado em frontend\dist-prod antes de abrir a UI.
     echo [DRY-RUN] API publica usada no build: %PROD_API_PUBLIC_URL%
     echo [DRY-RUN] CORS esperado na API: %PROD_FRONTEND_PUBLIC_URL%
     echo [DRY-RUN] Abriria dois terminais: "Dashboard API Producao" e "Dashboard UI Producao".
@@ -64,6 +72,14 @@ if errorlevel 1 exit /b 1
 
 call :set_prod_env
 
+call :validate_prod_worktree
+if errorlevel 1 (
+    echo.
+    echo [ERRO] Producao nao sera iniciada a partir deste checkout.
+    pause
+    exit /b 1
+)
+
 echo [INFO] Producao local:
 echo        API: http://127.0.0.1:%BACKEND_PORT%
 echo        UI : http://127.0.0.1:%FRONTEND_PORT%
@@ -72,14 +88,7 @@ echo [INFO] Cloudflare Tunnel esperado:
 echo        %PROD_API_PUBLIC_URL% -^> http://127.0.0.1:%BACKEND_PORT%
 echo        %PROD_FRONTEND_PUBLIC_URL% -^> http://127.0.0.1:%FRONTEND_PORT%
 echo.
-
-call :stop_dev_ports
-if errorlevel 1 (
-    echo.
-    echo [ERRO] Nao foi possivel encerrar as portas de desenvolvimento.
-    pause
-    exit /b 1
-)
+echo [INFO] As portas DEV %BACKEND_DEV_PORT%/%FRONTEND_DEV_PORT% nao serao encerradas por este script.
 
 call :ensure_frontend_dependencies
 if errorlevel 1 exit /b 1
@@ -337,7 +346,7 @@ if not exist "%FRONTEND_PACKAGE%" (
 )
 
 if not exist "%DIST_DIR%\index.html" (
-    echo [ERRO] Build estatico nao encontrado em frontend\dist.
+    echo [ERRO] Build estatico nao encontrado em frontend\dist-prod.
     echo        Execute .\iniciar-prod.bat para gerar o build e iniciar tudo.
     exit /b 1
 )
@@ -356,17 +365,19 @@ exit /b 0
 :validate_static_dist
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$index = Join-Path $env:DIST_DIR 'index.html';" ^
-  "if (-not (Test-Path -LiteralPath $index)) { Write-Host '[ERRO] dist/index.html nao encontrado.'; exit 1 }" ^
+  "if (-not (Test-Path -LiteralPath $index)) { Write-Host ('[ERRO] index.html nao encontrado em ' + $env:DIST_DIR); exit 1 }" ^
   "$indexHtml = Get-Content -LiteralPath $index -Raw;" ^
   "$devMarkers = @('/@vite/client', '/@react-refresh', '/src/main.tsx', '/src/main.jsx', '/node_modules/', '/@fs/');" ^
-  "foreach ($marker in $devMarkers) { if ($indexHtml.Contains($marker)) { Write-Host ('[ERRO] dist/index.html contem marcador de Vite dev: ' + $marker); exit 2 } }" ^
+  "foreach ($marker in $devMarkers) { if ($indexHtml.Contains($marker)) { Write-Host ('[ERRO] index.html contem marcador de Vite dev: ' + $marker); exit 2 } }" ^
   "$assetsDir = Join-Path $env:DIST_DIR 'assets';" ^
-  "if (-not (Test-Path -LiteralPath $assetsDir)) { Write-Host '[ERRO] dist/assets nao encontrado.'; exit 3 }" ^
+  "if (-not (Test-Path -LiteralPath $assetsDir)) { Write-Host ('[ERRO] assets nao encontrado em ' + $assetsDir); exit 3 }" ^
   "$assets = Get-ChildItem -LiteralPath $assetsDir -File -ErrorAction SilentlyContinue | Where-Object { @('.js', '.css') -contains $_.Extension.ToLowerInvariant() };" ^
-  "if (-not $assets) { Write-Host '[ERRO] Build estatico sem assets JS/CSS em dist/assets.'; exit 4 }" ^
+  "if (-not $assets) { Write-Host ('[ERRO] Build estatico sem assets JS/CSS em ' + $assetsDir); exit 4 }" ^
   "$maps = Get-ChildItem -LiteralPath $env:DIST_DIR -Recurse -Filter '*.map' -File -ErrorAction SilentlyContinue;" ^
   "if ($maps) { Write-Host '[ERRO] Build de producao contem sourcemaps .map e pode expor a arvore de fontes no DevTools.'; exit 5 }" ^
-  "Write-Host '[OK] dist validado como build estatico de producao.';" ^
+  "$buildInfo = Join-Path $env:DIST_DIR 'build-info.json';" ^
+  "if (-not (Test-Path -LiteralPath $buildInfo)) { Write-Host ('[ERRO] build-info.json nao encontrado em ' + $env:DIST_DIR + '. Gere producao somente via iniciar-prod.bat.'); exit 6 }" ^
+  "Write-Host ('[OK] ' + $env:DIST_DIR + ' validado como build estatico de producao.');" ^
   "exit 0"
 exit /b %ERRORLEVEL%
 
@@ -400,30 +411,45 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "exit 0"
 exit /b %ERRORLEVEL%
 
-:stop_dev_ports
-set "DEV_PORT_LIST=%BACKEND_DEV_PORT%,%FRONTEND_DEV_PORT%"
-echo [INFO] Encerrando servidores DEV antes da producao: %DEV_PORT_LIST%...
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$ports = $env:DEV_PORT_LIST -split ',' | Where-Object { $_ -match '\S' } | ForEach-Object { [int]$_.Trim() };" ^
-  "foreach ($port in $ports) {" ^
-  "  $listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue;" ^
-  "  if (-not $listeners) { Write-Host ('[OK] Porta DEV ' + $port + ' livre.'); continue }" ^
-  "  $processIds = $listeners | Select-Object -ExpandProperty OwningProcess -Unique;" ^
-  "  foreach ($procId in $processIds) {" ^
-  "    $proc = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $procId) -ErrorAction SilentlyContinue;" ^
-  "    $name = if ($proc) { $proc.Name } else { 'processo' };" ^
-  "    $cmd = if ($proc) { $proc.CommandLine } else { '' };" ^
-  "    Write-Host ('[INFO] Encerrando porta DEV ' + $port + ' PID=' + $procId + ' | ' + $name);" ^
-  "    if ($cmd) { Write-Host ('       ' + $cmd) }" ^
-  "    try { Stop-Process -Id $procId -Force -ErrorAction Stop } catch { Write-Host ('[ERRO] Falha ao encerrar PID=' + $procId + ': ' + $_.Exception.Message); exit 1 }" ^
-  "  }" ^
-  "  Start-Sleep -Milliseconds 800;" ^
-  "  $restantes = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue;" ^
-  "  if ($restantes) { Write-Host ('[ERRO] Porta DEV ' + $port + ' continuou em uso.'); exit 2 }" ^
-  "  Write-Host ('[OK] Porta DEV ' + $port + ' encerrada.');" ^
-  "}" ^
-  "exit 0"
-exit /b %ERRORLEVEL%
+:validate_prod_worktree
+where git >nul 2>nul
+if errorlevel 1 (
+    echo [ERRO] git nao encontrado no PATH.
+    echo        Producao precisa validar branch e worktree antes de gerar build.
+    exit /b 1
+)
+
+git -C "%ROOT_DIR%" rev-parse --is-inside-work-tree >nul 2>nul
+if errorlevel 1 (
+    echo [ERRO] %ROOT_DIR% nao parece ser um checkout Git.
+    exit /b 1
+)
+
+set "CURRENT_BRANCH="
+for /f "usebackq delims=" %%B in (`git -C "%ROOT_DIR%" branch --show-current`) do set "CURRENT_BRANCH=%%B"
+
+if "%CURRENT_BRANCH%"=="" (
+    echo [ERRO] Nao foi possivel identificar a branch atual.
+    echo        Producao deve ser iniciada de uma branch nomeada e controlada.
+    exit /b 1
+)
+
+if not "%CURRENT_BRANCH%"=="%PROD_ALLOWED_BRANCH%" (
+    echo [ERRO] Producao bloqueada fora da branch %PROD_ALLOWED_BRANCH%.
+    echo        Branch atual: %CURRENT_BRANCH%
+    exit /b 1
+)
+
+for /f "usebackq delims=" %%S in (`git -C "%ROOT_DIR%" status --porcelain=v1 --untracked-files=normal`) do (
+    echo [ERRO] Worktree com alteracoes locais. Producao nao sera buildada.
+    echo        Commit, stash ou limpe as alteracoes antes de executar iniciar-prod.bat.
+    echo.
+    git -C "%ROOT_DIR%" status --short
+    exit /b 1
+)
+
+echo [OK] Worktree limpa na branch %CURRENT_BRANCH%.
+exit /b 0
 
 :ensure_frontend_dependencies
 if exist "%FRONTEND_DIR%\node_modules\" exit /b 0
@@ -461,32 +487,32 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [INFO] Gerando build estatico de producao...
+echo [INFO] Gerando build estatico de producao em frontend\dist-prod...
 for /f %%i in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')"') do set "DASHBOARD_BUILD_ID=%%i"
 set "VITE_DASHBOARD_BUILD_ID=%DASHBOARD_BUILD_ID%"
 set "VITE_API_BASE_URL=%PROD_API_PUBLIC_URL%"
 set "API_BASE_URL=%PROD_API_PUBLIC_URL%"
 
 cd /d "%FRONTEND_DIR%"
-call npm run build
+call npm run build:prod
 set "BUILD_EXIT_CODE=%ERRORLEVEL%"
 cd /d "%ROOT_DIR%"
 
 if not "%BUILD_EXIT_CODE%"=="0" (
-    echo [ERRO] npm run build falhou.
+    echo [ERRO] npm run build:prod falhou.
     exit /b 1
 )
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "if (-not (Test-Path -LiteralPath $env:DIST_DIR)) { Write-Host '[ERRO] Pasta dist nao foi gerada.'; exit 1 }" ^
+  "if (-not (Test-Path -LiteralPath $env:DIST_DIR)) { Write-Host ('[ERRO] Pasta de producao nao foi gerada: ' + $env:DIST_DIR); exit 1 }" ^
   "$index = Join-Path $env:DIST_DIR 'index.html';" ^
-  "if (-not (Test-Path -LiteralPath $index)) { Write-Host '[ERRO] dist/index.html nao foi gerado.'; exit 1 }" ^
+  "if (-not (Test-Path -LiteralPath $index)) { Write-Host ('[ERRO] index.html nao foi gerado em ' + $env:DIST_DIR); exit 1 }" ^
   "$indexHtml = Get-Content -LiteralPath $index -Raw;" ^
   "if (-not $indexHtml.Contains($env:DASHBOARD_BUILD_ID)) { Write-Host ('[ERRO] index.html nao referencia o build ID atual: ' + $env:DASHBOARD_BUILD_ID); exit 1 }" ^
   "$assetsDir = Join-Path $env:DIST_DIR 'assets';" ^
   "$assets = Get-ChildItem -LiteralPath $assetsDir -File -ErrorAction SilentlyContinue;" ^
-  "if (-not $assets) { Write-Host '[ERRO] Build sem assets em dist/assets.'; exit 1 }" ^
-  "$info = [ordered]@{ buildId = $env:DASHBOARD_BUILD_ID; builtAt = (Get-Date).ToUniversalTime().ToString('o'); frontendPort = [int]$env:FRONTEND_PORT; backendPort = [int]$env:BACKEND_PORT; frontendPublicUrl = $env:PROD_FRONTEND_PUBLIC_URL; apiPublicUrl = $env:PROD_API_PUBLIC_URL };" ^
+  "if (-not $assets) { Write-Host ('[ERRO] Build sem assets em ' + $assetsDir); exit 1 }" ^
+  "$info = [ordered]@{ buildId = $env:DASHBOARD_BUILD_ID; builtAt = (Get-Date).ToUniversalTime().ToString('o'); distDir = $env:DIST_DIR; frontendPort = [int]$env:FRONTEND_PORT; backendPort = [int]$env:BACKEND_PORT; frontendPublicUrl = $env:PROD_FRONTEND_PUBLIC_URL; apiPublicUrl = $env:PROD_API_PUBLIC_URL };" ^
   "$json = $info | ConvertTo-Json -Compress;" ^
   "[System.IO.File]::WriteAllText($env:BUILD_INFO_FILE, $json, (New-Object System.Text.UTF8Encoding $false));" ^
   "Write-Host ('[OK] Build novo gerado. ID=' + $env:DASHBOARD_BUILD_ID);" ^
@@ -584,6 +610,7 @@ set "CORS_ORIGENS_PERMITIDAS=%PROD_FRONTEND_PUBLIC_URL%"
 set "VITE_API_BASE_URL=%PROD_API_PUBLIC_URL%"
 set "API_BASE_URL=%PROD_API_PUBLIC_URL%"
 set "FRONTEND_HOST=127.0.0.1"
+set "FRONTEND_DIST_DIR=%DIST_DIR%"
 set "DEBUG=false"
 set "LOGGING_LEVEL_ROOT=INFO"
 set "LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB=INFO"

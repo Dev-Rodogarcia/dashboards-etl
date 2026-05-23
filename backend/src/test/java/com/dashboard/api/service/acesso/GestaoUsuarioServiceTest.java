@@ -367,16 +367,10 @@ class GestaoUsuarioServiceTest {
     }
 
     @Test
-    void adminPlataformaPodeExcluirUsuarioDefinitivamenteComLimpezaDeDependencias() {
+    void exclusaoDefinitivaDeUsuarioDevePermanecerDesabilitada() {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("admin@empresa.com", null, List.of())
         );
-
-        UsuarioEntity operador = new UsuarioEntity();
-        operador.setId(99L);
-        operador.setEmail("admin@empresa.com");
-        operador.setLogin("admin@empresa.com");
-        operador.setAtivo(true);
 
         UsuarioEntity alvo = new UsuarioEntity();
         alvo.setId(2L);
@@ -384,15 +378,10 @@ class GestaoUsuarioServiceTest {
         alvo.setLogin("alvo@empresa.com");
         alvo.setAtivo(true);
 
-        when(usuarioRepository.findByEmailIgnoreCase("admin@empresa.com")).thenReturn(Optional.of(operador));
-        when(papelVinculoRepository.findAllByUsuarioId(99L))
-                .thenReturn(List.of(criarVinculo(criarPapel(PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA, 100))));
-        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(alvo));
+        assertThrows(AccessDeniedException.class, () -> service.excluirUsuarioDefinitivamente(2L));
 
-        service.excluirUsuarioDefinitivamente(2L);
-
-        verify(dependenciaCleanupService).limparDependencias(2L);
-        verify(usuarioRepository).delete(alvo);
+        verify(dependenciaCleanupService, never()).limparDependencias(2L);
+        verify(usuarioRepository, never()).delete(alvo);
     }
 
     @Test
@@ -415,16 +404,6 @@ class GestaoUsuarioServiceTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(usuarioSupremo.email(), null, List.of())
         );
-
-        UsuarioEntity operador = new UsuarioEntity();
-        operador.setId(1L);
-        operador.setEmail(usuarioSupremo.email());
-        operador.setLogin(usuarioSupremo.email());
-        operador.setAtivo(true);
-
-        when(usuarioRepository.findByEmailIgnoreCase(usuarioSupremo.email())).thenReturn(Optional.of(operador));
-        when(papelVinculoRepository.findAllByUsuarioId(1L))
-                .thenReturn(List.of(criarVinculo(criarPapel(usuarioSupremo.papel(), 1000))));
 
         assertThrows(AccessDeniedException.class, () -> service.excluirUsuarioDefinitivamente(1L));
 
