@@ -4,7 +4,9 @@ import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.manifestos.ManifestoResumoDTO;
 import com.dashboard.api.dto.manifestos.ManifestosChartsDTO;
 import com.dashboard.api.dto.manifestos.ManifestosOverviewDTO;
+import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO;
 import com.dashboard.api.dto.manifestos.ManifestosTrendPointDTO;
+import com.dashboard.api.service.ManifestosPerformanceService;
 import com.dashboard.api.service.ManifestosService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +28,14 @@ public class ManifestosController {
 
     private static final Logger log = LoggerFactory.getLogger(ManifestosController.class);
     private final ManifestosService manifestosService;
+    private final ManifestosPerformanceService manifestosPerformanceService;
 
-    public ManifestosController(ManifestosService manifestosService) {
+    public ManifestosController(
+            ManifestosService manifestosService,
+            ManifestosPerformanceService manifestosPerformanceService
+    ) {
         this.manifestosService = manifestosService;
+        this.manifestosPerformanceService = manifestosPerformanceService;
     }
 
     @GetMapping
@@ -47,6 +54,22 @@ public class ManifestosController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(manifestosService.buscarSerieTemporal(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
+    @GetMapping("/performance")
+    public ResponseEntity<ManifestosPerformanceDTO> performance(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "dia") String nivel,
+            @RequestParam(required = false) Integer ano,
+            @RequestParam(required = false) Integer mes,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(manifestosPerformanceService.buscarPerformance(
+                FiltroRequestMapper.from(dataInicio, dataFim, params),
+                nivel,
+                ano,
+                mes
+        ));
     }
 
     @GetMapping("/graficos")

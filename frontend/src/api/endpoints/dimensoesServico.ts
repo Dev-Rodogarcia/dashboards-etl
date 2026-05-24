@@ -1,5 +1,6 @@
 import clienteAxios from '../clienteAxios';
 import { montarQueryParams } from './queryParams';
+import type { FaturamentoFiltro } from '../../types/faturamento';
 import type { FretesFiltro } from '../../types/fretes';
 
 export interface VeiculoDim {
@@ -58,4 +59,8 @@ export async function buscarFretesStatus(filtro: FretesFiltro): Promise<string[]
     params: montarQueryParams(filtro),
   });
   return data;
+}
+
+export async function buscarFaturamentoStatus(filtro: FaturamentoFiltro): Promise<string[]> {
+  return buscarFretesStatus(filtro);
 }

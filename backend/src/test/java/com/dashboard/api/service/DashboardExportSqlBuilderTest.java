@@ -258,6 +258,36 @@ class DashboardExportSqlBuilderTest {
         assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_pesoTaxadoRaw", new BigDecimal("123.45"));
     }
 
+    @Test
+    void buildSelectTrackingDeveFiltrarFilialAtualPorTextoECodigoOperacional() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.TRACKING,
+                filtro(Map.of("filialAtual", List.of("SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial Atual])))) IN (:filtro_filialAtual)");
+        assertThat(query.sql()).contains("LOWER(LEFT(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial Atual]))), 3)) IN (:filtro_filialAtualCodigos)");
+        assertThat(query.params().getValues()).containsEntry("filtro_filialAtual", List.of("spo - rodogarcia transportes rodoviarios ltda"));
+        assertThat(query.params().getValues()).containsEntry("filtro_filialAtualCodigos", List.of("spo"));
+    }
+
+    @Test
+    void buildSelectTrackingDeveAplicarEscopoDeFiliaisPorTextoECodigoOperacional() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.TRACKING,
+                filtro(Map.of()),
+                new EscopoFilialService.EscopoFilial(false, List.of("CWB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA")),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial Atual])))) IN (:escopoFiliais)");
+        assertThat(query.sql()).contains("LOWER(LEFT(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial Atual]))), 3)) IN (:escopoFiliaisCodigos)");
+        assertThat(query.params().getValues()).containsEntry("escopoFiliais", List.of("cwb - rodogarcia transportes rodoviarios ltda"));
+        assertThat(query.params().getValues()).containsEntry("escopoFiliaisCodigos", List.of("cwb"));
+    }
+
     private static FiltroConsultaDTO filtro(Map<String, List<String>> filtros) {
         return new FiltroConsultaDTO(LocalDate.of(2026, 3, 17), LocalDate.of(2026, 4, 16), filtros);
     }

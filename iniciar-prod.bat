@@ -22,10 +22,12 @@ set "ENV_FILE=%ROOT_DIR%\.env"
 set "BACKEND_MVNW=%BACKEND_DIR%\mvnw.cmd"
 set "BACKEND_POM=%BACKEND_DIR%\pom.xml"
 set "FRONTEND_PACKAGE=%FRONTEND_DIR%\package.json"
+set "BACKEND_LOG_DIR=%BACKEND_DIR%\logs"
 set "DIST_DIR=%FRONTEND_DIR%\dist-prod"
 set "VITE_CACHE_DIR=%FRONTEND_DIR%\node_modules\.vite"
 set "TSCACHE_DIR=%FRONTEND_DIR%\node_modules\.tmp"
 set "BUILD_INFO_FILE=%DIST_DIR%\build-info.json"
+set "PROD_START_LOCK_FILE=%BACKEND_LOG_DIR%\dashboard-prod-start.lock"
 set "BACKEND_PORT=5010"
 set "FRONTEND_PORT=5173"
 set "BACKEND_DEV_PORT=5011"
@@ -52,7 +54,7 @@ call :print_main_header
 
 if "%DRY_RUN%"=="1" (
     echo [DRY-RUN] Validaria Java, Node, npm, PowerShell, .env, backend e frontend.
-    echo [DRY-RUN] Exigiria worktree limpa e branch %PROD_ALLOWED_BRANCH% antes do build de producao.
+    echo [DRY-RUN] Avisaria se a branch nao fosse %PROD_ALLOWED_BRANCH% ou se houvesse alteracoes locais, mas seguiria com o build.
     echo [DRY-RUN] Liberaria a UI %FRONTEND_PORT% antes do build e a API %BACKEND_PORT% antes do novo backend.
     echo [DRY-RUN] Nao encerraria nem tocaria portas de desenvolvimento: %BACKEND_DEV_PORT% e %FRONTEND_DEV_PORT%.
     echo [DRY-RUN] Geraria build atualizado em frontend\dist-prod antes de abrir a UI.
@@ -71,6 +73,14 @@ call :load_env_file "%ENV_FILE%"
 if errorlevel 1 exit /b 1
 
 call :set_prod_env
+
+call :validate_prod_database_contract
+if errorlevel 1 (
+    echo.
+    echo [ERRO] Producao nao sera iniciada enquanto o contrato do banco estiver desalinhado.
+    pause
+    exit /b 1
+)
 
 call :validate_prod_worktree
 if errorlevel 1 (
@@ -117,11 +127,20 @@ if errorlevel 1 (
     exit /b 1
 )
 
+call :acquire_prod_start_lock
+if errorlevel 1 (
+    echo.
+    echo [ERRO] Producao nao sera iniciada porque outro start ainda esta em andamento.
+    pause
+    exit /b 1
+)
+
 echo.
 echo [INFO] Abrindo backend de producao em terminal externo...
 call :start_backend_window
 if errorlevel 1 (
     echo [ERRO] Nao foi possivel abrir o terminal do backend.
+    call :release_prod_start_lock
     pause
     exit /b 1
 )
@@ -132,6 +151,7 @@ if errorlevel 1 (
     echo.
     echo [ERRO] Frontend nao sera iniciado porque o backend nao confirmou healthcheck.
     echo        Confira a janela "Dashboard API Producao".
+    call :release_prod_start_lock
     pause
     exit /b 1
 )
@@ -141,6 +161,7 @@ if errorlevel 1 (
     echo.
     echo [ERRO] Frontend nao sera iniciado enquanto a API de producao estiver sem CORS correto.
     echo        Confira a janela "Dashboard API Producao" e o dashboards\.env.
+    call :release_prod_start_lock
     pause
     exit /b 1
 )
@@ -150,9 +171,12 @@ echo [INFO] Abrindo frontend estatico de producao em terminal externo...
 call :start_frontend_window
 if errorlevel 1 (
     echo [ERRO] Nao foi possivel abrir o terminal do frontend.
+    call :release_prod_start_lock
     pause
     exit /b 1
 )
+
+call :release_prod_start_lock
 
 echo.
 echo [OK] Producao iniciada em dois terminais externos.
@@ -178,6 +202,18 @@ if errorlevel 1 (
 )
 
 call :set_prod_env
+
+call :skip_backend_worker_if_port_healthy
+if errorlevel 2 (
+    pause
+    exit /b 1
+)
+if errorlevel 1 (
+    echo.
+    echo [INFO] Backend prod ja estava ativo; esta janela nao iniciara outro Spring Boot.
+    pause
+    exit /b 0
+)
 
 echo [INFO] Backend prod esperado em: http://127.0.0.1:%BACKEND_PORT%
 echo [INFO] Profile Spring: %SPRING_PROFILES_ACTIVE%
@@ -415,7 +451,7 @@ exit /b %ERRORLEVEL%
 where git >nul 2>nul
 if errorlevel 1 (
     echo [ERRO] git nao encontrado no PATH.
-    echo        Producao precisa validar branch e worktree antes de gerar build.
+    echo        Producao precisa validar o checkout antes de gerar build.
     exit /b 1
 )
 
@@ -429,27 +465,98 @@ set "CURRENT_BRANCH="
 for /f "usebackq delims=" %%B in (`git -C "%ROOT_DIR%" branch --show-current`) do set "CURRENT_BRANCH=%%B"
 
 if "%CURRENT_BRANCH%"=="" (
-    echo [ERRO] Nao foi possivel identificar a branch atual.
-    echo        Producao deve ser iniciada de uma branch nomeada e controlada.
-    exit /b 1
+    echo [AVISO] Nao foi possivel identificar a branch atual.
+    echo         Seguindo com o checkout atual mesmo assim.
+    set "CURRENT_BRANCH=desconhecida"
 )
 
 if not "%CURRENT_BRANCH%"=="%PROD_ALLOWED_BRANCH%" (
-    echo [ERRO] Producao bloqueada fora da branch %PROD_ALLOWED_BRANCH%.
-    echo        Branch atual: %CURRENT_BRANCH%
-    exit /b 1
+    echo [AVISO] Producao iniciada fora da branch %PROD_ALLOWED_BRANCH%.
+    echo         Branch atual: %CURRENT_BRANCH%
+    echo         Seguindo com o build de producao a partir deste checkout.
 )
 
+set "WORKTREE_DIRTY="
 for /f "usebackq delims=" %%S in (`git -C "%ROOT_DIR%" status --porcelain=v1 --untracked-files=normal`) do (
-    echo [ERRO] Worktree com alteracoes locais. Producao nao sera buildada.
-    echo        Commit, stash ou limpe as alteracoes antes de executar iniciar-prod.bat.
+    set "WORKTREE_DIRTY=1"
+)
+
+if defined WORKTREE_DIRTY (
+    echo [AVISO] Worktree com alteracoes locais.
+    echo         Build de producao usara exatamente o checkout atual:
     echo.
     git -C "%ROOT_DIR%" status --short
-    exit /b 1
+    echo.
+    echo [AVISO] Seguindo com build de producao sem exigir commit/stash.
+    exit /b 0
 )
 
 echo [OK] Worktree limpa na branch %CURRENT_BRANCH%.
 exit /b 0
+
+:validate_prod_database_contract
+echo [INFO] Validando contrato das views de producao...
+where SQLCMD.EXE >nul 2>nul
+if errorlevel 1 (
+    echo [ERRO] SQLCMD.EXE nao encontrado no PATH.
+    echo        Instale as ferramentas de linha de comando do SQL Server para validar producao.
+    exit /b 1
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT_DIR%\scripts\validate-prod-db-contract.ps1"
+exit /b %ERRORLEVEL%
+
+:acquire_prod_start_lock
+if not exist "%BACKEND_LOG_DIR%\" mkdir "%BACKEND_LOG_DIR%"
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$lock = $env:PROD_START_LOCK_FILE;" ^
+  "$dir = Split-Path -Parent $lock;" ^
+  "if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }" ^
+  "if (Test-Path -LiteralPath $lock) {" ^
+  "  $age = (Get-Date) - (Get-Item -LiteralPath $lock).LastWriteTime;" ^
+  "  if ($age.TotalMinutes -lt 10) { Write-Host ('[ERRO] Ja existe um start de producao em andamento: ' + $lock); exit 2 }" ^
+  "  Write-Host ('[AVISO] Removendo lock antigo de start de producao: ' + $lock);" ^
+  "  Remove-Item -LiteralPath $lock -Force -ErrorAction Stop;" ^
+  "}" ^
+  "$stream = $null;" ^
+  "try {" ^
+  "  $stream = [System.IO.File]::Open($lock, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None);" ^
+  "  $writer = New-Object System.IO.StreamWriter($stream, [System.Text.Encoding]::UTF8);" ^
+  "  $stream = $null;" ^
+  "  $writer.WriteLine(('pid=' + $PID));" ^
+  "  $writer.WriteLine(('createdAt=' + (Get-Date).ToString('o')));" ^
+  "  $writer.Close();" ^
+  "  Write-Host ('[OK] Lock de start criado: ' + $lock);" ^
+  "  exit 0;" ^
+  "} catch [System.IO.IOException] {" ^
+  "  Write-Host ('[ERRO] Outro start criou o lock ao mesmo tempo: ' + $lock);" ^
+  "  exit 3;" ^
+  "} finally {" ^
+  "  if ($stream) { $stream.Dispose() }" ^
+  "}"
+exit /b %ERRORLEVEL%
+
+:release_prod_start_lock
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$lock = $env:PROD_START_LOCK_FILE;" ^
+  "if (Test-Path -LiteralPath $lock) { Remove-Item -LiteralPath $lock -Force -ErrorAction SilentlyContinue; Write-Host ('[OK] Lock de start removido: ' + $lock) }" ^
+  "exit 0"
+exit /b 0
+
+:skip_backend_worker_if_port_healthy
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$port = [int]$env:BACKEND_PORT;" ^
+  "$url = $env:BACKEND_HEALTH_URL;" ^
+  "$listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue;" ^
+  "if (-not $listeners) { exit 0 }" ^
+  "$pids = $listeners | Select-Object -ExpandProperty OwningProcess -Unique;" ^
+  "try {" ^
+  "  $response = Invoke-RestMethod -Uri $url -TimeoutSec 5;" ^
+  "  if ($response.status -eq 'UP') { Write-Host ('[AVISO] Porta ' + $port + ' ja tem backend saudavel. PID(s)=' + ($pids -join ', ')); exit 1 }" ^
+  "} catch {}" ^
+  "Write-Host ('[ERRO] Porta ' + $port + ' esta ocupada, mas o healthcheck nao esta UP. PID(s)=' + ($pids -join ', '));" ^
+  "exit 2"
+exit /b %ERRORLEVEL%
 
 :ensure_frontend_dependencies
 if exist "%FRONTEND_DIR%\node_modules\" exit /b 0

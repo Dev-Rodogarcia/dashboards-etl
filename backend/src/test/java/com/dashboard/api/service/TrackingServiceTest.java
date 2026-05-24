@@ -2,6 +2,7 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.tracking.TrackingChartsDTO;
+import com.dashboard.api.dto.tracking.TrackingDashboardDTO;
 import com.dashboard.api.dto.tracking.TrackingOverviewDTO;
 import com.dashboard.api.model.VisaoLocalizacaoCargasEntity;
 import com.dashboard.api.repository.VisaoLocalizacaoCargasRepository;
@@ -179,6 +180,13 @@ class TrackingServiceTest {
                 .contains("[Status Normalizado]")
                 .contains("[Peso Taxado Decimal]")
                 .contains("[Valor NF Decimal]")
+                .contains("TRY_CONVERT(DATETIME2, [Data de extracao])")
+                .doesNotContain("MAX([Data de extracao])")
+                .contains("TRY_CONVERT(DECIMAL(18, 2), [Valor Frete])")
+                .contains("TRY_CONVERT(DECIMAL(18, 2), REPLACE(REPLACE(CONVERT(NVARCHAR(50), [Valor Frete]), '.', ''), ',', '.'))")
+                .contains("TRY_CONVERT(INT, [Volumes])")
+                .doesNotContain("SUM(COALESCE([Valor Frete], 0))")
+                .doesNotContain("SUM(COALESCE([Volumes], 0))")
                 .contains("TRY_CONVERT(DECIMAL(18, 3), [Peso Taxado])")
                 .contains("TRY_CONVERT(DECIMAL(18, 3), REPLACE(REPLACE(CONVERT(NVARCHAR(50), [Peso Taxado]), '.', ''), ',', '.'))")
                 .contains("TRY_CONVERT(DECIMAL(18, 2), [Valor NF])")
@@ -219,10 +227,39 @@ class TrackingServiceTest {
                 .doesNotContain("[Valor NF Decimal]")
                 .doesNotContain("[Sigla Responsável Região Destino]")
                 .contains("[Status Carga]")
+                .contains("TRY_CONVERT(DATETIME2, [Data de extracao])")
+                .doesNotContain("MAX([Data de extracao])")
+                .contains("TRY_CONVERT(DECIMAL(18, 2), [Valor Frete])")
+                .contains("TRY_CONVERT(INT, [Volumes])")
+                .doesNotContain("SUM(COALESCE([Valor Frete], 0))")
+                .doesNotContain("SUM(COALESCE([Volumes], 0))")
                 .contains("TRY_CONVERT(DECIMAL(18, 3), [Peso Taxado])")
                 .contains("TRY_CONVERT(DECIMAL(18, 2), [Valor NF])")
                 .contains("[Responsável pela Região de Destino]")
                 .contains("[Região Destino]");
+    }
+
+    @Test
+    void buscarDashboardDeveUsarFallbackLegadoQuandoAgregadoSqlFalhar() {
+        TrackingService serviceDashboard = new TrackingService(
+                new ValidadorPeriodoService(),
+                repository,
+                escopoSemRestricao(),
+                PeriodoOffsetDateTimeHelper.padrao(),
+                new FalhandoNamedParameterJdbcTemplate(),
+                new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao())
+        );
+        TrackingDashboardDTO dashboard = serviceDashboard.buscarDashboard(new FiltroConsultaDTO(
+                LocalDate.of(2026, 4, 23),
+                LocalDate.of(2026, 5, 23),
+                Map.of("filialAtual", List.of("CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"))
+        ));
+
+        assertThat(dashboard.overview().totalCargas()).isEqualTo(1);
+        assertThat(dashboard.matrizRegiaoDestino()).hasSize(1);
+        assertThat(dashboard.graficos().statusDistribuicao())
+                .extracting(dto -> dto.status(), dto -> dto.total())
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("Pendente", 1));
     }
 
     private static FiltroConsultaDTO filtroPadrao() {
@@ -254,11 +291,11 @@ class TrackingServiceTest {
         };
     }
 
-    private static final class CapturandoNamedParameterJdbcTemplate extends NamedParameterJdbcTemplate {
+    private static class CapturandoNamedParameterJdbcTemplate extends NamedParameterJdbcTemplate {
         private final List<String> sqls = new ArrayList<>();
         private final List<String> colunas;
 
-        private CapturandoNamedParameterJdbcTemplate() {
+        protected CapturandoNamedParameterJdbcTemplate() {
             this(List.of(
                     "Status Normalizado",
                     "Peso Taxado Decimal",
@@ -272,7 +309,7 @@ class TrackingServiceTest {
             ));
         }
 
-        private CapturandoNamedParameterJdbcTemplate(List<String> colunas) {
+        protected CapturandoNamedParameterJdbcTemplate(List<String> colunas) {
             super(new JdbcTemplate());
             this.colunas = colunas;
         }
@@ -307,6 +344,31 @@ class TrackingServiceTest {
 
         private List<String> sqls() {
             return sqls;
+        }
+    }
+
+    private static final class FalhandoNamedParameterJdbcTemplate extends CapturandoNamedParameterJdbcTemplate {
+        @Override
+        public <T> T queryForObject(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper) {
+            throw new org.springframework.dao.TransientDataAccessResourceException("falha agregada simulada");
+        }
+
+        @Override
+        public List<Map<String, Object>> queryForList(String sql, SqlParameterSource paramSource) {
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("N° Minuta", 1L);
+            row.put("Data do frete", LocalDateTime.of(2026, 5, 20, 10, 0));
+            row.put("Volumes", 2);
+            row.put("Peso Taxado", "10,5");
+            row.put("Valor NF", "1000,00");
+            row.put("Valor Frete", "150,00");
+            row.put("Filial Atual", "CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA");
+            row.put("Região Destino", "Interior");
+            row.put("Responsável pela Região de Destino", "CPQ - Interior");
+            row.put("Status Carga", "Pendente");
+            row.put("Previsão Entrega/Previsão de entrega", LocalDateTime.of(2026, 5, 19, 8, 0));
+            row.put("Data de extracao", LocalDateTime.of(2026, 5, 23, 12, 0));
+            return List.of(row);
         }
     }
 

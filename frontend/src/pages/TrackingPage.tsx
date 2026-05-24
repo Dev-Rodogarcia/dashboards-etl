@@ -283,14 +283,20 @@ export default function TrackingPage() {
   const filiais = useFiliais();
 
   const filiaisUsuario = useMemo(() => usuario?.filiaisPermitidasEfetivas ?? [], [usuario?.filiaisPermitidasEfetivas]);
+  const filiaisDisponiveis = useMemo(() => filiais.data ?? [], [filiais.data]);
   const filialAtualSelecionada = filtros.filialAtual?.[0] ?? '';
   const dashboardHabilitado = filialAtualSelecionada.trim().length > 0 && (filtros.filialAtual?.length ?? 0) === 1;
 
   useEffect(() => {
-    if ((filtros.filialAtual?.length ?? 0) === 0 && filiaisUsuario.length === 1) {
-      setFiltro('filialAtual', [filiaisUsuario[0]]);
+    if ((filtros.filialAtual?.length ?? 0) > 0) {
+      return;
     }
-  }, [filiaisUsuario, filtros.filialAtual?.length, setFiltro]);
+
+    const filialPadrao = filiaisUsuario[0] ?? filiaisDisponiveis[0];
+    if (filialPadrao) {
+      setFiltro('filialAtual', [filialPadrao]);
+    }
+  }, [filiaisDisponiveis, filiaisUsuario, filtros.filialAtual?.length, setFiltro]);
 
   useEffect(() => {
     if (!searchParams.has('dataInicio') && !searchParams.has('dataFim')) {
@@ -457,7 +463,7 @@ export default function TrackingPage() {
         <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
         <AsyncMultiSelect
           label="Filial Atual"
-          opcoes={filiais.data ?? []}
+          opcoes={filiaisDisponiveis}
           selecionados={filtros.filialAtual ?? []}
           onChange={(valores) => setFiltro('filialAtual', valores.slice(-1))}
           placeholder="Selecione"

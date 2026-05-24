@@ -34,6 +34,37 @@ export interface ManifestosOverview {
   ocupacaoCubagemMediaPct: number;
 }
 
+export interface KPIsManifestos {
+  totalManifestos: number;
+  emTransito: number;
+  pendentes: number;
+  encerrados: number;
+  kmTotal: number;
+  custoTotal: number;
+  custoPorKm: number;
+  receitaPorKm: number;
+}
+
+export interface GaugeMetric {
+  global: number;
+  distribuicao: number;
+  transferencia: number;
+  cargaFechada: number;
+}
+
+export interface PerformanceVeiculosDados {
+  updatedAt?: string | null;
+  kpis: KPIsManifestos;
+  remuneracao: GaugeMetric;
+  aproveitamento: GaugeMetric;
+  efetividade: GaugeMetric;
+  statusSazonal: Array<{ data: string; encerrado: number; emTransito: number; pendente: number }>;
+  custosMotorista: Array<{ tipo: string; custo: number }>;
+  tiposVeiculo: Array<{ tipo: string; quantidade: number }>;
+}
+
+export type ManifestosTempoNivel = 'dia' | 'mes' | 'ano';
+
 export interface ManifestosTrendPoint {
   date: string;
   encerrado: number;
@@ -82,4 +113,5 @@ export interface ManifestosFiltro {
   veiculos?: string[];
   tiposCarga?: string[];
   tiposContrato?: string[];
+  tipoMotorista?: string[];
 }

@@ -8,7 +8,8 @@ import AlterarSenhaPage from './pages/AlterarSenhaPage';
 import HomePage from './pages/HomePage';
 import ColetasPage from './pages/ColetasPage';
 import ManifestosPage from './pages/ManifestosPage';
-import FretesPage from './pages/FretesPage';
+import FaturamentoPage from './pages/FaturamentoPage';
+import PerformancePage from './pages/PerformancePage';
 import TrackingPage from './pages/TrackingPage';
 import FaturasPage from './pages/FaturasPage';
 import FaturasPorClientePage from './pages/FaturasPorClientePage';
@@ -76,7 +77,12 @@ export default function App() {
           </Route>
 
           <Route element={<RotaProtegida permissao="fretes" />}>
-            <Route path="/fretes" element={<FretesPage />} />
+            <Route path="/faturamento" element={<FaturamentoPage />} />
+            <Route path="/fretes" element={<Navigate to="/faturamento" replace />} />
+          </Route>
+
+          <Route element={<RotaProtegida permissao="performance" />}>
+            <Route path="/performance" element={<PerformancePage />} />
           </Route>
 
           <Route element={<RotaProtegida permissao="tracking" />}>

@@ -3,7 +3,15 @@ import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
-import type { ManifestoResumoRow, ManifestosCharts, ManifestosFiltro, ManifestosOverview, ManifestosTrendPoint } from '../../types/manifestos';
+import type {
+  ManifestoResumoRow,
+  ManifestosCharts,
+  ManifestosFiltro,
+  ManifestosOverview,
+  ManifestosTempoNivel,
+  ManifestosTrendPoint,
+  PerformanceVeiculosDados,
+} from '../../types/manifestos';
 import type { TableApiFilters } from '../../types/tableFilters';
 
 export async function buscarManifestosOverview(filtro: ManifestosFiltro): Promise<ManifestosOverview> {
@@ -23,6 +31,27 @@ export async function buscarManifestosSerie(filtro: ManifestosFiltro): Promise<M
 export async function buscarManifestosGraficos(filtro: ManifestosFiltro): Promise<ManifestosCharts> {
   const { data } = await clienteAxios.get<ManifestosCharts>('/api/painel/manifestos/graficos', {
     params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarManifestosPerformance(
+  filtro: ManifestosFiltro,
+  nivel: ManifestosTempoNivel,
+  ano?: number | null,
+  mes?: number | null,
+): Promise<PerformanceVeiculosDados> {
+  const params = montarQueryParams(filtro);
+  params.set('nivel', nivel);
+  if (ano) {
+    params.set('ano', String(ano));
+  }
+  if (mes) {
+    params.set('mes', String(mes));
+  }
+
+  const { data } = await clienteAxios.get<PerformanceVeiculosDados>('/api/painel/manifestos/performance', {
+    params,
   });
   return data;
 }

@@ -16,7 +16,8 @@ INSERT INTO acesso.setores (chave, nome, descricao, sistema) VALUES
 INSERT INTO acesso.permissoes (chave, chave_legado, nome, descricao, recurso, acao, rota) VALUES
 ('dashboard.coletas.read',              'coletas',           N'Coletas',               N'Dashboard operacional de coletas',               'coletas',           'read', '/coletas'),
 ('dashboard.manifestos.read',           'manifestos',        N'Manifestos',            N'Dashboard operacional de manifestos',             'manifestos',        'read', '/manifestos'),
-('dashboard.fretes.read',               'fretes',            N'Fretes',                N'Dashboard operacional de fretes',                 'fretes',            'read', '/fretes'),
+('dashboard.fretes.read',               'fretes',            N'Faturamento',           N'Dashboard operacional de faturamento',            'fretes',            'read', '/faturamento'),
+('dashboard.performance.read',          'performance',       N'Performance',           N'Dashboard operacional de performance de entrega',  'performance',       'read', '/performance'),
 ('dashboard.tracking.read',             'tracking',          N'Localização de cargas', N'Dashboard de tracking e localização de cargas',   'tracking',          'read', '/tracking'),
 ('dashboard.faturas.read',              'faturas',           N'Faturas',               N'Dashboard financeiro de faturamento',             'faturas',           'read', '/faturas'),
 ('dashboard.faturas_por_cliente.read',  'faturasPorCliente', N'Faturas por Cliente',   N'Dashboard de faturamento por cliente',            'faturas_por_cliente','read', '/faturas-por-cliente'),
@@ -39,12 +40,12 @@ SELECT s.id, p.id
 FROM acesso.setores s CROSS JOIN acesso.permissoes p
 WHERE s.chave = 'setor-admin';
 
--- Logistica: coletas, manifestos, fretes, tracking, cotacoes, dimensoes
+-- Logistica: coletas, manifestos, faturamento, performance, tracking, cotacoes, dimensoes
 INSERT INTO acesso.setor_permissao_templates (setor_id, permissao_id)
 SELECT s.id, p.id
 FROM acesso.setores s CROSS JOIN acesso.permissoes p
 WHERE s.chave = 'setor-logistica'
-  AND p.chave_legado IN ('coletas','manifestos','fretes','tracking','cotacoes','dimensoes');
+  AND p.chave_legado IN ('coletas','manifestos','fretes','performance','tracking','cotacoes','dimensoes');
 
 -- Financeiro: faturas, contasAPagar, cotacoes, dimensoes
 INSERT INTO acesso.setor_permissao_templates (setor_id, permissao_id)

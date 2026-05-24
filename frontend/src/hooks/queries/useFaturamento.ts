@@ -1,0 +1,137 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  buscarFaturamentoGraficos,
+  buscarFaturamentoMetas,
+  buscarFaturamentoMetasConfiguracoes,
+  buscarFaturamentoMixDocumental,
+  buscarFaturamentoOverview,
+  buscarFaturamentoSerie,
+  buscarFaturamentoTabela,
+  buscarFaturamentoTabelaPaginada,
+  buscarFaturamentoTabelaTotal,
+  buscarFaturamentoTopClientes,
+  removerFaturamentoMetaConfiguracao,
+  salvarFaturamentoMetaConfiguracao,
+} from '../../api/endpoints/faturamentoServico';
+import type { FaturamentoFiltro, FaturamentoGoalConfigPayload } from '../../types/faturamento';
+import type { TableApiFilters } from '../../types/tableFilters';
+
+const STALE_TIME = 5 * 60 * 1000;
+const QUERY_KEY = ['faturamento'];
+
+export function useFaturamentoOverview(filtro: FaturamentoFiltro) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'overview', filtro],
+    queryFn: () => buscarFaturamentoOverview(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturamentoSerie(filtro: FaturamentoFiltro) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'serie', filtro],
+    queryFn: () => buscarFaturamentoSerie(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturamentoTopClientes(filtro: FaturamentoFiltro, limite = 10) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'top-clientes', filtro, limite],
+    queryFn: () => buscarFaturamentoTopClientes(filtro, limite),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturamentoMixDocumental(filtro: FaturamentoFiltro) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'mix-documental', filtro],
+    queryFn: () => buscarFaturamentoMixDocumental(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturamentoGraficos(filtro: FaturamentoFiltro) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'graficos', filtro],
+    queryFn: () => buscarFaturamentoGraficos(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturamentoMetas(filtro: FaturamentoFiltro) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'metas', filtro],
+    queryFn: () => buscarFaturamentoMetas(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturamentoMetasConfiguracoes(ano: number, mes: number, enabled = true) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'metas-configuracoes', ano, mes],
+    queryFn: () => buscarFaturamentoMetasConfiguracoes(ano, mes),
+    staleTime: STALE_TIME,
+    retry: false,
+    enabled,
+  });
+}
+
+export function useSalvarFaturamentoMetaConfiguracao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: FaturamentoGoalConfigPayload) => salvarFaturamentoMetaConfiguracao(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export function useRemoverFaturamentoMetaConfiguracao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ branchId, ano, mes }: { branchId: string; ano: number; mes: number }) => removerFaturamentoMetaConfiguracao(branchId, ano, mes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export function useFaturamentoTabela(filtro: FaturamentoFiltro, limite = 100) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'tabela', filtro, limite],
+    queryFn: () => buscarFaturamentoTabela(filtro, limite),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturamentoTabelaTotal(filtro: FaturamentoFiltro) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'tabela-total', filtro],
+    queryFn: () => buscarFaturamentoTabelaTotal(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturamentoTabelaPaginada(
+  filtro: FaturamentoFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
+) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
+    queryFn: () => buscarFaturamentoTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
+    placeholderData: (previousData) => previousData,
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}

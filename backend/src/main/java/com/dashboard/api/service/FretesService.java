@@ -18,8 +18,6 @@ import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -49,12 +47,13 @@ public class FretesService {
     private final EscopoFilialService escopoFilialService;
     private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
     private final FretesGoalService fretesGoalService;
+    private final FretesDashboardSqlRepository fretesDashboardSqlRepository;
 
     FretesService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoFretesRepository repository
     ) {
-        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao(), null);
+        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao(), null, null);
     }
 
     @Autowired
@@ -63,13 +62,25 @@ public class FretesService {
             VisaoFretesRepository repository,
             EscopoFilialService escopoFilialService,
             PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper,
-            FretesGoalService fretesGoalService
+            FretesGoalService fretesGoalService,
+            FretesDashboardSqlRepository fretesDashboardSqlRepository
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.repository = repository;
         this.escopoFilialService = escopoFilialService;
         this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
         this.fretesGoalService = fretesGoalService;
+        this.fretesDashboardSqlRepository = fretesDashboardSqlRepository;
+    }
+
+    FretesService(
+            ValidadorPeriodoService validadorPeriodo,
+            VisaoFretesRepository repository,
+            EscopoFilialService escopoFilialService,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper,
+            FretesGoalService fretesGoalService
+    ) {
+        this(validadorPeriodo, repository, escopoFilialService, periodoOffsetDateTimeHelper, fretesGoalService, null);
     }
 
     FretesService(
@@ -78,7 +89,7 @@ public class FretesService {
             EscopoFilialService escopoFilialService,
             PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
-        this(validadorPeriodo, repository, escopoFilialService, periodoOffsetDateTimeHelper, null);
+        this(validadorPeriodo, repository, escopoFilialService, periodoOffsetDateTimeHelper, null, null);
     }
 
     public FretesOverviewDTO buscarOverview(LocalDate dataInicio, LocalDate dataFim) {
@@ -247,10 +258,18 @@ public class FretesService {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
         int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 100, 200);
 
-        return repository.findAll(
-                        criarSpecification(filtro),
-                        PageRequest.of(0, limiteAplicado, Sort.by(Sort.Direction.DESC, "dataReferenciaFaturamento"))
-                ).getContent().stream()
+        return buscarRegistros(filtro).stream()
+                .sorted(Comparator
+                        .comparing(
+                                VisaoFretesEntity::getDataReferenciaFaturamento,
+                                Comparator.nullsLast(Comparator.naturalOrder())
+                        )
+                        .reversed()
+                        .thenComparing(
+                                VisaoFretesEntity::getNumeroMinuta,
+                                Comparator.nullsLast(Comparator.reverseOrder())
+                        ))
+                .limit(limiteAplicado)
                 .map(f -> new FreteResumoDTO(
                         f.getId(),
                         f.getNumeroMinuta(),
@@ -361,6 +380,9 @@ public class FretesService {
     }
 
     private List<VisaoFretesEntity> buscarRegistros(FiltroConsultaDTO filtro) {
+        if (fretesDashboardSqlRepository != null) {
+            return fretesDashboardSqlRepository.buscarRegistros(filtro);
+        }
         return repository.findAll(criarSpecification(filtro));
     }
 

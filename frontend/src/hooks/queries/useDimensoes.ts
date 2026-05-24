@@ -7,8 +7,10 @@ import {
   buscarVeiculos,
   buscarPlanoContas,
   buscarUsuarios,
+  buscarFaturamentoStatus,
   buscarFretesStatus,
 } from '../../api/endpoints/dimensoesServico';
+import type { FaturamentoFiltro } from '../../types/faturamento';
 import type { FretesFiltro } from '../../types/fretes';
 
 const STALE_TIME = 30 * 60 * 1000; // 30 minutos
@@ -80,6 +82,15 @@ export function useFretesStatus(filtro: FretesFiltro) {
   return useQuery({
     queryKey: ['dim', 'fretes', 'status', filtro],
     queryFn: () => buscarFretesStatus(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturamentoStatus(filtro: FaturamentoFiltro) {
+  return useQuery({
+    queryKey: ['dim', 'faturamento', 'status', filtro],
+    queryFn: () => buscarFaturamentoStatus(filtro),
     staleTime: STALE_TIME,
     retry: 1,
   });

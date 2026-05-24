@@ -68,13 +68,21 @@ const HOME_DASHBOARD_META: Record<string, HomeDashboardMeta> = {
     accent: '#0f766e',
     priority: 78,
   },
-  '/fretes': {
+  '/faturamento': {
     category: 'Operação',
-    description: 'Receita, fretes emitidos, peso taxado, volumes e previsões.',
-    keywords: ['fretes', 'receita', 'cte', 'volumes', 'previsao'],
+    description: 'Receita, faturamento realizado, peso taxado, volumes e previsões.',
+    keywords: ['faturamento', 'receita', 'cte', 'volumes', 'previsao'],
     Icon: Truck,
     accent: '#16a34a',
     priority: 88,
+  },
+  '/performance': {
+    category: 'Operação',
+    description: 'Pontualidade de entregas, atrasos, comprovantes e aging operacional.',
+    keywords: ['performance', 'entregas', 'prazo', 'atraso', 'comprovante'],
+    Icon: BarChart3,
+    accent: '#0f766e',
+    priority: 92,
   },
   '/tracking': {
     category: 'Operação',

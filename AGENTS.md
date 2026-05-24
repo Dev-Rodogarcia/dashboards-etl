@@ -1,13 +1,16 @@
 # Regras Para IAs Neste Projeto
 
-Este projeto deve ser operado por IA somente em modo DEV local.
+Este projeto deve ser operado por IA somente em modo DEV local, salvo autorizacao formal e literal do operador humano.
 
-- Nao execute `iniciar-prod.bat`.
-- Nao reinicie, pare ou libere portas de producao (`5010` e `5173`).
-- Nao suba servicos apontando para os dominios publicos `analytics.rodogarcia.com.br` ou `api-analytics.rodogarcia.com.br`.
-- Use apenas `iniciar-dev.bat`, backend local `http://127.0.0.1:5011` e frontend local `http://127.0.0.1:5174`.
-- Para smoke tests, use somente a API dev local. Producao deve ficar para operador humano fora do fluxo da IA.
+- Por padrao, nao execute `iniciar-prod.bat`.
+- Por padrao, nao reinicie, pare ou libere portas de producao (`5010` e `5173`).
+- Por padrao, nao suba servicos apontando para os dominios publicos `analytics.rodogarcia.com.br` ou `api-analytics.rodogarcia.com.br`.
+- Excecao controlada: a IA so pode subir, reiniciar, parar, liberar portas, testar smoke ou acessar servicos/dominios de producao quando o operador humano escrever literalmente `pode subir pra produção` na mensagem atual. Pedidos sem essa frase literal, como "suba agora", "teste em prod" ou "pode testar", nao autorizam producao.
+- Quando houver a autorizacao literal `pode subir pra produção`, execute somente o necessario para o teste/deploy solicitado, registre o que foi feito e pare ao concluir a validacao. Nao mantenha alteracoes, processos ou rotinas extras alem do escopo pedido.
+- Enquanto a mensagem atual nao contiver literalmente `pode subir pra produção`, use apenas `iniciar-dev.bat`, backend local `http://127.0.0.1:5011` e frontend local `http://127.0.0.1:5174`.
+- Enquanto a mensagem atual nao contiver literalmente `pode subir pra produção`, use somente a API dev local para smoke tests. Producao deve ficar para operador humano fora do fluxo da IA.
 - Mesmo trabalhando apenas em DEV, mantenha o caminho de producao pronto para o proximo start humano: codigo, migrations, scripts canonicos, exemplos de env e contratos devem ficar atualizados e coerentes com a mudanca. Nao deixe ajuste aplicado so no modo dev quando ele tambem for necessario para uma subida limpa de producao; apenas nao execute os starts/deploys de producao.
+- Paridade DEV/PROD e obrigatoria: todo comportamento validado em DEV deve subir para producao com o mesmo contrato de banco, wrappers/views, filtros, agregacoes, build frontend e configuracao de runtime. Antes de considerar uma entrega pronta, valide a mesma tela, periodo e filtros nos dois modos quando houver autorizacao de producao; divergencia entre DEV e PROD e bug de deploy/contrato, nao comportamento aceitavel.
 - Visualizacoes e graficos devem preservar a altura padrao do dashboard; use como referencia o tamanho do card "Coletas por dia, mês e ano". Nao aumente a altura de um grafico para acomodar muitos dados: escolha outra visualizacao, agregacao, drilldown, paginacao visual ou compactacao que caiba no tamanho padrao.
 - Cada macaco no seu galho: migrations do projeto `dashboards` devem alterar apenas objetos de propriedade do Dashboard. Nao crie migrations aqui para sincronizar, alterar ou exigir estrutura interna do projeto `etl-extracao-dados`.
 - Mudancas de tabelas, views, indices ou regras materializadas do ETL devem ser feitas no repositorio `etl-extracao-dados`; o Dashboard apenas consome o contrato publicado pela view.
@@ -18,4 +21,4 @@ Este projeto deve ser operado por IA somente em modo DEV local.
 - Use as pastas de testes do projeto (`backend/src/test`, testes do frontend e scripts de validacao) para proteger comportamento. Se uma mudanca nao tiver teste automatizado possivel, registre no resumo qual validacao manual/local foi feita.
 - Encoding e mojibake: preserve acentos, simbolos e aliases exatamente como publicados pelo banco/API. Nao aceite texto corrompido por encoding, como UTF-8 lido como ANSI/Windows-1252; se encontrar alias, migration, view, CSV, seed, fixture, doc ou teste com caracteres estranhos no lugar de acentos/simbolos, corrija a origem e valide usando UTF-8 antes de seguir.
 
-Se uma tarefa exigir deploy/producao, a IA deve parar e avisar que o ambiente permitido para ela e apenas DEV local.
+Se uma tarefa exigir deploy/producao e a mensagem atual nao contiver literalmente `pode subir pra produção`, a IA deve parar e avisar que o ambiente permitido para ela e apenas DEV local.

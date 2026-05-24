@@ -2,12 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import {
   buscarManifestosGraficos,
   buscarManifestosOverview,
+  buscarManifestosPerformance,
   buscarManifestosSerie,
   buscarManifestosTabela,
   buscarManifestosTabelaPaginada,
   buscarManifestosTabelaTotal,
 } from '../../api/endpoints/manifestosServico';
-import type { ManifestosFiltro } from '../../types/manifestos';
+import type { ManifestosFiltro, ManifestosTempoNivel } from '../../types/manifestos';
 import type { TableApiFilters } from '../../types/tableFilters';
 
 const STALE_TIME = 5 * 60 * 1000;
@@ -34,6 +35,20 @@ export function useManifestosGraficos(filtro: ManifestosFiltro) {
   return useQuery({
     queryKey: ['manifestos', 'graficos', filtro],
     queryFn: () => buscarManifestosGraficos(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useManifestosPerformance(
+  filtro: ManifestosFiltro,
+  nivel: ManifestosTempoNivel,
+  ano?: number | null,
+  mes?: number | null,
+) {
+  return useQuery({
+    queryKey: ['manifestos', 'performance', filtro, nivel, ano, mes],
+    queryFn: () => buscarManifestosPerformance(filtro, nivel, ano, mes),
     staleTime: STALE_TIME,
     retry: 1,
   });

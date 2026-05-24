@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -211,10 +212,7 @@ public class DimensoesService {
                 .map(String::trim)
                 .forEach(clientes::add);
 
-        fretesRepository.findAll().stream()
-                .filter(row -> escopo.permiteAlgumaFilial(row.getFilialNome()))
-                .flatMap(row -> textoStream(row.getPagadorNome(), row.getRemetenteNome(), row.getDestinatarioNome()))
-                .forEach(clientes::add);
+        listarClientesFretes(escopo).forEach(clientes::add);
 
         cotacoesRepository.findAll().stream()
                 .filter(row -> escopo.permiteAlgumaFilial(row.getFilial()))
@@ -234,6 +232,75 @@ public class DimensoesService {
         return clientes.stream()
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .toList();
+    }
+
+    private List<String> listarClientesFretes(EscopoFilialService.EscopoFilial escopo) {
+        if (jdbcTemplate != null) {
+            return listarClientesFretesSql(escopo);
+        }
+
+        try {
+            return fretesRepository.findAll().stream()
+                    .filter(row -> escopo.permiteAlgumaFilial(row.getFilialNome()))
+                    .flatMap(row -> textoStream(row.getPagadorNome(), row.getRemetenteNome(), row.getDestinatarioNome()))
+                    .distinct()
+                    .toList();
+        } catch (DataAccessException ex) {
+            log.warn("Dimensão de clientes ignorou fretes temporariamente. Verifique a view vw_fretes_powerbi. Causa: {}",
+                    ex.getMostSpecificCause().getMessage());
+            return List.of();
+        }
+    }
+
+    private List<String> listarClientesFretesSql(EscopoFilialService.EscopoFilial escopo) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        StringBuilder sql = new StringBuilder("""
+                SELECT DISTINCT cliente
+                FROM (
+                    SELECT
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '') AS cliente,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '') AS filial
+                    FROM dbo.vw_fretes_powerbi
+                    UNION ALL
+                    SELECT
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Remetente]))), '') AS cliente,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '') AS filial
+                    FROM dbo.vw_fretes_powerbi
+                    UNION ALL
+                    SELECT
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Destinatario]))), '') AS cliente,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '') AS filial
+                    FROM dbo.vw_fretes_powerbi
+                ) clientes
+                WHERE cliente IS NOT NULL
+                """);
+
+        if (!escopo.acessoTotal()) {
+            List<String> filiais = escopo.filiaisOrdenadas().stream()
+                    .filter(this::temTexto)
+                    .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
+                    .distinct()
+                    .toList();
+            if (filiais.isEmpty()) {
+                return List.of();
+            }
+            params.addValue("escopoFiliais", filiais);
+            sql.append("\n AND LOWER(filial) IN (:escopoFiliais)");
+        }
+
+        sql.append("\n ORDER BY cliente");
+
+        try {
+            return jdbcTemplate.queryForList(sql.toString(), params, String.class).stream()
+                    .filter(this::temTexto)
+                    .map(String::trim)
+                    .distinct()
+                    .toList();
+        } catch (DataAccessException ex) {
+            log.warn("Dimensão de clientes ignorou fretes temporariamente. Verifique a view vw_fretes_powerbi. Causa: {}",
+                    ex.getMostSpecificCause().getMessage());
+            return List.of();
+        }
     }
 
     public List<String> listarClientesCnpjFaturasPorCliente() {

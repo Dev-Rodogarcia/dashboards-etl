@@ -4,8 +4,8 @@ import ReactECharts from 'echarts-for-react';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Info, Minus, Settings } from 'lucide-react';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
-import FretesGoalsManagerPanel from '../components/domain/fretes/FretesGoalsManagerPanel';
-import FretesKpiGrid from '../components/domain/fretes/FretesKpiGrid';
+import FaturamentoGoalsManagerPanel from '../components/domain/faturamento/FaturamentoGoalsManagerPanel';
+import FaturamentoKpiGrid from '../components/domain/faturamento/FaturamentoKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import ChartCard from '../components/shared/ChartCard';
@@ -14,31 +14,31 @@ import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
-import { exportarFretesCsv } from '../api/endpoints/fretesServico';
+import { exportarFaturamentoCsv } from '../api/endpoints/faturamentoServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
-import { useClientes, useFiliais, useFretesStatus } from '../hooks/queries/useDimensoes';
+import { useClientes, useFiliais, useFaturamentoStatus } from '../hooks/queries/useDimensoes';
 import {
-  useFretesMetas,
-  useFretesMetasConfiguracoes,
-  useFretesGraficos,
-  useFretesOverview,
-  useFretesSerie,
-  useFretesTabelaPaginada,
-  useFretesTopClientes,
-  useRemoverFretesMetaConfiguracao,
-  useSalvarFretesMetaConfiguracao,
-} from '../hooks/queries/useFretes';
+  useFaturamentoMetas,
+  useFaturamentoMetasConfiguracoes,
+  useFaturamentoGraficos,
+  useFaturamentoOverview,
+  useFaturamentoSerie,
+  useFaturamentoTabelaPaginada,
+  useFaturamentoTopClientes,
+  useRemoverFaturamentoMetaConfiguracao,
+  useSalvarFaturamentoMetaConfiguracao,
+} from '../hooks/queries/useFaturamento';
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { usePermissions } from '../hooks/usePermissions';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type {
-  FreteResumoRow,
-  FretesClienteRanking,
-  FretesFiltro,
-  FretesTrendPoint,
-} from '../types/fretes';
+  FaturamentoClienteRanking,
+  FaturamentoFiltro,
+  FaturamentoResumoRow,
+  FaturamentoTrendPoint,
+} from '../types/faturamento';
 import { CORES, PALETA_SERIES } from '../utils/chartColors';
 import { formatarMoeda, formatarNumero, formatarPeso, formatarPorcentagem } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
@@ -65,7 +65,7 @@ const RESPONSAVEL_DRILL_LEVELS: Array<{ value: ResponsavelDrillLevel; label: str
   { value: 'uf', label: 'UF' },
   { value: 'cidade', label: 'Cidade' },
 ];
-const FATURAMENTO_DATE_HELP = 'Usa a emissão do CT-e quando existir; se não existir, usa a data do frete.';
+const FATURAMENTO_DATE_HELP = 'Usa a emissão do CT-e quando existir; se não existir, usa a data operacional.';
 const KPI_CARD_HEIGHT_CLASS = 'h-[25rem] min-h-0';
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -104,7 +104,7 @@ function countBusinessDaysInYear(year: number): number {
   return countBusinessDays(new Date(year, 0, 1), new Date(year, 11, 31));
 }
 
-function criarFiltroPeriodoAnterior(filtro: FretesFiltro): FretesFiltro {
+function criarFiltroPeriodoAnterior(filtro: FaturamentoFiltro): FaturamentoFiltro {
   const inicio = parseDateLocal(filtro.dataInicio);
   const fim = parseDateLocal(filtro.dataFim);
   const diasPeriodo = Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / DAY_MS) + 1);
@@ -305,7 +305,7 @@ function MetricToggle({
             color: item === metric ? 'var(--color-primary)' : 'var(--color-text-muted)',
           }}
         >
-          {item === 'receita' ? 'Faturamento' : 'Fretes'}
+          {item === 'receita' ? 'Faturamento' : 'Minutas'}
         </button>
       ))}
     </div>
@@ -505,7 +505,7 @@ function buildHorizontalBarOption(
   const sorted = [...dados].sort((left, right) => getMetricValue(right, metric) - getMetricValue(left, metric));
   const dadosRevertidos = sorted.reverse();
   const totalMetric = sorted.reduce((acc, item) => acc + getMetricValue(item, metric), 0);
-  const metricLabel = metric === 'receita' ? 'Faturamento' : 'Fretes';
+  const metricLabel = metric === 'receita' ? 'Faturamento' : 'Minutas';
   const hasSelection = Boolean(selectedName && dados.some((item) => item.nome === selectedName));
 
   return {
@@ -542,7 +542,7 @@ function buildHorizontalBarOption(
         return [
           `<strong>${original.nome}</strong>`,
           `Faturamento: ${formatarMoeda(original.receita)}`,
-          `Fretes: ${formatarNumero(original.fretes)}`,
+            `Minutas: ${formatarNumero(original.fretes)}`,
           `Participação: ${formatarPorcentagem(percent, 1)}`,
         ].join('<br/>');
       },
@@ -551,7 +551,7 @@ function buildHorizontalBarOption(
 }
 
 function buildEvolutionOption(
-  dados: FretesTrendPoint[],
+  dados: FaturamentoTrendPoint[],
   level: PeriodDrillLevel,
   dataFim: string,
   metaDiaria: number,
@@ -654,7 +654,7 @@ function FaturamentoEvolutionCard({
   faturamentoFaltante,
   metaDiariaDinamica,
 }: {
-  dados: FretesTrendPoint[];
+  dados: FaturamentoTrendPoint[];
   isLoading?: boolean;
   drillLevel: PeriodDrillLevel;
   onDrillLevelChange: (level: PeriodDrillLevel) => void;
@@ -711,8 +711,8 @@ function FaturamentoEvolutionCard({
 }
 
 function buildTopClientesRows(
-  atuais: FretesClienteRanking[],
-  anteriores: FretesClienteRanking[],
+  atuais: FaturamentoClienteRanking[],
+  anteriores: FaturamentoClienteRanking[],
 ) {
   const anteriorPorCliente = new Map(anteriores.map((item) => [item.cliente, item.receita]));
 
@@ -733,8 +733,8 @@ function TopClientesTableCard({
   anteriores,
   isLoading,
 }: {
-  atuais: FretesClienteRanking[];
-  anteriores: FretesClienteRanking[];
+  atuais: FaturamentoClienteRanking[];
+  anteriores: FaturamentoClienteRanking[];
   isLoading?: boolean;
 }) {
   const rows = useMemo(() => buildTopClientesRows(atuais, anteriores), [atuais, anteriores]);
@@ -829,7 +829,7 @@ function TopClientesTableCard({
   );
 }
 
-export default function FretesPage() {
+export default function FaturamentoPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const [periodDrillLevel, setPeriodDrillLevel] = useState<PeriodDrillLevel>('dia');
   const [routeDrillLevel, setRouteDrillLevel] = useState<RouteDrillLevel>('rota');
@@ -843,12 +843,12 @@ export default function FretesPage() {
   const [goalsPanelOpen, setGoalsPanelOpen] = useState(false);
   const [goalsPanelYear, setGoalsPanelYear] = useState(() => new Date().getFullYear());
   const [goalsPanelMonth, setGoalsPanelMonth] = useState(() => new Date().getMonth() + 1);
-  const fretesTableRef = useRef<HTMLDivElement>(null);
+  const faturamentoTableRef = useRef<HTMLDivElement>(null);
   const { canAccess } = usePermissions();
   const filiais = useFiliais();
   const clientes = useClientes();
 
-  const filtro: FretesFiltro = {
+  const filtro: FaturamentoFiltro = {
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
@@ -872,29 +872,29 @@ export default function FretesPage() {
     { label: 'Status',    count: filtros.status?.length    ?? 0, onRemove: () => setFiltro('status', []) },
   ];
 
-  const overview = useFretesOverview(filtro);
-  const serie = useFretesSerie(filtro);
-  const graficos = useFretesGraficos(filtro);
-  const metas = useFretesMetas(filtro);
-  const metasConfiguracoes = useFretesMetasConfiguracoes(goalsPanelYear, goalsPanelMonth, goalsPanelOpen);
-  const salvarMeta = useSalvarFretesMetaConfiguracao();
-  const removerMeta = useRemoverFretesMetaConfiguracao();
-  const topClientes = useFretesTopClientes(filtro, 10);
-  const topClientesPeriodoAnterior = useFretesTopClientes(filtroPeriodoAnterior, 50);
+  const overview = useFaturamentoOverview(filtro);
+  const serie = useFaturamentoSerie(filtro);
+  const graficos = useFaturamentoGraficos(filtro);
+  const metas = useFaturamentoMetas(filtro);
+  const metasConfiguracoes = useFaturamentoMetasConfiguracoes(goalsPanelYear, goalsPanelMonth, goalsPanelOpen);
+  const salvarMeta = useSalvarFaturamentoMetaConfiguracao();
+  const removerMeta = useRemoverFaturamentoMetaConfiguracao();
+  const topClientes = useFaturamentoTopClientes(filtro, 10);
+  const topClientesPeriodoAnterior = useFaturamentoTopClientes(filtroPeriodoAnterior, 50);
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
-  const tabela = useFretesTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
+  const tabela = useFaturamentoTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
-  const filtroParaStatus: FretesFiltro = { dataInicio, dataFim, filiais: filtros.filiais, pagadores: filtros.pagadores };
-  const statusFretes = useFretesStatus(filtroParaStatus);
+  const filtroParaStatus: FaturamentoFiltro = { dataInicio, dataFim, filiais: filtros.filiais, pagadores: filtros.pagadores };
+  const statusFaturamento = useFaturamentoStatus(filtroParaStatus);
 
   usePageHeader({
-    title: 'Fretes - Faturamento',
+    title: 'Faturamento',
     description: 'Carteira de clientes - Meta e evolução do faturamento',
     updatedAt: overview.data?.updatedAt ?? null,
   });
 
-  const canManageFretesGoals = canAccess('can_manage_kpi_goals');
+  const canManageFaturamentoGoals = canAccess('can_manage_kpi_goals');
 
   const overviewData = overview.data;
   const metasData = metas.data;
@@ -980,7 +980,7 @@ export default function FretesPage() {
   );
 
   const statusTabelaOptions = combinarStatusOptions(
-    statusFretes.data,
+    statusFaturamento.data,
     (tabela.data?.conteudo ?? []).map((item) => item.status),
     filtros.status,
   );
@@ -1015,11 +1015,11 @@ export default function FretesPage() {
     setGoalsPanelOpen((current) => !current);
   }
 
-  async function salvarMetaFretes(payload: Parameters<typeof salvarMeta.mutateAsync>[0]) {
+  async function salvarMetaFaturamento(payload: Parameters<typeof salvarMeta.mutateAsync>[0]) {
     await salvarMeta.mutateAsync(payload);
   }
 
-  async function removerMetaFretes(branchId: string, ano: number, mes: number) {
+  async function removerMetaFaturamento(branchId: string, ano: number, mes: number) {
     await removerMeta.mutateAsync({ branchId, ano, mes });
   }
 
@@ -1031,7 +1031,7 @@ export default function FretesPage() {
     return <span className={numberValue >= 100 ? 'font-semibold text-emerald-600' : 'font-semibold text-red-600'}>{formatarPorcentagem(numberValue, 1)}</span>;
   }
 
-  function renderDataFaturamentoTabela(valor: unknown, row: FreteResumoRow) {
+  function renderDataFaturamentoTabela(valor: unknown, row: FaturamentoResumoRow) {
     const texto = valor ? String(valor) : '—';
     const origem = row.dataFaturamentoOrigem ?? 'Origem não informada';
     return (
@@ -1042,14 +1042,14 @@ export default function FretesPage() {
     );
   }
 
-  const colunas: ColunaTabelaAnalitica<FreteResumoRow>[] = [
+  const colunas: ColunaTabelaAnalitica<FaturamentoResumoRow>[] = [
     { chave: 'numeroMinuta', label: 'Nº Minuta', fixo: true, filtroTabela: 'codigo' },
     { chave: 'dataFrete', label: 'Data Faturamento', largura: '170px', tooltip: FATURAMENTO_DATE_HELP, formato: renderDataFaturamentoTabela },
     { chave: 'status', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
     { chave: 'filial', label: 'Filial' },
     { chave: 'pagador', label: 'Pagador', largura: '220px', filtroTabela: 'razaoSocial' },
     { chave: 'documentoTipo', label: 'Documento' },
-    { chave: 'valorFrete', label: 'Valor Frete', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
+    { chave: 'valorFrete', label: 'Faturamento Líquido', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'valorTotalServico', label: 'Faturamento', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'metaFaturamento', label: 'Meta Faturamento', formato: (valor) => Number(valor ?? 0) > 0 ? formatarMoeda(Number(valor ?? 0)) : '—' },
     {
@@ -1071,7 +1071,7 @@ export default function FretesPage() {
         activeFilters={activeFilters}
         dataInicio={dataInicio}
         dataFim={dataFim}
-        actions={canManageFretesGoals ? (
+        actions={canManageFaturamentoGoals ? (
           <button
             type="button"
             onClick={abrirGerenciadorMetas}
@@ -1108,15 +1108,15 @@ export default function FretesPage() {
         />
         <AsyncMultiSelect
           label="Status"
-          opcoes={statusFretes.data ?? []}
+          opcoes={statusFaturamento.data ?? []}
           selecionados={filtros.status ?? []}
           onChange={(valores) => setFiltro('status', valores)}
-          isLoading={statusFretes.isLoading}
+          isLoading={statusFaturamento.isLoading}
         />
       </FilterBar>
 
-      {canManageFretesGoals ? (
-        <FretesGoalsManagerPanel
+      {canManageFaturamentoGoals ? (
+        <FaturamentoGoalsManagerPanel
           open={goalsPanelOpen}
           branchOptions={filiais.data ?? []}
           data={metasConfiguracoes.data}
@@ -1130,22 +1130,22 @@ export default function FretesPage() {
             setGoalsPanelYear(ano);
             setGoalsPanelMonth(mes);
           }}
-          onSave={salvarMetaFretes}
-          onRemove={removerMetaFretes}
+          onSave={salvarMetaFaturamento}
+          onRemove={removerMetaFaturamento}
           onViewScope={(branchId) => {
             setFiltro('filiais', branchId === 'GLOBAL' ? [] : [branchId]);
             paginacaoTabela.setPagina(1);
             setGoalsPanelOpen(false);
             window.requestAnimationFrame(() => {
-              fretesTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              faturamentoTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
           }}
         />
       ) : null}
 
-      {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de fretes.')} tipo={getTipoErro(overview.error)} />}
+      {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de faturamento.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && (
-        <FretesKpiGrid
+        <FaturamentoKpiGrid
           overview={overview.data}
           metaFaturamento={metaFaturamento}
           progressoMeta={progressoMeta}
@@ -1267,12 +1267,12 @@ export default function FretesPage() {
         </div>
       </div>
 
-      <div ref={fretesTableRef}>
+      <div ref={faturamentoTableRef}>
         <div className="mb-3 flex justify-end">
-          <ExportButton nomeArquivo="fretes" onExport={() => exportarFretesCsv(filtro, filtrosTabela.apiFilters)} />
+          <ExportButton nomeArquivo="faturamento" onExport={() => exportarFaturamentoCsv(filtro, filtrosTabela.apiFilters)} />
         </div>
         <AnalyticalDataTable
-          titulo="Fretes Analiticos"
+          titulo="Faturamento Analítico"
           dados={tabelaConteudo}
           colunas={colunas}
           chaveLinha="id"
@@ -1284,7 +1284,7 @@ export default function FretesPage() {
           onColumnFilterChange={filtrosTabela.setColumnFilter}
           onClearFilters={filtrosTabela.clearTableFilters}
           statusOptions={statusTabelaOptions}
-          statusOptionsLoading={statusFretes.isLoading}
+          statusOptionsLoading={statusFaturamento.isLoading}
           isLoading={tabela.isLoading}
           totalRegistros={tabela.data?.totalElementos}
           paginaAtual={paginacaoTabela.pagina}

@@ -118,8 +118,8 @@ class DashboardExportSqlBuilder {
         List<String> where = new ArrayList<>();
 
         adicionarPeriodo(where, params, definition, filtro.dataInicio(), filtro.dataFim());
-        adicionarEscopo(where, params, definition.escopoColumns(), escopo);
-        adicionarFiltros(where, params, definition.filtros(), filtro, filtrosIgnorados);
+        adicionarEscopo(where, params, definition, escopo);
+        adicionarFiltros(where, params, definition, filtro, filtrosIgnorados);
         adicionarStatusProcesso(where, filtro, definition, filtrosIgnorados);
         adicionarFiltrosTabela(where, params, definition, filtro);
 
@@ -159,19 +159,25 @@ class DashboardExportSqlBuilder {
     private void adicionarEscopo(
             List<String> where,
             MapSqlParameterSource params,
-            List<String> colunas,
+            DashboardExportDefinition definition,
             EscopoFilialService.EscopoFilial escopo
     ) {
+        List<String> colunas = definition.escopoColumns();
         if (colunas.isEmpty() || escopo.acessoTotal()) {
             return;
         }
 
-        List<String> filiais = normalizar(escopo.filiaisOrdenadas());
-        if (filiais.isEmpty()) {
+        if (escopo.filiaisOrdenadas().isEmpty()) {
             where.add("1 = 0");
             return;
         }
 
+        if (definition == DashboardExportDefinition.TRACKING) {
+            adicionarFiltroFilialFlexivel(where, params, "escopoFiliais", "escopoFiliaisCodigos", colunas, escopo.filiaisOrdenadas());
+            return;
+        }
+
+        List<String> filiais = normalizar(escopo.filiaisOrdenadas());
         params.addValue("escopoFiliais", filiais);
         where.add("(" + String.join(" OR ", colunas.stream()
                 .map(coluna -> normalizarSql(coluna) + " IN (:escopoFiliais)")
@@ -181,13 +187,27 @@ class DashboardExportSqlBuilder {
     private void adicionarFiltros(
             List<String> where,
             MapSqlParameterSource params,
-            Map<String, List<String>> filtrosDefinidos,
+            DashboardExportDefinition definition,
             FiltroConsultaDTO filtro,
             Set<String> filtrosIgnorados
     ) {
+        Map<String, List<String>> filtrosDefinidos = definition.filtros();
         for (Map.Entry<String, List<String>> entry : filtrosDefinidos.entrySet()) {
             String chave = entry.getKey();
             if (filtrosIgnorados.contains(chave) || !filtro.temFiltro(chave)) {
+                continue;
+            }
+
+            if (definition == DashboardExportDefinition.TRACKING && chave.startsWith("filial")) {
+                String paramName = "filtro_" + chave;
+                adicionarFiltroFilialFlexivel(
+                        where,
+                        params,
+                        paramName,
+                        paramName + "Codigos",
+                        entry.getValue(),
+                        filtro.valores(chave)
+                );
                 continue;
             }
 
@@ -202,6 +222,35 @@ class DashboardExportSqlBuilder {
                     .map(coluna -> normalizarSql(coluna) + " IN (:" + paramName + ")")
                     .toList()) + ")");
         }
+    }
+
+    private void adicionarFiltroFilialFlexivel(
+            List<String> where,
+            MapSqlParameterSource params,
+            String paramName,
+            String codigoParamName,
+            List<String> colunas,
+            Collection<String> valores
+    ) {
+        List<String> normalizados = normalizar(valores);
+        if (normalizados.isEmpty()) {
+            return;
+        }
+
+        params.addValue(paramName, normalizados);
+        List<String> predicados = new ArrayList<>(colunas.stream()
+                .map(coluna -> normalizarSql(coluna) + " IN (:" + paramName + ")")
+                .toList());
+
+        List<String> codigos = codigosFiliais(normalizados);
+        if (!codigos.isEmpty()) {
+            params.addValue(codigoParamName, codigos);
+            predicados.addAll(colunas.stream()
+                    .map(coluna -> codigoFilialSql(coluna) + " IN (:" + codigoParamName + ")")
+                    .toList());
+        }
+
+        where.add("(" + String.join(" OR ", predicados) + ")");
     }
 
     private void adicionarStatusProcesso(
@@ -911,10 +960,25 @@ class DashboardExportSqlBuilder {
         return "LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), " + coluna + "))))";
     }
 
+    private String codigoFilialSql(String coluna) {
+        return "LOWER(LEFT(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), " + coluna + "))), 3))";
+    }
+
     private List<String> normalizar(Collection<String> valores) {
         return valores.stream()
                 .filter(valor -> valor != null && !valor.isBlank())
                 .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
+                .distinct()
+                .toList();
+    }
+
+    private List<String> codigosFiliais(Collection<String> valores) {
+        return valores.stream()
+                .filter(valor -> valor != null && !valor.isBlank())
+                .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
+                .map(valor -> valor.split("\\s*[-–—]\\s*", 2)[0].trim())
+                .filter(valor -> valor.length() >= 3)
+                .map(valor -> valor.substring(0, 3))
                 .distinct()
                 .toList();
     }

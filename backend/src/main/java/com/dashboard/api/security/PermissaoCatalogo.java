@@ -10,7 +10,8 @@ import java.util.Map;
 public enum PermissaoCatalogo {
     COLETAS("coletas", "Coletas", "Dashboard operacional de coletas", "/coletas"),
     MANIFESTOS("manifestos", "Manifestos", "Dashboard operacional de manifestos", "/manifestos"),
-    FRETES("fretes", "Fretes", "Dashboard operacional de fretes", "/fretes"),
+    FRETES("fretes", "Faturamento", "Dashboard operacional de faturamento", "/faturamento"),
+    PERFORMANCE("performance", "Performance", "Dashboard operacional de performance de entrega", "/performance"),
     TRACKING("tracking", "Localização de cargas", "Dashboard de tracking e localização de cargas", "/tracking"),
     FATURAS("faturas", "Faturas", "Dashboard financeiro de faturamento", "/faturas"),
     FATURAS_POR_CLIENTE("faturasPorCliente", "Faturas por Cliente", "Dashboard operacional de faturamento por cliente", "/faturas-por-cliente"),
@@ -92,6 +93,7 @@ public enum PermissaoCatalogo {
                 COLETAS.chave,
                 MANIFESTOS.chave,
                 FRETES.chave,
+                PERFORMANCE.chave,
                 TRACKING.chave,
                 FATURAS.chave,
                 FATURAS_POR_CLIENTE.chave,

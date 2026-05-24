@@ -75,7 +75,9 @@ O backend de produção deve rodar em `prod` na porta `5010`, e o frontend de pr
 .\iniciar-prod.bat
 ```
 
-Ele valida o ambiente, exige checkout limpo na branch principal, libera apenas as portas de produção, gera `frontend/dist-prod` atualizado, abre o backend em um terminal externo, espera o healthcheck ficar `UP`, valida o preflight CORS da API local e abre o frontend estático em outro terminal externo. As portas DEV `5011/5174` não são encerradas por esse fluxo.
+Ele valida o ambiente, avisa quando o checkout não está na branch principal ou tem alterações locais, valida o contrato dos wrappers de produção, libera apenas as portas de produção, gera `frontend/dist-prod` atualizado, bloqueia starts concorrentes, abre o backend em um terminal externo, espera o healthcheck ficar `UP`, valida o preflight CORS da API local e abre o frontend estático em outro terminal externo. As portas DEV `5011/5174` não são encerradas por esse fluxo.
+
+Antes de subir produção, aplique no banco `DASHBOARDS` todas as migrations/wrappers que já foram validadas em `DASHBOARDS_DEV`. A tela de Localização de Cargas depende do wrapper `dbo.vw_localizacao_cargas_powerbi` com as mesmas colunas e ordem da view publicada no `ETL_SISTEMA`; wrapper antigo ou metadata não atualizada desloca colunas por posição e faz KPIs/status divergirem entre DEV e PROD.
 
 O Cloudflare Tunnel deve apontar `analytics.rodogarcia.com.br` para `http://127.0.0.1:5173` e `api-analytics.rodogarcia.com.br` para `http://127.0.0.1:5010`.
 

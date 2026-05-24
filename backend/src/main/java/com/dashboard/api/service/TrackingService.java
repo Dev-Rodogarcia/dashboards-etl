@@ -14,6 +14,7 @@ import com.dashboard.api.model.VisaoLocalizacaoCargasEntity;
 import com.dashboard.api.repository.VisaoLocalizacaoCargasRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -29,7 +30,11 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -140,22 +145,33 @@ public class TrackingService {
 
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         FiltroConsultaDTO filtroObrigatorio = aplicarFilialAtualObrigatoria(filtro, escopo);
-        DashboardExportSqlBuilder.ExportSql source = sqlBuilder.buildFilteredSource(
-                DashboardExportDefinition.TRACKING,
-                filtroObrigatorio,
-                escopo,
-                Set.of()
-        );
-        TrackingViewColumns colunas = carregarColunasTracking();
+        try {
+            DashboardExportSqlBuilder.ExportSql source = sqlBuilder.buildFilteredSource(
+                    DashboardExportDefinition.TRACKING,
+                    filtroObrigatorio,
+                    escopo,
+                    Set.of()
+            );
+            TrackingViewColumns colunas = carregarColunasTracking();
 
-        TrackingOverviewDTO overview = buscarOverviewAgregado(source, colunas);
-        List<TrackingMatrizRegiaoDTO> matriz = buscarMatrizRegiaoDestino(source, colunas);
-        TrackingChartsDTO graficos = new TrackingChartsDTO(
-                buscarStatusDistribuicaoAgregado(source),
-                List.of(),
-                buscarValorRegiaoDestinoTop10(source, colunas)
-        );
-        return new TrackingDashboardDTO(overview, matriz, graficos);
+            TrackingOverviewDTO overview = buscarOverviewAgregado(source, colunas);
+            List<TrackingMatrizRegiaoDTO> matriz = buscarMatrizRegiaoDestino(source, colunas);
+            TrackingChartsDTO graficos = new TrackingChartsDTO(
+                    buscarStatusDistribuicaoAgregado(source),
+                    List.of(),
+                    buscarValorRegiaoDestinoTop10(source, colunas)
+            );
+            return new TrackingDashboardDTO(overview, matriz, graficos);
+        } catch (DataAccessException ex) {
+            log.warn(
+                    "Falha no dashboard agregado de localização de cargas; usando fallback legado. periodo={} a {}, filtros={}, causa={}",
+                    filtroObrigatorio.dataInicio(),
+                    filtroObrigatorio.dataFim(),
+                    filtroObrigatorio.filtros().keySet(),
+                    ex.getMostSpecificCause().getMessage()
+            );
+            return buscarDashboardLegado(filtroObrigatorio);
+        }
     }
 
     public FiltroConsultaDTO normalizarFiltroComFilialAtualObrigatoria(FiltroConsultaDTO filtro) {
@@ -317,17 +333,18 @@ public class TrackingService {
         MapSqlParameterSource params = copiarParams(source);
         params.addValue("hoje", periodoOffsetDateTimeHelper.hoje());
         String statusNormalizadoSql = statusNormalizadoSql(colunas);
+        String valorFreteSql = valorFreteSql();
         String sql = """
                 WITH base_filtrada AS (
                     SELECT *
                     %s
                 )
                 SELECT
-                    MAX([Data de extracao]) AS updated_at,
+                    MAX(%s) AS updated_at,
                     COUNT(1) AS total_cargas,
                     SUM(CASE WHEN %s IN ('delivering', 'in_transfer', 'manifested', 'em entrega', 'em transferência', 'em transferencia', 'manifestado') THEN 1 ELSE 0 END) AS em_transito,
                     SUM(CASE WHEN %s THEN 1 ELSE 0 END) AS previsao_vencida,
-                    SUM(COALESCE([Valor Frete], 0)) AS valor_frete,
+                    SUM(%s) AS valor_frete,
                     SUM(%s) AS peso_taxado,
                     CAST(
                         100.0 * SUM(CASE WHEN %s IN ('finished', 'delivered', 'finalizado', 'entregue') THEN 1 ELSE 0 END)
@@ -337,8 +354,10 @@ public class TrackingService {
                 FROM base_filtrada
                 """.formatted(
                 source.sql(),
+                dataExtracaoSql(),
                 statusNormalizadoSql,
                 previsaoVencidaSql(statusNormalizadoSql),
+                valorFreteSql,
                 pesoSql(colunas),
                 statusNormalizadoSql,
                 statusNormalizadoSql
@@ -366,6 +385,7 @@ public class TrackingService {
         String siglaRegiaoSql = siglaRegiaoDestinoSql(colunas);
         String responsavelRegiaoSql = responsavelRegiaoDestinoSql();
         String statusNormalizadoSql = statusNormalizadoSql(colunas);
+        String valorFreteSql = valorFreteSql();
         String sql = """
                 WITH base_filtrada AS (
                     SELECT *
@@ -375,9 +395,9 @@ public class TrackingService {
                     %s AS sigla,
                     %s AS responsavel,
                     SUM(%s) AS peso_taxado,
-                    SUM(COALESCE([Valor Frete], 0)) AS valor_frete,
+                    SUM(%s) AS valor_frete,
                     SUM(%s) AS valor_nota,
-                    SUM(COALESCE([Volumes], 0)) AS volumes,
+                    SUM(%s) AS volumes,
                     SUM(CASE WHEN %s THEN 1 ELSE 0 END) AS fora_prazo
                 FROM base_filtrada
                 GROUP BY
@@ -389,7 +409,9 @@ public class TrackingService {
                 siglaRegiaoSql,
                 responsavelRegiaoSql,
                 pesoSql(colunas),
+                valorFreteSql,
                 valorNfSql(colunas),
+                volumesSql(),
                 previsaoVencidaSql(statusNormalizadoSql),
                 siglaRegiaoSql,
                 responsavelRegiaoSql
@@ -407,6 +429,7 @@ public class TrackingService {
     }
 
     private List<TrackingStatusDistribuicaoDTO> buscarStatusDistribuicaoAgregado(DashboardExportSqlBuilder.ExportSql source) {
+        String valorFreteSql = valorFreteSql();
         String sql = """
                 WITH base_filtrada AS (
                     SELECT *
@@ -415,11 +438,11 @@ public class TrackingService {
                 SELECT
                     COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status Carga]))), ''), 'Sem status') AS status,
                     COUNT(1) AS total,
-                    SUM(COALESCE([Valor Frete], 0)) AS valor_frete
+                    SUM(%s) AS valor_frete
                 FROM base_filtrada
                 GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status Carga]))), ''), 'Sem status')
                 ORDER BY total DESC, status ASC
-                """.formatted(source.sql());
+                """.formatted(source.sql(), valorFreteSql);
 
         return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new TrackingStatusDistribuicaoDTO(
                 rs.getString("status"),
@@ -433,6 +456,7 @@ public class TrackingService {
             TrackingViewColumns colunas
     ) {
         String siglaRegiaoSql = siglaRegiaoDestinoSql(colunas);
+        String valorFreteSql = valorFreteSql();
         String sql = """
                 WITH base_filtrada AS (
                     SELECT *
@@ -441,9 +465,9 @@ public class TrackingService {
                 regioes AS (
                     SELECT
                         %s AS regiao,
-                        SUM(COALESCE([Valor Frete], 0)) AS valor_frete,
+                        SUM(%s) AS valor_frete,
                         COUNT(1) AS cargas,
-                        ROW_NUMBER() OVER (ORDER BY SUM(COALESCE([Valor Frete], 0)) DESC) AS rn
+                        ROW_NUMBER() OVER (ORDER BY SUM(%s) DESC) AS rn
                     FROM base_filtrada
                     GROUP BY %s
                 )
@@ -455,13 +479,296 @@ public class TrackingService {
                 FROM regioes
                 GROUP BY CASE WHEN rn <= 10 THEN regiao ELSE 'Outros' END
                 ORDER BY ordem ASC, valor_frete DESC
-                """.formatted(source.sql(), siglaRegiaoSql, siglaRegiaoSql);
+                """.formatted(source.sql(), siglaRegiaoSql, valorFreteSql, valorFreteSql, siglaRegiaoSql);
 
         return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new TrackingValorPorRegiaoDTO(
                 rs.getString("regiao_destino"),
                 decimal(rs.getBigDecimal("valor_frete")),
                 rs.getInt("cargas")
         ));
+    }
+
+    private TrackingDashboardDTO buscarDashboardLegado(FiltroConsultaDTO filtro) {
+        DashboardExportSqlBuilder.ExportSql select = sqlBuilder.buildSelect(
+                DashboardExportDefinition.TRACKING,
+                filtro,
+                escopoFilialService.escopoAtual(),
+                Set.of()
+        );
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(select.sql(), select.params());
+        TrackingOverviewDTO overview = buscarOverviewLegado(rows);
+        List<TrackingMatrizRegiaoDTO> matriz = buscarMatrizRegiaoDestinoLegada(rows);
+        TrackingChartsDTO graficosLegados = buscarGraficosLegado(rows);
+        TrackingChartsDTO graficos = new TrackingChartsDTO(
+                graficosLegados.statusDistribuicao(),
+                List.of(),
+                valorPorRegiaoDestinoTop10Legado(graficosLegados.valorPorRegiaoDestino())
+        );
+        return new TrackingDashboardDTO(overview, matriz, graficos);
+    }
+
+    private TrackingOverviewDTO buscarOverviewLegado(List<Map<String, Object>> rows) {
+        int totalCargas = rows.size();
+        if (totalCargas == 0) {
+            return new TrackingOverviewDTO(
+                    java.time.LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                    0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, 0.0
+            );
+        }
+
+        LocalDate hoje = periodoOffsetDateTimeHelper.hoje();
+        int emTransito = (int) rows.stream()
+                .filter(row -> statusEmTransito(textoRaw(row, "Status Carga")))
+                .count();
+        int previsaoVencida = (int) rows.stream()
+                .filter(row -> previsaoVencidaRaw(row, hoje))
+                .count();
+        BigDecimal valorFrete = rows.stream()
+                .map(row -> decimalRaw(row, "Valor Frete"))
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal pesoTaxado = rows.stream()
+                .map(row -> decimalRaw(row, "Peso Taxado Decimal", "Peso Taxado"))
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+        long elegiveis = rows.stream()
+                .filter(row -> !statusCancelado(textoRaw(row, "Status Carga")))
+                .count();
+        double pctFinalizado = percentual(rows.stream()
+                .filter(row -> statusFinalizado(textoRaw(row, "Status Carga")))
+                .count(), elegiveis);
+
+        return new TrackingOverviewDTO(
+                latestUpdateRaw(rows),
+                totalCargas,
+                emTransito,
+                previsaoVencida,
+                valorFrete,
+                pesoTaxado,
+                pctFinalizado
+        );
+    }
+
+    private List<TrackingMatrizRegiaoDTO> buscarMatrizRegiaoDestinoLegada(List<Map<String, Object>> rows) {
+        LocalDate hoje = periodoOffsetDateTimeHelper.hoje();
+        return rows.stream()
+                .collect(Collectors.groupingBy(
+                        row -> new MatrizRegiaoKey(siglaRegiaoDestinoLegada(row), responsavelRegiaoDestinoLegada(row)),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ))
+                .entrySet().stream()
+                .map(entry -> {
+                    List<Map<String, Object>> grupo = entry.getValue();
+                    return new TrackingMatrizRegiaoDTO(
+                            entry.getKey().sigla(),
+                            entry.getKey().responsavel(),
+                            grupo.stream()
+                                    .map(row -> decimalRaw(row, "Peso Taxado Decimal", "Peso Taxado"))
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                                    .setScale(2, RoundingMode.HALF_UP),
+                            grupo.stream()
+                                    .map(row -> decimalRaw(row, "Valor Frete"))
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                                    .setScale(2, RoundingMode.HALF_UP),
+                            grupo.stream()
+                                    .map(row -> decimalRaw(row, "Valor NF Decimal", "Valor NF"))
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                                    .setScale(2, RoundingMode.HALF_UP),
+                            grupo.stream()
+                                    .mapToInt(row -> inteiroRaw(row, "Volumes"))
+                                    .sum(),
+                            (int) grupo.stream().filter(row -> previsaoVencidaRaw(row, hoje)).count()
+                    );
+                })
+                .sorted(Comparator.comparing(TrackingMatrizRegiaoDTO::pesoTaxado).reversed()
+                        .thenComparing(TrackingMatrizRegiaoDTO::siglaRegiaoDestino))
+                .toList();
+    }
+
+    private TrackingChartsDTO buscarGraficosLegado(List<Map<String, Object>> rows) {
+        List<TrackingStatusDistribuicaoDTO> statusDistribuicao = rows.stream()
+                .collect(Collectors.groupingBy(row -> textoOuPadrao(textoRaw(row, "Status Carga"), "Sem status")))
+                .entrySet().stream()
+                .map(entry -> new TrackingStatusDistribuicaoDTO(
+                        entry.getKey(),
+                        entry.getValue().size(),
+                        entry.getValue().stream()
+                                .map(row -> decimalRaw(row, "Valor Frete"))
+                                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                                .setScale(2, RoundingMode.HALF_UP)
+                ))
+                .sorted(Comparator.comparing(TrackingStatusDistribuicaoDTO::total).reversed()
+                        .thenComparing(TrackingStatusDistribuicaoDTO::status))
+                .toList();
+
+        List<TrackingValorPorRegiaoDTO> valorPorRegiaoDestino = rows.stream()
+                .collect(Collectors.groupingBy(row -> siglaRegiaoDestinoLegada(row)))
+                .entrySet().stream()
+                .map(entry -> new TrackingValorPorRegiaoDTO(
+                        entry.getKey(),
+                        entry.getValue().stream()
+                                .map(row -> decimalRaw(row, "Valor Frete"))
+                                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                                .setScale(2, RoundingMode.HALF_UP),
+                        entry.getValue().size()
+                ))
+                .sorted(Comparator.comparing(TrackingValorPorRegiaoDTO::valorFrete).reversed()
+                        .thenComparing(TrackingValorPorRegiaoDTO::regiaoDestino))
+                .toList();
+
+        return new TrackingChartsDTO(statusDistribuicao, List.of(), valorPorRegiaoDestino);
+    }
+
+    private List<TrackingValorPorRegiaoDTO> valorPorRegiaoDestinoTop10Legado(List<TrackingValorPorRegiaoDTO> valores) {
+        if (valores.size() <= 10) {
+            return valores;
+        }
+
+        List<TrackingValorPorRegiaoDTO> resultado = new ArrayList<>(valores.subList(0, 10));
+        List<TrackingValorPorRegiaoDTO> demais = valores.subList(10, valores.size());
+        BigDecimal valorOutros = demais.stream()
+                .map(TrackingValorPorRegiaoDTO::valorFrete)
+                .map(ConsultaFiltroUtils::zeroSeNulo)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+        int cargasOutros = demais.stream().mapToInt(TrackingValorPorRegiaoDTO::cargas).sum();
+        if (valorOutros.compareTo(BigDecimal.ZERO) > 0 || cargasOutros > 0) {
+            resultado.add(new TrackingValorPorRegiaoDTO("Outros", valorOutros, cargasOutros));
+        }
+        return resultado;
+    }
+
+    private String siglaRegiaoDestinoLegada(Map<String, Object> row) {
+        return textoOuPadrao(
+                textoRaw(row, "Sigla Responsável Região Destino", "Sigla Responsavel Regiao Destino"),
+                textoOuPadrao(textoRaw(row, "Responsável pela Região de Destino", "Responsavel pela Regiao de Destino"),
+                        textoOuPadrao(textoRaw(row, "Região Destino", "Regiao Destino"), "SEM_MAP"))
+        );
+    }
+
+    private String responsavelRegiaoDestinoLegada(Map<String, Object> row) {
+        return textoOuPadrao(textoRaw(row, "Responsável pela Região de Destino", "Responsavel pela Regiao de Destino"), "Sem responsável");
+    }
+
+    private boolean statusEmTransito(String status) {
+        return status != null && STATUS_EM_TRANSITO.stream().anyMatch(item -> item.equalsIgnoreCase(status.trim()));
+    }
+
+    private boolean previsaoVencidaRaw(Map<String, Object> row, LocalDate hoje) {
+        LocalDate previsao = localDateRaw(row, "Previsão Entrega/Previsão de entrega", "Previsao Entrega/Previsao de entrega");
+        return previsao != null
+                && previsao.isBefore(hoje)
+                && !statusTerminal(textoRaw(row, "Status Carga"));
+    }
+
+    private String latestUpdateRaw(List<Map<String, Object>> rows) {
+        return rows.stream()
+                .map(row -> localDateTimeRaw(row, "Data de extracao"))
+                .filter(Objects::nonNull)
+                .max(Comparator.naturalOrder())
+                .map(data -> data.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .orElseGet(() -> java.time.LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+    }
+
+    private Object valorRaw(Map<String, Object> row, String... colunas) {
+        for (String coluna : colunas) {
+            Object valor = row.get(coluna);
+            if (valor != null) {
+                return valor;
+            }
+        }
+        return null;
+    }
+
+    private String textoRaw(Map<String, Object> row, String... colunas) {
+        Object valor = valorRaw(row, colunas);
+        return valor != null ? valor.toString() : null;
+    }
+
+    private BigDecimal decimalRaw(Map<String, Object> row, String... colunas) {
+        Object valor = valorRaw(row, colunas);
+        if (valor == null) {
+            return BigDecimal.ZERO;
+        }
+        if (valor instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        if (valor instanceof Number numero) {
+            return BigDecimal.valueOf(numero.doubleValue());
+        }
+        return ConsultaFiltroUtils.parseBigDecimal(valor.toString());
+    }
+
+    private int inteiroRaw(Map<String, Object> row, String... colunas) {
+        Object valor = valorRaw(row, colunas);
+        if (valor == null) {
+            return 0;
+        }
+        if (valor instanceof Number numero) {
+            return numero.intValue();
+        }
+        return ConsultaFiltroUtils.parseBigDecimal(valor.toString()).intValue();
+    }
+
+    private LocalDate localDateRaw(Map<String, Object> row, String... colunas) {
+        LocalDateTime dataHora = localDateTimeRaw(row, colunas);
+        if (dataHora != null) {
+            return dataHora.toLocalDate();
+        }
+        Object valor = valorRaw(row, colunas);
+        if (valor instanceof java.sql.Date sqlDate) {
+            return sqlDate.toLocalDate();
+        }
+        String texto = valor != null ? valor.toString().trim() : "";
+        if (texto.isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(texto);
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
+    }
+
+    private LocalDateTime localDateTimeRaw(Map<String, Object> row, String... colunas) {
+        Object valor = valorRaw(row, colunas);
+        if (valor == null) {
+            return null;
+        }
+        if (valor instanceof LocalDateTime localDateTime) {
+            return localDateTime;
+        }
+        if (valor instanceof OffsetDateTime offsetDateTime) {
+            return offsetDateTime.toLocalDateTime();
+        }
+        if (valor instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        if (valor instanceof java.sql.Date sqlDate) {
+            return sqlDate.toLocalDate().atStartOfDay();
+        }
+        if (valor instanceof java.util.Date date) {
+            return LocalDateTime.ofInstant(date.toInstant(), java.time.ZoneId.of(PeriodoOffsetDateTimeHelper.DEFAULT_ZONE_ID));
+        }
+
+        String texto = valor.toString().trim();
+        if (texto.isEmpty()) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(texto).toLocalDateTime();
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return LocalDateTime.parse(texto);
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return LocalDate.parse(texto).atStartOfDay();
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
     }
 
     private FiltroConsultaDTO aplicarFilialAtualObrigatoria(FiltroConsultaDTO filtro, EscopoFilialService.EscopoFilial escopo) {
@@ -573,6 +880,39 @@ public class TrackingService {
                 : "");
     }
 
+    private String dataExtracaoSql() {
+        return """
+                COALESCE(
+                    TRY_CONVERT(DATETIME2, [Data de extracao]),
+                    TRY_CONVERT(DATETIME2, CONVERT(NVARCHAR(50), [Data de extracao]), 126),
+                    TRY_CONVERT(DATETIME2, CONVERT(NVARCHAR(50), [Data de extracao]), 120),
+                    TRY_CONVERT(DATETIME2, CONVERT(NVARCHAR(50), [Data de extracao]), 103)
+                )
+                """;
+    }
+
+    private String valorFreteSql() {
+        return """
+                COALESCE(
+                    TRY_CONVERT(DECIMAL(18, 2), [Valor Frete]),
+                    TRY_CONVERT(DECIMAL(18, 2), REPLACE(CONVERT(NVARCHAR(50), [Valor Frete]), ',', '.')),
+                    TRY_CONVERT(DECIMAL(18, 2), REPLACE(REPLACE(CONVERT(NVARCHAR(50), [Valor Frete]), '.', ''), ',', '.')),
+                    0
+                )
+                """;
+    }
+
+    private String volumesSql() {
+        return """
+                COALESCE(
+                    TRY_CONVERT(INT, [Volumes]),
+                    TRY_CONVERT(INT, TRY_CONVERT(DECIMAL(18, 3), [Volumes])),
+                    TRY_CONVERT(INT, TRY_CONVERT(DECIMAL(18, 3), REPLACE(CONVERT(NVARCHAR(50), [Volumes]), ',', '.'))),
+                    0
+                )
+                """;
+    }
+
     private String siglaRegiaoDestinoSql(TrackingViewColumns colunas) {
         if (colunas.siglaResponsavelRegiaoDestino()) {
             return """
@@ -663,6 +1003,9 @@ public class TrackingService {
 
     private boolean deveUsarConsultaLegada(FiltroConsultaDTO filtro, EscopoFilialService.EscopoFilial escopo) {
         return escopo.acessoTotal() && filtro.filtros().isEmpty();
+    }
+
+    private record MatrizRegiaoKey(String sigla, String responsavel) {
     }
 
     private record TrackingViewColumns(

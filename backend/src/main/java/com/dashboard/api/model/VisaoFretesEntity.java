@@ -86,8 +86,14 @@ public class VisaoFretesEntity {
     @Column(name = "[Destino]")
     private String destinoCidade;
 
+    @Column(name = "[Cidade Destino]")
+    private String cidadeDestino;
+
     @Column(name = "[UF Destino]")
     private String destinoUf;
+
+    @Column(name = "[Região Destino]")
+    private String regiaoDestino;
 
     @Column(name = "[Filial]")
     private String filialNome;
@@ -136,6 +142,9 @@ public class VisaoFretesEntity {
 
     @Column(name = "[Performance Status Dif de Dias Oficial]")
     private String performanceStatusDifDiasOficial;
+
+    @Column(name = "[Comprovante Anexado]")
+    private String comprovanteAnexado;
 
     @Column(name = "[Modal]")
     private String modal;
@@ -195,6 +204,77 @@ public class VisaoFretesEntity {
     private LocalDateTime dataExtracao;
 
     protected VisaoFretesEntity() {
+    }
+
+    public static VisaoFretesEntity criarParaPainel(
+            Long id,
+            OffsetDateTime dataFrete,
+            Long numeroMinuta,
+            BigDecimal valorTotal,
+            BigDecimal subtotal,
+            Integer volumes,
+            BigDecimal pesoTaxado,
+            String pagadorNome,
+            String remetenteNome,
+            String destinatarioNome,
+            String origemUf,
+            String destinoUf,
+            String destinoCidade,
+            String filialNome,
+            String filialEmissora,
+            String responsavelRegiaoDestino,
+            String classificacaoNome,
+            LocalDate previsaoEntrega,
+            String status,
+            Boolean cortesiaFlag,
+            String tipoFrete,
+            String modal,
+            Integer numeroCte,
+            OffsetDateTime cteEmissao,
+            OffsetDateTime dataReferenciaFaturamento,
+            Boolean elegivelFaturamento,
+            Long cteId,
+            Integer nfseNumero,
+            BigDecimal valorIcms,
+            BigDecimal valorPis,
+            BigDecimal valorCofins,
+            LocalDateTime dataExtracao
+    ) {
+        VisaoFretesEntity entity = new VisaoFretesEntity();
+        entity.id = id;
+        entity.dataFrete = dataFrete;
+        entity.numeroMinuta = numeroMinuta;
+        entity.valorTotal = valorTotal;
+        entity.subtotal = subtotal;
+        entity.volumes = volumes;
+        entity.pesoTaxado = pesoTaxado;
+        entity.pagadorNome = pagadorNome;
+        entity.remetenteNome = remetenteNome;
+        entity.destinatarioNome = destinatarioNome;
+        entity.origemUf = origemUf;
+        entity.destinoUf = destinoUf;
+        entity.destinoCidade = destinoCidade;
+        entity.cidadeDestino = destinoCidade;
+        entity.filialNome = filialNome;
+        entity.filialEmissora = filialEmissora;
+        entity.responsavelRegiaoDestino = responsavelRegiaoDestino;
+        entity.classificacaoNome = classificacaoNome;
+        entity.previsaoEntrega = previsaoEntrega;
+        entity.status = status;
+        entity.cortesiaFlag = cortesiaFlag;
+        entity.tipoFrete = tipoFrete;
+        entity.modal = modal;
+        entity.numeroCte = numeroCte;
+        entity.cteEmissao = cteEmissao;
+        entity.dataReferenciaFaturamento = dataReferenciaFaturamento;
+        entity.elegivelFaturamento = elegivelFaturamento;
+        entity.cteId = cteId;
+        entity.nfseNumero = nfseNumero;
+        entity.valorIcms = valorIcms;
+        entity.valorPis = valorPis;
+        entity.valorCofins = valorCofins;
+        entity.dataExtracao = dataExtracao;
+        return entity;
     }
 
     public Long getId() {
@@ -289,8 +369,16 @@ public class VisaoFretesEntity {
         return destinoCidade;
     }
 
+    public String getCidadeDestino() {
+        return cidadeDestino;
+    }
+
     public String getDestinoUf() {
         return destinoUf;
+    }
+
+    public String getRegiaoDestino() {
+        return regiaoDestino;
     }
 
     public String getFilialNome() {
@@ -355,6 +443,10 @@ public class VisaoFretesEntity {
 
     public String getPerformanceStatusDifDiasOficial() {
         return performanceStatusDifDiasOficial;
+    }
+
+    public String getComprovanteAnexado() {
+        return comprovanteAnexado;
     }
 
     public String getModal() {
