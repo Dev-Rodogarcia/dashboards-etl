@@ -23,15 +23,16 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                     v.status_viagem,
                     v.placa_veiculo,
                     NULLIF(LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(v.rota_descricao, N'/BRASIL', N''), CHAR(13), N' '), CHAR(10), N' '))), N'') AS rota_limpa,
+                    CAST(v.data_hora_prev_ini AS DATETIME2(0)) AS data_hora_prev_ini_at,
                     CAST(v.data_hora_real_ini AS DATETIME2(0)) AS data_hora_real_ini_at,
                     CAST(v.data_hora_real_fim AS DATETIME2(0)) AS data_hora_real_fim_at,
                     CAST(v.data_hora_prev_fim AS DATETIME2(0)) AS data_hora_prev_fim_at,
                     CAST(v.data_hora_identificou_fim_viagem AS DATETIME2(0)) AS data_hora_identificou_fim_at,
-                    CAST(COALESCE(v.data_hora_real_fim, v.data_hora_prev_fim, v.data_hora_identificou_fim_viagem) AS DATETIME2(0)) AS data_corte_base_at,
+                    CAST(COALESCE(v.data_hora_prev_ini, v.data_hora_real_ini) AS DATETIME2(0)) AS data_base_sm_at,
                     v.data_extracao
                 FROM [ETL_SISTEMA].dbo.raster_viagens v
-                WHERE COALESCE(v.data_hora_real_fim, v.data_hora_prev_fim, v.data_hora_identificou_fim_viagem) >= CAST(? AS DATE)
-                  AND COALESCE(v.data_hora_real_fim, v.data_hora_prev_fim, v.data_hora_identificou_fim_viagem) < DATEADD(DAY, 1, CAST(? AS DATE))
+                WHERE COALESCE(v.data_hora_prev_ini, v.data_hora_real_ini) >= CAST(? AS DATE)
+                  AND COALESCE(v.data_hora_prev_ini, v.data_hora_real_ini) < DATEADD(DAY, 1, CAST(? AS DATE))
             ),
             paradas AS (
                 SELECT
@@ -48,11 +49,12 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                     v.status_viagem,
                     v.placa_veiculo,
                     v.rota_limpa,
+                    v.data_hora_prev_ini_at,
                     v.data_hora_real_ini_at,
                     v.data_hora_real_fim_at,
                     v.data_hora_prev_fim_at,
                     v.data_hora_identificou_fim_at,
-                    v.data_corte_base_at,
+                    v.data_base_sm_at,
                     CASE
                         WHEN p.parada_data_extracao IS NULL THEN v.data_extracao
                         WHEN v.data_extracao IS NULL THEN p.parada_data_extracao
@@ -135,10 +137,10 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                     rc.*,
                     CONCAT(rc.origem_sm, N' x ', rc.destino_sm) AS origem_destino,
                     apoio.horario_corte,
-                    CAST(rc.data_corte_base_at AS DATE) AS data_corte,
+                    CAST(rc.data_base_sm_at AS DATE) AS data_corte,
                     CASE
-                        WHEN rc.data_corte_base_at IS NULL OR apoio.horario_corte IS NULL THEN NULL
-                        ELSE DATEADD(SECOND, DATEDIFF(SECOND, CAST(N'00:00:00' AS TIME), apoio.horario_corte), CAST(CAST(rc.data_corte_base_at AS DATE) AS DATETIME2(0)))
+                        WHEN rc.data_base_sm_at IS NULL OR apoio.horario_corte IS NULL THEN NULL
+                        ELSE DATEADD(SECOND, DATEDIFF(SECOND, CAST(N'00:00:00' AS TIME), apoio.horario_corte), CAST(CAST(rc.data_base_sm_at AS DATE) AS DATETIME2(0)))
                     END AS corte_at
                 FROM rota_canonica rc
                 LEFT JOIN hc_apoio apoio
@@ -173,7 +175,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                 END AS transit_time,
                 CAST(data_hora_real_ini_at AS TIME(0)) AS inicio,
                 CAST(NULL AS TIME(0)) AS manifestado,
-                CAST(data_hora_real_ini_at AS TIME(0)) AS sm_gerada,
+                CAST(data_base_sm_at AS TIME(0)) AS sm_gerada,
                 CAST(corte_at AS TIME(0)) AS corte,
                 data_hora_real_ini_at AS saida_efetiva,
                 corte_at AS horario_corte,

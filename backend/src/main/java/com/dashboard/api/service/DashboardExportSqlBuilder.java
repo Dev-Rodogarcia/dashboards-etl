@@ -36,7 +36,7 @@ class DashboardExportSqlBuilder {
         String orderBy = definition.orderBy().isEmpty() ? "" : " ORDER BY " + String.join(", ", definition.orderBy());
 
         if (definition.dedupConfig() == null) {
-            return new ExportSql("SELECT * FROM " + definition.viewName() + " base WHERE " + parts.where() + orderBy, parts.params());
+            return new ExportSql("SELECT * FROM " + parts.sourceSql() + " base WHERE " + parts.where() + orderBy, parts.params());
         }
 
         DashboardExportDefinition.DedupConfig dedup = definition.dedupConfig();
@@ -49,7 +49,7 @@ class DashboardExportSqlBuilder {
                     WHERE %s
                 ) exportacao
                 WHERE [__rn] = 1%s
-                """.formatted(dedup.partitionBy(), dedupOrderBy, definition.viewName(), parts.where(), orderBy);
+                """.formatted(dedup.partitionBy(), dedupOrderBy, parts.sourceSql(), parts.where(), orderBy);
         return new ExportSql(Objects.requireNonNull(sql, "sql"), parts.params());
     }
 
@@ -62,7 +62,7 @@ class DashboardExportSqlBuilder {
         SqlParts parts = buildBase(definition, filtro, escopo, filtrosIgnorados);
 
         if (definition.dedupConfig() == null) {
-            return new ExportSql("SELECT COUNT(1) FROM " + definition.viewName() + " base WHERE " + parts.where(), parts.params());
+            return new ExportSql("SELECT COUNT(1) FROM " + parts.sourceSql() + " base WHERE " + parts.where(), parts.params());
         }
 
         DashboardExportDefinition.DedupConfig dedup = definition.dedupConfig();
@@ -75,7 +75,7 @@ class DashboardExportSqlBuilder {
                     WHERE %s
                 ) exportacao
                 WHERE [__rn] = 1
-                """.formatted(dedup.partitionBy(), dedupOrderBy, definition.viewName(), parts.where());
+                """.formatted(dedup.partitionBy(), dedupOrderBy, parts.sourceSql(), parts.where());
         return new ExportSql(Objects.requireNonNull(sql, "sql"), parts.params());
     }
 
@@ -94,7 +94,7 @@ class DashboardExportSqlBuilder {
                   AND %s IS NOT NULL
                   AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), %s))) <> ''
                 ORDER BY valor
-                """.formatted(coluna, definition.viewName(), parts.where(), coluna, coluna);
+                """.formatted(coluna, parts.sourceSql(), parts.where(), coluna, coluna);
         return new ExportSql(Objects.requireNonNull(sql, "sql"), parts.params());
     }
 
@@ -105,7 +105,7 @@ class DashboardExportSqlBuilder {
             Set<String> filtrosIgnorados
     ) {
         SqlParts parts = buildBase(definition, filtro, escopo, filtrosIgnorados);
-        return new ExportSql("FROM " + definition.viewName() + " base WHERE " + parts.where(), parts.params());
+        return new ExportSql("FROM " + parts.sourceSql() + " base WHERE " + parts.where(), parts.params());
     }
 
     private SqlParts buildBase(
@@ -124,7 +124,101 @@ class DashboardExportSqlBuilder {
         adicionarFiltrosTabela(where, params, definition, filtro);
 
         String whereSql = Objects.requireNonNull(where.isEmpty() ? "1 = 1" : String.join(" AND ", where), "where");
-        return new SqlParts(whereSql, params);
+        String sourceSql = definition == DashboardExportDefinition.TRACKING
+                ? aplicarFiltrosBaseTracking(definition.viewName(), params, filtro, escopo, filtrosIgnorados)
+                : definition.viewName();
+        return new SqlParts(whereSql, params, sourceSql);
+    }
+
+    private String aplicarFiltrosBaseTracking(
+            String sourceSql,
+            MapSqlParameterSource params,
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            Set<String> filtrosIgnorados
+    ) {
+        List<String> whereBase = new ArrayList<>();
+        whereBase.add("base_raw.[Data do frete] >= :inicioOffset AND base_raw.[Data do frete] < :fimOffset");
+
+        if (!escopo.acessoTotal() && !escopo.filiaisOrdenadas().isEmpty()) {
+            String predicadoEscopo = predicadoFilialBaseTracking(
+                    "escopoFiliais",
+                    "escopoFiliaisCodigos",
+                    List.of(
+                            "base_raw.[Filial Emissora]",
+                            "base_raw.[Filial Origem]",
+                            "base_raw.[Filial Atual]",
+                            "base_raw.[Localização Atual]",
+                            "base_raw.[Filial Destino]"
+                    ),
+                    params
+            );
+            if (predicadoEscopo != null) {
+                whereBase.add(predicadoEscopo);
+            }
+        }
+
+        adicionarFiltroBaseTracking(whereBase, params, filtro, filtrosIgnorados, "filialEmissora", "filtro_filialEmissora", "filtro_filialEmissoraCodigos", List.of("base_raw.[Filial Emissora]"), true);
+        adicionarFiltroBaseTracking(whereBase, params, filtro, filtrosIgnorados, "filialAtual", "filtro_filialAtual", "filtro_filialAtualCodigos", List.of("base_raw.[Filial Atual]", "base_raw.[Localização Atual]", "base_raw.[Filial Emissora]"), true);
+        adicionarFiltroBaseTracking(whereBase, params, filtro, filtrosIgnorados, "filialDestino", "filtro_filialDestino", "filtro_filialDestinoCodigos", List.of("base_raw.[Filial Destino]"), true);
+        adicionarFiltroBaseTracking(whereBase, params, filtro, filtrosIgnorados, "regiaoOrigem", "filtro_regiaoOrigem", null, List.of("base_raw.[Região Origem]"), false);
+        adicionarFiltroBaseTracking(whereBase, params, filtro, filtrosIgnorados, "regiaoDestino", "filtro_regiaoDestino", null, List.of("base_raw.[Região Destino]"), false);
+        adicionarFiltroBaseTracking(whereBase, params, filtro, filtrosIgnorados, "statusCarga", "filtro_statusCarga", null, List.of("base_raw.[Status Carga]"), false);
+
+        String substituicao = whereBase.isEmpty()
+                ? ""
+                : "AND " + String.join("\n                      AND ", whereBase);
+        return sourceSql.replace("/*__TRACKING_BASE_FILTERS__*/", substituicao);
+    }
+
+    private void adicionarFiltroBaseTracking(
+            List<String> whereBase,
+            MapSqlParameterSource params,
+            FiltroConsultaDTO filtro,
+            Set<String> filtrosIgnorados,
+            String chaveFiltro,
+            String paramName,
+            String codigoParamName,
+            List<String> colunas,
+            boolean filialFlexivel
+    ) {
+        if (filtrosIgnorados.contains(chaveFiltro) || !filtro.temFiltro(chaveFiltro) || !params.hasValue(paramName)) {
+            return;
+        }
+
+        String predicado = filialFlexivel
+                ? predicadoFilialBaseTracking(paramName, codigoParamName, colunas, params)
+                : predicadoDiretoBaseTracking(paramName, colunas);
+        if (predicado != null) {
+            whereBase.add(predicado);
+        }
+    }
+
+    private String predicadoFilialBaseTracking(
+            String paramName,
+            String codigoParamName,
+            List<String> colunas,
+            MapSqlParameterSource params
+    ) {
+        if (!params.hasValue(paramName)) {
+            return null;
+        }
+
+        List<String> predicados = new ArrayList<>(colunas.stream()
+                .map(coluna -> coluna + " IN (:" + paramName + ")")
+                .toList());
+        if (codigoParamName != null && params.hasValue(codigoParamName)) {
+            predicados.addAll(colunas.stream()
+                    .map(coluna -> coluna + " IN (:" + codigoParamName + ")")
+                    .toList());
+        }
+        return "(" + String.join(" OR ", predicados) + ")";
+    }
+
+    private String predicadoDiretoBaseTracking(String paramName, List<String> colunas) {
+        return "(" + String.join(" OR ", colunas.stream()
+                .map(coluna -> coluna + " IN (:" + paramName + ")")
+                .toList()) + ")";
     }
 
     private void adicionarPeriodo(
@@ -150,6 +244,13 @@ class DashboardExportSqlBuilder {
         }
 
         JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(dataInicio, dataFim);
+        if (definition == DashboardExportDefinition.TRACKING) {
+            where.add(definition.dateColumn() + " >= :inicioOffset AND " + definition.dateColumn() + " < :fimOffset");
+            params.addValue("inicioOffset", janela.inicioInclusivo());
+            params.addValue("fimOffset", janela.fimExclusivo());
+            return;
+        }
+
         String colunaData = "TRY_CONVERT(datetimeoffset, " + definition.dateColumn() + ")";
         where.add(colunaData + " >= :inicioOffset AND " + colunaData + " < :fimOffset");
         params.addValue("inicioOffset", janela.inicioInclusivo());
@@ -173,7 +274,7 @@ class DashboardExportSqlBuilder {
         }
 
         if (definition == DashboardExportDefinition.TRACKING) {
-            adicionarFiltroFilialFlexivel(where, params, "escopoFiliais", "escopoFiliaisCodigos", colunas, escopo.filiaisOrdenadas());
+            adicionarFiltroFilialFlexivelTracking(where, params, "escopoFiliais", "escopoFiliaisCodigos", colunas, escopo.filiaisOrdenadas());
             return;
         }
 
@@ -200,7 +301,7 @@ class DashboardExportSqlBuilder {
 
             if (definition == DashboardExportDefinition.TRACKING && chave.startsWith("filial")) {
                 String paramName = "filtro_" + chave;
-                adicionarFiltroFilialFlexivel(
+                adicionarFiltroFilialFlexivelTracking(
                         where,
                         params,
                         paramName,
@@ -218,10 +319,45 @@ class DashboardExportSqlBuilder {
 
             String paramName = "filtro_" + chave;
             params.addValue(paramName, valores);
-            where.add("(" + String.join(" OR ", entry.getValue().stream()
-                    .map(coluna -> normalizarSql(coluna) + " IN (:" + paramName + ")")
-                    .toList()) + ")");
+            if (definition == DashboardExportDefinition.TRACKING) {
+                where.add("(" + String.join(" OR ", entry.getValue().stream()
+                        .map(coluna -> coluna + " IN (:" + paramName + ")")
+                        .toList()) + ")");
+            } else {
+                where.add("(" + String.join(" OR ", entry.getValue().stream()
+                        .map(coluna -> normalizarSql(coluna) + " IN (:" + paramName + ")")
+                        .toList()) + ")");
+            }
         }
+    }
+
+    private void adicionarFiltroFilialFlexivelTracking(
+            List<String> where,
+            MapSqlParameterSource params,
+            String paramName,
+            String codigoParamName,
+            List<String> colunas,
+            Collection<String> valores
+    ) {
+        List<String> normalizados = normalizar(valores);
+        if (normalizados.isEmpty()) {
+            return;
+        }
+
+        params.addValue(paramName, normalizados);
+        List<String> predicados = new ArrayList<>(colunas.stream()
+                .map(coluna -> coluna + " IN (:" + paramName + ")")
+                .toList());
+
+        List<String> codigos = codigosFiliais(normalizados);
+        if (!codigos.isEmpty()) {
+            params.addValue(codigoParamName, codigos);
+            predicados.addAll(colunas.stream()
+                    .map(coluna -> coluna + " IN (:" + codigoParamName + ")")
+                    .toList());
+        }
+
+        where.add("(" + String.join(" OR ", predicados) + ")");
     }
 
     private void adicionarFiltroFilialFlexivel(
@@ -976,17 +1112,32 @@ class DashboardExportSqlBuilder {
         return valores.stream()
                 .filter(valor -> valor != null && !valor.isBlank())
                 .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
-                .map(valor -> valor.split("\\s*[-–—]\\s*", 2)[0].trim())
-                .filter(valor -> valor.length() >= 3)
-                .map(valor -> valor.substring(0, 3))
+                .map(this::codigoFilial)
+                .filter(Objects::nonNull)
                 .distinct()
                 .toList();
+    }
+
+    private String codigoFilial(String valor) {
+        String[] partes = valor.split("\\s*[-–—]\\s*");
+        if (partes.length == 0) {
+            return null;
+        }
+
+        String codigo = partes[0].trim();
+        if ("sem_map".equals(codigo) && partes.length > 1) {
+            codigo = partes[1].trim();
+        }
+        if (codigo.length() < 3) {
+            return null;
+        }
+        return codigo.substring(0, 3);
     }
 
     record ExportSql(@NonNull String sql, @NonNull MapSqlParameterSource params) {
     }
 
-    private record SqlParts(@NonNull String where, @NonNull MapSqlParameterSource params) {
+    private record SqlParts(@NonNull String where, @NonNull MapSqlParameterSource params, @NonNull String sourceSql) {
     }
 
     private record TableFilterColumns(

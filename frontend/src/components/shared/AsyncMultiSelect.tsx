@@ -1,13 +1,22 @@
 import { useId, useMemo, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
+export interface AsyncMultiSelectOpcao {
+  value: string;
+  label: string;
+  description?: string | null;
+}
+
+type AsyncMultiSelectOpcaoEntrada = string | AsyncMultiSelectOpcao;
+
 interface AsyncMultiSelectProps {
   label: string;
-  opcoes: string[];
+  opcoes: AsyncMultiSelectOpcaoEntrada[];
   selecionados: string[];
   onChange: (valores: string[]) => void;
   placeholder?: string;
   isLoading?: boolean;
+  onSearchChange?: (busca: string) => void;
 }
 
 export default function AsyncMultiSelect({
@@ -17,22 +26,50 @@ export default function AsyncMultiSelect({
   onChange,
   placeholder = 'Selecionar',
   isLoading,
+  onSearchChange,
 }: AsyncMultiSelectProps) {
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState('');
   const labelId = useId();
   const valueId = useId();
-  const opcoesEfetivas = opcoes;
+  const opcoesEfetivas = useMemo(() => {
+    const porValor = new Map<string, AsyncMultiSelectOpcao>();
+
+    selecionados.forEach((valor) => {
+      porValor.set(valor, { value: valor, label: valor });
+    });
+
+    opcoes.forEach((opcao) => {
+      const normalizada = typeof opcao === 'string'
+        ? { value: opcao, label: opcao }
+        : opcao;
+      porValor.set(normalizada.value, normalizada);
+    });
+
+    return Array.from(porValor.values());
+  }, [opcoes, selecionados]);
 
   function handleOpenChange(next: boolean) {
     setAberto(next);
-    if (!next) setBusca(''); // reset busca ao fechar
+    if (!next) {
+      setBusca('');
+      onSearchChange?.('');
+    }
+  }
+
+  function handleBuscaChange(valor: string) {
+    setBusca(valor);
+    onSearchChange?.(valor);
   }
 
   const opcoesFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     if (!termo) return opcoesEfetivas;
-    return opcoesEfetivas.filter((o) => o.toLowerCase().includes(termo));
+    return opcoesEfetivas.filter((opcao) => (
+      opcao.label.toLowerCase().includes(termo)
+      || opcao.value.toLowerCase().includes(termo)
+      || (opcao.description?.toLowerCase().includes(termo) ?? false)
+    ));
   }, [busca, opcoesEfetivas]);
 
   function alternar(valor: string) {
@@ -93,7 +130,7 @@ export default function AsyncMultiSelect({
         <input
           type="search"
           value={busca}
-          onChange={(e) => setBusca(e.target.value)}
+          onChange={(e) => handleBuscaChange(e.target.value)}
           placeholder={`Buscar ${label.toLowerCase()}…`}
           className="mb-3 w-full rounded-lg border px-3 py-2 text-sm outline-none
                      transition-all duration-150 focus:border-[var(--color-primary)]"
@@ -130,10 +167,10 @@ export default function AsyncMultiSelect({
         {/* Lista */}
         <div className="max-h-56 space-y-0.5 overflow-y-auto">
           {opcoesFiltradas.map((opcao) => {
-            const selecionado = selecionados.includes(opcao);
+            const selecionado = selecionados.includes(opcao.value);
             return (
               <label
-                key={opcao}
+                key={opcao.value}
                 className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm
                            transition-all duration-100"
                 style={
@@ -155,11 +192,18 @@ export default function AsyncMultiSelect({
                 <input
                   type="checkbox"
                   checked={selecionado}
-                  onChange={() => alternar(opcao)}
+                  onChange={() => alternar(opcao.value)}
                   className="shrink-0 cursor-pointer rounded"
                   style={{ accentColor: 'var(--color-primary)' }}
                 />
-                <span className="truncate">{opcao}</span>
+                <span className="min-w-0">
+                  <span className="block truncate">{opcao.label}</span>
+                  {opcao.description && (
+                    <span className="block truncate text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                      {opcao.description}
+                    </span>
+                  )}
+                </span>
               </label>
             );
           })}

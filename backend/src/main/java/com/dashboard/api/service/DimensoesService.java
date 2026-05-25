@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.dimensoes.PlanoContasDimDTO;
+import com.dashboard.api.dto.dimensoes.PagadorDimDTO;
 import com.dashboard.api.dto.dimensoes.UsuarioDimDTO;
 import com.dashboard.api.dto.dimensoes.VeiculoDimDTO;
 import com.dashboard.api.repository.DimFilialRepository;
@@ -35,6 +36,7 @@ public class DimensoesService {
 
     private static final Logger log = LoggerFactory.getLogger(DimensoesService.class);
     private static final Duration CACHE_FILIAIS_TTL = Duration.ofMinutes(10);
+    private static final int LIMITE_MAXIMO_PAGADORES = 50;
     private static final String CACHE_FILIAIS_KEY = "filiais";
     private static final List<String> FILIAIS_OPERACIONAIS_PADRAO = List.of(
             "AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
@@ -214,6 +216,27 @@ public class DimensoesService {
                     ex.getMostSpecificCause().getMessage());
             return List.of();
         }
+    }
+
+    public List<PagadorDimDTO> buscarPagadores(String busca, int limite) {
+        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        String termo = busca == null ? "" : busca.trim().toLowerCase(Locale.ROOT);
+        int buscaVazia = termo.isBlank() ? 1 : 0;
+        int limiteSeguro = Math.max(1, Math.min(limite, LIMITE_MAXIMO_PAGADORES));
+        List<String> escopoFiliais = escopo.acessoTotal()
+                ? List.of("__todos__")
+                : filiaisNormalizadas(escopo);
+        int escopoFiliaisVazio = escopo.acessoTotal() ? 1 : 0;
+
+        return fretesRepository.buscarPagadores(
+                        buscaVazia == 1 ? "" : termo + "%",
+                        buscaVazia,
+                        escopoFiliais,
+                        escopoFiliaisVazio,
+                        limiteSeguro
+                ).stream()
+                .map(row -> new PagadorDimDTO(row.getNome(), row.getDocumento()))
+                .toList();
     }
 
     public List<String> listarMotoristas() {

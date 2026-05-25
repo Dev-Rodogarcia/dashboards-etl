@@ -12,6 +12,10 @@ export type ColunaTabelaAnalitica<T> = ColunaTabela<T> & {
 
 type ItemPaginacao = number | 'ellipsis-start' | 'ellipsis-end';
 
+function formatarInteiro(valor: number): string {
+  return valor.toLocaleString('pt-BR');
+}
+
 interface AnalyticalDataTableProps<T> {
   dados: T[];
   colunas: ColunaTabelaAnalitica<T>[];
@@ -495,7 +499,7 @@ export default function AnalyticalDataTable<T>({
   const paginaSegura = Math.min(paginaAtual, totalPaginas);
   const inicio = (paginaSegura - 1) * tamanhoPagina;
   const fimExibido = Math.min(inicio + dados.length, totalReal);
-  const resumoRegistros = `${totalReal} registros encontrados`;
+  const resumoRegistros = `${formatarInteiro(totalReal)} registros encontrados`;
   const statusOptionsEfetivas = statusOptions ?? [];
   const larguraMinimaTabela = calcularLarguraMinimaTabela(colunas);
 
@@ -746,7 +750,7 @@ export default function AnalyticalDataTable<T>({
         style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
       >
         <span>
-          Mostrando {dados.length === 0 ? 0 : inicio + 1} a {fimExibido} de {totalReal}
+          Mostrando {formatarInteiro(dados.length === 0 ? 0 : inicio + 1)} a {formatarInteiro(fimExibido)} de {formatarInteiro(totalReal)}
         </span>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button

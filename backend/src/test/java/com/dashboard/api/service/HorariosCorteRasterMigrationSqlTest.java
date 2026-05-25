@@ -51,11 +51,32 @@ class HorariosCorteRasterMigrationSqlTest {
     }
 
     @Test
+    void migrationV024DeveAncorarCorteNaDataOperacaoSemViradaPorInicio() throws IOException {
+        String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
+                "V024__corrigir_sla_horario_corte.sql"));
+
+        assertThat(sql).contains("DATEADD(SECOND, DATEDIFF(SECOND, CAST(''00:00:00'' AS TIME(0)), hc.corte), CAST(hc.data_operacao AS DATETIME2(0)))");
+        assertThat(sql).contains("WHEN sm_gerada_at <= corte_at THEN CAST(1 AS BIT)");
+        assertThat(sql).doesNotContain("hc.corte < hc.inicio");
+        assertThat(MOJIBAKE_PATTERN.matcher(sql).find()).isFalse();
+    }
+
+    @Test
     void migrationV013DoBackendDeveFicarIgualAoCatalogoDatabase() throws IOException {
         String backendSql = lerSql(Path.of("src", "main", "resources", "db", "migration",
                 "V013__horarios_corte_consumir_raster_etl.sql"));
         String catalogoSql = lerSql(Path.of("..", "databases", "DASHBOARDS", "migrations",
                 "V013__horarios_corte_consumir_raster_etl.sql"));
+
+        assertThat(backendSql).isEqualTo(catalogoSql);
+    }
+
+    @Test
+    void migrationV024DoBackendDeveFicarIgualAoCatalogoDatabase() throws IOException {
+        String backendSql = lerSql(Path.of("src", "main", "resources", "db", "migration",
+                "V024__corrigir_sla_horario_corte.sql"));
+        String catalogoSql = lerSql(Path.of("..", "databases", "DASHBOARDS", "migrations",
+                "V024__corrigir_sla_horario_corte.sql"));
 
         assertThat(backendSql).isEqualTo(catalogoSql);
     }

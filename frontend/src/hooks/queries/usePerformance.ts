@@ -6,12 +6,30 @@ import {
   buscarPerformanceOverview,
   buscarPerformanceSerieTemporal,
   buscarPerformanceStatus,
+  buscarPerformanceTabela,
   buscarPerformanceTabelaPaginada,
 } from '../../api/endpoints/performanceServico';
 import type { PerformanceDrilldownParams, PerformanceFiltro, PerformanceTempoNivel } from '../../types/performance';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 const STALE_TIME = 5 * 60 * 1000;
 const QUERY_KEY = ['performance'];
+
+export function performanceHistoricoQueryKey(filtro: PerformanceFiltro, periodoMeses?: number) {
+  return [
+    ...QUERY_KEY,
+    'historico',
+    periodoMeses ?? null,
+    filtro.dataInicio,
+    filtro.dataFim,
+    filtro.filiais ?? [],
+    filtro.status ?? [],
+    filtro.pagadores ?? [],
+    filtro.responsaveis ?? [],
+    filtro.regioesDestino ?? [],
+    filtro.cidadesDestino ?? [],
+  ];
+}
 
 export function usePerformanceOverview(filtro: PerformanceFiltro) {
   return useQuery({
@@ -45,9 +63,9 @@ export function usePerformanceStatus(filtro: PerformanceFiltro) {
   });
 }
 
-export function usePerformanceHistorico(filtro: PerformanceFiltro) {
+export function usePerformanceHistorico(filtro: PerformanceFiltro, periodoMeses?: number) {
   return useQuery({
-    queryKey: [...QUERY_KEY, 'historico', filtro],
+    queryKey: performanceHistoricoQueryKey(filtro, periodoMeses),
     queryFn: () => buscarPerformanceHistorico(filtro),
     staleTime: STALE_TIME,
     retry: 1,
@@ -76,14 +94,30 @@ export function usePerformanceAging(filtro: PerformanceFiltro) {
   });
 }
 
+export function usePerformanceTabela(
+  filtro: PerformanceFiltro,
+  pagina: number,
+  tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
+) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'tabela', filtro, pagina, tamanhoPagina, filtrosTabela],
+    queryFn: () => buscarPerformanceTabela(filtro, pagina, tamanhoPagina, filtrosTabela),
+    placeholderData: (previousData) => previousData,
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
 export function usePerformanceTabelaPaginada(
   filtro: PerformanceFiltro,
   pagina: number,
   tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
 ) {
   return useQuery({
-    queryKey: [...QUERY_KEY, 'tabela-paginada', filtro, pagina, tamanhoPagina],
-    queryFn: () => buscarPerformanceTabelaPaginada(filtro, pagina, tamanhoPagina),
+    queryKey: [...QUERY_KEY, 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
+    queryFn: () => buscarPerformanceTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
     retry: 1,

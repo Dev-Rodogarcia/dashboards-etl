@@ -21,7 +21,7 @@ export type PerformanceStatusDias =
   | 'ACIMA DE 3 DIAS ANTES';
 
 export interface Entrega {
-  numeroMinuta: string;
+  numeroMinuta: number;
   status: PerformanceStatusEntrega;
   dataPrevisaoEntrega: string;
   dataFinalizacao: string | null;
@@ -39,11 +39,24 @@ export interface PerformanceEntregaRow extends Entrega {
   performanceStatusDias: PerformanceStatusDias | null;
 }
 
+export interface PerformanceTabelaRow extends PerformanceEntregaRow {
+  performanceDiferencaDias: number | null;
+}
+
+export interface PerformanceTabelaPage {
+  content: PerformanceTabelaRow[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
+
 export interface PerformanceFiltro {
   dataInicio: string;
   dataFim: string;
   filiais?: string[];
   status?: string[];
+  pagadores?: string[];
   responsaveis?: string[];
   regioesDestino?: string[];
   cidadesDestino?: string[];

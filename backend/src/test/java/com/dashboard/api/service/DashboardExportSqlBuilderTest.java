@@ -267,8 +267,10 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial Atual])))) IN (:filtro_filialAtual)");
-        assertThat(query.sql()).contains("LOWER(LEFT(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial Atual]))), 3)) IN (:filtro_filialAtualCodigos)");
+        assertThat(query.sql()).contains("[Filial Atual] IN (:filtro_filialAtual)");
+        assertThat(query.sql()).contains("[Filial Atual] IN (:filtro_filialAtualCodigos)");
+        assertThat(query.sql()).contains("base_raw.[Filial Atual] IN (:filtro_filialAtual)");
+        assertThat(query.sql()).contains("base_raw.[Filial Atual] IN (:filtro_filialAtualCodigos)");
         assertThat(query.params().getValues()).containsEntry("filtro_filialAtual", List.of("spo - rodogarcia transportes rodoviarios ltda"));
         assertThat(query.params().getValues()).containsEntry("filtro_filialAtualCodigos", List.of("spo"));
     }
@@ -282,10 +284,44 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial Atual])))) IN (:escopoFiliais)");
-        assertThat(query.sql()).contains("LOWER(LEFT(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial Atual]))), 3)) IN (:escopoFiliaisCodigos)");
+        assertThat(query.sql()).contains("[Filial Atual] IN (:escopoFiliais)");
+        assertThat(query.sql()).contains("[Filial Atual] IN (:escopoFiliaisCodigos)");
+        assertThat(query.sql()).contains("base_raw.[Filial Atual] IN (:escopoFiliais)");
+        assertThat(query.sql()).contains("base_raw.[Filial Atual] IN (:escopoFiliaisCodigos)");
         assertThat(query.params().getValues()).containsEntry("escopoFiliais", List.of("cwb - rodogarcia transportes rodoviarios ltda"));
         assertThat(query.params().getValues()).containsEntry("escopoFiliaisCodigos", List.of("cwb"));
+    }
+
+    @Test
+    void buildSelectTrackingDeveUsarProjecaoNormalizadaDeStatusELocalizacao() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.TRACKING,
+                filtro(Map.of("filialAtual", List.of("SEM_MAP - PPB - EHL TRANSPORTES"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql())
+                .contains("N'NO ARMAZÉM'")
+                .contains("status_calc.status_norm IN (N'pending', N'pendente', N'sem_status', N'sem status')")
+                .contains("base_raw.[Status Normalizado] IS NULL")
+                .contains("base_raw.[Status Normalizado] NOT IN (N'finished', N'finalizado', N'FINISHED', N'FINALIZADO', N'Finished', N'Finalizado')")
+                .contains("base_raw.[Status Carga] IS NULL")
+                .contains("base_raw.[Status Carga] NOT IN (N'finished', N'finalizado', N'FINISHED', N'FINALIZADO', N'Finished', N'Finalizado')")
+                .contains("base_raw.[Data do frete] >= :inicioOffset AND base_raw.[Data do frete] < :fimOffset")
+                .contains("base_raw.[Localização Atual] IN (:filtro_filialAtualCodigos)")
+                .doesNotContain("WHERE COALESCE(status_calc.status_norm")
+                .doesNotContain("COALESCE(LOWER(status_calc.status_carga)")
+                .doesNotContain("__TRACKING_BASE_FILTERS__")
+                .contains("base_raw.[Localização Atual]")
+                .contains("base_raw.[Filial Emissora]")
+                .contains("filial_atual.valor AS [Filial Atual]")
+                .contains("responsavel_destino.valor AS [Responsável pela Região de Destino]")
+                .contains("responsavel_destino.sigla AS [Sigla Responsável Região Destino]")
+                .contains("UPPER(responsavel_destino_raw.responsavel_original) LIKE N'SEM_MAP%'")
+                .contains("UPPER(LEFT(responsavel_destino_segmento.sigla_sigla, 3))")
+                .contains("N'Sem Responsável'");
+        assertThat(query.params().getValues()).containsEntry("filtro_filialAtualCodigos", List.of("ppb"));
     }
 
     private static FiltroConsultaDTO filtro(Map<String, List<String>> filtros) {

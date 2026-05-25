@@ -1,16 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
 import { ChevronRight, ChevronUp } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import ChartWrapper from '../components/charts/ChartWrapper';
-import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
+import PerformanceTabela from '../components/domain/performance/PerformanceTabela';
+import AsyncMultiSelect, { type AsyncMultiSelectOpcao } from '../components/shared/AsyncMultiSelect';
 import DateRangePicker from '../components/shared/DateRangePicker';
+import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import KpiCard from '../components/shared/KpiCard';
 import MensagemErro from '../components/ui/MensagemErro';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
-import { useFiliais } from '../hooks/queries/useDimensoes';
+import { exportarPerformanceCsv } from '../api/endpoints/performanceServico';
+import { useFiliais, usePagadores } from '../hooks/queries/useDimensoes';
 import {
   usePerformanceAging,
   usePerformanceDrilldown,
@@ -18,8 +21,11 @@ import {
   usePerformanceOverview,
   usePerformanceSerieTemporal,
   usePerformanceStatus,
+  usePerformanceTabela,
 } from '../hooks/queries/usePerformance';
+import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { usePerformanceData } from '../hooks/usePerformanceData';
+import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type {
   PerformanceAgingPoint,
   PerformanceDrilldownNivel,
@@ -32,17 +38,25 @@ import type {
 } from '../types/performance';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { CORES, CORES_STATUS, PALETA_SERIES } from '../utils/chartColors';
+import { dataHojeLocal, primeiroDiaMesesAtrasLocal } from '../utils/dateUtils';
 import { formatarNumero, formatarPorcentagem } from '../utils/formatadores';
+import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 const STATUS_OPTIONS = ['Pendente', 'Em Trânsito', 'Finalizada', 'Cancelada', 'Em Tratativa'];
 const PERFORMANCE_EMPTY_MESSAGE = 'Nenhum dado encontrado para o período selecionado.';
 const NIVEL_PARAM = 'performanceNivel';
 const ANO_PARAM = 'performanceAno';
 const MES_PARAM = 'performanceMes';
+type HistoricoPeriodoMeses = 3 | 6 | 12;
 const NIVEIS_TEMPORAIS: Array<{ valor: PerformanceTempoNivel; label: string }> = [
   { valor: 'ano', label: 'Ano' },
   { valor: 'mes', label: 'Mês' },
   { valor: 'dia', label: 'Dia' },
+];
+const HISTORICO_PERIODOS: Array<{ valor: HistoricoPeriodoMeses; label: string }> = [
+  { valor: 3, label: '3 meses' },
+  { valor: 6, label: '6 meses' },
+  { valor: 12, label: '1 ano' },
 ];
 
 function chartClickName(params: unknown): string | null {
@@ -67,6 +81,12 @@ function formatMonthLabel(value: string): string {
 
 function normalizeTemporalNivel(value: string | null): PerformanceTempoNivel {
   return value === 'ano' || value === 'mes' || value === 'dia' ? value : 'dia';
+}
+
+function normalizeHistoricoPeriodoMeses(value: string): HistoricoPeriodoMeses {
+  if (value === '6') return 6;
+  if (value === '12') return 12;
+  return 3;
 }
 
 function numeroParam(valor: string | null): number | null {
@@ -218,7 +238,7 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[]): EChartsOption
         color: 'var(--color-text)',
       },
     },
-    grid: { top: 58, right: 24, bottom: 34, left: 34, containLabel: true },
+    grid: { top: 38, right: 24, bottom: 34, left: 14, containLabel: true },
     tooltip: {
       trigger: 'axis',
       formatter: (params: unknown) => {
@@ -287,11 +307,11 @@ function buildDrilldownOption(dados: PerformanceDrilldownPoint[], nivel: Perform
   const axisRotate = labels.some((label) => label.length > 14) ? 24 : 0;
   return {
     legend: { top: 0 },
-    grid: { top: 52, right: 22, bottom: 44, left: 40, containLabel: true },
+    grid: { top: 42, right: 12, bottom: 14, left: 40, containLabel: true },
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     xAxis: {
       type: 'category',
-      data: labels.map((item) => truncateLabel(item, 18)),
+      data: labels.map((item) => truncateLabel(item, 14)),
       axisLabel: {
         interval: 0,
         rotate: axisRotate,
@@ -503,10 +523,45 @@ function TemporalActions({
   );
 }
 
+function HistoricoPeriodoActions({
+  periodoMeses,
+  onPeriodoChange,
+}: {
+  periodoMeses: HistoricoPeriodoMeses;
+  onPeriodoChange: (periodoMeses: HistoricoPeriodoMeses) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="sr-only">Período do histórico</span>
+      <select
+        aria-label="Período do histórico"
+        value={periodoMeses}
+        onChange={(event) => onPeriodoChange(normalizeHistoricoPeriodoMeses(event.target.value))}
+        className="h-8 rounded-md border px-2 text-xs font-semibold outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
+        style={{
+          backgroundColor: 'var(--color-card)',
+          borderColor: 'var(--color-border)',
+          color: 'var(--color-text)',
+        }}
+      >
+        {HISTORICO_PERIODOS.map((item) => (
+          <option key={item.valor} value={item.valor}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export default function PerformancePage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [historicoPeriodoMeses, setHistoricoPeriodoMeses] = useState<HistoricoPeriodoMeses>(3);
+  const [pagadorBusca, setPagadorBusca] = useState('');
+  const pagadorBuscaDiferida = useDeferredValue(pagadorBusca);
   const filiais = useFiliais();
+  const pagadores = usePagadores(pagadorBuscaDiferida);
 
   const drillNivel = normalizeDrillNivel(searchParams.get('drillNivel'));
   const drillResponsavel = searchParams.get('drillResponsavel');
@@ -520,6 +575,7 @@ export default function PerformancePage() {
     dataFim,
     filiais: filtros.filiais,
     status: filtros.status,
+    pagadores: filtros.pagadores,
     responsaveis: filtros.responsaveis,
     regioesDestino: filtros.regioesDestino,
     cidadesDestino: filtros.cidadesDestino,
@@ -528,14 +584,35 @@ export default function PerformancePage() {
     dataInicio,
     filtros.cidadesDestino,
     filtros.filiais,
+    filtros.pagadores,
     filtros.regioesDestino,
     filtros.responsaveis,
     filtros.status,
   ]);
 
+  const historicoFiltro: PerformanceFiltro = useMemo(() => ({
+    dataInicio: primeiroDiaMesesAtrasLocal(historicoPeriodoMeses - 1),
+    dataFim: dataHojeLocal(),
+    filiais: filtros.filiais,
+    status: filtros.status,
+    pagadores: filtros.pagadores,
+    responsaveis: filtros.responsaveis,
+    regioesDestino: filtros.regioesDestino,
+    cidadesDestino: filtros.cidadesDestino,
+  }), [
+    filtros.cidadesDestino,
+    filtros.filiais,
+    filtros.pagadores,
+    filtros.regioesDestino,
+    filtros.responsaveis,
+    filtros.status,
+    historicoPeriodoMeses,
+  ]);
+
   const activeFilters: ActiveFilter[] = [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
     { label: 'Status', count: filtros.status?.length ?? 0, onRemove: () => setFiltro('status', []) },
+    { label: 'Pagadores', count: filtros.pagadores?.length ?? 0, onRemove: () => setFiltro('pagadores', []) },
     { label: 'Responsáveis', count: filtros.responsaveis?.length ?? 0, onRemove: () => setFiltro('responsaveis', []) },
     { label: 'Regiões', count: filtros.regioesDestino?.length ?? 0, onRemove: () => setFiltro('regioesDestino', []) },
     { label: 'Cidades', count: filtros.cidadesDestino?.length ?? 0, onRemove: () => setFiltro('cidadesDestino', []) },
@@ -544,7 +621,10 @@ export default function PerformancePage() {
   const overview = usePerformanceOverview(filtro);
   const serieTemporal = usePerformanceSerieTemporal(filtro, nivelTemporal, anoTemporal, mesTemporal);
   const status = usePerformanceStatus(filtro);
-  const historico = usePerformanceHistorico(filtro);
+  const historico = usePerformanceHistorico(historicoFiltro, historicoPeriodoMeses);
+  const filtrosTabela = useAnalyticalTableFilters();
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const tabela = usePerformanceTabela(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
   const drilldown = usePerformanceDrilldown(filtro, {
     nivel: drillNivel,
     responsavel: drillResponsavel,
@@ -579,6 +659,28 @@ export default function PerformancePage() {
   const historicoOption = useMemo(() => buildHistoricoOption(historicoData), [historicoData]);
   const drilldownOption = useMemo(() => buildDrilldownOption(drilldownData, drillNivel), [drillNivel, drilldownData]);
   const agingOption = useMemo(() => buildAgingOption(agingData), [agingData]);
+  const statusTabelaOptions = combinarStatusOptions(
+    status.data?.map((item) => item.status),
+    tabela.data?.content.map((item) => item.status),
+    filtros.status,
+  );
+  const pagadorOptions = useMemo<AsyncMultiSelectOpcao[]>(() => {
+    const opcoes = new Map<string, AsyncMultiSelectOpcao>();
+
+    (filtros.pagadores ?? []).forEach((nome) => {
+      opcoes.set(nome, { value: nome, label: nome });
+    });
+
+    (pagadores.data ?? []).forEach((pagador) => {
+      opcoes.set(pagador.nome, {
+        value: pagador.nome,
+        label: pagador.nome,
+        description: pagador.documento,
+      });
+    });
+
+    return Array.from(opcoes.values()).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+  }, [filtros.pagadores, pagadores.data]);
 
   const alterarNivelTemporal = useCallback((nivel: PerformanceTempoNivel) => {
     const next = new URLSearchParams(searchParams);
@@ -655,6 +757,14 @@ export default function PerformancePage() {
           opcoes={STATUS_OPTIONS}
           selecionados={filtros.status ?? []}
           onChange={(valores) => setFiltro('status', valores)}
+        />
+        <AsyncMultiSelect
+          label="Pagador"
+          opcoes={pagadorOptions}
+          selecionados={filtros.pagadores ?? []}
+          onChange={(valores) => setFiltro('pagadores', valores)}
+          onSearchChange={setPagadorBusca}
+          isLoading={pagadores.isFetching}
         />
         <TextListFilter
           label="Responsáveis"
@@ -737,6 +847,12 @@ export default function PerformancePage() {
           <ChartWrapper
             titulo="Histórico de Performance"
             option={historicoOption}
+            actions={(
+              <HistoricoPeriodoActions
+                periodoMeses={historicoPeriodoMeses}
+                onPeriodoChange={setHistoricoPeriodoMeses}
+              />
+            )}
             isLoading={historico.isLoading}
             isEmpty={historicoData.length === 0}
             emptyMessage={PERFORMANCE_EMPTY_MESSAGE}
@@ -784,6 +900,33 @@ export default function PerformancePage() {
           />
         </div>
       </div>
+
+      {tabela.isError && (
+        <MensagemErro
+          mensagem={getApiErrorMessage(tabela.error, 'Erro ao carregar tabela de performance.')}
+          tipo={getTipoErro(tabela.error)}
+        />
+      )}
+      <div className="mt-6 mb-3 flex justify-end">
+        <ExportButton nomeArquivo="performance" onExport={() => exportarPerformanceCsv(filtro, filtrosTabela.apiFilters)} />
+      </div>
+      <PerformanceTabela
+        pagina={tabela.data}
+        filtros={filtrosTabela.filters}
+        hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+        hasAnyFilter={filtrosTabela.hasAnyFilter}
+        statusOptions={statusTabelaOptions}
+        statusOptionsLoading={status.isLoading}
+        isLoading={tabela.isLoading}
+        paginaAtual={paginacaoTabela.pagina}
+        tamanhoPagina={paginacaoTabela.tamanhoPagina}
+        onTextFilterChange={filtrosTabela.setTextFilter}
+        onMultiFilterChange={filtrosTabela.setMultiFilter}
+        onColumnFilterChange={filtrosTabela.setColumnFilter}
+        onClearFilters={filtrosTabela.clearTableFilters}
+        onPaginaChange={paginacaoTabela.setPagina}
+        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+      />
 
       <span className="sr-only">
         Total de entregas carregadas: {formatarNumero(overview.data?.totalEntregas ?? 0)}

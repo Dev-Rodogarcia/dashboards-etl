@@ -1,6 +1,7 @@
 package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.dimensoes.PagadorDimDTO;
 import com.dashboard.api.dto.dimensoes.PlanoContasDimDTO;
 import com.dashboard.api.dto.dimensoes.UsuarioDimDTO;
 import com.dashboard.api.dto.dimensoes.VeiculoDimDTO;
@@ -44,6 +45,16 @@ public class DimensoesController {
     public List<String> clientes() {
         log.info("GET /api/dimensoes/clientes");
         return dimensoesService.listarClientes();
+    }
+
+    @GetMapping("/pagadores")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('performance')")
+    public List<PagadorDimDTO> pagadores(
+            @RequestParam(required = false) String busca,
+            @RequestParam(defaultValue = "50") int limite
+    ) {
+        log.info("GET /api/dimensoes/pagadores - busca: {}", busca);
+        return dimensoesService.buscarPagadores(busca, limite);
     }
 
     @GetMapping("/faturas-por-cliente/clientes-cnpj")

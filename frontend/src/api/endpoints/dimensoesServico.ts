@@ -19,6 +19,11 @@ export interface UsuarioDim {
   nome: string;
 }
 
+export interface PagadorDim {
+  nome: string;
+  documento: string | null;
+}
+
 export async function buscarFiliais(): Promise<string[]> {
   const { data } = await clienteAxios.get<string[]>('/api/dimensoes/filiais');
   return data;
@@ -26,6 +31,18 @@ export async function buscarFiliais(): Promise<string[]> {
 
 export async function buscarClientes(): Promise<string[]> {
   const { data } = await clienteAxios.get<string[]>('/api/dimensoes/clientes');
+  return data;
+}
+
+export async function buscarPagadores(busca?: string): Promise<PagadorDim[]> {
+  const params = new URLSearchParams();
+  const termo = busca?.trim();
+  if (termo) {
+    params.set('busca', termo);
+  }
+  params.set('limite', '50');
+
+  const { data } = await clienteAxios.get<PagadorDim[]>('/api/dimensoes/pagadores', { params });
   return data;
 }
 

@@ -1,5 +1,7 @@
 import clienteAxios from '../clienteAxios';
+import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
+import { aplicarFiltrosTabelaParams } from '../tableFilters';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
 import type {
@@ -12,8 +14,10 @@ import type {
   PerformanceOverview,
   PerformanceSerieTemporalPoint,
   PerformanceStatusDistribuicao,
+  PerformanceTabelaPage,
   PerformanceTempoNivel,
 } from '../../types/performance';
+import type { TableApiFilters } from '../../types/tableFilters';
 
 export const PERFORMANCE_API_BASE_PATH = '/api/painel/performance';
 
@@ -100,17 +104,40 @@ export function createPerformanceServico(basePath = PERFORMANCE_API_BASE_PATH) {
       return data;
     },
 
+    async buscarTabela(
+      filtro: PerformanceFiltro,
+      pagina: number,
+      tamanhoPagina: number,
+      filtrosTabela?: TableApiFilters,
+    ): Promise<PerformanceTabelaPage> {
+      const params = paramsComFiltro(filtro);
+      aplicarFiltrosTabelaParams(params, filtrosTabela);
+      params.set('page', String(Math.max(0, pagina - 1)));
+      params.set('size', String(tamanhoPagina));
+
+      const { data } = await clienteAxios.get<PerformanceTabelaPage>(`${basePath}/tabela`, {
+        params,
+      });
+      return data;
+    },
+
     async buscarTabelaPaginada(
       filtro: PerformanceFiltro,
       pagina: number,
       tamanhoPagina: number,
+      filtrosTabela?: TableApiFilters,
     ): Promise<PaginacaoResponse<PerformanceEntregaRow>> {
       return buscarTabelaPaginada<PerformanceEntregaRow, PerformanceFiltro>(
         `${basePath}/tabela/paginada`,
         filtro,
         pagina,
         tamanhoPagina,
+        filtrosTabela,
       );
+    },
+
+    async exportarCsv(filtro: PerformanceFiltro, filtrosTabela?: TableApiFilters): Promise<void> {
+      await baixarCsv(`${basePath}/exportacao`, filtro, 'performance', filtrosTabela);
     },
   };
 }
@@ -123,4 +150,6 @@ export const buscarPerformanceStatus = performanceServico.buscarStatus;
 export const buscarPerformanceHistorico = performanceServico.buscarHistorico;
 export const buscarPerformanceDrilldown = performanceServico.buscarDrilldown;
 export const buscarPerformanceAging = performanceServico.buscarAging;
+export const buscarPerformanceTabela = performanceServico.buscarTabela;
 export const buscarPerformanceTabelaPaginada = performanceServico.buscarTabelaPaginada;
+export const exportarPerformanceCsv = performanceServico.exportarCsv;

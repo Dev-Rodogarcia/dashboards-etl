@@ -1,13 +1,17 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.performance.PerformanceTabelaProjection;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
+import java.sql.Date;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +21,33 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PerformanceDashboardSqlRepositoryTest {
+
+    @Test
+    void tabelaRetornaPageComPageableDoSpring() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        PerformanceDashboardSqlRepository repository = new PerformanceDashboardSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal()
+        );
+
+        Page<PerformanceTabelaProjection> pagina = repository.buscarTabela(
+                new FiltroConsultaDTO(
+                        LocalDate.of(2026, 5, 1),
+                        LocalDate.of(2026, 5, 24),
+                        Map.of()
+                ),
+                PageRequest.of(1, 50)
+        );
+
+        assertEquals(1, pagina.getNumber());
+        assertEquals(50, pagina.getSize());
+        assertEquals(0L, pagina.getTotalElements());
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("COUNT_BIG(1)")));
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("OFFSET :offsetTabela ROWS FETCH NEXT :tamanhoTabela ROWS ONLY")));
+        assertEquals(50L, jdbcTemplate.ultimoParametroLong("offsetTabela"));
+        assertEquals(50L, jdbcTemplate.ultimoParametroLong("tamanhoTabela"));
+    }
 
     @Test
     void tabelaPaginadaUsaCountEOffsetFetchNoBanco() {
@@ -51,6 +82,90 @@ class PerformanceDashboardSqlRepositoryTest {
     }
 
     @Test
+    void tabelaAplicaFiltrosAnaliticosAntesDaPaginacao() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        PerformanceDashboardSqlRepository repository = new PerformanceDashboardSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal()
+        );
+
+        repository.buscarTabela(
+                new FiltroConsultaDTO(
+                        LocalDate.of(2026, 5, 1),
+                        LocalDate.of(2026, 5, 24),
+                        Map.of(
+                                "tabelaBusca", List.of("Campinas"),
+                                "tabelaStatus", List.of("Finalizada"),
+                                "tabelaColuna.numeroMinuta", List.of("123"),
+                                "tabelaColuna.cidadeDestino", List.of("Destino")
+                        )
+                ),
+                PageRequest.of(0, 20)
+        );
+
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("filtroTabelaBuscaTexto")));
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("filtroTabelaStatus")));
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("filtroTabelaColuna_numeroMinuta")));
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("filtroTabelaColuna_cidadeDestino")));
+        assertEquals(123L, jdbcTemplate.ultimoParametroLong("filtroTabelaColuna_numeroMinuta"));
+        assertEquals(0L, jdbcTemplate.ultimoParametroLong("offsetTabela"));
+        assertEquals(20L, jdbcTemplate.ultimoParametroLong("tamanhoTabela"));
+    }
+
+    @Test
+    void tabelaAplicaFiltroDePagadoresNaCteBaseComInSargable() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        PerformanceDashboardSqlRepository repository = new PerformanceDashboardSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal()
+        );
+
+        repository.buscarTabela(
+                new FiltroConsultaDTO(
+                        LocalDate.of(2026, 5, 1),
+                        LocalDate.of(2026, 5, 24),
+                        Map.of("pagadores", List.of("Cliente A", "Cliente B"))
+                ),
+                PageRequest.of(0, 20)
+        );
+
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains(
+                "AND (:pagadoresVazio = 1 OR base_raw.[Pagador] IN (:pagadores))"
+        )));
+        assertEquals(0L, jdbcTemplate.ultimoParametroLong("pagadoresVazio"));
+        assertEquals(List.of("Cliente A", "Cliente B"), jdbcTemplate.ultimoParametro("pagadores"));
+    }
+
+    @Test
+    void exportacaoAplicaFiltrosDaTabelaSemPaginar() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        PerformanceDashboardSqlRepository repository = new PerformanceDashboardSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal()
+        );
+
+        repository.buscarTabelaExportacao(new FiltroConsultaDTO(
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 24),
+                Map.of(
+                        "pagadores", List.of("Cliente A"),
+                        "tabelaBusca", List.of("Campinas"),
+                        "tabelaStatus", List.of("Finalizada")
+                )
+        ));
+
+        String sqlExportacao = jdbcTemplate.sqls.get(jdbcTemplate.sqls.size() - 1);
+        assertTrue(sqlExportacao.contains("filtroTabelaBuscaTexto"));
+        assertTrue(sqlExportacao.contains("filtroTabelaStatus"));
+        assertTrue(sqlExportacao.contains("base_raw.[Pagador] IN (:pagadores)"));
+        assertTrue(!sqlExportacao.contains("OFFSET :offsetTabela"));
+        assertEquals(List.of("Cliente A"), jdbcTemplate.ultimoParametro("pagadores"));
+    }
+
+    @Test
     void serieTemporalAgrupaPorNivelEIncluiStatusEmpilhaveis() {
         CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
         PerformanceDashboardSqlRepository repository = new PerformanceDashboardSqlRepository(
@@ -78,6 +193,31 @@ class PerformanceDashboardSqlRepositoryTest {
                 && sql.contains("GROUP BY data_previsao_entrega")));
         assertEquals(2026L, jdbcTemplate.ultimoParametroLong("anoTemporal"));
         assertEquals(5L, jdbcTemplate.ultimoParametroLong("mesTemporal"));
+    }
+
+    @Test
+    void historicoUsaPeriodoRecebidoNaCteBase() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        PerformanceDashboardSqlRepository repository = new PerformanceDashboardSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal()
+        );
+
+        repository.buscarHistorico(
+                new FiltroConsultaDTO(
+                        LocalDate.of(2026, 3, 1),
+                        LocalDate.of(2026, 5, 25),
+                        Map.of()
+                )
+        );
+
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql
+                .contains("TRY_CONVERT(date, [Previsão de Entrega]) >= :dataInicio")
+                && sql.contains("TRY_CONVERT(date, [Previsão de Entrega]) < :dataFim")
+                && sql.contains("GROUP BY CONVERT(char(7), data_previsao_entrega, 23)")));
+        assertEquals(Date.valueOf(LocalDate.of(2026, 3, 1)), jdbcTemplate.ultimoParametro("dataInicio"));
+        assertEquals(Date.valueOf(LocalDate.of(2026, 5, 26)), jdbcTemplate.ultimoParametro("dataFim"));
     }
 
     private static EscopoFilialService escopoTotal() {
@@ -135,6 +275,10 @@ class PerformanceDashboardSqlRepositoryTest {
         private long ultimoParametroLong(String nome) {
             Object valor = ultimoParametro.getValue(nome);
             return valor instanceof Number number ? number.longValue() : Long.parseLong(String.valueOf(valor));
+        }
+
+        private Object ultimoParametro(String nome) {
+            return ultimoParametro.getValue(nome);
         }
     }
 }

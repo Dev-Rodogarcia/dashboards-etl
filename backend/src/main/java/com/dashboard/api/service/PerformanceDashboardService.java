@@ -9,6 +9,9 @@ import com.dashboard.api.dto.performance.PerformanceHistoricoPointDTO;
 import com.dashboard.api.dto.performance.PerformanceOverviewDTO;
 import com.dashboard.api.dto.performance.PerformanceSerieTemporalPointDTO;
 import com.dashboard.api.dto.performance.PerformanceStatusDistribuicaoDTO;
+import com.dashboard.api.dto.performance.PerformanceTabelaProjection;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -54,6 +57,14 @@ public class PerformanceDashboardService {
 
     public List<PerformanceAgingPointDTO> buscarAging(FiltroConsultaDTO filtro) {
         return repository.buscarAging(filtro);
+    }
+
+    public Page<PerformanceTabelaProjection> buscarTabela(FiltroConsultaDTO filtro, Pageable pageable) {
+        return repository.buscarTabela(filtro, pageable);
+    }
+
+    public List<PerformanceTabelaProjection> buscarExportacao(FiltroConsultaDTO filtro) {
+        return repository.buscarTabelaExportacao(filtro);
     }
 
     public PaginaDTO<PerformanceEntregaRowDTO> buscarTabelaPaginada(

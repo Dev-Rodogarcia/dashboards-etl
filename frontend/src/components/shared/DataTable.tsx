@@ -14,6 +14,10 @@ export interface ColunaTabela<T> {
 
 type ItemPaginacao = number | 'ellipsis-start' | 'ellipsis-end';
 
+function formatarInteiro(valor: number): string {
+  return valor.toLocaleString('pt-BR');
+}
+
 interface DataTableProps<T> {
   dados: T[];
   colunas: ColunaTabela<T>[];
@@ -124,10 +128,10 @@ export default function DataTable<T>({
     ? Math.min(inicio + dadosPaginados.length, totalReal)
     : Math.min(inicio + dadosPaginados.length, dados.length);
   const resumoRegistros = paginacaoRemota
-    ? `${totalReal} registros encontrados`
+    ? `${formatarInteiro(totalReal)} registros encontrados`
     : totalReal > dados.length
-    ? `${dados.length} de ${totalReal} registros carregados`
-    : `${dados.length} registros carregados`;
+    ? `${formatarInteiro(dados.length)} de ${formatarInteiro(totalReal)} registros carregados`
+    : `${formatarInteiro(dados.length)} registros carregados`;
   const larguraMinimaTabela = calcularLarguraMinimaTabela(colunas);
   const itensPaginacao = useMemo<ItemPaginacao[]>(() => {
     if (totalPaginas <= 7) {
@@ -282,8 +286,8 @@ export default function DataTable<T>({
         style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
       >
         <span>
-          Mostrando {dadosPaginados.length === 0 ? 0 : inicio + 1} a{' '}
-          {fimExibido} de {paginacaoRemota ? totalReal : dados.length}
+          Mostrando {formatarInteiro(dadosPaginados.length === 0 ? 0 : inicio + 1)} a{' '}
+          {formatarInteiro(fimExibido)} de {formatarInteiro(paginacaoRemota ? totalReal : dados.length)}
         </span>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button

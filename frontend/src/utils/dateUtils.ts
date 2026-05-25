@@ -22,6 +22,12 @@ export function dataNDiasAtrasLocal(dias: number): string {
   return formatarDataLocal(d);
 }
 
+/** Retorna o primeiro dia do mês de N meses atrás em formato YYYY-MM-DD no fuso local. */
+export function primeiroDiaMesesAtrasLocal(meses: number): string {
+  const hoje = new Date();
+  return formatarDataLocal(new Date(hoje.getFullYear(), hoje.getMonth() - meses, 1));
+}
+
 /** Retorna a data de 30 dias atrás em formato YYYY-MM-DD no fuso local. */
 export function data30DiasAtrasLocal(): string {
   return dataNDiasAtrasLocal(30);

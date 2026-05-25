@@ -61,12 +61,12 @@ class TrackingServiceTest {
 
         TrackingOverviewDTO overview = service.buscarOverview(filtroPadrao());
 
-        assertThat(overview.totalCargas()).isEqualTo(4);
+        assertThat(overview.totalCargas()).isEqualTo(3);
         assertThat(overview.emTransito()).isEqualTo(2);
         assertThat(overview.previsaoVencida()).isEqualTo(2);
-        assertThat(overview.valorFreteEmCarteira()).isEqualByComparingTo("400.00");
-        assertThat(overview.pesoTaxadoTotal()).isEqualByComparingTo("40.00");
-        assertThat(overview.pctFinalizado()).isEqualTo(25.0);
+        assertThat(overview.valorFreteEmCarteira()).isEqualByComparingTo("300.00");
+        assertThat(overview.pesoTaxadoTotal()).isEqualByComparingTo("30.00");
+        assertThat(overview.pctFinalizado()).isEqualTo(0.0);
     }
 
     @Test
@@ -81,9 +81,9 @@ class TrackingServiceTest {
 
         TrackingOverviewDTO overview = service.buscarOverview(filtroPadrao());
 
-        assertThat(overview.totalCargas()).isEqualTo(5);
+        assertThat(overview.totalCargas()).isEqualTo(4);
         assertThat(overview.previsaoVencida()).isEqualTo(2);
-        assertThat(overview.pctFinalizado()).isEqualTo(50.0);
+        assertThat(overview.pctFinalizado()).isEqualTo(33.33);
     }
 
     @Test
@@ -158,7 +158,7 @@ class TrackingServiceTest {
     }
 
     @Test
-    void buscarDashboardDeveUsarContratoGovernadoDaViewDeTracking() {
+    void buscarDashboardDeveUsarConsultaUnicaSargableDaViewDeTracking() {
         CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
         TrackingService serviceDashboard = new TrackingService(
                 new ValidadorPeriodoService(),
@@ -176,35 +176,27 @@ class TrackingServiceTest {
         ));
 
         String sqlExecutado = String.join("\n", jdbcTemplate.sqls());
+        assertThat(jdbcTemplate.sqls()).hasSize(1);
         assertThat(sqlExecutado)
+                .contains("FROM [vw_localizacao_cargas_powerbi] base_raw")
                 .contains("[Status Normalizado]")
                 .contains("[Peso Taxado Decimal]")
                 .contains("[Valor NF Decimal]")
-                .contains("TRY_CONVERT(DATETIME2, [Data de extracao])")
-                .doesNotContain("MAX([Data de extracao])")
-                .contains("TRY_CONVERT(DECIMAL(18, 2), [Valor Frete])")
-                .contains("TRY_CONVERT(DECIMAL(18, 2), REPLACE(REPLACE(CONVERT(NVARCHAR(50), [Valor Frete]), '.', ''), ',', '.'))")
-                .contains("TRY_CONVERT(INT, [Volumes])")
-                .doesNotContain("SUM(COALESCE([Valor Frete], 0))")
-                .doesNotContain("SUM(COALESCE([Volumes], 0))")
-                .contains("TRY_CONVERT(DECIMAL(18, 3), [Peso Taxado])")
-                .contains("TRY_CONVERT(DECIMAL(18, 3), REPLACE(REPLACE(CONVERT(NVARCHAR(50), [Peso Taxado]), '.', ''), ',', '.'))")
-                .contains("TRY_CONVERT(DECIMAL(18, 2), [Valor NF])")
-                .contains("TRY_CONVERT(DECIMAL(18, 2), REPLACE(REPLACE(CONVERT(NVARCHAR(50), [Valor NF]), '.', ''), ',', '.'))")
                 .contains("[Sigla Responsável Região Destino]")
+                .contains("base_raw.[Data do frete] >= :inicioOffset AND base_raw.[Data do frete] < :fimOffset")
+                .contains("[Data do frete] >= :inicioOffset AND [Data do frete] < :fimOffset")
+                .contains("base_raw.[Filial Atual] IN (:filtro_filialAtual)")
+                .contains("base_raw.[Localização Atual] IN (:filtro_filialAtualCodigos)")
+                .contains("[Filial Atual] IN (:filtro_filialAtual)")
                 .contains("'SEM_MAP'")
-                .contains("[Responsável pela Região de Destino]");
+                .contains("[Responsável pela Região de Destino]")
+                .doesNotContain("TRY_CONVERT(datetimeoffset, [Data do frete])")
+                .doesNotContain("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial Atual]))))");
     }
 
     @Test
-    void buscarDashboardDeveManterFallbackQuandoViewAindaNaoTemColunasGovernadas() {
-        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate(List.of(
-                "Status Carga",
-                "Peso Taxado",
-                "Valor NF",
-                "Responsável pela Região de Destino",
-                "Região Destino"
-        ));
+    void buscarDashboardDeveAplicarProjecaoNormalizadaNaConsultaUnica() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
         TrackingService serviceDashboard = new TrackingService(
                 new ValidadorPeriodoService(),
                 repository,
@@ -221,32 +213,41 @@ class TrackingServiceTest {
         ));
 
         String sqlExecutado = String.join("\n", jdbcTemplate.sqls());
+        assertThat(jdbcTemplate.sqls()).hasSize(1);
         assertThat(sqlExecutado)
-                .doesNotContain("[Status Normalizado]")
-                .doesNotContain("[Peso Taxado Decimal]")
-                .doesNotContain("[Valor NF Decimal]")
-                .doesNotContain("[Sigla Responsável Região Destino]")
+                .contains("N'NO ARMAZÉM'")
+                .contains("status_calc.status_norm IN (N'pending', N'pendente', N'sem_status', N'sem status')")
+                .contains("base_raw.[Status Normalizado] IS NULL")
+                .contains("base_raw.[Status Normalizado] NOT IN (N'finished', N'finalizado', N'FINISHED', N'FINALIZADO', N'Finished', N'Finalizado')")
+                .contains("base_raw.[Status Carga] IS NULL")
+                .contains("base_raw.[Status Carga] NOT IN (N'finished', N'finalizado', N'FINISHED', N'FINALIZADO', N'Finished', N'Finalizado')")
+                .contains("base_raw.[Data do frete] >= :inicioOffset AND base_raw.[Data do frete] < :fimOffset")
+                .contains("base_raw.[Localização Atual] IN (:filtro_filialAtualCodigos)")
+                .doesNotContain("WHERE COALESCE(status_calc.status_norm")
+                .doesNotContain("COALESCE(LOWER(status_calc.status_carga)")
+                .doesNotContain("__TRACKING_BASE_FILTERS__")
+                .contains("filial_atual.valor AS [Filial Atual]")
+                .contains("base_raw.[Localização Atual]")
                 .contains("[Status Carga]")
-                .contains("TRY_CONVERT(DATETIME2, [Data de extracao])")
-                .doesNotContain("MAX([Data de extracao])")
-                .contains("TRY_CONVERT(DECIMAL(18, 2), [Valor Frete])")
-                .contains("TRY_CONVERT(INT, [Volumes])")
-                .doesNotContain("SUM(COALESCE([Valor Frete], 0))")
-                .doesNotContain("SUM(COALESCE([Volumes], 0))")
-                .contains("TRY_CONVERT(DECIMAL(18, 3), [Peso Taxado])")
-                .contains("TRY_CONVERT(DECIMAL(18, 2), [Valor NF])")
+                .contains("[Data de extracao]")
+                .contains("[Valor Frete]")
+                .contains("[Volumes]")
+                .contains("[Peso Taxado]")
+                .contains("[Valor NF]")
                 .contains("[Responsável pela Região de Destino]")
-                .contains("[Região Destino]");
+                .contains("[Região Destino]")
+                .doesNotContain("TRY_CONVERT(datetimeoffset, [Data do frete])")
+                .doesNotContain("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial Atual]))))");
     }
 
     @Test
-    void buscarDashboardDeveUsarFallbackLegadoQuandoAgregadoSqlFalhar() {
+    void buscarDashboardDeveAgregarLinhasDaConsultaUnica() {
         TrackingService serviceDashboard = new TrackingService(
                 new ValidadorPeriodoService(),
                 repository,
                 escopoSemRestricao(),
                 PeriodoOffsetDateTimeHelper.padrao(),
-                new FalhandoNamedParameterJdbcTemplate(),
+                new LinhasTrackingNamedParameterJdbcTemplate(),
                 new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao())
         );
         TrackingDashboardDTO dashboard = serviceDashboard.buscarDashboard(new FiltroConsultaDTO(
@@ -259,7 +260,7 @@ class TrackingServiceTest {
         assertThat(dashboard.matrizRegiaoDestino()).hasSize(1);
         assertThat(dashboard.graficos().statusDistribuicao())
                 .extracting(dto -> dto.status(), dto -> dto.total())
-                .containsExactly(org.assertj.core.groups.Tuple.tuple("Pendente", 1));
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("NO ARMAZÉM", 1));
     }
 
     private static FiltroConsultaDTO filtroPadrao() {
@@ -294,6 +295,7 @@ class TrackingServiceTest {
     private static class CapturandoNamedParameterJdbcTemplate extends NamedParameterJdbcTemplate {
         private final List<String> sqls = new ArrayList<>();
         private final List<String> colunas;
+        private final List<Map<String, Object>> linhas;
 
         protected CapturandoNamedParameterJdbcTemplate() {
             this(List.of(
@@ -306,12 +308,17 @@ class TrackingServiceTest {
                     "Valor NF",
                     "Responsável pela Região de Destino",
                     "Região Destino"
-            ));
+            ), List.of());
         }
 
         protected CapturandoNamedParameterJdbcTemplate(List<String> colunas) {
+            this(colunas, List.of());
+        }
+
+        protected CapturandoNamedParameterJdbcTemplate(List<String> colunas, List<Map<String, Object>> linhas) {
             super(new JdbcTemplate());
             this.colunas = colunas;
+            this.linhas = linhas;
         }
 
         @Override
@@ -342,19 +349,23 @@ class TrackingServiceTest {
             return List.of();
         }
 
+        @Override
+        public List<Map<String, Object>> queryForList(String sql, SqlParameterSource paramSource) {
+            sqls.add(sql);
+            return linhas;
+        }
+
         private List<String> sqls() {
             return sqls;
         }
     }
 
-    private static final class FalhandoNamedParameterJdbcTemplate extends CapturandoNamedParameterJdbcTemplate {
-        @Override
-        public <T> T queryForObject(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper) {
-            throw new org.springframework.dao.TransientDataAccessResourceException("falha agregada simulada");
+    private static final class LinhasTrackingNamedParameterJdbcTemplate extends CapturandoNamedParameterJdbcTemplate {
+        private LinhasTrackingNamedParameterJdbcTemplate() {
+            super(List.of(), List.of(linha()));
         }
 
-        @Override
-        public List<Map<String, Object>> queryForList(String sql, SqlParameterSource paramSource) {
+        private static Map<String, Object> linha() {
             Map<String, Object> row = new java.util.LinkedHashMap<>();
             row.put("N° Minuta", 1L);
             row.put("Data do frete", LocalDateTime.of(2026, 5, 20, 10, 0));
@@ -368,7 +379,7 @@ class TrackingServiceTest {
             row.put("Status Carga", "Pendente");
             row.put("Previsão Entrega/Previsão de entrega", LocalDateTime.of(2026, 5, 19, 8, 0));
             row.put("Data de extracao", LocalDateTime.of(2026, 5, 23, 12, 0));
-            return List.of(row);
+            return row;
         }
     }
 

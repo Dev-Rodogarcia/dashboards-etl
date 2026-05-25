@@ -553,6 +553,32 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
 
 
     @Query(value = """
+            SELECT nome, MIN(documento) AS documento
+            FROM (
+                SELECT
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '') AS nome,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador Doc]))), '') AS documento,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '')) AS nome_normalizado,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador Doc]))), '')) AS documento_normalizado,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial
+                FROM dbo.vw_fretes_powerbi
+            ) pagadores
+            WHERE nome IS NOT NULL
+              AND (:escopoFiliaisVazio = 1 OR filial IN (:escopoFiliais))
+              AND (:buscaVazia = 1 OR nome_normalizado LIKE :buscaPrefixo OR documento_normalizado LIKE :buscaPrefixo)
+            GROUP BY nome
+            ORDER BY nome
+            OFFSET 0 ROWS FETCH NEXT :limite ROWS ONLY
+            """, nativeQuery = true)
+    List<PagadorDimProjection> buscarPagadores(
+            @Param("buscaPrefixo") String buscaPrefixo,
+            @Param("buscaVazia") int buscaVazia,
+            @Param("escopoFiliais") List<String> escopoFiliais,
+            @Param("escopoFiliaisVazio") int escopoFiliaisVazio,
+            @Param("limite") int limite
+    );
+
+    @Query(value = """
             SELECT DISTINCT cliente
             FROM (
                 SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '') AS cliente
@@ -717,5 +743,11 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
         String getFilial();
 
         BigDecimal getRealizadoFaturamento();
+    }
+
+    interface PagadorDimProjection {
+        String getNome();
+
+        String getDocumento();
     }
 }

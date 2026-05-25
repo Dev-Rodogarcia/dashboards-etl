@@ -9,7 +9,12 @@ import com.dashboard.api.dto.performance.PerformanceHistoricoPointDTO;
 import com.dashboard.api.dto.performance.PerformanceOverviewDTO;
 import com.dashboard.api.dto.performance.PerformanceSerieTemporalPointDTO;
 import com.dashboard.api.dto.performance.PerformanceStatusDistribuicaoDTO;
+import com.dashboard.api.dto.performance.PerformanceTabelaProjection;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -247,15 +252,12 @@ public class PerformanceDashboardSqlRepository {
         ));
     }
 
-    public PaginaDTO<PerformanceEntregaRowDTO> buscarTabelaPaginada(
-            FiltroConsultaDTO filtro,
-            int paginaSolicitada,
-            int tamanhoSolicitado
-    ) {
+    public Page<PerformanceTabelaProjection> buscarTabela(FiltroConsultaDTO filtro, Pageable pageable) {
         QueryContext ctx = criarContexto(filtro);
-        int pagina = Math.max(1, paginaSolicitada);
-        int tamanho = ConsultaLimiteUtils.limitar(tamanhoSolicitado, TAMANHO_PADRAO, TAMANHO_MAXIMO);
-        long offset = (long) (pagina - 1) * tamanho;
+        int pagina = Math.max(0, pageable.getPageNumber());
+        int tamanho = ConsultaLimiteUtils.limitar(pageable.getPageSize(), TAMANHO_PADRAO, TAMANHO_MAXIMO);
+        Pageable pageableSeguro = PageRequest.of(pagina, tamanho);
+        long offset = pageableSeguro.getOffset();
 
         String countSql = ctx.baseCte() + """
                 SELECT COUNT_BIG(1)
@@ -264,7 +266,6 @@ public class PerformanceDashboardSqlRepository {
                 """ + ctx.where();
         Long total = jdbcTemplate.queryForObject(countSql, ctx.params(), Long.class);
         long totalSeguro = total != null ? total : 0L;
-        int totalPaginas = totalSeguro == 0 ? 0 : (int) Math.ceil(totalSeguro / (double) tamanho);
 
         ctx.params()
                 .addValue("offsetTabela", offset)
@@ -290,34 +291,108 @@ public class PerformanceDashboardSqlRepository {
                 OFFSET :offsetTabela ROWS FETCH NEXT :tamanhoTabela ROWS ONLY
                 """;
 
-        List<PerformanceEntregaRowDTO> conteudo = jdbcTemplate.query(selectSql, ctx.params(), (rs, rowNum) -> {
-            Integer diferencaDias = inteiroOuNulo(rs.getObject("performance_diferenca_dias"));
-            return new PerformanceEntregaRowDTO(
-                    rs.getLong("numero_minuta"),
-                    rs.getString("status_norm"),
-                    rs.getString("data_previsao_entrega"),
-                    rs.getString("data_finalizacao"),
-                    rs.getString("responsavel_regiao_destino"),
-                    rs.getString("filial_emissora"),
-                    rs.getString("regiao_destino"),
-                    rs.getString("cidade_destino"),
-                    rs.getBigDecimal("peso_taxado"),
-                    rs.getBigDecimal("valor_nota_fiscal"),
-                    rs.getBoolean("comprovante_anexado"),
-                    PerformanceMetricasUtils.performanceStatus(diferencaDias),
-                    PerformanceMetricasUtils.performanceStatusDias(diferencaDias)
-            );
-        });
+        List<PerformanceTabelaProjection> conteudo = jdbcTemplate.query(selectSql, ctx.params(), this::mapearTabelaProjection);
 
-        return new PaginaDTO<>(conteudo, totalSeguro, totalPaginas, pagina, tamanho);
+        return new PageImpl<>(conteudo, pageableSeguro, totalSeguro);
+    }
+
+    public List<PerformanceTabelaProjection> buscarTabelaExportacao(FiltroConsultaDTO filtro) {
+        QueryContext ctx = criarContexto(filtro);
+        String sql = ctx.baseCte() + """
+                SELECT
+                    numero_minuta,
+                    status_norm,
+                    CONVERT(char(10), data_previsao_entrega, 23) AS data_previsao_entrega,
+                    CONVERT(char(10), data_finalizacao, 23) AS data_finalizacao,
+                    responsavel_regiao_destino,
+                    filial_emissora,
+                    regiao_destino,
+                    cidade_destino,
+                    peso_taxado,
+                    valor_nota_fiscal,
+                    comprovante_anexado,
+                    performance_diferenca_dias
+                FROM entregas
+                WHERE 1 = 1
+                """ + ctx.where() + """
+                ORDER BY data_previsao_entrega DESC, numero_minuta DESC
+                """;
+
+        return jdbcTemplate.query(sql, ctx.params(), this::mapearTabelaProjection);
+    }
+
+    public PaginaDTO<PerformanceEntregaRowDTO> buscarTabelaPaginada(
+            FiltroConsultaDTO filtro,
+            int paginaSolicitada,
+            int tamanhoSolicitado
+    ) {
+        int pagina = Math.max(1, paginaSolicitada);
+        int tamanho = ConsultaLimiteUtils.limitar(tamanhoSolicitado, TAMANHO_PADRAO, TAMANHO_MAXIMO);
+        Page<PerformanceTabelaProjection> paginaResultado = buscarTabela(
+                filtro,
+                PageRequest.of(pagina - 1, tamanho)
+        );
+        List<PerformanceEntregaRowDTO> conteudo = paginaResultado.getContent().stream()
+                .map(this::paraEntregaRow)
+                .toList();
+
+        return new PaginaDTO<>(
+                conteudo,
+                paginaResultado.getTotalElements(),
+                paginaResultado.getTotalPages(),
+                pagina,
+                paginaResultado.getSize()
+        );
+    }
+
+    private PerformanceEntregaRowDTO paraEntregaRow(PerformanceTabelaProjection row) {
+        return new PerformanceEntregaRowDTO(
+                row.numeroMinuta(),
+                row.status(),
+                row.dataPrevisaoEntrega(),
+                row.dataFinalizacao(),
+                row.responsavelRegiaoDestino(),
+                row.filialEmissora(),
+                row.regiaoDestino(),
+                row.cidadeDestino(),
+                row.pesoTaxado(),
+                row.valorNotaFiscal(),
+                row.comprovanteAnexado(),
+                row.performanceStatus(),
+                row.performanceStatusDias()
+        );
+    }
+
+    private PerformanceTabelaProjection mapearTabelaProjection(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
+        Integer diferencaDias = inteiroOuNulo(rs.getObject("performance_diferenca_dias"));
+        return new PerformanceTabelaProjection(
+                rs.getLong("numero_minuta"),
+                rs.getString("status_norm"),
+                rs.getString("data_previsao_entrega"),
+                rs.getString("data_finalizacao"),
+                rs.getString("responsavel_regiao_destino"),
+                rs.getString("filial_emissora"),
+                rs.getString("regiao_destino"),
+                rs.getString("cidade_destino"),
+                rs.getBigDecimal("peso_taxado"),
+                rs.getBigDecimal("valor_nota_fiscal"),
+                rs.getBoolean("comprovante_anexado"),
+                diferencaDias,
+                PerformanceMetricasUtils.performanceStatus(diferencaDias),
+                PerformanceMetricasUtils.performanceStatusDias(diferencaDias)
+        );
     }
 
     private QueryContext criarContexto(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        List<String> pagadores = valoresDistintos(filtro.valores("pagadores"));
+        int pagadoresVazio = pagadores.isEmpty() ? 1 : 0;
         QueryContext ctx = new QueryContext(new StringBuilder(), new MapSqlParameterSource()
                 .addValue("dataInicio", Date.valueOf(filtro.dataInicio()))
                 .addValue("dataFim", Date.valueOf(filtro.dataFim().plusDays(1)))
-                .addValue("hoje", Date.valueOf(LocalDate.now(ZONE_ID_BRASILIA))),
+                .addValue("hoje", Date.valueOf(LocalDate.now(ZONE_ID_BRASILIA)))
+                .addValue("pagadores", pagadoresVazio == 1 ? List.of("__sem_pagador__") : pagadores)
+                .addValue("pagadoresVazio", pagadoresVazio),
                 carregarColunasPerformance());
 
         aplicarEscopo(ctx);
@@ -326,7 +401,354 @@ public class PerformanceDashboardSqlRepository {
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "responsaveis", "responsavel", filtro.valores("responsaveis"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "regioesDestino", "regiao_destino", filtro.valores("regioesDestino"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "cidadesDestino", "cidade_destino", filtro.valores("cidadesDestino"));
+        adicionarFiltrosTabela(ctx, filtro);
         return ctx;
+    }
+
+    private static void adicionarFiltrosTabela(QueryContext ctx, FiltroConsultaDTO filtro) {
+        adicionarBuscaTabela(ctx.whereBuilder(), ctx.params(), filtro.valores("tabelaBusca"));
+        adicionarCodigoTabela(ctx.whereBuilder(), ctx.params(), filtro.valores("tabelaCodigo"));
+        adicionarStatusTabela(ctx.whereBuilder(), ctx.params(), filtro.valores("tabelaStatus"));
+        adicionarTextoTabela(ctx.whereBuilder(), ctx.params(), "tabelaRazaoSocial", List.of("responsavel_regiao_destino", "filial_emissora"), filtro.valores("tabelaRazaoSocial"));
+        adicionarTextoTabela(ctx.whereBuilder(), ctx.params(), "tabelaOrigem", List.of("regiao_destino"), filtro.valores("tabelaOrigem"));
+        adicionarTextoTabela(ctx.whereBuilder(), ctx.params(), "tabelaDestino", List.of("regiao_destino", "cidade_destino"), filtro.valores("tabelaDestino"));
+        adicionarFiltrosColunasTabela(ctx, filtro);
+    }
+
+    private static void adicionarBuscaTabela(StringBuilder where, MapSqlParameterSource params, Collection<String> valores) {
+        String termo = primeiroNormalizado(valores);
+        if (termo == null) {
+            return;
+        }
+
+        List<String> predicados = new java.util.ArrayList<>();
+        Long numero = parseLongOuNulo(termo);
+        if (numero != null) {
+            params.addValue("filtroTabelaBuscaCodigo", numero);
+            predicados.add("numero_minuta = :filtroTabelaBuscaCodigo");
+        } else if (termo.length() >= 3) {
+            params.addValue("filtroTabelaBuscaTexto", "%" + termo + "%");
+            params.addValue("filtroTabelaBuscaPrefixo", termo + "%");
+            List<String> colunasTexto = List.of(
+                    "status_norm",
+                    "responsavel_regiao_destino",
+                    "filial_emissora",
+                    "regiao_destino",
+                    "cidade_destino",
+                    performanceStatusSql(),
+                    performanceStatusDiasSql(),
+                    comprovanteTextoSql()
+            );
+            predicados.addAll(colunasTexto.stream()
+                    .map(coluna -> normalizarSql(coluna) + " LIKE :filtroTabelaBuscaTexto")
+                    .toList());
+            predicados.add(normalizarSql("numero_minuta") + " LIKE :filtroTabelaBuscaPrefixo");
+        }
+
+        if (!predicados.isEmpty()) {
+            where.append("\n AND (").append(String.join(" OR ", predicados)).append(")");
+        }
+    }
+
+    private static void adicionarCodigoTabela(StringBuilder where, MapSqlParameterSource params, Collection<String> valores) {
+        String termo = primeiroNormalizado(valores);
+        if (termo == null) {
+            return;
+        }
+
+        Long numero = parseLongOuNulo(termo);
+        if (numero != null) {
+            params.addValue("filtroTabelaCodigo", numero);
+            where.append("\n AND numero_minuta = :filtroTabelaCodigo");
+            return;
+        }
+
+        if (termo.length() >= 3) {
+            params.addValue("filtroTabelaCodigoPrefixo", termo + "%");
+            where.append("\n AND ").append(normalizarSql("numero_minuta")).append(" LIKE :filtroTabelaCodigoPrefixo");
+        }
+    }
+
+    private static void adicionarStatusTabela(StringBuilder where, MapSqlParameterSource params, Collection<String> valores) {
+        List<String> normalizados = normalizar(valores);
+        if (normalizados.isEmpty()) {
+            return;
+        }
+
+        params.addValue("filtroTabelaStatus", normalizados);
+        where.append("\n AND ").append(normalizarSql("status_norm")).append(" IN (:filtroTabelaStatus)");
+    }
+
+    private static void adicionarTextoTabela(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String nomeParam,
+            List<String> colunas,
+            Collection<String> valores
+    ) {
+        String termo = primeiroNormalizado(valores);
+        if (termo == null || termo.length() < 3 || colunas.isEmpty()) {
+            return;
+        }
+
+        String param = "filtro_" + nomeParam;
+        params.addValue(param, "%" + termo + "%");
+        where.append("\n AND (")
+                .append(String.join(" OR ", colunas.stream()
+                        .map(coluna -> normalizarSql(coluna) + " LIKE :" + param)
+                        .toList()))
+                .append(")");
+    }
+
+    private static void adicionarFiltrosColunasTabela(QueryContext ctx, FiltroConsultaDTO filtro) {
+        for (Map.Entry<String, List<String>> entry : filtro.filtros().entrySet()) {
+            String chave = entry.getKey();
+            if (!chave.startsWith("tabelaColuna.")) {
+                continue;
+            }
+
+            String coluna = chave.substring("tabelaColuna.".length());
+            adicionarFiltroColunaTabela(ctx.whereBuilder(), ctx.params(), coluna, entry.getValue());
+        }
+    }
+
+    private static void adicionarFiltroColunaTabela(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String coluna,
+            Collection<String> valores
+    ) {
+        String param = "filtroTabelaColuna_" + coluna.replaceAll("[^A-Za-z0-9]", "_");
+        switch (coluna) {
+            case "numeroMinuta" -> adicionarFiltroCodigoColuna(where, params, "numero_minuta", valores, param);
+            case "status" -> adicionarFiltroStatusColuna(where, params, "status_norm", valores, param);
+            case "performanceStatus" -> adicionarFiltroTextoColuna(where, params, performanceStatusSql(), valores, param);
+            case "performanceStatusDias" -> adicionarFiltroTextoColuna(where, params, performanceStatusDiasSql(), valores, param);
+            case "performanceDiferencaDias" -> adicionarFiltroNumeroColuna(where, params, "performance_diferenca_dias", valores, param);
+            case "dataPrevisaoEntrega" -> adicionarFiltroDataColuna(where, params, "data_previsao_entrega", valores, param);
+            case "dataFinalizacao" -> adicionarFiltroDataColuna(where, params, "data_finalizacao", valores, param);
+            case "responsavelRegiaoDestino" -> adicionarFiltroTextoColuna(where, params, "responsavel_regiao_destino", valores, param);
+            case "filialEmissora" -> adicionarFiltroTextoColuna(where, params, "filial_emissora", valores, param);
+            case "regiaoDestino" -> adicionarFiltroTextoColuna(where, params, "regiao_destino", valores, param);
+            case "cidadeDestino" -> adicionarFiltroTextoColuna(where, params, "cidade_destino", valores, param);
+            case "pesoTaxado" -> adicionarFiltroNumeroColuna(where, params, "peso_taxado", valores, param);
+            case "valorNotaFiscal" -> adicionarFiltroNumeroColuna(where, params, "valor_nota_fiscal", valores, param);
+            case "comprovanteAnexado" -> adicionarFiltroComprovanteColuna(where, valores);
+            default -> {
+            }
+        }
+    }
+
+    private static void adicionarFiltroTextoColuna(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String expressao,
+            Collection<String> valores,
+            String param
+    ) {
+        String termo = primeiroNormalizado(valores);
+        if (termo == null || termo.length() < 3) {
+            return;
+        }
+
+        params.addValue(param, "%" + termo + "%");
+        where.append("\n AND ").append(normalizarSql(expressao)).append(" LIKE :").append(param);
+    }
+
+    private static void adicionarFiltroStatusColuna(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String expressao,
+            Collection<String> valores,
+            String param
+    ) {
+        List<String> normalizados = normalizar(valores);
+        if (normalizados.isEmpty()) {
+            return;
+        }
+
+        params.addValue(param, normalizados);
+        where.append("\n AND ").append(normalizarSql(expressao)).append(" IN (:").append(param).append(")");
+    }
+
+    private static void adicionarFiltroCodigoColuna(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String expressao,
+            Collection<String> valores,
+            String param
+    ) {
+        String termo = primeiroNormalizado(valores);
+        if (termo == null) {
+            return;
+        }
+
+        Long numero = parseLongOuNulo(termo);
+        if (numero != null) {
+            params.addValue(param, numero);
+            where.append("\n AND TRY_CONVERT(BIGINT, ").append(expressao).append(") = :").append(param);
+            return;
+        }
+
+        if (termo.length() >= 3) {
+            params.addValue(param, termo + "%");
+            where.append("\n AND ").append(normalizarSql(expressao)).append(" LIKE :").append(param);
+        }
+    }
+
+    private static void adicionarFiltroNumeroColuna(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String expressao,
+            Collection<String> valores,
+            String param
+    ) {
+        BigDecimal numero = parseDecimalOuNulo(primeiroValor(valores));
+        if (numero == null) {
+            return;
+        }
+
+        params.addValue(param, numero);
+        where.append("\n AND TRY_CONVERT(DECIMAL(19,4), ").append(expressao).append(") = :").append(param);
+    }
+
+    private static void adicionarFiltroDataColuna(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String expressao,
+            Collection<String> valores,
+            String param
+    ) {
+        String termo = normalizarPrefixoData(primeiroValor(valores));
+        if (termo == null) {
+            return;
+        }
+
+        params.addValue(param, termo + "%");
+        where.append("\n AND CONVERT(VARCHAR(10), TRY_CONVERT(date, ")
+                .append(expressao)
+                .append("), 23) LIKE :")
+                .append(param);
+    }
+
+    private static void adicionarFiltroComprovanteColuna(StringBuilder where, Collection<String> valores) {
+        String termo = primeiroNormalizado(valores);
+        if (termo == null) {
+            return;
+        }
+
+        if (List.of("sim", "s", "true", "1").contains(termo)) {
+            where.append("\n AND comprovante_anexado = 1");
+            return;
+        }
+
+        if (List.of("nao", "não", "n", "false", "0").contains(termo)) {
+            where.append("\n AND comprovante_anexado = 0");
+        }
+    }
+
+    private static String performanceStatusSql() {
+        return """
+                CASE
+                    WHEN performance_diferenca_dias IS NULL THEN NULL
+                    WHEN performance_diferenca_dias <= 0 THEN N'NO PRAZO'
+                    ELSE N'FORA DO PRAZO'
+                END
+                """;
+    }
+
+    private static String performanceStatusDiasSql() {
+        return """
+                CASE
+                    WHEN performance_diferenca_dias IS NULL THEN NULL
+                    WHEN performance_diferenca_dias = 0 THEN N'NO PRAZO'
+                    WHEN performance_diferenca_dias = 1 THEN N'1 DIA DE ATRASO'
+                    WHEN performance_diferenca_dias = 2 THEN N'2 DIAS DE ATRASO'
+                    WHEN performance_diferenca_dias = 3 THEN N'3 DIAS DE ATRASO'
+                    WHEN performance_diferenca_dias = -1 THEN N'1 DIA ANTES'
+                    WHEN performance_diferenca_dias = -2 THEN N'2 DIAS ANTES'
+                    WHEN performance_diferenca_dias = -3 THEN N'3 DIAS ANTES'
+                    WHEN performance_diferenca_dias > 3 THEN N'ACIMA DE 3 DIAS DE ATRASO'
+                    ELSE N'ACIMA DE 3 DIAS ANTES'
+                END
+                """;
+    }
+
+    private static String comprovanteTextoSql() {
+        return "CASE WHEN comprovante_anexado = 1 THEN N'Sim' ELSE N'Nao' END";
+    }
+
+    private static String normalizarSql(String expressao) {
+        return "LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), " + expressao + "))))";
+    }
+
+    private static String primeiroNormalizado(Collection<String> valores) {
+        return normalizar(valores).stream().findFirst().orElse(null);
+    }
+
+    private static String primeiroValor(Collection<String> valores) {
+        if (valores == null) {
+            return null;
+        }
+        return valores.stream()
+                .filter(valor -> valor != null && !valor.isBlank())
+                .map(String::trim)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static Long parseLongOuNulo(String valor) {
+        if (valor == null || !valor.matches("\\d+")) {
+            return null;
+        }
+        try {
+            return Long.parseLong(valor);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private static BigDecimal parseDecimalOuNulo(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return null;
+        }
+
+        String texto = valor.trim();
+        String normalizado = texto.contains(",")
+                ? texto.replace(".", "").replace(",", ".")
+                : texto;
+        if (!normalizado.matches("-?\\d+(\\.\\d+)?")) {
+            return null;
+        }
+
+        try {
+            return new BigDecimal(normalizado);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private static String normalizarPrefixoData(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return null;
+        }
+
+        String texto = valor.trim();
+        if (texto.matches("\\d{4}") || texto.matches("\\d{4}-\\d{2}") || texto.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            return texto;
+        }
+
+        if (texto.matches("\\d{2}/\\d{4}")) {
+            String[] partes = texto.split("/");
+            return partes[1] + "-" + partes[0];
+        }
+
+        if (texto.matches("\\d{2}/\\d{2}/\\d{4}")) {
+            String[] partes = texto.split("/");
+            return partes[2] + "-" + partes[1] + "-" + partes[0];
+        }
+
+        return null;
     }
 
     private void aplicarEscopo(QueryContext ctx) {
@@ -365,6 +787,17 @@ public class PerformanceDashboardSqlRepository {
         return valores.stream()
                 .filter(valor -> valor != null && !valor.isBlank())
                 .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
+                .distinct()
+                .toList();
+    }
+
+    private static List<String> valoresDistintos(Collection<String> valores) {
+        if (valores == null) {
+            return List.of();
+        }
+        return valores.stream()
+                .filter(valor -> valor != null && !valor.isBlank())
+                .map(String::trim)
                 .distinct()
                 .toList();
     }
@@ -473,10 +906,11 @@ public class PerformanceDashboardSqlRepository {
                                 TRY_CONVERT(datetime2, [Data de extracao]) DESC,
                                 TRY_CONVERT(BIGINT, [ID]) DESC
                         ) AS rn
-                    FROM dbo.vw_fretes_powerbi
+                    FROM dbo.vw_fretes_powerbi base_raw
                     WHERE TRY_CONVERT(BIGINT, [Nº Minuta]) IS NOT NULL
                       AND TRY_CONVERT(date, [Previsão de Entrega]) >= :dataInicio
                       AND TRY_CONVERT(date, [Previsão de Entrega]) < :dataFim
+                      AND (:pagadoresVazio = 1 OR base_raw.[Pagador] IN (:pagadores))
                 ),
                 entregas AS (
                     SELECT

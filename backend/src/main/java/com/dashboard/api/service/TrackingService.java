@@ -14,7 +14,6 @@ import com.dashboard.api.model.VisaoLocalizacaoCargasEntity;
 import com.dashboard.api.repository.VisaoLocalizacaoCargasRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -38,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -51,6 +51,7 @@ public class TrackingService {
     private static final Set<String> STATUS_FINAIS = Set.of("finalizado", "finished", "entregue", "delivered");
     private static final Set<String> STATUS_CANCELADOS = Set.of("cancelado", "canceled", "cancelled");
     private static final Set<String> STATUS_TERMINAIS = Set.of("finalizado", "finished", "entregue", "delivered", "cancelado", "canceled", "cancelled");
+    private static final String STATUS_NO_ARMAZEM = "NO ARMAZÉM";
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final ValidadorPeriodoService validadorPeriodo;
@@ -145,33 +146,7 @@ public class TrackingService {
 
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         FiltroConsultaDTO filtroObrigatorio = aplicarFilialAtualObrigatoria(filtro, escopo);
-        try {
-            DashboardExportSqlBuilder.ExportSql source = sqlBuilder.buildFilteredSource(
-                    DashboardExportDefinition.TRACKING,
-                    filtroObrigatorio,
-                    escopo,
-                    Set.of()
-            );
-            TrackingViewColumns colunas = carregarColunasTracking();
-
-            TrackingOverviewDTO overview = buscarOverviewAgregado(source, colunas);
-            List<TrackingMatrizRegiaoDTO> matriz = buscarMatrizRegiaoDestino(source, colunas);
-            TrackingChartsDTO graficos = new TrackingChartsDTO(
-                    buscarStatusDistribuicaoAgregado(source),
-                    List.of(),
-                    buscarValorRegiaoDestinoTop10(source, colunas)
-            );
-            return new TrackingDashboardDTO(overview, matriz, graficos);
-        } catch (DataAccessException ex) {
-            log.warn(
-                    "Falha no dashboard agregado de localização de cargas; usando fallback legado. periodo={} a {}, filtros={}, causa={}",
-                    filtroObrigatorio.dataInicio(),
-                    filtroObrigatorio.dataFim(),
-                    filtroObrigatorio.filtros().keySet(),
-                    ex.getMostSpecificCause().getMessage()
-            );
-            return buscarDashboardLegado(filtroObrigatorio);
-        }
+        return buscarDashboardConsultaUnica(filtroObrigatorio);
     }
 
     public FiltroConsultaDTO normalizarFiltroComFilialAtualObrigatoria(FiltroConsultaDTO filtro) {
@@ -191,10 +166,10 @@ public class TrackingService {
                     List<VisaoLocalizacaoCargasEntity> grupo = entry.getValue();
                     return new TrackingTimelinePointDTO(
                             entry.getKey().format(DATE_FMT),
-                            (int) grupo.stream().filter(c -> "Pendente".equalsIgnoreCase(c.getStatusCarga())).count(),
-                            (int) grupo.stream().filter(c -> "Em entrega".equalsIgnoreCase(c.getStatusCarga())).count(),
-                            (int) grupo.stream().filter(c -> "Em transferência".equalsIgnoreCase(c.getStatusCarga())).count(),
-                            (int) grupo.stream().filter(c -> "Finalizado".equalsIgnoreCase(c.getStatusCarga())).count()
+                            (int) grupo.stream().filter(c -> STATUS_NO_ARMAZEM.equals(statusCargaExibicao(c.getStatusCarga()))).count(),
+                            (int) grupo.stream().filter(c -> "Em entrega".equalsIgnoreCase(statusCargaExibicao(c.getStatusCarga()))).count(),
+                            (int) grupo.stream().filter(c -> "Em transferência".equalsIgnoreCase(statusCargaExibicao(c.getStatusCarga()))).count(),
+                            0
                     );
                 })
                 .toList();
@@ -211,26 +186,10 @@ public class TrackingService {
                             janela.inicioInclusivo(),
                             janela.fimExclusivo()
                     ).stream()
+                    .filter(c -> !statusOculto(c.getStatusCarga()))
                     .sorted(Comparator.comparing(VisaoLocalizacaoCargasEntity::getDataFrete, Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(limiteAplicado)
-                    .map(c -> new TrackingResumoDTO(
-                            c.getSequenceNumber(),
-                            c.getDataFrete() != null ? c.getDataFrete().toString() : null,
-                            c.getTipo(),
-                            c.getVolumes(),
-                            ConsultaFiltroUtils.parseBigDecimal(c.getPesoTaxado()).setScale(2, RoundingMode.HALF_UP),
-                            ConsultaFiltroUtils.parseBigDecimal(c.getValorNf()).setScale(2, RoundingMode.HALF_UP),
-                            ConsultaFiltroUtils.zeroSeNulo(c.getValorFrete()).setScale(2, RoundingMode.HALF_UP),
-                            c.getFilialEmissora(),
-                            c.getFilialOrigem(),
-                            c.getFilialAtual(),
-                            c.getFilialDestino(),
-                            c.getRegiaoOrigem(),
-                            c.getRegiaoDestino(),
-                            c.getClassificacao(),
-                            c.getStatusCarga(),
-                            c.getPrevisaoEntrega() != null ? c.getPrevisaoEntrega().toString() : null
-                    ))
+                    .map(this::mapearResumo)
                     .toList();
         }
 
@@ -238,25 +197,9 @@ public class TrackingService {
                         criarSpecification(filtro),
                         PageRequest.of(0, limiteAplicado, Sort.by(Sort.Direction.DESC, "dataFrete"))
                 ).getContent().stream()
+                .filter(c -> !statusOculto(c.getStatusCarga()))
                 .limit(limiteAplicado)
-                .map(c -> new TrackingResumoDTO(
-                        c.getSequenceNumber(),
-                        c.getDataFrete() != null ? c.getDataFrete().toString() : null,
-                        c.getTipo(),
-                        c.getVolumes(),
-                        ConsultaFiltroUtils.parseBigDecimal(c.getPesoTaxado()).setScale(2, RoundingMode.HALF_UP),
-                        ConsultaFiltroUtils.parseBigDecimal(c.getValorNf()).setScale(2, RoundingMode.HALF_UP),
-                        ConsultaFiltroUtils.zeroSeNulo(c.getValorFrete()).setScale(2, RoundingMode.HALF_UP),
-                        c.getFilialEmissora(),
-                        c.getFilialOrigem(),
-                        c.getFilialAtual(),
-                        c.getFilialDestino(),
-                        c.getRegiaoOrigem(),
-                        c.getRegiaoDestino(),
-                        c.getClassificacao(),
-                        c.getStatusCarga(),
-                        c.getPrevisaoEntrega() != null ? c.getPrevisaoEntrega().toString() : null
-                ))
+                .map(this::mapearResumo)
                 .toList();
     }
 
@@ -267,7 +210,7 @@ public class TrackingService {
         LocalDate hoje = periodoOffsetDateTimeHelper.hoje();
 
         List<TrackingStatusDistribuicaoDTO> statusDistribuicao = cargas.stream()
-                .collect(Collectors.groupingBy(c -> textoOuPadrao(c.getStatusCarga(), "Sem status")))
+                .collect(Collectors.groupingBy(c -> statusCargaExibicao(c.getStatusCarga())))
                 .entrySet().stream()
                 .map(entry -> new TrackingStatusDistribuicaoDTO(
                         entry.getKey(),
@@ -284,7 +227,7 @@ public class TrackingService {
 
         List<TrackingPrevisaoVencidaFilialDTO> previsaoVencidaPorFilialAtual = cargas.stream()
                 .filter(c -> previsaoVencida(c, hoje))
-                .collect(Collectors.groupingBy(c -> textoOuPadrao(c.getFilialAtual(), "Sem filial")))
+                .collect(Collectors.groupingBy(c -> textoOuPadrao(filialSigla(c.getFilialAtual(), c.getFilialEmissora()), "Sem filial")))
                 .entrySet().stream()
                 .map(entry -> new TrackingPrevisaoVencidaFilialDTO(
                         entry.getKey(),
@@ -316,14 +259,40 @@ public class TrackingService {
 
     private List<VisaoLocalizacaoCargasEntity> buscarRegistros(FiltroConsultaDTO filtro) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        List<VisaoLocalizacaoCargasEntity> registros;
         if (deveUsarConsultaLegada(filtro, escopo)) {
             JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
-            return repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(
+            registros = repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(
                     janela.inicioInclusivo(),
                     janela.fimExclusivo()
             );
+        } else {
+            registros = repository.findAll(criarSpecification(filtro));
         }
-        return repository.findAll(criarSpecification(filtro));
+        return registros.stream()
+                .filter(c -> !statusOculto(c.getStatusCarga()))
+                .toList();
+    }
+
+    private TrackingResumoDTO mapearResumo(VisaoLocalizacaoCargasEntity c) {
+        return new TrackingResumoDTO(
+                c.getSequenceNumber(),
+                c.getDataFrete() != null ? c.getDataFrete().toString() : null,
+                c.getTipo(),
+                c.getVolumes(),
+                ConsultaFiltroUtils.parseBigDecimal(c.getPesoTaxado()).setScale(2, RoundingMode.HALF_UP),
+                ConsultaFiltroUtils.parseBigDecimal(c.getValorNf()).setScale(2, RoundingMode.HALF_UP),
+                ConsultaFiltroUtils.zeroSeNulo(c.getValorFrete()).setScale(2, RoundingMode.HALF_UP),
+                filialSigla(c.getFilialEmissora()),
+                filialSigla(c.getFilialOrigem()),
+                filialSigla(c.getFilialAtual(), c.getFilialEmissora()),
+                filialSigla(c.getFilialDestino()),
+                c.getRegiaoOrigem(),
+                c.getRegiaoDestino(),
+                c.getClassificacao(),
+                statusCargaExibicao(c.getStatusCarga()),
+                c.getPrevisaoEntrega() != null ? c.getPrevisaoEntrega().toString() : null
+        );
     }
 
     private TrackingOverviewDTO buscarOverviewAgregado(
@@ -488,14 +457,16 @@ public class TrackingService {
         ));
     }
 
-    private TrackingDashboardDTO buscarDashboardLegado(FiltroConsultaDTO filtro) {
+    private TrackingDashboardDTO buscarDashboardConsultaUnica(FiltroConsultaDTO filtro) {
         DashboardExportSqlBuilder.ExportSql select = sqlBuilder.buildSelect(
                 DashboardExportDefinition.TRACKING,
                 filtro,
                 escopoFilialService.escopoAtual(),
                 Set.of()
         );
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(select.sql(), select.params());
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(select.sql(), select.params()).stream()
+                .filter(row -> !statusOculto(textoRaw(row, "Status Carga")))
+                .toList();
         TrackingOverviewDTO overview = buscarOverviewLegado(rows);
         List<TrackingMatrizRegiaoDTO> matriz = buscarMatrizRegiaoDestinoLegada(rows);
         TrackingChartsDTO graficosLegados = buscarGraficosLegado(rows);
@@ -588,7 +559,7 @@ public class TrackingService {
 
     private TrackingChartsDTO buscarGraficosLegado(List<Map<String, Object>> rows) {
         List<TrackingStatusDistribuicaoDTO> statusDistribuicao = rows.stream()
-                .collect(Collectors.groupingBy(row -> textoOuPadrao(textoRaw(row, "Status Carga"), "Sem status")))
+                .collect(Collectors.groupingBy(row -> statusCargaExibicao(textoRaw(row, "Status Carga"))))
                 .entrySet().stream()
                 .map(entry -> new TrackingStatusDistribuicaoDTO(
                         entry.getKey(),
@@ -649,6 +620,51 @@ public class TrackingService {
 
     private String responsavelRegiaoDestinoLegada(Map<String, Object> row) {
         return textoOuPadrao(textoRaw(row, "Responsável pela Região de Destino", "Responsavel pela Regiao de Destino"), "Sem responsável");
+    }
+
+    private String statusCargaExibicao(String status) {
+        String limpo = status != null ? status.trim() : "";
+        if (limpo.isEmpty()
+                || "pendente".equalsIgnoreCase(limpo)
+                || "pending".equalsIgnoreCase(limpo)
+                || "sem_status".equalsIgnoreCase(limpo)
+                || "sem status".equalsIgnoreCase(limpo)) {
+            return STATUS_NO_ARMAZEM;
+        }
+        return limpo;
+    }
+
+    private String filialSigla(String valor, String... fallbacks) {
+        String limpo = primeiroTexto(valor, fallbacks);
+        if (limpo == null) {
+            return null;
+        }
+
+        String[] partes = limpo.split("\\s*[-–—]\\s*");
+        if (partes.length == 0) {
+            return limpo;
+        }
+
+        String primeira = partes[0].trim();
+        if ("SEM_MAP".equalsIgnoreCase(primeira) && partes.length > 1 && !partes[1].isBlank()) {
+            return partes[1].trim().toUpperCase(Locale.ROOT);
+        }
+        if (partes.length > 1 && !primeira.isBlank()) {
+            return primeira.toUpperCase(Locale.ROOT);
+        }
+        return limpo;
+    }
+
+    private String primeiroTexto(String valor, String... fallbacks) {
+        if (valor != null && !valor.isBlank()) {
+            return valor.trim();
+        }
+        for (String fallback : fallbacks) {
+            if (fallback != null && !fallback.isBlank()) {
+                return fallback.trim();
+            }
+        }
+        return null;
     }
 
     private boolean statusEmTransito(String status) {
@@ -975,6 +991,14 @@ public class TrackingService {
         return status != null && STATUS_FINAIS.contains(status.trim().toLowerCase(java.util.Locale.ROOT));
     }
 
+    private boolean statusOculto(String status) {
+        if (status == null) {
+            return false;
+        }
+        String normalizado = status.trim().toLowerCase(Locale.ROOT);
+        return "finalizado".equals(normalizado) || "finished".equals(normalizado);
+    }
+
     private boolean statusCancelado(String status) {
         return status != null && STATUS_CANCELADOS.contains(status.trim().toLowerCase(java.util.Locale.ROOT));
     }
@@ -991,6 +1015,7 @@ public class TrackingService {
         return ConsultaSpecificationUtils.allOf(
                 ConsultaSpecificationUtils.greaterThanOrEqualTo("dataFrete", janela.inicioInclusivo()),
                 ConsultaSpecificationUtils.lessThan("dataFrete", janela.fimExclusivo()),
+                ocultarFinalizados(),
                 ConsultaSpecificationUtils.escopoFiliais(escopo, "filialEmissora", "filialOrigem", "filialAtual", "filialDestino"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filialEmissora", "filialEmissora"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "filialAtual", "filialAtual"),
@@ -998,6 +1023,14 @@ public class TrackingService {
                 ConsultaSpecificationUtils.filtroTexto(filtro, "regiaoOrigem", "regiaoOrigem"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "regiaoDestino", "regiaoDestino"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "statusCarga", "statusCarga")
+        );
+    }
+
+    private Specification<VisaoLocalizacaoCargasEntity> ocultarFinalizados() {
+        return (root, query, cb) -> cb.or(
+                root.get("statusCarga").isNull(),
+                cb.not(root.get("statusCarga").as(String.class)
+                        .in("finalizado", "finished", "FINALIZADO", "FINISHED", "Finalizado", "Finished"))
         );
     }
 

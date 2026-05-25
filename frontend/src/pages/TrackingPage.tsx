@@ -26,16 +26,14 @@ import { dataHojeLocal, dataNDiasAtrasLocal } from '../utils/dateUtils';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
-const STATUS_RAPIDOS = ['Em armazém', 'Em transferência', 'Em entrega'] as const;
-const STATUS_BASE = ['Pendente', 'Manifestado', 'Em armazém', 'Em transferência', 'Em entrega', 'Finalizado', 'Entregue', 'Cancelado'];
+const STATUS_RAPIDOS = ['NO ARMAZÉM', 'Em transferência', 'Em entrega'] as const;
+const STATUS_BASE = ['NO ARMAZÉM', 'Manifestado', 'Em transferência', 'Em entrega', 'Entregue', 'Cancelado'];
 const REGIOES_POR_PAGINA = 9;
 const STATUS_ROSCA_CORES: Record<string, string> = {
-  pendente: CORES.aviso,
+  'no armazém': CORES.aviso,
   manifestado: PALETA_SERIES[8],
-  'em armazém': CORES.secundaria,
   'em transferência': CORES.info,
   'em entrega': CORES.primaria,
-  finalizado: CORES.sucesso,
   entregue: PALETA_SERIES[7],
   cancelado: CORES.perigo,
   canceled: CORES.perigo,
@@ -152,7 +150,7 @@ function MatrizRegiaoDestino({
                   className="h-1.5 w-1.5 rounded-full"
                   style={{ backgroundColor: ativo ? 'var(--color-primary)' : 'var(--color-border)' }}
                 />
-                {status === 'Em armazém' ? 'No galpão' : status}
+                {status}
               </button>
             );
           })}
@@ -499,7 +497,7 @@ export default function TrackingPage() {
 
       {dashboardHabilitado && (
         <>
-          <div className="mb-3 flex justify-end">
+          <div className="mt-6 mb-3 flex justify-end">
             <ExportButton nomeArquivo="localizacao-cargas" onExport={() => exportarTrackingCsv(filtro, filtrosTabela.apiFilters)} />
           </div>
           <AnalyticalDataTable

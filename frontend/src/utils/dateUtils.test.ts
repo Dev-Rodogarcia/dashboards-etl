@@ -7,6 +7,7 @@ import {
   normalizarPeriodo,
   primeiroDiaMesAtualLocal,
   primeiroDiaMesPassadoLocal,
+  primeiroDiaMesesAtrasLocal,
   ultimoDiaMesPassadoLocal,
 } from './dateUtils';
 
@@ -58,6 +59,22 @@ describe('data30DiasAtrasLocal', () => {
     vi.useFakeTimers();
     vi.setSystemTime(DATA_FROZEN);
     expect(data30DiasAtrasLocal()).toBe(dataNDiasAtrasLocal(30));
+  });
+});
+
+describe('primeiroDiaMesesAtrasLocal', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('retorna o primeiro dia do mês inicial para uma janela mensal fechada', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(DATA_FROZEN);
+    expect(primeiroDiaMesesAtrasLocal(2)).toBe('2026-01-01');
+  });
+
+  it('atravessa virada de ano', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-15T12:00:00.000Z'));
+    expect(primeiroDiaMesesAtrasLocal(5)).toBe('2025-08-01');
   });
 });
 

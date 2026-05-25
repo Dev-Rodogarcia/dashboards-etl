@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   buscarFiliais,
   buscarClientes,
+  buscarPagadores,
   buscarFaturasPorClienteClientesCnpj,
   buscarMotoristas,
   buscarVeiculos,
@@ -28,6 +29,18 @@ export function useClientes() {
   return useQuery({
     queryKey: ['dim', 'clientes'],
     queryFn: buscarClientes,
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function usePagadores(busca: string) {
+  const buscaNormalizada = busca.trim();
+
+  return useQuery({
+    queryKey: ['dim', 'pagadores', buscaNormalizada],
+    queryFn: () => buscarPagadores(buscaNormalizada),
+    placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
     retry: 1,
   });
