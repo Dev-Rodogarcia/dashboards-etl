@@ -147,7 +147,7 @@ export default function ManifestosPage() {
 
   const tiposVeiculoOption: EChartsOption = useMemo(() => ({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: { top: 64, right: 10, bottom: 32, left: 44, containLabel: true },
+    grid: { top: 34, right: 10, bottom: 4, left: 44, containLabel: true },
     xAxis: {
       type: 'category',
       data: tiposVeiculo.map((item) => item.tipo),

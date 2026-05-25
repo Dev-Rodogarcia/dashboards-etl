@@ -46,7 +46,7 @@ public class IndicadoresGestaoInfraBootstrapService implements ApplicationRunner
         List<String> inconsistencias = new ArrayList<>();
         inconsistencias.addAll(auditarObjeto("vw_fretes_powerbi", List.of(
                 "ID", "Nº Minuta", "Filial Emissora", "Responsável pela Região de Destino", "Previsão de Entrega",
-                "Data de Finalização", "Performance Status", "Região Destino", "Cidade Destino", "Comprovante Anexado",
+                "Data de Finalização", "Performance Status", "Destino",
                 "Pagador Doc", "Peso Cubado", "Total M3", "Data de extracao"
         )));
         inconsistencias.addAll(auditarObjeto("vw_localizacao_cargas_powerbi", List.of(

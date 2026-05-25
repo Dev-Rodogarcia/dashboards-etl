@@ -86,14 +86,8 @@ public class VisaoFretesEntity {
     @Column(name = "[Destino]")
     private String destinoCidade;
 
-    @Column(name = "[Cidade Destino]")
-    private String cidadeDestino;
-
     @Column(name = "[UF Destino]")
     private String destinoUf;
-
-    @Column(name = "[Região Destino]")
-    private String regiaoDestino;
 
     @Column(name = "[Filial]")
     private String filialNome;
@@ -142,9 +136,6 @@ public class VisaoFretesEntity {
 
     @Column(name = "[Performance Status Dif de Dias Oficial]")
     private String performanceStatusDifDiasOficial;
-
-    @Column(name = "[Comprovante Anexado]")
-    private String comprovanteAnexado;
 
     @Column(name = "[Modal]")
     private String modal;
@@ -254,7 +245,6 @@ public class VisaoFretesEntity {
         entity.origemUf = origemUf;
         entity.destinoUf = destinoUf;
         entity.destinoCidade = destinoCidade;
-        entity.cidadeDestino = destinoCidade;
         entity.filialNome = filialNome;
         entity.filialEmissora = filialEmissora;
         entity.responsavelRegiaoDestino = responsavelRegiaoDestino;
@@ -370,7 +360,7 @@ public class VisaoFretesEntity {
     }
 
     public String getCidadeDestino() {
-        return cidadeDestino;
+        return destinoCidade;
     }
 
     public String getDestinoUf() {
@@ -378,7 +368,7 @@ public class VisaoFretesEntity {
     }
 
     public String getRegiaoDestino() {
-        return regiaoDestino;
+        return destinoUf;
     }
 
     public String getFilialNome() {
@@ -446,7 +436,7 @@ public class VisaoFretesEntity {
     }
 
     public String getComprovanteAnexado() {
-        return comprovanteAnexado;
+        return null;
     }
 
     public String getModal() {
