@@ -192,11 +192,21 @@ public class UtilizacaoColetoresIndicadorService {
             ranking.computeIfAbsent(branchName, AcumuladorRanking::new).registrar(ponto);
         }
 
+        Map<String, String> filiaisValidas = carregarFiliaisValidas();
+        List<AcumuladorRanking> rankingFiltrado = ranking.values().stream()
+                .filter(acumulador -> deveExibirNoRankingColetores(acumulador, filiaisValidas))
+                .toList();
+
+        Set<String> filiaisRanking = new LinkedHashSet<>();
+        for (AcumuladorRanking acumulador : rankingFiltrado) {
+            filiaisRanking.add(acumulador.branchName());
+        }
+
         Map<String, BigDecimal> metas = kpiGoalService != null
-                ? kpiGoalService.buscarMetasEfetivasPorIndicador(KpiGoalService.COLLECTOR_USAGE, ranking.keySet())
+                ? kpiGoalService.buscarMetasEfetivasPorIndicador(KpiGoalService.COLLECTOR_USAGE, filiaisRanking)
                 : Map.of();
 
-        return ranking.values().stream()
+        return rankingFiltrado.stream()
                 .map(acumulador -> acumulador.toDto(metas.getOrDefault(acumulador.branchName(), BigDecimal.valueOf(90))))
                 .sorted(Comparator.comparingDouble(UtilizacaoColetoresRankingDTO::utilization)
                         .thenComparing(UtilizacaoColetoresRankingDTO::manifestosBipaveis, Comparator.reverseOrder())
@@ -533,6 +543,18 @@ public class UtilizacaoColetoresIndicadorService {
                 .map(valor -> canonicalizarFilial(valor, filiaisValidas))
                 .map(this::normalizarTexto)
                 .anyMatch(valorNormalizado::equals);
+    }
+
+    private boolean deveExibirNoRankingColetores(AcumuladorRanking acumulador, Map<String, String> filiaisValidas) {
+        return acumulador.manifestosBipados > 0 || filialOperacional(acumulador.branchName(), filiaisValidas);
+    }
+
+    private boolean filialOperacional(String filial, Map<String, String> filiaisValidas) {
+        if (!temTexto(filial)) {
+            return false;
+        }
+        String filialCanonica = canonicalizarFilial(filial, filiaisValidas);
+        return filiaisValidas.containsKey(normalizarTexto(filialCanonica));
     }
 
     private void registrarAliasesFilial(Map<String, String> lookup, String filial, String canonica) {

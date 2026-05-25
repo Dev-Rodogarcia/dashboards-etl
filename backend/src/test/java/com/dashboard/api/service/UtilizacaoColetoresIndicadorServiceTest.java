@@ -188,6 +188,37 @@ class UtilizacaoColetoresIndicadorServiceTest {
     }
 
     @Test
+    void buscarRankingDeveOcultarParceirosSemOrdensParaNaoZerarGrafico() {
+        when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                manifesto(50L, "SPO", "RAO - CR TRANPORTES | PARCEIRO RIBEIRÃO PRETO", "encerrado", "DISTRIBUIÇÃO"),
+                manifesto(51L, "REC", null, "encerrado", "DISTRIBUIÇÃO"),
+                manifesto(52L, "SPO", null, "encerrado", "DISTRIBUIÇÃO")
+        ));
+        when(inventarioRepository.findAll(TestSpecificationMatchers.anySpecification())).thenReturn(List.of(
+                ordem(500L, "SPO", "picking", OffsetDateTime.parse("2026-04-02T08:00:00-03:00"), OffsetDateTime.parse("2026-04-02T08:30:00-03:00"))
+        ));
+
+        List<UtilizacaoColetoresRankingDTO> ranking = service.buscarRanking(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
+        );
+
+        assertThat(ranking).extracting(UtilizacaoColetoresRankingDTO::branchName)
+                .doesNotContain("RAO - CR TRANPORTES | PARCEIRO RIBEIRÃO PRETO")
+                .contains(
+                        "REC - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
+                        "SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"
+                );
+        assertThat(ranking)
+                .filteredOn(item -> item.branchName().equals("REC - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"))
+                .singleElement()
+                .satisfies(item -> {
+                    assertThat(item.ordensConferencia()).isZero();
+                    assertThat(item.manifestosBipaveis()).isEqualTo(1);
+                    assertThat(item.utilization()).isZero();
+                });
+    }
+
+    @Test
     void buscarOverviewDeveRetornarVazioQuandoBaseIndisponivel() {
         when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification()))
                 .thenThrow(new DataAccessResourceFailureException("view indisponivel"));
