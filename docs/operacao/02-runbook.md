@@ -59,7 +59,8 @@ Acao:
 
 - reduzir periodo;
 - aplicar filtros adicionais;
-- habilitar SQL logging temporario se precisar inspecionar query real.
+- habilitar SQL logging temporario se precisar inspecionar query real;
+- confirmar se filtros, agregacoes e rankings estao sendo executados em SQL, nao em memoria da JVM.
 
 ## 4. `7d`, `30d` e `90d` mostram o mesmo numero
 
@@ -144,6 +145,8 @@ Acao:
 
 - rota protegida no frontend;
 - permissao mapeada no backend e frontend;
+- confirmacao de que a view/colunas existem no contrato publicado pelo ETL;
+- consulta/projecao SQL no repository para filtros, agregacoes, rankings e `distinct`;
 - service com validacao de periodo;
 - endpoint de dimensao, se houver filtro assistido;
 - teste de service;

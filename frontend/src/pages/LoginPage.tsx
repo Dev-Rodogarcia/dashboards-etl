@@ -20,7 +20,7 @@ export default function LoginPage() {
   const isDarkTheme = theme === 'dark';
 
   useEffect(() => {
-    if (!carregandoSessao && sessao?.token) {
+    if (!carregandoSessao && sessao) {
       navigate(firstAccessibleRoute(sessao), { replace: true });
     }
   }, [carregandoSessao, navigate, sessao]);

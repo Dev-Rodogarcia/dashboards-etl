@@ -44,7 +44,6 @@ describe('accessControl', () => {
       permissoesEfetivas: createEmptyPermissionMap(),
       filiaisPermitidasEfetivas: [],
       exigeTrocaSenha: false,
-      token: 'token',
       sessaoExpiraEm: new Date(Date.now() + 60_000).toISOString(),
     }, 'homeComunicados')).toBe(true);
   });
@@ -62,7 +61,6 @@ describe('accessControl', () => {
       },
       filiaisPermitidasEfetivas: [],
       exigeTrocaSenha: false,
-      token: 'token',
       sessaoExpiraEm: new Date(Date.now() + 60_000).toISOString(),
     };
 

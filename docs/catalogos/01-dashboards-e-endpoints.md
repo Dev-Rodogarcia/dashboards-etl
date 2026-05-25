@@ -1,5 +1,7 @@
 # Catalogo de Dashboards e Endpoints
 
+Este catalogo descreve rotas e contratos do Dashboard. As views `dbo.vw_*_powerbi` e `dbo.vw_dim_*` usadas por esses contratos pertencem estruturalmente ao ETL; o Dashboard apenas consome em leitura e nao executa DDL cross-database.
+
 ## Dashboards principais
 
 | Modulo | Rota UI | Permissao | Endpoint base | Endpoints complementares | Service backend | Campo principal de data | Tipo |

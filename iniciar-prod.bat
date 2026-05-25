@@ -58,6 +58,7 @@ if "%DRY_RUN%"=="1" (
     echo [DRY-RUN] Liberaria a UI %FRONTEND_PORT% antes do build e a API %BACKEND_PORT% antes do novo backend.
     echo [DRY-RUN] Nao encerraria nem tocaria portas de desenvolvimento: %BACKEND_DEV_PORT% e %FRONTEND_DEV_PORT%.
     echo [DRY-RUN] Geraria build atualizado em frontend\dist-prod antes de abrir a UI.
+    echo [DRY-RUN] Carimbaria build-info.json com horario do build e do deploy.
     echo [DRY-RUN] API publica usada no build: %PROD_API_PUBLIC_URL%
     echo [DRY-RUN] CORS esperado na API: %PROD_FRONTEND_PUBLIC_URL%
     echo [DRY-RUN] Abriria dois terminais: "Dashboard API Producao" e "Dashboard UI Producao".
@@ -161,6 +162,15 @@ if errorlevel 1 (
     echo.
     echo [ERRO] Frontend nao sera iniciado enquanto a API de producao estiver sem CORS correto.
     echo        Confira a janela "Dashboard API Producao" e o dashboards\.env.
+    call :release_prod_start_lock
+    pause
+    exit /b 1
+)
+
+call :mark_deploy_started
+if errorlevel 1 (
+    echo.
+    echo [ERRO] Frontend nao sera iniciado porque nao foi possivel registrar o horario do deploy.
     call :release_prod_start_lock
     pause
     exit /b 1
@@ -686,6 +696,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$allowOrigin = @($response.Headers['Access-Control-Allow-Origin'])[0];" ^
   "if ($allowOrigin -ne $origin) { Write-Host ('[ERRO] Backend sem CORS de producao. Esperado Access-Control-Allow-Origin=' + $origin + '; recebido=' + $allowOrigin); exit 2 }" ^
   "Write-Host ('[OK] CORS da API aceitou ' + $origin);" ^
+  "exit 0"
+exit /b %ERRORLEVEL%
+
+:mark_deploy_started
+echo [INFO] Registrando horario do deploy em %BUILD_INFO_FILE%...
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$path = $env:BUILD_INFO_FILE;" ^
+  "if (-not (Test-Path -LiteralPath $path)) { Write-Host ('[ERRO] build-info.json nao encontrado: ' + $path); exit 1 }" ^
+  "try { $info = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -ErrorAction Stop } catch { Write-Host ('[ERRO] build-info.json invalido: ' + $_.Exception.Message); exit 2 }" ^
+  "$agoraUtc = (Get-Date).ToUniversalTime().ToString('o');" ^
+  "$agoraLocal = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss zzz');" ^
+  "$info | Add-Member -NotePropertyName deployedAt -NotePropertyValue $agoraUtc -Force;" ^
+  "$info | Add-Member -NotePropertyName deployedAtLocal -NotePropertyValue $agoraLocal -Force;" ^
+  "$json = $info | ConvertTo-Json -Compress -Depth 6;" ^
+  "[System.IO.File]::WriteAllText($path, $json, (New-Object System.Text.UTF8Encoding $false));" ^
+  "Write-Host ('[OK] Deploy registrado em build-info.json: ' + $agoraLocal);" ^
   "exit 0"
 exit /b %ERRORLEVEL%
 

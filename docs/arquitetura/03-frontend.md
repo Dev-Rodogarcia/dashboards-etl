@@ -36,12 +36,12 @@ Essa ordem importa. Sem ela, a UI perde sessao, cache ou sincronismo de filtros.
 
 ## Sessao e autenticacao
 
-`AutenticacaoContext.tsx` faz o bootstrap da sessao com `obterSessao()`, `buscarSessaoAtual()` e, quando a aba ainda nao tem JWT local, uma tentativa de `refresh`.
+`AutenticacaoContext.tsx` faz o bootstrap da sessao com `obterSessao()`, `buscarSessaoAtual()` e, quando a pagina foi recarregada sem access token em memoria, uma tentativa de `refresh`.
 
 Responsabilidades:
 
-- restaurar o token salvo;
-- restaurar nova aba via cookie de refresh enquanto o navegador estiver aberto;
+- manter o access token apenas em memoria volatil;
+- restaurar sessao via cookie de refresh enquanto a sessao absoluta estiver valida;
 - validar a sessao com `/api/auth/me`;
 - expor `login`, `logout` e `alterarSenha`;
 - apagar a sessao local quando refresh ou `me` falharem.

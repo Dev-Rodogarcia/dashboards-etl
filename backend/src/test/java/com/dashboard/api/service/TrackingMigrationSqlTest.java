@@ -17,30 +17,15 @@ class TrackingMigrationSqlTest {
     );
 
     @Test
-    void migrationV019DeveUsarLocalizacaoAtualComoFallbackDaFilialAtual() throws IOException {
+    void migrationV019NaoDeveCriarWrapperDeLocalizacaoDaEtl() throws IOException {
         String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
                 "V019__sincronizar_view_localizacao_cargas_etl.sql"));
 
-        assertThat(sql).contains("CREATE OR ALTER VIEW dbo.vw_localizacao_cargas_powerbi");
-        assertThat(sql).contains("FROM [ETL_SISTEMA].dbo.vw_localizacao_cargas_powerbi");
-        assertThat(sql).contains("(N'Localização Atual')");
-        assertThat(sql).contains("(N'Peso Taxado Decimal')");
-        assertThat(sql).contains("(N'Valor NF Decimal')");
-        assertThat(sql).contains("(N'Sigla Responsável Região Destino')");
-        assertThat(sql).contains("(N'Status Normalizado')");
-        assertThat(sql).contains("(N'Status Terminal')");
-        assertThat(sql).contains("(N'Cancelado Flag')");
-        assertThat(sql).contains("(N'Hash Localização')");
-        assertThat(sql).contains("[Peso Taxado Decimal]");
-        assertThat(sql).contains("[Valor NF Decimal]");
-        assertThat(sql).contains("[Sigla Responsável Região Destino]");
-        assertThat(sql).contains("[Status Normalizado]");
-        assertThat(sql).contains("[Status Terminal]");
-        assertThat(sql).contains("[Cancelado Flag]");
-        assertThat(sql).contains("[Hash Localização]");
-        assertThat(sql).contains("NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(4000), [Filial Atual]))), N'''')");
-        assertThat(sql).contains("NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(4000), [Localização Atual]))), N'''')");
-        assertThat(sql).contains(") AS [Filial Atual]");
+        assertThat(sql).contains("No-op intencional");
+        assertThat(sql).contains("nao cria nem sincroniza wrappers");
+        assertThat(sql).doesNotContain("ETL_SISTEMA");
+        assertThat(sql).doesNotContain("CREATE OR ALTER VIEW");
+        assertThat(sql).doesNotContain("sp_refreshview");
         assertThat(sql).doesNotContain("ALTER TABLE");
         assertThat(MOJIBAKE_PATTERN.matcher(sql).find()).isFalse();
     }

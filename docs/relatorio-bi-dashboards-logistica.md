@@ -1,3 +1,6 @@
+> [!WARNING] DOCUMENTACAO HISTORICA / NAO CANONICA
+> Este relatorio foi mantido como referencia historica. A fonte vigente para ownership das views e o projeto `etl-extracao-dados`; o Dashboard nao cria nem altera views do ETL.
+
 # Relatório Estratégico de BI e Dashboards de Logística
 
 ## 1. Escopo e método

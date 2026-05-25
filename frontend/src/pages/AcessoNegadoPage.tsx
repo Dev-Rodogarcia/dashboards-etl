@@ -36,7 +36,7 @@ export default function AcessoNegadoPage() {
         </p>
 
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          {usuario?.token && destinoPadrao !== '/acesso-negado' ? (
+          {usuario && destinoPadrao !== '/acesso-negado' ? (
             <>
               <button
                 type="button"
@@ -53,7 +53,7 @@ export default function AcessoNegadoPage() {
                 Trocar usuario
               </button>
             </>
-          ) : usuario?.token ? (
+          ) : usuario ? (
             <button
               type="button"
               onClick={handleSair}

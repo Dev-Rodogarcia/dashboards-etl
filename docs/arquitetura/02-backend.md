@@ -2,7 +2,9 @@
 
 ## Stack e objetivo
 
-O backend e uma API Spring Boot 3.2 que consolida dados do SQL Server para dashboards e modulos administrativos. O foco nao e CRUD generico; o foco e expor contratos de leitura e operacao com seguranca, filtros consistentes e mensagens de erro acionaveis.
+O backend e uma API Spring Boot 3.2 que publica contratos de leitura para dashboards e modulos administrativos. O foco nao e CRUD generico; o foco e expor dados ja modelados no SQL Server com seguranca, filtros consistentes e mensagens de erro acionaveis.
+
+O Dashboard e consumidor das views publicadas pelo ETL. A API nao e dona estrutural do schema `ETL_SISTEMA` (`esl_cloud`) nem das views `dbo.vw_*_powerbi` / `dbo.vw_dim_*`.
 
 ## Estrutura de pacotes
 
@@ -41,10 +43,16 @@ Padrao atual:
 Responsavel por:
 
 - validar periodo com `ValidadorPeriodoService`;
-- aplicar agregacoes e calculos de negocio;
-- decidir entre `Specification` e fast path legado do repository;
-- consolidar linhas SQL em DTOs finais;
+- coordenar regras de negocio que pertencem ao contrato HTTP;
+- escolher a projecao/repository correta para cada resposta;
+- transformar resultados SQL ja agregados/projetados em DTOs finais;
 - garantir semantica correta de data para `LocalDate` e `DATETIMEOFFSET`.
+
+Regra importante:
+
+- nao carregar grandes massas para agregar, filtrar, ranquear ou calcular `distinct` em memoria da JVM;
+- agregacoes, filtros textuais, rankings e listas distintas devem nascer como SQL/projecoes no banco;
+- transformacoes no service devem ser pequenas, deterministicas e orientadas ao formato do DTO.
 
 Arquivos centrais:
 
@@ -58,14 +66,29 @@ Arquivos centrais:
 
 Responsavel por:
 
-- encapsular acesso a entidades/vistas SQL;
-- expor `findAll(Specification)` para caminho flexivel;
-- manter metodos especificos quando existir fast path legado de alta frequencia.
+- encapsular acesso a views SQL e tabelas proprias do Dashboard;
+- expor consultas/projecoes que empurrem filtros e agregacoes para o banco;
+- manter contratos de leitura coerentes com as views publicadas pelo ETL.
 
 Regra importante:
 
 - para `OffsetDateTime`, prefira metodos `GreaterThanEqualAndLessThan` ou `Specification` com `>=` e `<`;
 - evite `between` quando a coluna representa instante e o filtro representa dia civil.
+
+## Banco de dados e ownership estrutural
+
+### Schema do Dashboard
+
+- A unica fonte de verdade estrutural e o Flyway em `backend/src/main/resources/db/migration`.
+- `spring.jpa.hibernate.ddl-auto` deve permanecer sem geracao automatica de schema.
+- DDL em runtime dentro de Java e proibido em producao.
+- Inicializadores/validadores podem validar estado, registrar alerta ou falhar cedo; eles nao devem criar tabelas, alterar colunas ou corrigir schema em tempo de execucao.
+
+### Schema do ETL
+
+- O ETL e o unico owner estrutural de `ETL_SISTEMA` (`esl_cloud`) e das views `dbo.vw_*_powerbi` / `dbo.vw_dim_*`.
+- O Dashboard acessa esse schema como consumidor de leitura.
+- O Dashboard nao deve executar DDL cross-database para criar, substituir ou sincronizar views do ETL.
 
 ### `exception/`
 
@@ -85,12 +108,13 @@ Essa padronizacao e parte do contrato com a UI.
 2. Criar controller em `/api/painel/<modulo>`.
 3. Chamar `FiltroRequestMapper`.
 4. Validar o periodo no service.
-5. Definir o campo de data correto da view.
-6. Se a view usa `DATETIMEOFFSET`, construir janela com `PeriodoOffsetDateTimeHelper`.
-7. Aplicar filtros de escopo e filtros textuais com `ConsultaSpecificationUtils`.
-8. Limitar tabelas com `ConsultaLimiteUtils`.
-9. Cobrir com teste de service.
-10. Incluir o modulo na validacao BI em `scripts/dashboard-validation/entities.mjs`.
+5. Confirmar que a view/coluna necessaria existe no contrato publicado pelo ETL.
+6. Definir o campo de data correto da view.
+7. Se a view usa `DATETIMEOFFSET`, construir janela com `PeriodoOffsetDateTimeHelper`.
+8. Implementar filtros, agregacoes, rankings e `distinct` como SQL/projecao no repository.
+9. Limitar tabelas com `ConsultaLimiteUtils`.
+10. Cobrir com teste de service/repository conforme o risco.
+11. Incluir o modulo na validacao BI em `scripts/dashboard-validation/entities.mjs`.
 
 ## Semantica de consulta por tipo de data
 
@@ -133,6 +157,9 @@ Padrao:
 - timeout JPA aumentado para `30000 ms`;
 - timeout de consulta mapeado para `408`;
 - helper central de `DATETIMEOFFSET` introduzido para evitar regressao por UTC;
+- Flyway e o unico mecanismo aceito para estruturas proprias do Dashboard;
+- runtime Java nao executa DDL estrutural;
+- views do ETL sao contrato externo de leitura, nao estrutura administrada pelo Dashboard;
 - overview de `Faturas` nao pode zerar `clientesAtivos` quando houver base operacional sem titulos financeiros.
 
 ## Checklist de revisao backend
@@ -141,6 +168,10 @@ Antes de considerar uma mudanca pronta:
 
 - o service valida periodo?
 - o filtro de data usa o tipo correto?
+- a consulta empurra filtros/agregacoes para SQL?
+- a mudanca estrutural propria esta em Flyway?
+- nao ha DDL Java em runtime?
+- nenhuma view/tabela do ETL esta sendo criada ou alterada pelo Dashboard?
 - o endpoint devolve DTO e nao entidade?
 - existe teste cobrindo a regra nova?
 - se o modulo entra no BI, o script de validacao foi atualizado?

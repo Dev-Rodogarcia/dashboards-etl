@@ -46,16 +46,17 @@ Configuracao atual:
 - JWT com expiracao de `15 minutos`
 - refresh token rotativo com expiracao absoluta padrao de `24 horas`
 - refresh token mantido em cookie `HttpOnly`
+- access token mantido apenas em memoria volatil do React
 - o cookie de refresh sempre recebe `Max-Age` com o tempo restante da sessao, para preservar login ao fechar/reabrir a aba dentro das 24h
 
 Fluxo:
 
 1. login gera JWT e refresh token;
-2. UI salva o JWT e `sessaoExpiraEm` em `sessionStorage`;
+2. UI mantém o JWT apenas em memoria de runtime, encapsulado pelo gerenciador de sessao;
 3. o cookie de refresh fica restrito ao path `/api/auth`;
 4. antes do JWT vencer, o frontend tenta refresh silencioso;
 5. ao receber `401`, o frontend tenta `/api/auth/refresh`;
-6. ao abrir nova aba sem JWT local, o frontend tenta restaurar a sessao via `/api/auth/refresh`;
+6. ao recarregar a pagina, o frontend tenta restaurar a sessao exclusivamente via cookie `HttpOnly` de refresh;
 7. se refresh falhar por expiracao real, logout manual, revogacao ou inativacao, a sessao local e descartada.
 
 ## Papeis e permissoes

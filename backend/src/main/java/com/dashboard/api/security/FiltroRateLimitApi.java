@@ -9,6 +9,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,6 +36,7 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
             "/api/painel/home/comunicados",
             "/api/painel/indicadores-gestao-a-vista",
             "/api/painel/manifestos",
+            "/api/painel/performance",
             "/api/painel/tracking",
             "/api/admin/acesso"
     );
@@ -58,6 +60,9 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+        if (HttpMethod.OPTIONS.matches(request.getMethod())) {
+            return true;
+        }
         String path = request.getRequestURI();
         return PREFIXOS_LIMITADOS.stream().noneMatch(path::startsWith);
     }

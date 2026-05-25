@@ -137,6 +137,13 @@ const server = http.createServer((request, response) => {
     return;
   }
 
+  if (pathname === '/build-info.json') {
+    response.statusCode = 200;
+    response.setHeader('Content-Type', 'application/json; charset=utf-8');
+    response.end(fs.readFileSync(buildInfoPath, 'utf8'));
+    return;
+  }
+
   return handler(request, response, {
     public: publicDir,
     directoryListing: false,

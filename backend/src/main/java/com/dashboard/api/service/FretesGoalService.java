@@ -8,6 +8,9 @@ import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -22,7 +25,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,7 +34,8 @@ import java.util.Optional;
 import java.util.Set;
 
 @Service
-public class FretesGoalService {
+@Order(7)
+public class FretesGoalService implements ApplicationRunner {
 
     public static final String GLOBAL_BRANCH_ID = "GLOBAL";
     private static final Logger log = LoggerFactory.getLogger(FretesGoalService.class);
@@ -46,6 +49,11 @@ public class FretesGoalService {
     public FretesGoalService(NamedParameterJdbcTemplate jdbcTemplate, UsuarioRepository usuarioRepository) {
         this.jdbcTemplate = jdbcTemplate;
         this.usuarioRepository = usuarioRepository;
+    }
+
+    @Override
+    public void run(ApplicationArguments args) {
+        validarSchema();
     }
 
     @Transactional(readOnly = true)
@@ -143,7 +151,7 @@ public class FretesGoalService {
 
     @Transactional
     public FretesGoalConfigDTO salvarConfiguracao(FretesGoalConfigRequestDTO request, String usuarioEmail) {
-        garantirTabela();
+        validarSchema();
         Objects.requireNonNull(request, "request é obrigatório.");
         validarAnoMes(request.ano(), request.mes());
         BigDecimal metaFaturamento = normalizarMetaFaturamento(request.metaFaturamento());
@@ -178,7 +186,7 @@ public class FretesGoalService {
 
     @Transactional
     public void removerConfiguracao(String branchId, int ano, int mes) {
-        garantirTabela();
+        validarSchema();
         validarAnoMes(ano, mes);
         String normalizedBranchId = normalizarBranchId(branchId);
         jdbcTemplate.update("""
@@ -192,49 +200,34 @@ public class FretesGoalService {
                 .addValue("mes", mes));
     }
 
-    @Transactional
-    public void garantirTabela() {
-        jdbcTemplate.getJdbcTemplate().execute("""
-                IF OBJECT_ID(N'acesso.fretes_goals', N'U') IS NULL
-                BEGIN
-                    CREATE TABLE acesso.fretes_goals (
-                        id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_fretes_goals PRIMARY KEY,
-                        branch_id NVARCHAR(120) NULL,
-                        ano SMALLINT NOT NULL,
-                        mes TINYINT NOT NULL,
-                        meta_faturamento DECIMAL(18,2) NOT NULL CONSTRAINT DF_fretes_goals_meta_faturamento DEFAULT 0,
-                        created_at DATETIME2(0) NOT NULL CONSTRAINT DF_fretes_goals_created_at DEFAULT SYSUTCDATETIME(),
-                        updated_at DATETIME2(0) NOT NULL CONSTRAINT DF_fretes_goals_updated_at DEFAULT SYSUTCDATETIME(),
-                        updated_by_user_id BIGINT NULL,
-                        CONSTRAINT CK_fretes_goals_mes CHECK (mes BETWEEN 1 AND 12),
-                        CONSTRAINT CK_fretes_goals_meta_faturamento CHECK (meta_faturamento >= 0)
-                    );
-                END
-                """);
-        jdbcTemplate.getJdbcTemplate().execute("""
-                IF NOT EXISTS (
-                    SELECT 1 FROM sys.indexes
-                    WHERE name = N'UX_fretes_goals_branch_period'
-                      AND object_id = OBJECT_ID(N'acesso.fretes_goals', N'U')
-                )
-                BEGIN
-                    CREATE UNIQUE INDEX UX_fretes_goals_branch_period
-                    ON acesso.fretes_goals (branch_id, ano, mes)
-                    WHERE branch_id IS NOT NULL;
-                END
-                """);
-        jdbcTemplate.getJdbcTemplate().execute("""
-                IF NOT EXISTS (
-                    SELECT 1 FROM sys.indexes
-                    WHERE name = N'UX_fretes_goals_global_period'
-                      AND object_id = OBJECT_ID(N'acesso.fretes_goals', N'U')
-                )
-                BEGIN
-                    CREATE UNIQUE INDEX UX_fretes_goals_global_period
-                    ON acesso.fretes_goals (ano, mes)
-                    WHERE branch_id IS NULL;
-                END
-                """);
+    @Transactional(readOnly = true)
+    public void validarSchema() {
+        exigir(tabelaMetasExiste(), "Tabela 'acesso.fretes_goals' não encontrada. Execute a migration V017.");
+        exigir(colunaExiste("acesso.fretes_goals", "id"), "Coluna 'acesso.fretes_goals.id' não encontrada.");
+        exigir(colunaExiste("acesso.fretes_goals", "branch_id"), "Coluna 'acesso.fretes_goals.branch_id' não encontrada.");
+        exigir(colunaExiste("acesso.fretes_goals", "ano"), "Coluna 'acesso.fretes_goals.ano' não encontrada.");
+        exigir(colunaExiste("acesso.fretes_goals", "mes"), "Coluna 'acesso.fretes_goals.mes' não encontrada.");
+        exigir(colunaExiste("acesso.fretes_goals", "meta_faturamento"), "Coluna 'acesso.fretes_goals.meta_faturamento' não encontrada.");
+        exigir(colunaExiste("acesso.fretes_goals", "created_at"), "Coluna 'acesso.fretes_goals.created_at' não encontrada.");
+        exigir(colunaExiste("acesso.fretes_goals", "updated_at"), "Coluna 'acesso.fretes_goals.updated_at' não encontrada.");
+        exigir(colunaExiste("acesso.fretes_goals", "updated_by_user_id"), "Coluna 'acesso.fretes_goals.updated_by_user_id' não encontrada.");
+        exigir(checkConstraintExiste("acesso.fretes_goals", "CK_fretes_goals_mes"), "Constraint 'CK_fretes_goals_mes' não encontrada.");
+        exigir(checkConstraintExiste("acesso.fretes_goals", "CK_fretes_goals_meta_faturamento"), "Constraint 'CK_fretes_goals_meta_faturamento' não encontrada.");
+        exigir(indiceFiltradoExiste(
+                        "UX_fretes_goals_branch_period",
+                        "(BRANCH_IDISNOTNULL)",
+                        List.of("branch_id", "ano", "mes")
+                ),
+                "Índice 'UX_fretes_goals_branch_period' deve ser único em (branch_id, ano, mes) com filtro branch_id IS NOT NULL."
+        );
+        exigir(indiceFiltradoExiste(
+                        "UX_fretes_goals_global_period",
+                        "(BRANCH_IDISNULL)",
+                        List.of("ano", "mes")
+                ),
+                "Índice 'UX_fretes_goals_global_period' deve ser único em (ano, mes) com filtro branch_id IS NULL."
+        );
+        log.info("Schema de metas de fretes validado.");
     }
 
     private GoalPeriodResult calcularMetasPeriodo(LocalDate dataInicio, LocalDate dataFim, Set<String> branchIdsBase, boolean filtroFilialAtivo) {
@@ -309,6 +302,77 @@ public class FretesGoalService {
                 SELECT CASE WHEN OBJECT_ID(N'acesso.fretes_goals', N'U') IS NULL THEN 0 ELSE 1 END
                 """, Integer.class);
         return exists != null && exists == 1;
+    }
+
+    private boolean colunaExiste(String nomeCompletoTabela, String nomeColuna) {
+        Integer total = jdbcTemplate.getJdbcTemplate().queryForObject(
+                "SELECT COUNT(1) WHERE COL_LENGTH(?, ?) IS NOT NULL",
+                Integer.class,
+                nomeCompletoTabela,
+                nomeColuna
+        );
+        return total != null && total > 0;
+    }
+
+    private boolean checkConstraintExiste(String nomeCompletoTabela, String nomeConstraint) {
+        Integer total = jdbcTemplate.getJdbcTemplate().queryForObject(
+                """
+                SELECT COUNT(1)
+                FROM sys.check_constraints
+                WHERE name = ?
+                  AND parent_object_id = OBJECT_ID(?, 'U')
+                """,
+                Integer.class,
+                nomeConstraint,
+                nomeCompletoTabela
+        );
+        return total != null && total > 0;
+    }
+
+    private boolean indiceFiltradoExiste(String nomeIndice, String filtroNormalizadoEsperado, List<String> colunasEsperadas) {
+        Integer total = jdbcTemplate.getJdbcTemplate().queryForObject(
+                """
+                SELECT COUNT(1)
+                FROM sys.indexes i
+                WHERE i.name = ?
+                  AND i.object_id = OBJECT_ID(N'acesso.fretes_goals', N'U')
+                  AND i.is_unique = 1
+                  AND REPLACE(REPLACE(REPLACE(UPPER(ISNULL(i.filter_definition, N'')), N'[', N''), N']', N''), N' ', N'') = ?
+                """,
+                Integer.class,
+                nomeIndice,
+                filtroNormalizadoEsperado
+        );
+        if (total == null || total == 0) {
+            return false;
+        }
+
+        List<String> colunas = jdbcTemplate.getJdbcTemplate().query(
+                """
+                SELECT c.name
+                FROM sys.indexes i
+                INNER JOIN sys.index_columns ic
+                    ON ic.object_id = i.object_id
+                   AND ic.index_id = i.index_id
+                INNER JOIN sys.columns c
+                    ON c.object_id = ic.object_id
+                   AND c.column_id = ic.column_id
+                WHERE i.name = ?
+                  AND i.object_id = OBJECT_ID(N'acesso.fretes_goals', N'U')
+                  AND ic.key_ordinal > 0
+                  AND ic.is_included_column = 0
+                ORDER BY ic.key_ordinal
+                """,
+                (rs, rowNum) -> rs.getString("name"),
+                nomeIndice
+        );
+        return colunas.equals(colunasEsperadas);
+    }
+
+    private void exigir(boolean condicao, String mensagem) {
+        if (!condicao) {
+            throw new IllegalStateException(mensagem);
+        }
     }
 
     private List<YearMonthSlice> monthSlices(LocalDate dataInicio, LocalDate dataFim) {

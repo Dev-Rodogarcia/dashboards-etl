@@ -1,3 +1,6 @@
+> [!WARNING] DOCUMENTAÇÃO OBSOLETA / LEGADA
+> Este arquivo registra uma fase anterior do projeto e não é fonte de verdade atual para arquitetura, sessão, ACL ou integração com views do ETL. Use os READMEs da raiz e a trilha canônica em `docs/arquitetura/` quando houver conflito.
+
 Documentação Arquitetural: Frontend (Dashboard UI)
 1. Stack Tecnológica Base
 A combinação destas ferramentas visa tipagem estrita, performance de renderização e controle de estado de servidor sem mascaramento de dados.

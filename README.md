@@ -6,7 +6,9 @@
 
 ## 🗺️ Visão Geral & Arquitetura do Sistema
 
-O portal centraliza a inteligência de negócios e a auditoria operacional da empresa. Ele consome dados refinados a partir de views no **SQL Server** (alimentadas pelo processo de ETL), implementa controles de acesso baseados em ACL (Access Control Lists) e oferece uma experiência de usuário rica em gráficos e filtros integrados.
+O portal centraliza a inteligência de negócios e a auditoria operacional da empresa. Ele é uma camada de apresentação, autorização e operação: consome dados refinados a partir das views publicadas pelo **ETL Extração de Dados**, aplica ACL (Access Control Lists) e expõe uma experiência de usuário rica em gráficos, tabelas e filtros integrados.
+
+O Dashboard não é dono do pipeline analítico nem das views de BI do ETL. Ele mantém apenas seus objetos próprios de aplicação, como acesso, auditoria administrativa, metas e configurações internas.
 
 ### Fluxo de Comunicação e Segurança
 
@@ -15,9 +17,31 @@ graph TD
     User([Usuário / Navegador]) <-->|HTTPS / TLS| Cloudflare[Cloudflare Tunnel]
     Cloudflare <-->|Porta 5173 / Localhost| ReactUI[React 19 Frontend]
     Cloudflare <-->|Porta 5010 / Localhost| SpringBoot[Spring Boot 3.2 Backend]
-    SpringBoot <-->|JDBC Driver / Porta 1433| SQLServer[(SQL Server DB - Dashboards)]
-    SpringBoot <-->|SQLite JDBC| SQLiteLocal[(SQLite Local - Auditoria/Acesso)]
+    SpringBoot <-->|JDBC / Objetos próprios| DashboardDB[(SQL Server - DASHBOARDS)]
+    SpringBoot -->|SELECT read-only| ETLViews[(SQL Server - ETL_SISTEMA / esl_cloud - dbo.vw_*_powerbi)]
 ```
+
+---
+
+## 🏛️ Arquitetura, Banco de Dados e SSOT
+
+O **Flyway** em `backend/src/main/resources/db/migration` é a **única fonte de verdade estrutural** dos objetos pertencentes ao Dashboard. Toda criação, alteração ou remoção de schema, tabela, índice, constraint, seed estrutural ou view própria deve entrar como migration versionada.
+
+DDL em runtime via Java é proibido. O backend roda com `spring.jpa.hibernate.ddl-auto=none`; classes de validação de schema podem apenas verificar contratos e falhar de forma explícita quando uma migration obrigatória não foi aplicada. Elas não devem executar `CREATE`, `ALTER`, `DROP` ou sincronizações estruturais.
+
+O banco `DASHBOARDS` concentra os objetos próprios da aplicação, especialmente o schema `acesso` e estruturas administrativas. As views analíticas `dbo.vw_*_powerbi` e `dbo.vw_dim_*` são contrato publicado pelo projeto **ETL Extração de Dados** no banco/schema `ETL_SISTEMA` (`esl_cloud`) e devem ser consumidas em modo somente leitura.
+
+O usuário de runtime da API deve operar com privilégio mínimo. Permissões DDL são reservadas à execução controlada de migrations, nunca ao fluxo normal da aplicação.
+
+---
+
+## 🔌 Integração com ETL e Performance
+
+O Dashboard é estritamente **consumidor** das views do ETL. Alterações em tabelas base, views `vw_*_powerbi`, views dimensionais, materializações ou regras estruturais de BI pertencem ao projeto `etl-extracao-dados`.
+
+O processamento de dados para painéis recorrentes deve acontecer no banco, por meio de projeções SQL, views, queries agregadas e paginação SQL. Agregações, filtros, rankings, `DISTINCT`, somatórios e recortes de período não devem ser feitos carregando grandes volumes na memória da JVM.
+
+A responsabilidade do backend do Dashboard é autenticar, autorizar, aplicar escopo de acesso, montar filtros seguros, chamar as projeções SQL corretas, mapear DTOs e devolver respostas pequenas e previsíveis ao frontend.
 
 ---
 
@@ -49,7 +73,7 @@ O frontend implementa roteamento seguro e autorização granular por setor para 
 * **Java 17 & Spring Boot 3.2.5**
 * **Spring Security & Spring Data JPA**
 * **Microsoft JDBC Driver para SQL Server**
-* **SQLite JDBC Driver** (para auditoria local e redundância de segurança)
+* **Flyway** (`backend/src/main/resources/db/migration`) como SSOT estrutural do banco do Dashboard.
 * **JWT (JSON Web Tokens - `jjwt-api` / `jjwt-impl`)** para controle de sessões sem estado.
 * **Spring Boot Actuator**: Monitoramento de integridade e endpoints de liveness/readiness.
 
@@ -119,7 +143,7 @@ dashboards/
 │   ├── .mvn/              # Wrapper do Maven
 │   ├── logs/              # Arquivos de log gerados em tempo de execução
 │   ├── src/               # Código Java 17 e Migrations do Flyway
-│   ├── storage/           # Banco SQLite local e chaves de segurança
+│   ├── storage/           # Artefatos locais ignorados pelo Git
 │   ├── mvnw.cmd           # Executável do Maven no Windows
 │   └── pom.xml            # Gerenciador de dependências Maven
 ├── frontend/              # Código-fonte da aplicação React
@@ -207,8 +231,10 @@ Ao subir o ambiente em VM utilizando o **Cloudflare Tunnel**, garanta o alinhame
 
 O portal implementa proteção estrita contra roubo de tokens e vazamento de privilégios:
 
-* **Refresh Tokens Rotativos**: Armazenados em cookies `HTTP-Only` e `Secure`, bloqueando acesso via scripts JS (XSS).
-* **Renovação Silenciosa**: Enquanto o usuário estiver ativo na aba, a autenticação será estendida de forma transparente. Uma inatividade prolongada ou falha severa na API não redirecionará o usuário instantaneamente para `/login`, melhorando o uso em telões de monitoramento de TV.
+* **Access Token JWT em memória volátil**: O token de acesso fica apenas em memória da aplicação React, encapsulado em closure no gerenciador de sessão. Ele não é persistido pelo navegador, reduzindo a janela de impacto em caso de XSS.
+* **Refresh Token Rotativo em Cookie HttpOnly**: O refresh token é emitido em cookie `HttpOnly` e `Secure` em produção, bloqueando acesso por scripts JS.
+* **F5 e restauração de sessão**: Ao recarregar a página, o React não reidrata JWT persistido. A restauração depende exclusivamente do cookie `HttpOnly` de refresh token e do endpoint `/api/auth/refresh`. Se o cookie estiver ausente, expirado ou revogado, o usuário precisa autenticar novamente.
+* **Renovação Silenciosa**: Enquanto a sessão absoluta permanecer válida, o frontend tenta renovar o access token antes da expiração ou após `401`, usando o cookie de refresh sem expor o segredo ao JavaScript.
 * **Usuário Supremo de Backup**: Credenciais para recuperação emergencial da ACL e acesso administrativo. As credenciais nunca ficam chumbadas no código, sendo lidas de variáveis de ambiente:
   ```properties
   ACESSO_USUARIO_SUPREMO_EMAIL=supremo@suaempresa.com
@@ -249,8 +275,8 @@ WHERE nome COLLATE Latin1_General_100_BIN2 LIKE N'%' + NCHAR(195) + N'%' OR nome
 
 Para aprofundar-se em aspectos técnicos específicos, consulte os relatórios técnicos e guias salvos no diretório `/docs`:
 
-* 📂 [Guia Geral de Documentos](file:///C:/Users/suporte/Documents/projetos/dashboards/docs/README.md): Índice principal de arquivos.
-* 📄 [Relatório de Refatoração Consolidada](file:///C:/Users/suporte/Documents/projetos/dashboards/docs/relatorio-refatoracao-consolidada.md): Histórico de melhorias aplicadas ao código.
-* 🔒 [Hardening de Segurança e Sessões](file:///C:/Users/suporte/Documents/projetos/dashboards/docs/relatorio-reestruturacao-acesso-sessao.md): Detalhes da implementação de Cookies Seguros e proteção JWT.
-* ⚙️ [Guia de Integração SQL, DTOs e Views](file:///C:/Users/suporte/Documents/projetos/dashboards/docs/GUIA-INTEGRACAO-SQL-DTOS-VIEWS.md): Padrão de desenvolvimento para novos painéis ou novos campos no banco.
-* 📊 [Catálogo de Views de BI](file:///C:/Users/suporte/Documents/projetos/dashboards/docs/relatorio-bi-catalogo-views.md): Mapeamento completo das colunas e tabelas consultadas para a montagem dos gráficos.
+* 📂 [Guia Geral de Documentos](docs/README.md): Índice principal de arquivos.
+* 🏛️ [Visão Geral da Arquitetura](docs/arquitetura/01-visao-geral.md): Trilha canônica do projeto Dashboard.
+* 🔒 [Segurança e Acesso](docs/arquitetura/04-seguranca-e-acesso.md): Sessão, JWT em memória, refresh cookie, papéis e permissões.
+* ⚙️ [Filtros, Períodos e Semântica de Dados](docs/arquitetura/05-filtros-e-dados.md): Regras de datas, filtros e validação BI.
+* 📊 [Catálogo de Dashboards e Endpoints](docs/catalogos/01-dashboards-e-endpoints.md): Endpoints e permissões publicados para a UI.

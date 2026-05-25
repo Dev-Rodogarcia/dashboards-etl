@@ -10,24 +10,22 @@ import jakarta.persistence.EmbeddedId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.math.BigDecimal;
 import java.lang.reflect.Constructor;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,12 +42,11 @@ class ManifestosServiceTest {
     }
 
     @Test
-    void buscarOverviewDeveSomarCadaLinhaMesmoQuandoONumeroSeRepete() {
-        when(repository.findByDataCriacaoGreaterThanEqualAndDataCriacaoLessThan(any(), any())).thenReturn(List.of(
-                manifesto(62848L, "62848_MDFE_4380", "em trânsito", "100.00", "200.00", "1000.00", "100.00", "4.00"),
-                manifesto(62848L, "62848_MDFE_4381", "encerrado", "50.00", "100.00", "500.00", "200.00", "2.00"),
-                manifesto(70000L, "70000_MDFE_1", "encerrado", "25.00", "50.00", "250.00", "50.00", "1.00")
-        ));
+    void buscarOverviewDeveUsarAgregadoSqlPreservandoLinhasComMesmoNumero() {
+        when(repository.buscarOverviewAgregado(
+                any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
+        )).thenReturn(overview());
 
         ManifestosOverviewDTO overview = service.buscarOverview(filtroPadrao());
 
@@ -65,9 +62,12 @@ class ManifestosServiceTest {
 
     @Test
     void buscarTabelaDevePreservarIdentificadoresUnicosParaLinhasComMesmoNumero() {
-        when(repository.findByDataCriacaoGreaterThanEqualAndDataCriacaoLessThan(any(), any())).thenReturn(List.of(
-                manifesto(62848L, "62848_MDFE_4380", "em trânsito", "100.00", "200.00", "1000.00", "100.00", "4.00"),
-                manifesto(62848L, "62848_MDFE_4381", "encerrado", "50.00", "100.00", "500.00", "200.00", "2.00")
+        when(repository.buscarTabelaPaginada(
+                any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyInt()
+        )).thenReturn(List.of(
+                resumo(62848L, "62848_MDFE_4380"),
+                resumo(62848L, "62848_MDFE_4381")
         ));
 
         List<ManifestoResumoDTO> tabela = service.buscarTabela(filtroPadrao(), 10);
@@ -89,48 +89,45 @@ class ManifestosServiceTest {
         assertThat(entity.getIdentificadorUnico()).isEqualTo("62848_MDFE_4380");
     }
 
-    @Test
-    void buscarOverviewDeveConsultarPeriodoNoFusoDeSaoPaulo() {
-        when(repository.findByDataCriacaoGreaterThanEqualAndDataCriacaoLessThan(any(), any())).thenReturn(List.of());
-
-        service.buscarOverview(filtroPadrao());
-
-        ArgumentCaptor<OffsetDateTime> inicio = ArgumentCaptor.forClass(OffsetDateTime.class);
-        ArgumentCaptor<OffsetDateTime> fim = ArgumentCaptor.forClass(OffsetDateTime.class);
-        verify(repository).findByDataCriacaoGreaterThanEqualAndDataCriacaoLessThan(inicio.capture(), fim.capture());
-
-        assertThat(inicio.getValue())
-                .isEqualTo(OffsetDateTime.of(2026, 2, 21, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
-        assertThat(fim.getValue())
-                .isEqualTo(OffsetDateTime.of(2026, 3, 24, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
-    }
-
     private static FiltroConsultaDTO filtroPadrao() {
         return new FiltroConsultaDTO(LocalDate.of(2026, 2, 21), LocalDate.of(2026, 3, 23), Map.of());
     }
 
-    private static VisaoManifestosEntity manifesto(
-            Long numero,
-            String identificadorUnico,
-            String status,
-            String capacidadeKg,
-            String totalPesoTaxado,
-            String custoTotal,
-            String kmTotal,
-            String totalM3
-    ) {
-        VisaoManifestosEntity entity = Objects.requireNonNull(novaInstancia(VisaoManifestosEntity.class));
-        ReflectionTestUtils.setField(entity, "id", new VisaoManifestosId(numero, identificadorUnico));
-        ReflectionTestUtils.setField(entity, "status", status);
-        ReflectionTestUtils.setField(entity, "capacidadeKg", new BigDecimal(capacidadeKg));
-        ReflectionTestUtils.setField(entity, "totalPesoTaxado", new BigDecimal(totalPesoTaxado));
-        ReflectionTestUtils.setField(entity, "custoTotal", new BigDecimal(custoTotal));
-        ReflectionTestUtils.setField(entity, "kmTotal", new BigDecimal(kmTotal));
-        ReflectionTestUtils.setField(entity, "veiculoPesoCubado", new BigDecimal("2.00"));
-        ReflectionTestUtils.setField(entity, "totalM3", new BigDecimal(totalM3));
-        ReflectionTestUtils.setField(entity, "dataCriacao", OffsetDateTime.of(2026, 3, 23, 10, 0, 0, 0, ZoneOffset.UTC));
-        ReflectionTestUtils.setField(entity, "dataExtracao", LocalDateTime.of(2026, 3, 23, 12, 0));
-        return entity;
+    private static VisaoManifestosRepository.ManifestosOverviewProjection overview() {
+        return new VisaoManifestosRepository.ManifestosOverviewProjection() {
+            @Override public LocalDateTime getUpdatedAt() { return LocalDateTime.of(2026, 3, 23, 12, 0); }
+            @Override public int getTotalManifestos() { return 3; }
+            @Override public int getEmTransito() { return 1; }
+            @Override public int getEncerrados() { return 2; }
+            @Override public BigDecimal getKmTotal() { return new BigDecimal("350.00"); }
+            @Override public BigDecimal getCustoTotal() { return new BigDecimal("1750.00"); }
+            @Override public BigDecimal getOcupacaoPesoMediaPct() { return new BigDecimal("200.00"); }
+            @Override public BigDecimal getOcupacaoCubagemMediaPct() { return new BigDecimal("116.67"); }
+        };
+    }
+
+    private static VisaoManifestosRepository.ManifestoResumoProjection resumo(Long numero, String identificadorUnico) {
+        return new VisaoManifestosRepository.ManifestoResumoProjection() {
+            @Override public Long getNumero() { return numero; }
+            @Override public String getIdentificadorUnico() { return identificadorUnico; }
+            @Override public String getStatus() { return "em trânsito"; }
+            @Override public String getClassificacao() { return null; }
+            @Override public String getFilial() { return "SPO"; }
+            @Override public String getDataCriacao() { return "2026-03-23T10:00:00Z"; }
+            @Override public String getFechamento() { return null; }
+            @Override public String getMotorista() { return "Motorista"; }
+            @Override public String getVeiculoPlaca() { return "ABC1D23"; }
+            @Override public String getTipoVeiculo() { return "Truck"; }
+            @Override public BigDecimal getTotalPesoTaxado() { return BigDecimal.ZERO; }
+            @Override public BigDecimal getTotalM3() { return BigDecimal.ZERO; }
+            @Override public BigDecimal getCustoTotal() { return BigDecimal.ZERO; }
+            @Override public BigDecimal getValorFrete() { return BigDecimal.ZERO; }
+            @Override public BigDecimal getCombustivel() { return BigDecimal.ZERO; }
+            @Override public BigDecimal getPedagio() { return BigDecimal.ZERO; }
+            @Override public BigDecimal getSaldoPagar() { return BigDecimal.ZERO; }
+            @Override public BigDecimal getKmTotal() { return BigDecimal.ZERO; }
+            @Override public Integer getItensTotal() { return 1; }
+        };
     }
 
     private static <T> T novaInstancia(Class<T> type) {

@@ -3,9 +3,6 @@ package com.dashboard.api.service;
 import com.dashboard.api.dto.dimensoes.PlanoContasDimDTO;
 import com.dashboard.api.dto.dimensoes.UsuarioDimDTO;
 import com.dashboard.api.dto.dimensoes.VeiculoDimDTO;
-import com.dashboard.api.model.DimUsuarioEntity;
-import com.dashboard.api.model.DimVeiculoEntity;
-import com.dashboard.api.model.VisaoManifestosEntity;
 import com.dashboard.api.repository.DimFilialRepository;
 import com.dashboard.api.repository.DimUsuarioRepository;
 import com.dashboard.api.repository.DimVeiculoRepository;
@@ -20,8 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -34,8 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 public class DimensoesService {
@@ -64,7 +57,6 @@ public class DimensoesService {
     private final VisaoManifestosRepository manifestosRepository;
     private final VisaoContasAPagarRepository contasAPagarRepository;
     private final EscopoFilialService escopoFilialService;
-    private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ConcurrentMap<String, CacheEntry<List<String>>> filiaisCache = new ConcurrentHashMap<>();
 
     @Autowired
@@ -78,8 +70,7 @@ public class DimensoesService {
             VisaoFaturasClienteRepository faturasClienteRepository,
             VisaoManifestosRepository manifestosRepository,
             VisaoContasAPagarRepository contasAPagarRepository,
-            EscopoFilialService escopoFilialService,
-            NamedParameterJdbcTemplate jdbcTemplate
+            EscopoFilialService escopoFilialService
     ) {
         this.dimFilialRepository = dimFilialRepository;
         this.dimUsuarioRepository = dimUsuarioRepository;
@@ -91,34 +82,6 @@ public class DimensoesService {
         this.manifestosRepository = manifestosRepository;
         this.contasAPagarRepository = contasAPagarRepository;
         this.escopoFilialService = escopoFilialService;
-        this.jdbcTemplate = jdbcTemplate;
-    }
-
-    DimensoesService(
-            DimFilialRepository dimFilialRepository,
-            DimUsuarioRepository dimUsuarioRepository,
-            DimVeiculoRepository dimVeiculoRepository,
-            VisaoColetasRepository coletasRepository,
-            VisaoFretesRepository fretesRepository,
-            VisaoCotacoesRepository cotacoesRepository,
-            VisaoFaturasClienteRepository faturasClienteRepository,
-            VisaoManifestosRepository manifestosRepository,
-            VisaoContasAPagarRepository contasAPagarRepository,
-            EscopoFilialService escopoFilialService
-    ) {
-        this(
-                dimFilialRepository,
-                dimUsuarioRepository,
-                dimVeiculoRepository,
-                coletasRepository,
-                fretesRepository,
-                cotacoesRepository,
-                faturasClienteRepository,
-                manifestosRepository,
-                contasAPagarRepository,
-                escopoFilialService,
-                null
-        );
     }
 
     public List<String> listarFiliais() {
@@ -165,27 +128,7 @@ public class DimensoesService {
     }
 
     private List<String> consultarFiliais() {
-        if (jdbcTemplate != null) {
-            return jdbcTemplate.queryForList(
-                            """
-                            SELECT DISTINCT [NomeFilial]
-                            FROM dbo.vw_dim_filiais
-                            WHERE [NomeFilial] IS NOT NULL
-                              AND LTRIM(RTRIM([NomeFilial])) <> ''
-                            ORDER BY [NomeFilial]
-                            """,
-                            new java.util.HashMap<>(),
-                            String.class
-                    ).stream()
-                    .filter(this::temTexto)
-                    .map(String::trim)
-                    .distinct()
-                    .sorted(String.CASE_INSENSITIVE_ORDER)
-                    .toList();
-        }
-
-        return dimFilialRepository.findAll().stream()
-                .map(e -> e.getNomeFilial())
+        return dimFilialRepository.findDistinctNomes().stream()
                 .filter(this::temTexto)
                 .map(String::trim)
                 .distinct()
@@ -205,25 +148,12 @@ public class DimensoesService {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         Set<String> clientes = new LinkedHashSet<>();
 
-        coletasRepository.findAll().stream()
-                .filter(row -> escopo.permiteAlgumaFilial(row.getFilialNome()))
-                .map(row -> row.getClienteNome())
-                .filter(this::temTexto)
-                .map(String::trim)
-                .forEach(clientes::add);
-
+        listarClientesColetas(escopo).forEach(clientes::add);
         listarClientesFretes(escopo).forEach(clientes::add);
-
-        cotacoesRepository.findAll().stream()
-                .filter(row -> escopo.permiteAlgumaFilial(row.getFilial()))
-                .flatMap(row -> textoStream(row.getClientePagador(), row.getCliente()))
-                .forEach(clientes::add);
+        listarClientesCotacoes(escopo).forEach(clientes::add);
 
         try {
-            faturasClienteRepository.findAll().stream()
-                    .filter(row -> escopo.permiteAlgumaFilial(row.getFilial()))
-                    .flatMap(row -> textoStream(row.getPagadorNome(), row.getRemetenteNome(), row.getDestinatarioNome()))
-                    .forEach(clientes::add);
+            listarClientesFaturas(escopo).forEach(clientes::add);
         } catch (DataAccessException ex) {
             log.warn("Dimensão de clientes ignorou faturas_por_cliente temporariamente. Verifique a view vw_faturas_por_cliente_powerbi. Causa: {}",
                     ex.getMostSpecificCause().getMessage());
@@ -234,17 +164,17 @@ public class DimensoesService {
                 .toList();
     }
 
-    private List<String> listarClientesFretes(EscopoFilialService.EscopoFilial escopo) {
-        if (jdbcTemplate != null) {
-            return listarClientesFretesSql(escopo);
-        }
+    private List<String> listarClientesColetas(EscopoFilialService.EscopoFilial escopo) {
+        return limparTextos(escopo.acessoTotal()
+                ? coletasRepository.findDistinctClientes()
+                : coletasRepository.findDistinctClientesByFilialIn(filiaisNormalizadas(escopo)));
+    }
 
+    private List<String> listarClientesFretes(EscopoFilialService.EscopoFilial escopo) {
         try {
-            return fretesRepository.findAll().stream()
-                    .filter(row -> escopo.permiteAlgumaFilial(row.getFilialNome()))
-                    .flatMap(row -> textoStream(row.getPagadorNome(), row.getRemetenteNome(), row.getDestinatarioNome()))
-                    .distinct()
-                    .toList();
+            return limparTextos(escopo.acessoTotal()
+                    ? fretesRepository.findDistinctClientes()
+                    : fretesRepository.findDistinctClientesByFilialIn(filiaisNormalizadas(escopo)));
         } catch (DataAccessException ex) {
             log.warn("Dimensão de clientes ignorou fretes temporariamente. Verifique a view vw_fretes_powerbi. Causa: {}",
                     ex.getMostSpecificCause().getMessage());
@@ -252,55 +182,16 @@ public class DimensoesService {
         }
     }
 
-    private List<String> listarClientesFretesSql(EscopoFilialService.EscopoFilial escopo) {
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        StringBuilder sql = new StringBuilder("""
-                SELECT DISTINCT cliente
-                FROM (
-                    SELECT
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '') AS cliente,
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '') AS filial
-                    FROM dbo.vw_fretes_powerbi
-                    UNION ALL
-                    SELECT
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Remetente]))), '') AS cliente,
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '') AS filial
-                    FROM dbo.vw_fretes_powerbi
-                    UNION ALL
-                    SELECT
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Destinatario]))), '') AS cliente,
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '') AS filial
-                    FROM dbo.vw_fretes_powerbi
-                ) clientes
-                WHERE cliente IS NOT NULL
-                """);
+    private List<String> listarClientesCotacoes(EscopoFilialService.EscopoFilial escopo) {
+        return limparTextos(escopo.acessoTotal()
+                ? cotacoesRepository.findDistinctClientes()
+                : cotacoesRepository.findDistinctClientesByFilialIn(filiaisNormalizadas(escopo)));
+    }
 
-        if (!escopo.acessoTotal()) {
-            List<String> filiais = escopo.filiaisOrdenadas().stream()
-                    .filter(this::temTexto)
-                    .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
-                    .distinct()
-                    .toList();
-            if (filiais.isEmpty()) {
-                return List.of();
-            }
-            params.addValue("escopoFiliais", filiais);
-            sql.append("\n AND LOWER(filial) IN (:escopoFiliais)");
-        }
-
-        sql.append("\n ORDER BY cliente");
-
-        try {
-            return jdbcTemplate.queryForList(sql.toString(), params, String.class).stream()
-                    .filter(this::temTexto)
-                    .map(String::trim)
-                    .distinct()
-                    .toList();
-        } catch (DataAccessException ex) {
-            log.warn("Dimensão de clientes ignorou fretes temporariamente. Verifique a view vw_fretes_powerbi. Causa: {}",
-                    ex.getMostSpecificCause().getMessage());
-            return List.of();
-        }
+    private List<String> listarClientesFaturas(EscopoFilialService.EscopoFilial escopo) {
+        return limparTextos(escopo.acessoTotal()
+                ? faturasClienteRepository.findDistinctClientes()
+                : faturasClienteRepository.findDistinctClientesByFilialIn(filiaisNormalizadas(escopo)));
     }
 
     public List<String> listarClientesCnpjFaturasPorCliente() {
@@ -327,40 +218,29 @@ public class DimensoesService {
 
     public List<String> listarMotoristas() {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
-        return manifestosRepository.findAll().stream()
-                .filter(row -> escopo.permiteAlgumaFilial(row.getFilial()))
-                .map(VisaoManifestosEntity::getMotorista)
-                .filter(this::temTexto)
-                .map(String::trim)
-                .distinct()
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
+        return limparTextos(escopo.acessoTotal()
+                ? manifestosRepository.findDistinctMotoristas()
+                : manifestosRepository.findDistinctMotoristasByFilialIn(filiaisNormalizadas(escopo)));
     }
 
     public List<VeiculoDimDTO> listarVeiculos() {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
-        Set<String> placasPermitidas = manifestosRepository.findAll().stream()
-                .filter(row -> escopo.permiteAlgumaFilial(row.getFilial()))
-                .map(VisaoManifestosEntity::getVeiculoPlaca)
-                .filter(this::temTexto)
-                .map(String::trim)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-
-        return dimVeiculoRepository.findAll().stream()
-                .filter(veiculo -> placasPermitidas.contains(veiculo.getPlaca()))
-                .map(this::mapearVeiculo)
+        return (escopo.acessoTotal()
+                ? dimVeiculoRepository.findVeiculosComManifestos()
+                : dimVeiculoRepository.findVeiculosComManifestosByFilialIn(filiaisNormalizadas(escopo))).stream()
+                .map(veiculo -> new VeiculoDimDTO(veiculo.getPlaca(), veiculo.getTipoVeiculo(), veiculo.getProprietario()))
                 .sorted((a, b) -> a.placa().compareToIgnoreCase(b.placa()))
                 .toList();
     }
 
     public List<PlanoContasDimDTO> listarPlanoContas() {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
-        return contasAPagarRepository.findAll().stream()
-                .filter(row -> escopo.permiteAlgumaFilial(row.getFilial()))
-                .filter(row -> temTexto(row.getClassificacaoContabil()) || temTexto(row.getDescricaoContabil()))
+        return (escopo.acessoTotal()
+                ? contasAPagarRepository.findDistinctPlanoContas()
+                : contasAPagarRepository.findDistinctPlanoContasByFilialIn(filiaisNormalizadas(escopo))).stream()
                 .map(row -> new PlanoContasDimDTO(
-                        row.getDescricaoContabil() != null ? row.getDescricaoContabil().trim() : "",
-                        row.getClassificacaoContabil() != null ? row.getClassificacaoContabil().trim() : ""
+                        row.getDescricao() != null ? row.getDescricao().trim() : "",
+                        row.getClassificacao() != null ? row.getClassificacao().trim() : ""
                 ))
                 .distinct()
                 .sorted((a, b) -> a.descricao().compareToIgnoreCase(b.descricao()))
@@ -369,36 +249,34 @@ public class DimensoesService {
 
     public List<UsuarioDimDTO> listarUsuarios() {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
-        Set<String> nomesPermitidos = coletasRepository.findAll().stream()
-                .filter(row -> escopo.permiteAlgumaFilial(row.getFilialNome()))
-                .map(row -> row.getUsuarioNome())
-                .filter(this::temTexto)
-                .map(String::trim)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-
-        return dimUsuarioRepository.findAll().stream()
-                .filter(usuario -> nomesPermitidos.contains(usuario.getNome()))
-                .map(this::mapearUsuario)
+        return (escopo.acessoTotal()
+                ? dimUsuarioRepository.findUsuariosComColetas()
+                : dimUsuarioRepository.findUsuariosComColetasByFilialIn(filiaisNormalizadas(escopo))).stream()
+                .map(usuario -> new UsuarioDimDTO(usuario.getUserId(), usuario.getNome()))
                 .sorted((a, b) -> a.nome().compareToIgnoreCase(b.nome()))
                 .toList();
-    }
-
-    private VeiculoDimDTO mapearVeiculo(DimVeiculoEntity veiculo) {
-        return new VeiculoDimDTO(veiculo.getPlaca(), veiculo.getTipoVeiculo(), veiculo.getProprietario());
-    }
-
-    private UsuarioDimDTO mapearUsuario(DimUsuarioEntity usuario) {
-        return new UsuarioDimDTO(usuario.getUserId(), usuario.getNome());
     }
 
     private boolean temTexto(String valor) {
         return valor != null && !valor.isBlank();
     }
 
-    private Stream<String> textoStream(String... valores) {
-        return Stream.of(valores)
+    private List<String> limparTextos(List<String> valores) {
+        return valores.stream()
                 .filter(this::temTexto)
-                .map(String::trim);
+                .map(String::trim)
+                .distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    private List<String> filiaisNormalizadas(EscopoFilialService.EscopoFilial escopo) {
+        List<String> filiais = escopo.filiaisOrdenadas().stream()
+                .filter(this::temTexto)
+                .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
+                .distinct()
+                .toList();
+        return filiais.isEmpty() ? List.of("__sem_filial_autorizada__") : filiais;
     }
 
     private record CacheEntry<T>(CompletableFuture<T> future, Instant expiraEm) {

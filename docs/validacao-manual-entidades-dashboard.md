@@ -1,3 +1,6 @@
+> [!WARNING] DOCUMENTACAO HISTORICA / NAO CANONICA
+> Este documento contem consultas manuais e snapshots de validacao. Para ownership atual de schema/views e regras de consulta, use a documentacao canonica e os scripts vigentes de validacao.
+
 # Validacao manual das entidades do dashboard
 
 Este documento consolida:

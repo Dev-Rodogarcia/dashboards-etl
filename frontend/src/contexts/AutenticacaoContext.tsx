@@ -18,10 +18,11 @@ import {
   deveTentarRestaurarSessao,
   limparSessao,
   EVENTO_SESSAO_ATUALIZADA,
-  montarSessaoDoLogin,
   montarSessaoPersistida,
+  obterAccessToken,
   obterSessao,
   salvarSessao,
+  salvarSessaoDoLogin,
   sessaoExpirada,
 } from '../utils/gerenciadorSessao';
 import { resolverAcaoBootstrapSessao } from '../utils/authSession';
@@ -51,9 +52,9 @@ function extrairExpJwtMs(token: string): number | null {
   }
 }
 
-function calcularDelayRefresh(sessao: IUsuarioSessao): number {
+function calcularDelayRefresh(sessao: IUsuarioSessao, accessToken: string | null): number {
   const sessaoExpiraEmMs = Date.parse(sessao.sessaoExpiraEm);
-  const tokenExpiraEmMs = extrairExpJwtMs(sessao.token);
+  const tokenExpiraEmMs = accessToken ? extrairExpJwtMs(accessToken) : null;
   const agora = Date.now();
 
   if (!Number.isFinite(sessaoExpiraEmMs)) {
@@ -87,7 +88,7 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
 
     async function bootstrapSessao() {
       const sessao = obterSessao();
-      if (!sessao?.token) {
+      if (!sessao || !obterAccessToken()) {
         if (!deveTentarRestaurarSessao()) {
           if (ativo) {
             setUsuario(null);
@@ -97,10 +98,9 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-          const restaurada = montarSessaoDoLogin(await restaurarSessao());
+          const restaurada = salvarSessaoDoLogin(await restaurarSessao());
           if (!ativo) return;
 
-          salvarSessao(restaurada);
           setUsuario(restaurada);
         } catch {
           if (!ativo) return;
@@ -117,12 +117,9 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
         const dados = await buscarSessaoAtual();
         if (!ativo) return;
 
-        // Re-lê o token do storage: o interceptor pode ter feito refresh silencioso
-        // durante a chamada acima, atualizando o token. Usar sessao.token (capturado
-        // antes do await) sobrescreveria o token novo com o expirado.
         const sessaoAtualizada = obterSessao();
-        const tokenAtual = sessaoAtualizada?.token ?? sessao.token;
-        const atualizada = montarSessaoPersistida(dados, tokenAtual, sessao.exigeTrocaSenha, sessao.sessaoExpiraEm);
+        const sessaoBase = sessaoAtualizada ?? sessao;
+        const atualizada = montarSessaoPersistida(dados, sessaoBase.exigeTrocaSenha, sessaoBase.sessaoExpiraEm);
         salvarSessao(atualizada);
         setUsuario(atualizada);
       } catch (error) {
@@ -147,9 +144,12 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!usuario?.token) return undefined;
+    if (!usuario) return undefined;
 
     let cancelado = false;
+    const accessToken = obterAccessToken();
+    if (!accessToken) return undefined;
+
     const timeoutId = window.setTimeout(() => {
       async function executarRefreshProgramado() {
         const sessaoAtual = obterSessao();
@@ -163,9 +163,8 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-          const renovada = montarSessaoDoLogin(await restaurarSessao());
+          const renovada = salvarSessaoDoLogin(await restaurarSessao());
           if (cancelado) return;
-          salvarSessao(renovada);
           setUsuario(renovada);
         } catch (error) {
           if (cancelado) return;
@@ -177,7 +176,7 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
       }
 
       void executarRefreshProgramado();
-    }, calcularDelayRefresh(usuario));
+    }, calcularDelayRefresh(usuario, accessToken));
 
     return () => {
       cancelado = true;
@@ -187,8 +186,7 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (credenciais: LoginRequest): Promise<LoginResponse> => {
     const data = await loginUsuario(credenciais);
-    const sessao = montarSessaoDoLogin(data);
-    salvarSessao(sessao);
+    const sessao = salvarSessaoDoLogin(data);
     setUsuario(sessao);
     setCarregandoSessao(false);
     return data;

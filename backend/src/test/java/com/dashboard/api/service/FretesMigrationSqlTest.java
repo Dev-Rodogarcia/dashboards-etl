@@ -17,18 +17,15 @@ class FretesMigrationSqlTest {
     );
 
     @Test
-    void migrationV018DeveAtualizarMetadataDoWrapperFretesSemAlterarEstruturaDaEtl() throws IOException {
+    void migrationV018NaoDeveCriarWrapperDeFretesDaEtl() throws IOException {
         String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
                 "V018__atualizar_metadata_view_fretes_etl.sql"));
 
-        assertThat(sql).contains("CREATE OR ALTER VIEW dbo.vw_fretes_powerbi");
-        assertThat(sql).contains("FROM [ETL_SISTEMA].dbo.vw_fretes_powerbi");
-        assertThat(sql).contains("EXEC sys.sp_refreshview N'dbo.vw_fretes_powerbi'");
-        assertThat(sql).contains("data_referencia_faturamento");
-        assertThat(sql).contains("is_elegivel_faturamento");
-        assertThat(sql).contains("N'CT-e Emissão'");
-        assertThat(sql).contains("N'Classificação'");
-        assertThat(sql).contains("N'Nº Minuta'");
+        assertThat(sql).contains("No-op intencional");
+        assertThat(sql).contains("nao cria nem sincroniza wrappers");
+        assertThat(sql).doesNotContain("ETL_SISTEMA");
+        assertThat(sql).doesNotContain("CREATE OR ALTER VIEW");
+        assertThat(sql).doesNotContain("sp_refreshview");
         assertThat(sql).doesNotContain("ALTER TABLE");
         assertThat(sql).doesNotContain("dbo.fretes ADD");
         assertThat(MOJIBAKE_PATTERN.matcher(sql).find()).isFalse();

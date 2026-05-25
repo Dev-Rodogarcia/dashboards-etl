@@ -1,3 +1,6 @@
+> [!WARNING] PROPOSTA / NAO CANONICA
+> Este arquivo e uma proposta de experiencia de Home, nao uma especificacao arquitetural vigente.
+
 **Base Encontrada**
 Li a estrutura do projeto antes de propor. Hoje o `/` redireciona para o primeiro dashboard permitido; não existe Home real. O menu e as permissões vêm de `DASHBOARD_NAV_ITEMS`, `PermissaoCatalogo` e `permissoesEfetivas`. Os setores atuais mapeiam acessos como: TI vê `ETL Saúde` e `Indicadores de Gestão à Vista`; Financeiro vê `Faturas`, `Contas a Pagar`, `Cotações`; Logística vê `Coletas`, `Manifestos`, `Fretes`, `Tracking`, `Cotações`, `Indicadores`.
 

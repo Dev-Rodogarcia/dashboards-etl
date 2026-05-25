@@ -24,6 +24,15 @@ spring:
       max-lifetime: 1800000
       connection-init-sql: SET ANSI_NULLS ON; SET QUOTED_IDENTIFIER ON
 
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 22
+    baseline-description: Baseline schema existente ate V022
+    validate-on-migrate: true
+    out-of-order: false
+
   # JPA / Hibernate
   jpa:
     database-platform: org.hibernate.dialect.SQLServerDialect
@@ -52,7 +61,7 @@ security:
       window-seconds: ${SECURITY_RATE_LIMIT_EXPORT_WINDOW_SECONDS:60}
 
 cors:
-  origens-permitidas: ${CORS_ORIGENS_PERMITIDAS:https://analytics.rodogarcia.com.br}
+  origens-permitidas: ${CORS_ORIGENS_PERMITIDAS:}
 
 # JWT
 jwt:

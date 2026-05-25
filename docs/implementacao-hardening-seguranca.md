@@ -1,3 +1,6 @@
+> [!WARNING] DOCUMENTAÇÃO OBSOLETA / LEGADA
+> Este arquivo registra uma fase anterior do projeto e não é fonte de verdade atual para arquitetura, sessão, ACL ou integração com views do ETL. Use os READMEs da raiz e a trilha canônica em `docs/arquitetura/` quando houver conflito.
+
 # Implementacao de Hardening e Correcoes de Seguranca
 
 Data de consolidacao: 2026-03-24

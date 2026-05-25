@@ -1,3 +1,6 @@
+> [!WARNING] DOCUMENTACAO HISTORICA / LEGADA
+> Este relatorio descreve a refatoracao em um momento especifico. Quando houver conflito, prevalecem `README.md`, `docs/README.md` e a trilha vigente em `docs/arquitetura/`.
+
 # Relatorio Consolidado da Refatoracao
 
 Data de consolidacao: 2026-03-22

@@ -1,6 +1,5 @@
 package com.dashboard.api.service;
 
-import com.dashboard.api.model.VisaoFretesEntity;
 import com.dashboard.api.repository.DimFilialRepository;
 import com.dashboard.api.repository.DimUsuarioRepository;
 import com.dashboard.api.repository.DimVeiculoRepository;
@@ -13,8 +12,7 @@ import com.dashboard.api.repository.VisaoManifestosRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,34 +54,15 @@ class DimensoesServiceTest {
                 escopoFilialService
         );
 
-        when(coletasRepository.findAll()).thenReturn(List.of());
-        when(cotacoesRepository.findAll()).thenReturn(List.of());
-        when(faturasClienteRepository.findAll()).thenReturn(List.of());
-        when(fretesRepository.findAll()).thenReturn(List.of(
-                criarFrete("Filial A", "Cliente Pagador", null, "Destinatario Final")
+        when(coletasRepository.findDistinctClientes()).thenReturn(List.of());
+        when(cotacoesRepository.findDistinctClientes()).thenReturn(List.of());
+        when(faturasClienteRepository.findDistinctClientes()).thenReturn(List.of());
+        when(fretesRepository.findDistinctClientes()).thenReturn(Arrays.asList(
+                "Cliente Pagador", null, "Destinatario Final", " "
         ));
 
         List<String> clientes = assertDoesNotThrow(service::listarClientes);
 
         assertEquals(List.of("Cliente Pagador", "Destinatario Final"), clientes);
-    }
-
-    private VisaoFretesEntity criarFrete(String filialNome, String pagadorNome, String remetenteNome, String destinatarioNome) throws Exception {
-        Constructor<VisaoFretesEntity> constructor = VisaoFretesEntity.class.getDeclaredConstructor();
-        constructor.setAccessible(true);
-
-        VisaoFretesEntity entity = constructor.newInstance();
-        definirCampo(entity, "id", 1L);
-        definirCampo(entity, "filialNome", filialNome);
-        definirCampo(entity, "pagadorNome", pagadorNome);
-        definirCampo(entity, "remetenteNome", remetenteNome);
-        definirCampo(entity, "destinatarioNome", destinatarioNome);
-        return entity;
-    }
-
-    private void definirCampo(Object alvo, String nomeCampo, Object valor) throws Exception {
-        Field field = alvo.getClass().getDeclaredField(nomeCampo);
-        field.setAccessible(true);
-        field.set(alvo, valor);
     }
 }

@@ -12,29 +12,22 @@ import com.dashboard.api.dto.fretes.FretesOrigemDestinoDTO;
 import com.dashboard.api.dto.fretes.FretesOverviewDTO;
 import com.dashboard.api.dto.fretes.FretesPrevisaoPorStatusDTO;
 import com.dashboard.api.dto.fretes.FretesTrendPointDTO;
-import com.dashboard.api.model.VisaoFretesEntity;
 import com.dashboard.api.repository.VisaoFretesRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
+import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 public class FretesService {
@@ -45,15 +38,13 @@ public class FretesService {
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoFretesRepository repository;
     private final EscopoFilialService escopoFilialService;
-    private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
     private final FretesGoalService fretesGoalService;
-    private final FretesDashboardSqlRepository fretesDashboardSqlRepository;
 
     FretesService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoFretesRepository repository
     ) {
-        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao(), null, null);
+        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao(), null);
     }
 
     @Autowired
@@ -62,25 +53,12 @@ public class FretesService {
             VisaoFretesRepository repository,
             EscopoFilialService escopoFilialService,
             PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper,
-            FretesGoalService fretesGoalService,
-            FretesDashboardSqlRepository fretesDashboardSqlRepository
+            FretesGoalService fretesGoalService
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.repository = repository;
         this.escopoFilialService = escopoFilialService;
-        this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
         this.fretesGoalService = fretesGoalService;
-        this.fretesDashboardSqlRepository = fretesDashboardSqlRepository;
-    }
-
-    FretesService(
-            ValidadorPeriodoService validadorPeriodo,
-            VisaoFretesRepository repository,
-            EscopoFilialService escopoFilialService,
-            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper,
-            FretesGoalService fretesGoalService
-    ) {
-        this(validadorPeriodo, repository, escopoFilialService, periodoOffsetDateTimeHelper, fretesGoalService, null);
     }
 
     FretesService(
@@ -89,7 +67,7 @@ public class FretesService {
             EscopoFilialService escopoFilialService,
             PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
-        this(validadorPeriodo, repository, escopoFilialService, periodoOffsetDateTimeHelper, null, null);
+        this(validadorPeriodo, repository, escopoFilialService, periodoOffsetDateTimeHelper, null);
     }
 
     public FretesOverviewDTO buscarOverview(LocalDate dataInicio, LocalDate dataFim) {
@@ -99,14 +77,14 @@ public class FretesService {
     public FretesOverviewDTO buscarOverview(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
-        List<VisaoFretesEntity> fretes = buscarRegistros(filtro);
-        List<VisaoFretesEntity> fretesFaturamento = fretesElegiveisParaFaturamento(fretes);
-        int totalFretes = fretes.size();
+        FretesConsulta consulta = consulta(filtro);
+        VisaoFretesRepository.FretesOverviewProjection overview = buscarOverviewAgregado(consulta);
+        int totalFretes = overview != null ? overview.getTotalFretes() : 0;
+        FretesGoalSummaryDTO metas = buscarResumoMetas(filtro);
 
         if (totalFretes == 0) {
-            FretesGoalSummaryDTO metas = buscarResumoMetas(filtro, List.of());
             return new FretesOverviewDTO(
-                    java.time.LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                    LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                     0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
                     BigDecimal.ZERO, 0, 0.0, 0.0, 0,
                     metas.metaFaturamento(),
@@ -115,47 +93,26 @@ public class FretesService {
             );
         }
 
-        BigDecimal receitaBruta = somar(fretesFaturamento, VisaoFretesEntity::getValorTotal);
-
-        BigDecimal valorFrete = somar(fretesFaturamento, VisaoFretesEntity::getSubtotal);
-
-        BigDecimal ticketMedio = fretesFaturamento.isEmpty()
+        BigDecimal receitaBruta = zero(overview.getReceitaBruta()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal valorFrete = zero(overview.getValorFrete()).setScale(2, RoundingMode.HALF_UP);
+        int fretesFaturamento = overview.getFretesFaturamento();
+        BigDecimal ticketMedio = fretesFaturamento == 0
                 ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
-                : receitaBruta.divide(BigDecimal.valueOf(fretesFaturamento.size()), 2, RoundingMode.HALF_UP);
-
-        BigDecimal pesoTaxadoTotal = fretes.stream()
-                .map(VisaoFretesEntity::getPesoTaxado)
-                .map(ConsultaFiltroUtils::zeroSeNulo)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        int volumesTotais = fretes.stream()
-                .mapToInt(f -> ConsultaFiltroUtils.zeroSeNulo(f.getVolumes()))
-                .sum();
-
-        double pctCteEmitido = percentual(fretes.stream().filter(f -> f.getCteId() != null).count(), totalFretes);
-        double pctNfseEmitida = percentual(fretes.stream().filter(f -> f.getNfseNumero() != null).count(), totalFretes);
-
-        int fretesPrevisaoVencida = (int) fretes.stream()
-                .filter(f -> f.getPrevisaoEntrega() != null
-                        && f.getPrevisaoEntrega().isBefore(LocalDate.now())
-                        && !"finalizado".equalsIgnoreCase(f.getStatus()))
-                .count();
+                : receitaBruta.divide(BigDecimal.valueOf(fretesFaturamento), 2, RoundingMode.HALF_UP);
 
         log.info("Overview fretes calculado: totalFretes={}, periodo={} a {}", totalFretes, filtro.dataInicio(), filtro.dataFim());
 
-        FretesGoalSummaryDTO metas = buscarResumoMetas(filtro, fretesFaturamento);
-
         return new FretesOverviewDTO(
-                ConsultaFiltroUtils.latestUpdate(fretes, VisaoFretesEntity::getDataExtracao),
+                formatarAtualizacao(overview.getUpdatedAt()),
                 totalFretes,
-                receitaBruta.setScale(2, RoundingMode.HALF_UP),
-                valorFrete.setScale(2, RoundingMode.HALF_UP),
+                receitaBruta,
+                valorFrete,
                 ticketMedio,
-                pesoTaxadoTotal.setScale(2, RoundingMode.HALF_UP),
-                volumesTotais,
-                pctCteEmitido,
-                pctNfseEmitida,
-                fretesPrevisaoVencida,
+                zero(overview.getPesoTaxadoTotal()).setScale(2, RoundingMode.HALF_UP),
+                overview.getVolumesTotais(),
+                percentual(overview.getCteEmitidos(), totalFretes),
+                percentual(overview.getNfseEmitidas(), totalFretes),
+                overview.getFretesPrevisaoVencida(),
                 metas.metaFaturamento(),
                 metas.percentualAtingimentoFaturamento(),
                 calcularFaturamentoDiario(filtro.dataFim(), metas.metaFaturamento(), receitaBruta)
@@ -164,7 +121,7 @@ public class FretesService {
 
     public FretesGoalSummaryDTO buscarResumoMetas(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
-        return buscarResumoMetas(filtro, fretesElegiveisParaFaturamento(buscarRegistros(filtro)));
+        return buscarResumoMetas(filtro, buscarRealizadosPorFilial(filtro));
     }
 
     public List<FretesTrendPointDTO> buscarSerieTemporal(LocalDate dataInicio, LocalDate dataFim) {
@@ -174,25 +131,13 @@ public class FretesService {
     public List<FretesTrendPointDTO> buscarSerieTemporal(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
-        Map<LocalDate, List<VisaoFretesEntity>> agrupado = fretesElegiveisParaFaturamento(buscarRegistros(filtro)).stream()
-                .filter(f -> dataReferenciaPeriodo(f) != null)
-                .collect(Collectors.groupingBy(this::dataReferenciaPeriodo));
-
-        return agrupado.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(entry -> {
-                    List<VisaoFretesEntity> grupo = entry.getValue();
-
-                    BigDecimal receitaBruta = somar(grupo, VisaoFretesEntity::getValorTotal).setScale(2, RoundingMode.HALF_UP);
-                    BigDecimal valorFrete = somar(grupo, VisaoFretesEntity::getSubtotal).setScale(2, RoundingMode.HALF_UP);
-
-                    return new FretesTrendPointDTO(
-                            entry.getKey().format(DATE_FMT),
-                            receitaBruta,
-                            valorFrete,
-                            grupo.size()
-                    );
-                })
+        return buscarSerieTemporalAgregada(consulta(filtro)).stream()
+                .map(row -> new FretesTrendPointDTO(
+                        row.getDate(),
+                        zero(row.getReceitaBruta()).setScale(2, RoundingMode.HALF_UP),
+                        zero(row.getValorFrete()).setScale(2, RoundingMode.HALF_UP),
+                        row.getFretes()
+                ))
                 .toList();
     }
 
@@ -204,23 +149,13 @@ public class FretesService {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
         int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 10, 50);
 
-        return fretesElegiveisParaFaturamento(buscarRegistros(filtro)).stream()
-                .filter(f -> f.getPagadorNome() != null && !f.getPagadorNome().isBlank())
-                .collect(Collectors.groupingBy(VisaoFretesEntity::getPagadorNome))
-                .entrySet().stream()
-                .map(entry -> {
-                    BigDecimal receita = somar(entry.getValue(), VisaoFretesEntity::getValorTotal)
-                            .setScale(2, RoundingMode.HALF_UP);
-
-                    int totalFretes = entry.getValue().size();
-                    BigDecimal ticketMedio = totalFretes > 0
-                            ? receita.divide(BigDecimal.valueOf(totalFretes), 2, RoundingMode.HALF_UP)
-                            : BigDecimal.ZERO;
-
-                    return new FretesClienteRankingDTO(entry.getKey(), receita, totalFretes, ticketMedio);
-                })
-                .sorted(Comparator.comparing(FretesClienteRankingDTO::receita).reversed())
-                .limit(limiteAplicado)
+        return buscarTopClientesAgregado(consulta(filtro), limiteAplicado).stream()
+                .map(row -> new FretesClienteRankingDTO(
+                        row.getCliente(),
+                        zero(row.getReceita()).setScale(2, RoundingMode.HALF_UP),
+                        row.getFretes(),
+                        zero(row.getTicketMedio()).setScale(2, RoundingMode.HALF_UP)
+                ))
                 .toList();
     }
 
@@ -231,26 +166,15 @@ public class FretesService {
     public List<FretesDocumentMixDTO> buscarMixDocumental(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
-        List<VisaoFretesEntity> fretes = buscarRegistros(filtro);
-
-        int cteCount = 0;
-        int nfseCount = 0;
-        int pendenteCount = 0;
-
-        for (VisaoFretesEntity f : fretes) {
-            if (f.getCteId() != null) {
-                cteCount++;
-            } else if (f.getNfseNumero() != null) {
-                nfseCount++;
-            } else {
-                pendenteCount++;
-            }
-        }
-
+        Map<String, Integer> totais = buscarMixDocumentalAgregado(consulta(filtro)).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        VisaoFretesRepository.FretesDocumentMixProjection::getTipoDocumento,
+                        VisaoFretesRepository.FretesDocumentMixProjection::getTotal
+                ));
         return List.of(
-                new FretesDocumentMixDTO("CT-e", cteCount),
-                new FretesDocumentMixDTO("NFS-e", nfseCount),
-                new FretesDocumentMixDTO("Pendente", pendenteCount)
+                new FretesDocumentMixDTO("CT-e", totais.getOrDefault("CT-e", 0)),
+                new FretesDocumentMixDTO("NFS-e", totais.getOrDefault("NFS-e", 0)),
+                new FretesDocumentMixDTO("Pendente", totais.getOrDefault("Pendente", 0))
         );
     }
 
@@ -258,153 +182,86 @@ public class FretesService {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
         int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 100, 200);
 
-        return buscarRegistros(filtro).stream()
-                .sorted(Comparator
-                        .comparing(
-                                VisaoFretesEntity::getDataReferenciaFaturamento,
-                                Comparator.nullsLast(Comparator.naturalOrder())
-                        )
-                        .reversed()
-                        .thenComparing(
-                                VisaoFretesEntity::getNumeroMinuta,
-                                Comparator.nullsLast(Comparator.reverseOrder())
-                        ))
-                .limit(limiteAplicado)
-                .map(f -> new FreteResumoDTO(
-                        f.getId(),
-                        f.getNumeroMinuta(),
-                        f.getDataReferenciaFaturamento() != null ? f.getDataReferenciaFaturamento().toString() : null,
-                        origemDataFaturamento(f),
-                        f.getStatus(),
-                        f.getFilialNome(),
-                        f.getPagadorNome(),
-                        f.getRemetenteNome(),
-                        f.getDestinatarioNome(),
-                        f.getOrigemUf(),
-                        f.getDestinoUf(),
-                        ConsultaFiltroUtils.zeroSeNulo(f.getValorTotal()).setScale(2, RoundingMode.HALF_UP),
-                        ConsultaFiltroUtils.zeroSeNulo(f.getSubtotal()).setScale(2, RoundingMode.HALF_UP),
-                        ConsultaFiltroUtils.zeroSeNulo(f.getPesoTaxado()).setScale(2, RoundingMode.HALF_UP),
-                        f.getVolumes(),
-                        f.getPrevisaoEntrega() != null ? f.getPrevisaoEntrega().toString() : null,
-                        f.getCteId() != null ? "CT-e" : f.getNfseNumero() != null ? "NFS-e" : "Pendente",
-                        f.getNumeroCte(),
-                        f.getNfseNumero(),
-                        ConsultaFiltroUtils.zeroSeNulo(f.getValorIcms()).setScale(2, RoundingMode.HALF_UP),
-                        ConsultaFiltroUtils.zeroSeNulo(f.getValorPis()).setScale(2, RoundingMode.HALF_UP),
-                        ConsultaFiltroUtils.zeroSeNulo(f.getValorCofins()).setScale(2, RoundingMode.HALF_UP)
+        return buscarTabelaPaginada(consulta(filtro), limiteAplicado).stream()
+                .map(row -> new FreteResumoDTO(
+                        row.getId(),
+                        row.getNumeroMinuta(),
+                        row.getDataReferenciaFaturamento(),
+                        origemDataFaturamento(row.getCteEmissao()),
+                        row.getStatus(),
+                        row.getFilial(),
+                        row.getPagador(),
+                        row.getRemetente(),
+                        row.getDestinatario(),
+                        row.getOrigemUf(),
+                        row.getDestinoUf(),
+                        zero(row.getValorTotalServico()).setScale(2, RoundingMode.HALF_UP),
+                        zero(row.getValorFrete()).setScale(2, RoundingMode.HALF_UP),
+                        zero(row.getPesoTaxado()).setScale(2, RoundingMode.HALF_UP),
+                        row.getVolumes(),
+                        row.getPrevisaoEntrega() != null ? row.getPrevisaoEntrega().toString() : null,
+                        row.getDocumentoTipo(),
+                        row.getNumeroCte(),
+                        row.getNumeroNfse(),
+                        zero(row.getValorIcms()).setScale(2, RoundingMode.HALF_UP),
+                        zero(row.getValorPis()).setScale(2, RoundingMode.HALF_UP),
+                        zero(row.getValorCofins()).setScale(2, RoundingMode.HALF_UP)
                 ))
                 .toList();
     }
 
     public FretesChartsDTO buscarGraficos(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
-
-        List<VisaoFretesEntity> fretes = buscarRegistros(filtro);
-        List<VisaoFretesEntity> fretesFaturamento = fretesElegiveisParaFaturamento(fretes);
-
-        List<FretesPrevisaoPorStatusDTO> previsaoPorStatus = fretes.stream()
-                .collect(Collectors.groupingBy(f -> textoOuPadrao(f.getStatus(), "Sem status")))
-                .entrySet().stream()
-                .map(entry -> new FretesPrevisaoPorStatusDTO(
-                        entry.getKey(),
-                        (int) entry.getValue().stream().filter(this::isVencido).count(),
-                        (int) entry.getValue().stream().filter(f -> !isVencido(f)).count()
-                ))
-                .sorted(Comparator.comparing(FretesPrevisaoPorStatusDTO::status))
-                .toList();
-
-        List<FretesOrigemDestinoDTO> topRotasPorReceita = fretesFaturamento.stream()
-                .collect(Collectors.groupingBy(f -> rotaKey(f.getOrigemUf(), f.getDestinoUf())))
-                .entrySet().stream()
-                .map(entry -> {
-                    String[] rota = splitRota(entry.getKey());
-                    return new FretesOrigemDestinoDTO(
-                            rota[0],
-                            rota[1],
-                            somar(entry.getValue(), VisaoFretesEntity::getValorTotal)
-                                    .setScale(2, RoundingMode.HALF_UP),
-                            entry.getValue().size()
-                    );
-                })
-                .sorted(Comparator.comparing(FretesOrigemDestinoDTO::receita).reversed()
-                        .thenComparing(FretesOrigemDestinoDTO::origemUf)
-                        .thenComparing(FretesOrigemDestinoDTO::destinoUf))
-                .limit(10)
-                .toList();
-
-        List<FretesFaturamentoGrupoDTO> faturamentoPorClassificacao = agruparFaturamento(
-                fretesFaturamento,
-                this::classificacaoFaturamento,
-                "Sem classificação",
-                8
-        );
-
-        List<FretesFaturamentoGrupoDTO> faturamentoPorResponsavelDestino = agruparFaturamento(
-                fretesFaturamento,
-                this::responsavelDestino,
-                "Responsável não informado",
-                10
-        );
-
-        List<FretesFaturamentoGrupoDTO> faturamentoPorUfOrigem = agruparFaturamento(
-                fretesFaturamento,
-                VisaoFretesEntity::getOrigemUf,
-                "UF não informada",
-                10
-        );
-
-        List<FretesFaturamentoGrupoDTO> faturamentoPorUfDestino = agruparFaturamento(
-                fretesFaturamento,
-                VisaoFretesEntity::getDestinoUf,
-                "UF não informada",
-                10
-        );
-
-        List<FretesFaturamentoGrupoDTO> faturamentoPorCidadeDestino = agruparFaturamento(
-                fretesFaturamento,
-                VisaoFretesEntity::getDestinoCidade,
-                "Cidade não informada",
-                10
-        );
+        FretesConsulta consulta = consulta(filtro);
 
         return new FretesChartsDTO(
-                previsaoPorStatus,
-                topRotasPorReceita,
-                faturamentoPorClassificacao,
-                faturamentoPorResponsavelDestino,
-                faturamentoPorUfOrigem,
-                faturamentoPorUfDestino,
-                faturamentoPorCidadeDestino
+                buscarPrevisaoPorStatusAgregada(consulta).stream()
+                        .map(row -> new FretesPrevisaoPorStatusDTO(row.getStatus(), row.getVencidos(), row.getNoPrazo()))
+                        .toList(),
+                buscarTopRotasPorReceita(consulta).stream()
+                        .map(row -> new FretesOrigemDestinoDTO(
+                                row.getOrigemUf(),
+                                row.getDestinoUf(),
+                                zero(row.getReceita()).setScale(2, RoundingMode.HALF_UP),
+                                row.getFretes()
+                        ))
+                        .toList(),
+                mapearGrupos(buscarFaturamentoPorClassificacao(consulta)),
+                mapearGrupos(buscarFaturamentoPorResponsavelDestino(consulta)),
+                mapearGrupos(buscarFaturamentoPorUfOrigem(consulta)),
+                mapearGrupos(buscarFaturamentoPorUfDestino(consulta)),
+                mapearGrupos(buscarFaturamentoPorCidadeDestino(consulta))
         );
     }
 
-    private List<VisaoFretesEntity> buscarRegistros(FiltroConsultaDTO filtro) {
-        if (fretesDashboardSqlRepository != null) {
-            return fretesDashboardSqlRepository.buscarRegistros(filtro);
-        }
-        return repository.findAll(criarSpecification(filtro));
-    }
-
-    private FretesGoalSummaryDTO buscarResumoMetas(FiltroConsultaDTO filtro, List<VisaoFretesEntity> fretes) {
+    private FretesGoalSummaryDTO buscarResumoMetas(
+            FiltroConsultaDTO filtro,
+            Collection<FretesGoalService.FretesBranchRealizado> realizados
+    ) {
         if (fretesGoalService == null) {
-            return fallbackResumoMetas(filtro, fretes);
+            return fallbackResumoMetas(filtro, realizados);
         }
         try {
             return fretesGoalService.buscarResumo(
                     filtro.dataInicio(),
                     filtro.dataFim(),
-                    realizadosPorFilial(fretes),
+                    realizados,
                     filtro.valores("filiais")
             );
         } catch (RuntimeException ex) {
             log.warn("Não foi possível carregar metas de fretes. O relatório seguirá sem metas configuradas. Motivo: {}", ex.getMessage());
-            return fallbackResumoMetas(filtro, fretes);
+            return fallbackResumoMetas(filtro, realizados);
         }
     }
 
-    private FretesGoalSummaryDTO fallbackResumoMetas(FiltroConsultaDTO filtro, List<VisaoFretesEntity> fretes) {
-        BigDecimal realizadoFaturamento = somar(fretes, VisaoFretesEntity::getValorTotal)
+    private FretesGoalSummaryDTO fallbackResumoMetas(
+            FiltroConsultaDTO filtro,
+            Collection<FretesGoalService.FretesBranchRealizado> realizados
+    ) {
+        BigDecimal realizadoFaturamento = realizados.stream()
+                .map(FretesGoalService.FretesBranchRealizado::realizadoFaturamento)
+                .map(this::zero)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
         return new FretesGoalSummaryDTO(
                 filtro.dataInicio().format(DATE_FMT),
@@ -477,25 +334,6 @@ public class FretesService {
         return valor.divide(BigDecimal.valueOf(divisor), 2, RoundingMode.HALF_UP);
     }
 
-    private List<FretesGoalService.FretesBranchRealizado> realizadosPorFilial(List<VisaoFretesEntity> fretes) {
-        return fretes.stream()
-                .collect(Collectors.groupingBy(
-                        frete -> textoOuPadrao(frete.getFilialNome(), "Filial não informada"),
-                        LinkedHashMap::new,
-                        Collectors.toList()
-                ))
-                .entrySet().stream()
-                .map(entry -> new FretesGoalService.FretesBranchRealizado(
-                        entry.getKey(),
-                        entry.getValue().stream()
-                                .map(VisaoFretesEntity::getValorTotal)
-                                .map(ConsultaFiltroUtils::zeroSeNulo)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                                .setScale(2, RoundingMode.HALF_UP)
-                ))
-                .toList();
-    }
-
     private double percentual(long valor, int total) {
         if (total == 0) {
             return 0.0;
@@ -507,128 +345,255 @@ public class FretesService {
                 .doubleValue();
     }
 
-    private boolean isVencido(VisaoFretesEntity frete) {
-        return frete.getPrevisaoEntrega() != null
-                && frete.getStatus() != null
-                && frete.getPrevisaoEntrega().isBefore(LocalDate.now())
-                && !"Finalizado".equalsIgnoreCase(frete.getStatus());
+    private String origemDataFaturamento(String cteEmissao) {
+        return cteEmissao != null ? "CT-e Emissão" : "Data do Frete";
     }
 
-    private String rotaKey(String origemUf, String destinoUf) {
-        return textoOuPadrao(origemUf, "N/A") + "|" + textoOuPadrao(destinoUf, "N/A");
+    private BigDecimal zero(BigDecimal valor) {
+        return ConsultaFiltroUtils.zeroSeNulo(valor);
     }
 
-    private String[] splitRota(String rota) {
-        return rota.split("\\|", 2);
+    private String formatarAtualizacao(LocalDateTime updatedAt) {
+        return updatedAt != null
+                ? updatedAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                : LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
     }
 
-    private String textoOuPadrao(String valor, String padrao) {
-        return Objects.requireNonNullElse(valor, "").isBlank() ? padrao : valor;
-    }
-
-    private BigDecimal somar(List<VisaoFretesEntity> fretes, Function<VisaoFretesEntity, BigDecimal> extractor) {
-        return fretes.stream()
-                .map(extractor)
-                .map(ConsultaFiltroUtils::zeroSeNulo)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    private List<VisaoFretesEntity> fretesElegiveisParaFaturamento(List<VisaoFretesEntity> fretes) {
-        return fretes.stream()
-                .filter(this::freteElegivelParaFaturamento)
+    private List<FretesFaturamentoGrupoDTO> mapearGrupos(
+            List<VisaoFretesRepository.FretesFaturamentoGrupoProjection> rows
+    ) {
+        return rows.stream()
+                .map(row -> new FretesFaturamentoGrupoDTO(
+                        row.getNome(),
+                        zero(row.getReceita()).setScale(2, RoundingMode.HALF_UP),
+                        row.getFretes()
+                ))
                 .toList();
     }
 
-    private boolean freteElegivelParaFaturamento(VisaoFretesEntity frete) {
-        return Boolean.TRUE.equals(frete.getElegivelFaturamento());
+    private List<FretesGoalService.FretesBranchRealizado> buscarRealizadosPorFilial(FiltroConsultaDTO filtro) {
+        return buscarRealizadoFaturamentoPorFilial(consulta(filtro)).stream()
+                .map(row -> new FretesGoalService.FretesBranchRealizado(
+                        row.getFilial(),
+                        zero(row.getRealizadoFaturamento()).setScale(2, RoundingMode.HALF_UP)
+                ))
+                .toList();
     }
 
-    private String origemDataFaturamento(VisaoFretesEntity frete) {
-        return frete.getCteEmissao() != null ? "CT-e Emissão" : "Data do Frete";
+    private FretesConsulta consulta(FiltroConsultaDTO filtro) {
+        return new FretesConsulta(
+                filtro.dataInicio(),
+                filtro.dataFim().plusDays(1),
+                DashboardQueryFilters.escopo(escopoFilialService.escopoAtual()),
+                DashboardQueryFilters.of(filtro.valores("filiais")),
+                DashboardQueryFilters.of(filtro.valores("status")),
+                DashboardQueryFilters.of(filtro.valores("pagadores")),
+                DashboardQueryFilters.of(filtro.valores("ufOrigem")),
+                DashboardQueryFilters.of(filtro.valores("ufDestino")),
+                DashboardQueryFilters.of(filtro.valores("tiposFrete")),
+                DashboardQueryFilters.of(filtro.valores("modais"))
+        );
     }
 
-    private LocalDate dataReferenciaPeriodo(VisaoFretesEntity frete) {
-        return frete.getDataReferenciaFaturamento() != null
-                ? frete.getDataReferenciaFaturamento().toLocalDate()
-                : null;
+    private VisaoFretesRepository.FretesOverviewProjection buscarOverviewAgregado(FretesConsulta consulta) {
+        return repository.buscarOverviewAgregado(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio()
+        );
     }
 
-    private List<FretesFaturamentoGrupoDTO> agruparFaturamento(
-            List<VisaoFretesEntity> fretes,
-            Function<VisaoFretesEntity, String> groupExtractor,
-            String fallback,
+    private List<VisaoFretesRepository.FretesTrendProjection> buscarSerieTemporalAgregada(FretesConsulta consulta) {
+        return repository.buscarSerieTemporalAgregada(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio()
+        );
+    }
+
+    private List<VisaoFretesRepository.FretesClienteRankingProjection> buscarTopClientesAgregado(
+            FretesConsulta consulta,
             int limite
     ) {
-        return fretes.stream()
-                .collect(Collectors.groupingBy(f -> textoOuPadrao(groupExtractor.apply(f), fallback)))
-                .entrySet().stream()
-                .map(entry -> new FretesFaturamentoGrupoDTO(
-                        entry.getKey(),
-                        somar(entry.getValue(), VisaoFretesEntity::getValorTotal)
-                                .setScale(2, RoundingMode.HALF_UP),
-                        entry.getValue().size()
-                ))
-                .sorted(Comparator.comparing(FretesFaturamentoGrupoDTO::receita).reversed()
-                        .thenComparing(FretesFaturamentoGrupoDTO::nome))
-                .limit(limite)
-                .toList();
-    }
-
-    private String classificacaoFaturamento(VisaoFretesEntity frete) {
-        String classificacao = textoOuPadrao(frete.getClassificacaoNome(), "Sem classificação");
-        String normalizada = classificacao.toUpperCase(Locale.ROOT);
-
-        if (normalizada.contains("FTL")) {
-            return "FTL";
-        }
-        if (normalizada.contains("LTL")) {
-            return "LTL";
-        }
-        if (normalizada.contains("PTL")) {
-            return "PTL";
-        }
-
-        return classificacao;
-    }
-
-    private String responsavelDestino(VisaoFretesEntity frete) {
-        String responsavel = textoOuPadrao(frete.getResponsavelRegiaoDestino(), "");
-        if (!responsavel.isBlank()) {
-            return responsavel;
-        }
-
-        String filialEmissora = textoOuPadrao(frete.getFilialEmissora(), "");
-        if (!filialEmissora.isBlank()) {
-            return filialEmissora;
-        }
-
-        return textoOuPadrao(frete.getFilialNome(), "Responsável não informado");
-    }
-
-    @NonNull
-    private Specification<VisaoFretesEntity> criarSpecification(FiltroConsultaDTO filtro) {
-        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
-        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
-
-        return ConsultaSpecificationUtils.allOf(
-                periodoPorEmissaoCteOuDataFrete(janela),
-                ConsultaSpecificationUtils.escopoFiliais(escopo, "filialNome"),
-                ConsultaSpecificationUtils.filtroTexto(filtro, "filiais", "filialNome"),
-                ConsultaSpecificationUtils.filtroTexto(filtro, "status", "status"),
-                ConsultaSpecificationUtils.filtroTexto(filtro, "pagadores", "pagadorNome"),
-                ConsultaSpecificationUtils.filtroTexto(filtro, "ufOrigem", "origemUf"),
-                ConsultaSpecificationUtils.filtroTexto(filtro, "ufDestino", "destinoUf"),
-                ConsultaSpecificationUtils.filtroTexto(filtro, "tiposFrete", "tipoFrete"),
-                ConsultaSpecificationUtils.filtroTexto(filtro, "modais", "modal")
+        return repository.buscarTopClientesAgregado(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio(),
+                limite
         );
     }
 
-    @NonNull
-    private Specification<VisaoFretesEntity> periodoPorEmissaoCteOuDataFrete(JanelaOffsetDateTime janela) {
-        return ConsultaSpecificationUtils.allOf(
-                ConsultaSpecificationUtils.greaterThanOrEqualTo("dataReferenciaFaturamento", janela.inicioInclusivo()),
-                ConsultaSpecificationUtils.lessThan("dataReferenciaFaturamento", janela.fimExclusivo())
+    private List<VisaoFretesRepository.FretesDocumentMixProjection> buscarMixDocumentalAgregado(FretesConsulta consulta) {
+        return repository.buscarMixDocumentalAgregado(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio()
         );
+    }
+
+    private List<VisaoFretesRepository.FretesTabelaProjection> buscarTabelaPaginada(FretesConsulta consulta, int limite) {
+        return repository.buscarTabelaPaginada(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio(),
+                limite
+        );
+    }
+
+    private List<VisaoFretesRepository.FretesPrevisaoStatusProjection> buscarPrevisaoPorStatusAgregada(FretesConsulta consulta) {
+        return repository.buscarPrevisaoPorStatusAgregada(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio()
+        );
+    }
+
+    private List<VisaoFretesRepository.FretesRotaProjection> buscarTopRotasPorReceita(FretesConsulta consulta) {
+        return repository.buscarTopRotasPorReceita(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio()
+        );
+    }
+
+    private List<VisaoFretesRepository.FretesFaturamentoGrupoProjection> buscarFaturamentoPorClassificacao(FretesConsulta consulta) {
+        return repository.buscarFaturamentoPorClassificacao(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio()
+        );
+    }
+
+    private List<VisaoFretesRepository.FretesFaturamentoGrupoProjection> buscarFaturamentoPorResponsavelDestino(FretesConsulta consulta) {
+        return repository.buscarFaturamentoPorResponsavelDestino(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio()
+        );
+    }
+
+    private List<VisaoFretesRepository.FretesFaturamentoGrupoProjection> buscarFaturamentoPorUfOrigem(FretesConsulta consulta) {
+        return repository.buscarFaturamentoPorUfOrigem(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio()
+        );
+    }
+
+    private List<VisaoFretesRepository.FretesFaturamentoGrupoProjection> buscarFaturamentoPorUfDestino(FretesConsulta consulta) {
+        return repository.buscarFaturamentoPorUfDestino(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio()
+        );
+    }
+
+    private List<VisaoFretesRepository.FretesFaturamentoGrupoProjection> buscarFaturamentoPorCidadeDestino(FretesConsulta consulta) {
+        return repository.buscarFaturamentoPorCidadeDestino(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio()
+        );
+    }
+
+    private List<VisaoFretesRepository.FretesRealizadoFilialProjection> buscarRealizadoFaturamentoPorFilial(FretesConsulta consulta) {
+        return repository.buscarRealizadoFaturamentoPorFilial(
+                consulta.dataInicio(), consulta.dataFimExclusivo(),
+                consulta.escopo().valores(), consulta.escopo().vazio(),
+                consulta.filiais().valores(), consulta.filiais().vazio(),
+                consulta.status().valores(), consulta.status().vazio(),
+                consulta.pagadores().valores(), consulta.pagadores().vazio(),
+                consulta.ufOrigem().valores(), consulta.ufOrigem().vazio(),
+                consulta.ufDestino().valores(), consulta.ufDestino().vazio(),
+                consulta.tiposFrete().valores(), consulta.tiposFrete().vazio(),
+                consulta.modais().valores(), consulta.modais().vazio()
+        );
+    }
+
+    private record FretesConsulta(
+            LocalDate dataInicio,
+            LocalDate dataFimExclusivo,
+            DashboardQueryFilters.ParametroLista escopo,
+            DashboardQueryFilters.ParametroLista filiais,
+            DashboardQueryFilters.ParametroLista status,
+            DashboardQueryFilters.ParametroLista pagadores,
+            DashboardQueryFilters.ParametroLista ufOrigem,
+            DashboardQueryFilters.ParametroLista ufDestino,
+            DashboardQueryFilters.ParametroLista tiposFrete,
+            DashboardQueryFilters.ParametroLista modais
+    ) {
     }
 
     private static EscopoFilialService escopoSemRestricao() {

@@ -1,3 +1,6 @@
+> [!WARNING] DOCUMENTACAO HISTORICA / NAO CANONICA
+> Este catalogo foi preservado como snapshot. A fonte vigente das views `dbo.vw_*_powerbi` e `dbo.vw_dim_*` esta no projeto `etl-extracao-dados`, com consumo read-only pelo Dashboard.
+
 # Catálogo Técnico das Views de BI
 
 Fonte: scripts SQL do projeto em `Database/views`, `Database/views-dimensao` e `Database/tabelas`.

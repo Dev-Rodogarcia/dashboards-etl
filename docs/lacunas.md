@@ -1,3 +1,6 @@
+> [!WARNING] DOCUMENTAÇÃO OBSOLETA / LEGADA
+> Este arquivo registra uma fase anterior do projeto e não é fonte de verdade atual para arquitetura, sessão, ACL ou integração com views do ETL. Use os READMEs da raiz e a trilha canônica em `docs/arquitetura/` quando houver conflito.
+
 Lacuna 1: A Vulnerabilidade do Webhook (Segurança Server-to-Server)
 Nós definimos que o seu ETL (Java) vai disparar uma requisição POST para a API (Spring Boot) avisando para limpar o cache.
 

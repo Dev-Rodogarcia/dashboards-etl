@@ -22,7 +22,7 @@ import java.util.Set;
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
-    @Value("${cors.origens-permitidas:${cors.origem-permitida:https://analytics.rodogarcia.com.br}}")
+    @Value("${cors.origens-permitidas:${cors.origem-permitida:}}")
     private String origensPermitidas;
 
     @Value("${spring.profiles.active:}")

@@ -17,51 +17,37 @@ class HorariosCorteRasterMigrationSqlTest {
     );
 
     @Test
-    void migrationV013DeveTrocarHorariosCorteParaViewRasterDaEtl() throws IOException {
+    void migrationV013NaoDeveConsumirRasterDaEtl() throws IOException {
         String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
                 "V013__horarios_corte_consumir_raster_etl.sql"));
 
-        assertThat(sql).contains("CREATE OR ALTER VIEW dbo.vw_horarios_corte_powerbi");
-        assertThat(sql).contains("FROM [ETL_SISTEMA].dbo.raster_viagens");
-        assertThat(sql).contains("FROM [ETL_SISTEMA].dbo.raster_viagem_paradas");
-        assertThat(sql).contains("FROM ETL_SISTEMA.INFORMATION_SCHEMA.COLUMNS c");
-        assertThat(sql).contains("THROW 51303");
-        assertThat(sql).contains("hc_apoio AS");
-        assertThat(sql).contains("AS [Saiu no Horário]");
-        assertThat(sql).contains("AS [Atraso Minutos]");
-        assertThat(sql).contains("N''Raster API - SQL Server'' AS [Nome do Arquivo]");
-        assertThat(sql).contains("data_extracao_at AS [Data de extracao]");
-    }
-
-    @Test
-    void migrationV013DeveConsumirCamposOperacionaisDaViewRasterSemMojibake() throws IOException {
-        String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
-                "V013__horarios_corte_consumir_raster_etl.sql"));
-
-        assertThat(sql).contains("v.rota_descricao");
-        assertThat(sql).contains("v.data_hora_real_ini");
-        assertThat(sql).contains("v.data_hora_real_fim");
-        assertThat(sql).contains("v.data_hora_prev_fim");
-        assertThat(sql).contains("v.data_hora_identificou_fim_viagem");
-        assertThat(sql).contains("N''AGUDOS/SP - RODOGARCIA FILIAL AGU''");
-        assertThat(sql).contains("N''OSASCO/SP - RODOGARCIA FILIAL SPO''");
-        assertThat(sql).contains("origem_sm AS [Origem SM]");
-        assertThat(sql).contains("destino_sm AS [Destino SM]");
-        assertThat(sql).contains("origem_destino AS [Origem Destino]");
-        assertThat(sql).contains("AS [Horario Corte SM]");
-        assertThat(sql).contains("AS [Previsao Chegada Destino]");
-        assertThat(sql).contains("AS [Transit Time]");
+        assertThat(sql).contains("No-op intencional");
+        assertThat(sql).contains("nao cria views baseadas em tabelas Raster do ETL");
+        assertThat(sql).doesNotContain("ETL_SISTEMA");
+        assertThat(sql).doesNotContain("CREATE OR ALTER VIEW");
+        assertThat(sql).doesNotContain("THROW");
         assertThat(MOJIBAKE_PATTERN.matcher(sql).find()).isFalse();
     }
 
     @Test
-    void migrationV013NaoDeveUsarPrevisaoDeInicioComoHorarioDeCorte() throws IOException {
+    void migrationV013DevePreservarFronteiraSemMojibake() throws IOException {
+        String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
+                "V013__horarios_corte_consumir_raster_etl.sql"));
+
+        assertThat(sql).contains("contratos publicados sob ownership do Dashboard");
+        assertThat(sql).doesNotContain("raster_viagens");
+        assertThat(sql).doesNotContain("raster_viagem_paradas");
+        assertThat(MOJIBAKE_PATTERN.matcher(sql).find()).isFalse();
+    }
+
+    @Test
+    void migrationV013NaoDeveConterRegrasOperacionaisRaster() throws IOException {
         String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
                 "V013__horarios_corte_consumir_raster_etl.sql"));
 
         assertThat(sql).doesNotContain("data_hora_prev_ini");
-        assertThat(sql).contains("data_hora_real_ini_at <= corte_at");
-        assertThat(sql).contains("CAST(COALESCE(v.data_hora_real_fim, v.data_hora_prev_fim, v.data_hora_identificou_fim_viagem) AS DATETIME2(0)) AS data_corte_base_at");
+        assertThat(sql).doesNotContain("data_hora_real_ini_at <= corte_at");
+        assertThat(sql).doesNotContain("data_corte_base_at");
     }
 
     @Test

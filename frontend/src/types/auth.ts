@@ -34,6 +34,5 @@ export interface LoginResponse {
 }
 
 export interface IUsuarioSessao extends UsuarioSessao {
-  token: string;
   sessaoExpiraEm: string;
 }

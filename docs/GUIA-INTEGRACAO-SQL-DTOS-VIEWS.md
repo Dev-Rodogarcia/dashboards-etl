@@ -1,3 +1,6 @@
+> [!WARNING] DOCUMENTACAO OBSOLETA / LEGADA
+> Este guia registra uma fase anterior de integracao SQL. Para a arquitetura atual, o ETL e o owner das views `dbo.vw_*_powerbi` e o Dashboard e apenas consumidor de leitura. Use `README.md` e `docs/arquitetura/` como fonte vigente.
+
 # Guia de Integracao SQL, DTOs e Views
 
 ## Objetivo

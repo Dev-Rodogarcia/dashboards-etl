@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,37 +17,15 @@ class DashboardEtlWrappersMigrationSqlTest {
     );
 
     @Test
-    void migrationV020DeveCriarWrappersDasViewsPublicadasPelaEtl() throws IOException {
+    void migrationV020NaoDeveCriarWrappersDeViewsDaEtl() throws IOException {
         String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
                 "V020__sincronizar_wrappers_views_etl_dashboard.sql"));
 
-        List<String> wrappers = List.of(
-                "vw_bi_monitoramento",
-                "vw_coletas_powerbi",
-                "vw_contas_a_pagar_powerbi",
-                "vw_cotacoes_powerbi",
-                "vw_dim_clientes",
-                "vw_dim_filiais",
-                "vw_dim_motoristas",
-                "vw_dim_planocontas",
-                "vw_dim_usuarios",
-                "vw_dim_veiculos",
-                "vw_faturas_graphql_powerbi",
-                "vw_inventario_powerbi",
-                "vw_manifestos_powerbi",
-                "vw_sinistros_powerbi"
-        );
-
-        assertThat(sql).contains("DB_ID(N'ETL_SISTEMA')");
-        assertThat(sql).contains("CREATE OR ALTER VIEW dbo.");
-        assertThat(sql).contains("FROM [ETL_SISTEMA].dbo.");
-        assertThat(sql).contains("EXEC sys.sp_refreshview");
-        assertThat(sql).contains("ETL_SISTEMA.dbo.vw_coletas_powerbi.[Solicitacao]");
-        assertThat(sql).contains("tipo de data nativo");
-        assertThat(sql).contains("N'date'");
-        assertThat(sql).contains("N'datetime2'");
-        assertThat(sql).contains("nao use conversao dinamica no Dashboard");
-        assertThat(sql).contains(wrappers);
+        assertThat(sql).contains("No-op intencional");
+        assertThat(sql).contains("nao cria wrappers locais");
+        assertThat(sql).doesNotContain("ETL_SISTEMA");
+        assertThat(sql).doesNotContain("CREATE OR ALTER VIEW");
+        assertThat(sql).doesNotContain("sp_refreshview");
         assertThat(sql).doesNotContain("ALTER TABLE");
         assertThat(sql).doesNotContain("DROP VIEW");
         assertThat(MOJIBAKE_PATTERN.matcher(sql).find()).isFalse();

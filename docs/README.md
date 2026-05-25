@@ -54,6 +54,19 @@ docs/
 - timezone canonico para filtros `DATETIMEOFFSET`: `America/Sao_Paulo`
 - serializacao de filtros adicionais na URL: prefixo `f.`
 - relatorios do validador BI: pasta `reports/`
+- estrutura propria do Dashboard: somente Flyway em `backend/src/main/resources/db/migration`
+- views analiticas `dbo.vw_*_powerbi` e `dbo.vw_dim_*`: owner estrutural e o projeto ETL
+- acesso do Dashboard ao schema do ETL: leitura, sem DDL cross-database
+
+## Fronteira entre Dashboard e ETL
+
+O Dashboard e uma camada consumidora e de apresentacao. Ele valida filtros, aplica seguranca, expoe contratos HTTP e entrega DTOs para o frontend.
+
+O ETL e o owner estrutural do schema `ETL_SISTEMA` (`esl_cloud`) e das views consumidas pelo Dashboard. Ajustes em tabelas/views analiticas devem nascer no projeto `etl-extracao-dados`, nao em migrations, inicializadores ou SQL avulso do Dashboard.
+
+No banco proprio do Dashboard, a unica fonte de verdade estrutural e o Flyway. DDL em runtime Java e proibido; validadores podem detectar drift e falhar cedo, mas nao corrigir schema automaticamente.
+
+Agregacoes, filtros, rankings e `distinct` de BI devem ser executados por SQL/projecoes no banco. A JVM nao deve carregar grandes massas das views do ETL para calcular resultado em memoria.
 
 ## O que e canonico vs. historico
 
@@ -68,10 +81,13 @@ Documentos historicos:
 - `docs/backend.md`
 - `docs/frontend.md`
 - `docs/GUIA-INTEGRACAO-SQL-DTOS-VIEWS.md`
+- `docs/novopage.md`
 - `docs/relatorio-*.md`
 - `docs/validacao-manual-entidades-dashboard.md`
 
 Os arquivos historicos nao sao descartados, mas podem refletir fases anteriores do projeto. Ao encontrar conflito entre um documento historico e esta trilha nova, prevalece a trilha nova.
+
+Registros em `docs/analises/` sao auditoria historica e nao devem ser editados durante saneamentos de documentacao.
 
 ## Quando atualizar esta documentacao
 

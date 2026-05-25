@@ -4,32 +4,27 @@ import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.fretes.FretesGoalSummaryDTO;
 import com.dashboard.api.dto.fretes.FretesOverviewDTO;
 import com.dashboard.api.dto.fretes.FretesTrendPointDTO;
-import com.dashboard.api.model.VisaoFretesEntity;
 import com.dashboard.api.repository.VisaoFretesRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.test.util.ReflectionTestUtils;
 
-import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,10 +52,8 @@ class FretesServiceTest {
     void buscarOverviewIncluiCalculosDiariosDeMetaETendencia() {
         LocalDate dataInicio = LocalDate.of(2026, 5, 1);
         LocalDate dataFim = LocalDate.of(2026, 5, 19);
-        when(repository.findAll(ArgumentMatchers.<Specification<VisaoFretesEntity>>any())).thenReturn(List.of(
-                frete(1L, "SPO", "2400000.00"),
-                frete(2L, "REC", "2430280.00")
-        ));
+        stubOverview(overview(2, "4830280.00", "4830280.00", 2));
+        stubRealizados(List.of(realizado("SPO", "2400000.00"), realizado("REC", "2430280.00")));
         fretesGoalService.summary = new FretesGoalSummaryDTO(
                 "2026-05-01",
                 "2026-05-19",
@@ -88,11 +81,8 @@ class FretesServiceTest {
     void buscarOverviewMantemTotalOperacionalEExcluiCortesiasEBloqueiosDoFaturamento() {
         LocalDate dataInicio = LocalDate.of(2026, 5, 1);
         LocalDate dataFim = LocalDate.of(2026, 5, 19);
-        when(repository.findAll(ArgumentMatchers.<Specification<VisaoFretesEntity>>any())).thenReturn(List.of(
-                frete(1L, "SPO", "100.00"),
-                frete(2L, "SPO", "999.00", null, true, null),
-                frete(3L, "SPO", "999.00", null, false, "Bloqueio (Anulação e Isolamento)")
-        ));
+        stubOverview(overview(3, "100.00", "100.00", 1));
+        stubRealizados(List.of(realizado("SPO", "100.00")));
 
         FretesOverviewDTO overview = service.buscarOverview(new FiltroConsultaDTO(dataInicio, dataFim, Map.of()));
 
@@ -107,28 +97,13 @@ class FretesServiceTest {
     }
 
     @Test
-    void buscarSerieTemporalUsaEmissaoCteComFallbackDataFreteEApenasFaturamentoElegivel() {
-        when(repository.findAll(ArgumentMatchers.<Specification<VisaoFretesEntity>>any())).thenReturn(List.of(
-                frete(1L, "SPO", "100.00",
-                        OffsetDateTime.of(2026, 3, 31, 10, 0, 0, 0, ZoneOffset.ofHours(-3)),
-                        OffsetDateTime.of(2026, 4, 2, 11, 0, 0, 0, ZoneOffset.ofHours(-3)),
-                        false,
-                        null),
-                frete(2L, "REC", "50.00",
-                        OffsetDateTime.of(2026, 4, 3, 10, 0, 0, 0, ZoneOffset.ofHours(-3)),
-                        null,
-                        false,
-                        null),
-                frete(3L, "SPO", "999.00",
-                        OffsetDateTime.of(2026, 4, 2, 10, 0, 0, 0, ZoneOffset.ofHours(-3)),
-                        null,
-                        true,
-                        null),
-                frete(4L, "SPO", "999.00",
-                        OffsetDateTime.of(2026, 4, 3, 10, 0, 0, 0, ZoneOffset.ofHours(-3)),
-                        null,
-                        false,
-                        "BLOQUEIO - ISOLAMENTO")
+    void buscarSerieTemporalUsaAgregacaoSqlApenasDeFaturamentoElegivel() {
+        when(repository.buscarSerieTemporalAgregada(
+                any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
+        )).thenReturn(List.of(
+                trend("2026-04-02", "100.00", "100.00", 1),
+                trend("2026-04-03", "50.00", "50.00", 1)
         ));
 
         List<FretesTrendPointDTO> serie = service.buscarSerieTemporal(
@@ -144,75 +119,54 @@ class FretesServiceTest {
         assertThat(serie.get(1).fretes()).isEqualTo(1);
     }
 
-    private static VisaoFretesEntity frete(Long id, String filial, String valorTotal) {
-        return frete(id, filial, valorTotal, null, false, null);
+    private void stubOverview(VisaoFretesRepository.FretesOverviewProjection overview) {
+        when(repository.buscarOverviewAgregado(
+                any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
+        )).thenReturn(overview);
     }
 
-    private static VisaoFretesEntity frete(
-            Long id,
-            String filial,
-            String valorTotal,
-            OffsetDateTime cteEmissao,
-            boolean cortesia,
-            String classificacao
+    private void stubRealizados(List<VisaoFretesRepository.FretesRealizadoFilialProjection> realizados) {
+        when(repository.buscarRealizadoFaturamentoPorFilial(
+                any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
+        )).thenReturn(realizados);
+    }
+
+    private static VisaoFretesRepository.FretesOverviewProjection overview(
+            int total,
+            String receita,
+            String valorFrete,
+            int fretesFaturamento
     ) {
-        return frete(
-                id,
-                filial,
-                valorTotal,
-                OffsetDateTime.of(2026, 5, 19, 10, 0, 0, 0, ZoneOffset.ofHours(-3)),
-                cteEmissao,
-                cortesia,
-                classificacao
-        );
+        return new VisaoFretesRepository.FretesOverviewProjection() {
+            @Override public LocalDateTime getUpdatedAt() { return LocalDateTime.of(2026, 5, 19, 12, 0); }
+            @Override public int getTotalFretes() { return total; }
+            @Override public BigDecimal getReceitaBruta() { return new BigDecimal(receita); }
+            @Override public BigDecimal getValorFrete() { return new BigDecimal(valorFrete); }
+            @Override public int getFretesFaturamento() { return fretesFaturamento; }
+            @Override public BigDecimal getPesoTaxadoTotal() { return BigDecimal.ZERO; }
+            @Override public int getVolumesTotais() { return total; }
+            @Override public int getCteEmitidos() { return 0; }
+            @Override public int getNfseEmitidas() { return 0; }
+            @Override public int getFretesPrevisaoVencida() { return 0; }
+        };
     }
 
-    private static VisaoFretesEntity frete(
-            Long id,
-            String filial,
-            String valorTotal,
-            OffsetDateTime dataFrete,
-            OffsetDateTime cteEmissao,
-            boolean cortesia,
-            String classificacao
-    ) {
-        VisaoFretesEntity entity = Objects.requireNonNull(novaInstancia(VisaoFretesEntity.class));
-        ReflectionTestUtils.setField(entity, "id", id);
-        ReflectionTestUtils.setField(entity, "dataFrete", dataFrete);
-        ReflectionTestUtils.setField(entity, "cteEmissao", cteEmissao);
-        ReflectionTestUtils.setField(entity, "dataReferenciaFaturamento", cteEmissao != null ? cteEmissao : dataFrete);
-        ReflectionTestUtils.setField(entity, "valorTotal", new BigDecimal(valorTotal));
-        ReflectionTestUtils.setField(entity, "subtotal", new BigDecimal(valorTotal));
-        ReflectionTestUtils.setField(entity, "pesoTaxado", BigDecimal.ZERO);
-        ReflectionTestUtils.setField(entity, "volumes", 1);
-        ReflectionTestUtils.setField(entity, "filialNome", filial);
-        ReflectionTestUtils.setField(entity, "classificacaoNome", classificacao != null ? classificacao : "LTL");
-        ReflectionTestUtils.setField(entity, "cortesiaFlag", cortesia);
-        ReflectionTestUtils.setField(entity, "elegivelFaturamento", !cortesia && !bloqueioFaturamento(classificacao));
-        ReflectionTestUtils.setField(entity, "status", "Aberto");
-        ReflectionTestUtils.setField(entity, "dataExtracao", LocalDateTime.of(2026, 5, 19, 12, 0));
-        return entity;
+    private static VisaoFretesRepository.FretesRealizadoFilialProjection realizado(String filial, String valor) {
+        return new VisaoFretesRepository.FretesRealizadoFilialProjection() {
+            @Override public String getFilial() { return filial; }
+            @Override public BigDecimal getRealizadoFaturamento() { return new BigDecimal(valor); }
+        };
     }
 
-    private static boolean bloqueioFaturamento(String classificacao) {
-        if (classificacao == null) {
-            return false;
-        }
-        String normalizada = java.text.Normalizer.normalize(classificacao, java.text.Normalizer.Form.NFD)
-                .replaceAll("\\p{M}+", "")
-                .toLowerCase(java.util.Locale.ROOT);
-        return normalizada.contains("bloqueio")
-                && (normalizada.contains("anulacao") || normalizada.contains("isolamento"));
-    }
-
-    private static <T> T novaInstancia(Class<T> type) {
-        try {
-            Constructor<T> constructor = type.getDeclaredConstructor();
-            constructor.setAccessible(true);
-            return constructor.newInstance();
-        } catch (ReflectiveOperationException ex) {
-            throw new IllegalStateException("Nao foi possivel instanciar " + type.getSimpleName(), ex);
-        }
+    private static VisaoFretesRepository.FretesTrendProjection trend(String date, String receita, String valorFrete, int fretes) {
+        return new VisaoFretesRepository.FretesTrendProjection() {
+            @Override public String getDate() { return date; }
+            @Override public BigDecimal getReceitaBruta() { return new BigDecimal(receita); }
+            @Override public BigDecimal getValorFrete() { return new BigDecimal(valorFrete); }
+            @Override public int getFretes() { return fretes; }
+        };
     }
 
     private static EscopoFilialService escopoSemRestricao() {

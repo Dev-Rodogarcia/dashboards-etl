@@ -73,6 +73,16 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Database migrations -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-sqlserver</artifactId>
+        </dependency>
+
         <!-- Spring Dotenv (.env) -->
         <dependency>
             <groupId>me.paulschwarz</groupId>

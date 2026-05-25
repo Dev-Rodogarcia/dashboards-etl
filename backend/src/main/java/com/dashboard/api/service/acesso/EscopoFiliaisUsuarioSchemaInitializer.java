@@ -2,7 +2,6 @@ package com.dashboard.api.service.acesso;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
@@ -23,48 +22,14 @@ public class EscopoFiliaisUsuarioSchemaInitializer implements ApplicationRunner 
 
     @Override
     public void run(ApplicationArguments args) {
-        try {
-            if (!schemaExiste("acesso")) {
-                log.warn("Schema 'acesso' não encontrado. Bootstrap de escopo de filiais por usuário não executado.");
-                return;
-            }
-
-            if (!tabelaExiste("acesso.usuarios")) {
-                log.warn("Tabela 'acesso.usuarios' não encontrada. Bootstrap de escopo de filiais por usuário não executado.");
-                return;
-            }
-
-            if (!colunaExiste("acesso.usuarios", "escopo_filiais_tipo")) {
-                jdbcTemplate.execute("""
-                    ALTER TABLE acesso.usuarios
-                    ADD escopo_filiais_tipo VARCHAR(20) NOT NULL
-                        CONSTRAINT DF_usuarios_escopo_filiais_tipo DEFAULT 'HERDAR_SETOR'
-                    """);
-                log.info("Coluna 'acesso.usuarios.escopo_filiais_tipo' criada automaticamente.");
-            }
-
-            if (!constraintExiste("acesso.usuarios", "CK_usuarios_escopo_filiais_tipo")) {
-                jdbcTemplate.execute("""
-                    ALTER TABLE acesso.usuarios
-                    WITH CHECK ADD CONSTRAINT CK_usuarios_escopo_filiais_tipo
-                    CHECK (escopo_filiais_tipo IN ('HERDAR_SETOR', 'TODAS', 'SELECIONADAS'))
-                    """);
-                log.info("Constraint 'CK_usuarios_escopo_filiais_tipo' criada automaticamente.");
-            }
-
-            if (!tabelaExiste("acesso.usuario_filiais_permitidas")) {
-                jdbcTemplate.execute("""
-                    CREATE TABLE acesso.usuario_filiais_permitidas (
-                        usuario_id  BIGINT        NOT NULL REFERENCES acesso.usuarios(id),
-                        filial_nome NVARCHAR(120) NOT NULL,
-                        PRIMARY KEY (usuario_id, filial_nome)
-                    )
-                    """);
-                log.info("Tabela 'acesso.usuario_filiais_permitidas' criada automaticamente.");
-            }
-        } catch (DataAccessException ex) {
-            log.warn("Bootstrap de escopo de filiais por usuário não conseguiu aplicar DDL automaticamente. Execute a migration V011 com um usuário de banco com permissão de ALTER/CREATE. Motivo: {}", ex.getMessage());
-        }
+        exigir(schemaExiste("acesso"), "Schema 'acesso' não encontrado. Execute as migrations Flyway antes de iniciar a API.");
+        exigir(tabelaExiste("acesso.usuarios"), "Tabela 'acesso.usuarios' não encontrada. Execute as migrations Flyway antes de iniciar a API.");
+        exigir(colunaExiste("acesso.usuarios", "escopo_filiais_tipo"), "Coluna 'acesso.usuarios.escopo_filiais_tipo' não encontrada. Execute a migration V011.");
+        exigir(constraintExiste("acesso.usuarios", "CK_usuarios_escopo_filiais_tipo"), "Constraint 'CK_usuarios_escopo_filiais_tipo' não encontrada.");
+        exigir(tabelaExiste("acesso.usuario_filiais_permitidas"), "Tabela 'acesso.usuario_filiais_permitidas' não encontrada. Execute a migration V011.");
+        exigir(colunaExiste("acesso.usuario_filiais_permitidas", "usuario_id"), "Coluna 'acesso.usuario_filiais_permitidas.usuario_id' não encontrada.");
+        exigir(colunaExiste("acesso.usuario_filiais_permitidas", "filial_nome"), "Coluna 'acesso.usuario_filiais_permitidas.filial_nome' não encontrada.");
+        log.info("Schema de escopo de filiais por usuário validado.");
     }
 
     private boolean schemaExiste(String nomeSchema) {
@@ -108,5 +73,11 @@ public class EscopoFiliaisUsuarioSchemaInitializer implements ApplicationRunner 
                 nomeCompletoTabela
         );
         return total != null && total > 0;
+    }
+
+    private void exigir(boolean condicao, String mensagem) {
+        if (!condicao) {
+            throw new IllegalStateException(mensagem);
+        }
     }
 }

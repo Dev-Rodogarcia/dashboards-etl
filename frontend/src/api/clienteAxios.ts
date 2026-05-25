@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL, API_REQUEST_TIMEOUT_MS, AUTH_REQUEST_TIMEOUT_MS } from '../config/api';
 import type { LoginResponse } from '../types/auth';
-import { limparSessao, montarSessaoDoLogin, obterSessao, salvarSessao } from '../utils/gerenciadorSessao';
+import { limparSessao, obterAccessToken, salvarSessaoDoLogin } from '../utils/gerenciadorSessao';
 import { ehSessaoExpiradaError, normalizarErroSessao } from '../utils/authSession';
 
 export interface RetryableRequestConfig extends InternalAxiosRequestConfig {
@@ -19,9 +19,9 @@ const clienteAxios = axios.create({
 let refreshEmAndamento: Promise<LoginResponse> | null = null;
 
 clienteAxios.interceptors.request.use((config) => {
-  const sessao = obterSessao();
-  if (sessao?.token) {
-    config.headers.Authorization = `Bearer ${sessao.token}`;
+  const accessToken = obterAccessToken();
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
   }
   return config;
 });
@@ -38,7 +38,7 @@ async function renovarSessaoSilenciosamente(): Promise<LoginResponse> {
       },
     );
 
-    salvarSessao(montarSessaoDoLogin(data));
+    salvarSessaoDoLogin(data);
     return data;
   } catch (error) {
     throw normalizarErroSessao(error);
@@ -96,7 +96,7 @@ export async function tratarErroRespostaApi(
     try {
       const sessaoRenovada = await deps.renovarSessao();
       originalRequest.headers = originalRequest.headers ?? {};
-      originalRequest.headers.Authorization = `Bearer ${sessaoRenovada.token}`;
+      originalRequest.headers.Authorization = `Bearer ${obterAccessToken() ?? sessaoRenovada.token}`;
       return deps.repetirRequisicao(originalRequest);
     } catch (refreshError) {
       if (ehSessaoExpiradaError(refreshError)) {

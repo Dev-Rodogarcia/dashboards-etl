@@ -93,6 +93,8 @@ Se a API usa dia local, o SQL de validacao tambem precisa usar dia local.
 
 Consequencia pratica:
 
+- filtros, agregacoes, rankings e listas distintas devem ser feitos no banco, via SQL/projecao;
+- o backend nao deve carregar a view inteira para filtrar ou agregar em memoria;
 - `scripts/dashboard-validation/entities.mjs` deve espelhar a mesma janela da API;
 - nao aceitar um validador com semantica diferente do backend;
 - divergencia entre SQL e API pode ser bug no sistema ou bug no proprio harness de validacao.
@@ -155,6 +157,7 @@ Correcao:
 1. identificar o tipo real da coluna na view;
 2. decidir se o dado representa dia ou instante;
 3. usar o helper oficial se houver `OffsetDateTime`;
-4. cobrir com teste de service;
-5. atualizar o validador BI;
-6. documentar o campo no catalogo de dashboards.
+4. implementar o filtro como SQL/projecao no repository;
+5. cobrir com teste de service/repository conforme o risco;
+6. atualizar o validador BI;
+7. documentar o campo no catalogo de dashboards.

@@ -75,9 +75,9 @@ O backend de produção deve rodar em `prod` na porta `5010`, e o frontend de pr
 .\iniciar-prod.bat
 ```
 
-Ele valida o ambiente, avisa quando o checkout não está na branch principal ou tem alterações locais, valida o contrato dos wrappers de produção, libera apenas as portas de produção, gera `frontend/dist-prod` atualizado, bloqueia starts concorrentes, abre o backend em um terminal externo, espera o healthcheck ficar `UP`, valida o preflight CORS da API local e abre o frontend estático em outro terminal externo. As portas DEV `5011/5174` não são encerradas por esse fluxo.
+Ele valida o ambiente, avisa quando o checkout não está na branch principal ou tem alterações locais, valida o contrato publicado pelo ETL, libera apenas as portas de produção, gera `frontend/dist-prod` atualizado, bloqueia starts concorrentes, abre o backend em um terminal externo, espera o healthcheck ficar `UP`, valida o preflight CORS da API local e abre o frontend estático em outro terminal externo. As portas DEV `5011/5174` não são encerradas por esse fluxo.
 
-Antes de subir produção, aplique no banco `DASHBOARDS` todas as migrations/wrappers que já foram validadas em `DASHBOARDS_DEV`. A tela de Localização de Cargas depende do wrapper `dbo.vw_localizacao_cargas_powerbi` com as mesmas colunas e ordem da view publicada no `ETL_SISTEMA`; wrapper antigo ou metadata não atualizada desloca colunas por posição e faz KPIs/status divergirem entre DEV e PROD.
+Antes de subir produção, aplique no banco `DASHBOARDS` apenas as migrations próprias do Dashboard. As views `dbo.vw_*_powerbi` pertencem ao ETL e devem estar publicadas e validadas pelo owner do banco `ETL_SISTEMA` (`esl_cloud`) antes do deploy do Dashboard. A API do Dashboard deve consumir esse contrato em leitura, sem criar wrappers locais nem executar DDL cross-database.
 
 O Cloudflare Tunnel deve apontar `analytics.rodogarcia.com.br` para `http://127.0.0.1:5173` e `api-analytics.rodogarcia.com.br` para `http://127.0.0.1:5010`.
 
@@ -87,7 +87,7 @@ Permissoes minimas esperadas para o usuario SQL da API no schema `acesso`:
 GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA :: acesso TO usuario_etl;
 ```
 
-Se a tabela `acesso.refresh_tokens` ainda nao existir e voce optar por deixar a aplicacao cria-la no startup, tambem sera necessario `GRANT CREATE TABLE TO usuario_etl;`. A opcao mais controlada e aplicar as migrations no banco antes do deploy.
+O usuario de runtime da API nao deve manter permissoes DDL permanentes. Migrations Flyway devem ser executadas por uma credencial elevada e isolada da esteira de deploy, com permissao para criar `dbo.flyway_schema_history` e alterar os objetos versionados apenas durante a janela de migracao. Conceder `CREATE TABLE`/`ALTER` ao `usuario_etl` em producao e uma excecao operacional temporaria e deve ser revertida quando o pipeline de deploy automatico existir.
 
 Para permitir varios usuarios novos sem `chave_legado`, aplique a migration `V009__corrigir_unique_chave_legado_usuarios.sql` no banco de producao antes de validar o cadastro de usuarios. Ela troca a restricao `UNIQUE` comum por um indice unico filtrado que ignora `NULL`.
 

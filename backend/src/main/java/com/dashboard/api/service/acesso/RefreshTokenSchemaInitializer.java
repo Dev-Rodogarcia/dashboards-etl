@@ -20,40 +20,20 @@ public class RefreshTokenSchemaInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (!schemaExiste("acesso")) {
-            log.warn("Schema 'acesso' não encontrado. Bootstrap de refresh token não executado.");
-            return;
-        }
-
-        if (!tabelaExiste("acesso.usuarios")) {
-            log.warn("Tabela 'acesso.usuarios' não encontrada. Bootstrap de refresh token não executado.");
-            return;
-        }
-
-        if (!tabelaExiste("acesso.refresh_tokens")) {
-            jdbcTemplate.execute("""
-                CREATE TABLE acesso.refresh_tokens (
-                    id                   BIGINT IDENTITY(1,1) PRIMARY KEY,
-                    usuario_id           BIGINT        NOT NULL REFERENCES acesso.usuarios(id),
-                    token_hash           VARCHAR(128)  NOT NULL UNIQUE,
-                    expira_em            DATETIME2     NOT NULL,
-                    revogado_em          DATETIME2     NULL,
-                    substituido_por_hash VARCHAR(128)  NULL,
-                    criado_em            DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME(),
-                    criado_ip            VARCHAR(45)   NULL,
-                    user_agent           VARCHAR(500)  NULL
-                )
-                """);
-            log.info("Tabela 'acesso.refresh_tokens' criada automaticamente.");
-        }
-
-        if (!indiceExiste("acesso.refresh_tokens", "IX_refresh_tokens_usuario")) {
-            jdbcTemplate.execute("""
-                CREATE INDEX IX_refresh_tokens_usuario
-                    ON acesso.refresh_tokens (usuario_id, revogado_em, expira_em DESC)
-                """);
-            log.info("Índice 'IX_refresh_tokens_usuario' criado automaticamente.");
-        }
+        exigir(schemaExiste("acesso"), "Schema 'acesso' não encontrado. Execute as migrations Flyway antes de iniciar a API.");
+        exigir(tabelaExiste("acesso.usuarios"), "Tabela 'acesso.usuarios' não encontrada. Execute as migrations Flyway antes de iniciar a API.");
+        exigir(tabelaExiste("acesso.refresh_tokens"), "Tabela 'acesso.refresh_tokens' não encontrada. Execute a migration V005.");
+        exigir(colunaExiste("acesso.refresh_tokens", "id"), "Coluna 'acesso.refresh_tokens.id' não encontrada.");
+        exigir(colunaExiste("acesso.refresh_tokens", "usuario_id"), "Coluna 'acesso.refresh_tokens.usuario_id' não encontrada.");
+        exigir(colunaExiste("acesso.refresh_tokens", "token_hash"), "Coluna 'acesso.refresh_tokens.token_hash' não encontrada.");
+        exigir(colunaExiste("acesso.refresh_tokens", "expira_em"), "Coluna 'acesso.refresh_tokens.expira_em' não encontrada.");
+        exigir(colunaExiste("acesso.refresh_tokens", "revogado_em"), "Coluna 'acesso.refresh_tokens.revogado_em' não encontrada.");
+        exigir(colunaExiste("acesso.refresh_tokens", "substituido_por_hash"), "Coluna 'acesso.refresh_tokens.substituido_por_hash' não encontrada.");
+        exigir(colunaExiste("acesso.refresh_tokens", "criado_em"), "Coluna 'acesso.refresh_tokens.criado_em' não encontrada.");
+        exigir(colunaExiste("acesso.refresh_tokens", "criado_ip"), "Coluna 'acesso.refresh_tokens.criado_ip' não encontrada.");
+        exigir(colunaExiste("acesso.refresh_tokens", "user_agent"), "Coluna 'acesso.refresh_tokens.user_agent' não encontrada.");
+        exigir(indiceExiste("acesso.refresh_tokens", "IX_refresh_tokens_usuario"), "Índice 'IX_refresh_tokens_usuario' não encontrado.");
+        log.info("Schema de refresh tokens validado.");
     }
 
     private boolean schemaExiste(String nomeSchema) {
@@ -74,6 +54,16 @@ public class RefreshTokenSchemaInitializer implements ApplicationRunner {
         return total != null && total > 0;
     }
 
+    private boolean colunaExiste(String nomeCompletoTabela, String nomeColuna) {
+        Integer total = jdbcTemplate.queryForObject(
+                "SELECT COUNT(1) WHERE COL_LENGTH(?, ?) IS NOT NULL",
+                Integer.class,
+                nomeCompletoTabela,
+                nomeColuna
+        );
+        return total != null && total > 0;
+    }
+
     private boolean indiceExiste(String nomeCompletoTabela, String nomeIndice) {
         Integer total = jdbcTemplate.queryForObject(
                 """
@@ -87,5 +77,11 @@ public class RefreshTokenSchemaInitializer implements ApplicationRunner {
                 nomeCompletoTabela
         );
         return total != null && total > 0;
+    }
+
+    private void exigir(boolean condicao, String mensagem) {
+        if (!condicao) {
+            throw new IllegalStateException(mensagem);
+        }
     }
 }

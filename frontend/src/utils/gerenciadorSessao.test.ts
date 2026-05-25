@@ -3,6 +3,7 @@ import {
   deveTentarRestaurarSessao,
   EVENTO_SESSAO_ATUALIZADA,
   limparSessao,
+  obterAccessToken,
   obterSessao,
   salvarSessao,
 } from './gerenciadorSessao';
@@ -84,7 +85,6 @@ function criarSessao(): IUsuarioSessao {
     permissoesEfetivas: criarPermissoes(),
     filiaisPermitidasEfetivas: ['SP'],
     exigeTrocaSenha: false,
-    token: 'token-inicial',
     sessaoExpiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   };
 }
@@ -102,38 +102,47 @@ beforeEach(() => {
     value: criarWindowMock(),
     configurable: true,
   });
+  limparSessao();
 });
 
 describe('gerenciadorSessao', () => {
-  it('salva a sessao no sessionStorage e remove legado do localStorage', () => {
+  it('salva a sessao em memoria, guarda o token fora do Web Storage e remove legado', () => {
     const sessao = criarSessao();
     localStorage.setItem('dashboard_usuario', JSON.stringify({ legado: true }));
 
-    salvarSessao(sessao);
+    salvarSessao(sessao, 'token-inicial');
 
-    expect(sessionStorage.getItem('dashboard_usuario')).toBe(JSON.stringify(sessao));
+    expect(obterSessao()).toEqual(sessao);
+    expect(obterAccessToken()).toBe('token-inicial');
+    expect(sessionStorage.getItem('dashboard_usuario')).toBeNull();
     expect(localStorage.getItem('dashboard_refresh_ativo')).toBe('1');
     expect(localStorage.getItem('dashboard_usuario')).toBeNull();
   });
 
-  it('migra a sessao legada do localStorage para o sessionStorage na primeira leitura', () => {
+  it('remove sessao legada do localStorage sem reidratar token para forcar refresh HttpOnly', () => {
     const sessao = criarSessao();
-    localStorage.setItem('dashboard_usuario', JSON.stringify(sessao));
+    localStorage.setItem('dashboard_usuario', JSON.stringify({ ...sessao, token: 'token-legado' }));
+    localStorage.setItem('dashboard_refresh_ativo', '1');
 
     const resultado = obterSessao();
 
-    expect(resultado).toEqual(sessao);
-    expect(sessionStorage.getItem('dashboard_usuario')).toBe(JSON.stringify(sessao));
+    expect(resultado).toBeNull();
+    expect(obterAccessToken()).toBeNull();
+    expect(deveTentarRestaurarSessao()).toBe(true);
+    expect(sessionStorage.getItem('dashboard_usuario')).toBeNull();
     expect(localStorage.getItem('dashboard_usuario')).toBeNull();
   });
 
-  it('limpa sessionStorage e localStorage ao encerrar a sessao', () => {
+  it('limpa memoria, sessionStorage e localStorage ao encerrar a sessao', () => {
     const sessao = criarSessao();
-    localStorage.setItem('dashboard_usuario', JSON.stringify(sessao));
-    sessionStorage.setItem('dashboard_usuario', JSON.stringify(sessao));
+    localStorage.setItem('dashboard_usuario', JSON.stringify({ ...sessao, token: 'token-legado' }));
+    sessionStorage.setItem('dashboard_usuario', JSON.stringify({ ...sessao, token: 'token-legado' }));
+    salvarSessao(sessao, 'token-inicial');
 
     limparSessao();
 
+    expect(obterSessao()).toBeNull();
+    expect(obterAccessToken()).toBeNull();
     expect(localStorage.getItem('dashboard_usuario')).toBeNull();
     expect(localStorage.getItem('dashboard_refresh_ativo')).toBeNull();
     expect(sessionStorage.getItem('dashboard_usuario')).toBeNull();
@@ -142,7 +151,7 @@ describe('gerenciadorSessao', () => {
   it('só tenta restaurar por refresh quando existe marcador local de sessao', () => {
     expect(deveTentarRestaurarSessao()).toBe(false);
 
-    salvarSessao(criarSessao());
+    salvarSessao(criarSessao(), 'token-inicial');
 
     expect(deveTentarRestaurarSessao()).toBe(true);
 
@@ -154,6 +163,7 @@ describe('gerenciadorSessao', () => {
   it('descarta sessao legada sem expiracao absoluta para forcar restauracao por refresh', () => {
     localStorage.setItem('dashboard_usuario', JSON.stringify({
       ...criarSessao(),
+      token: 'token-legado',
       sessaoExpiraEm: undefined,
     }));
 
@@ -167,7 +177,7 @@ describe('gerenciadorSessao', () => {
       eventos.push(EVENTO_SESSAO_ATUALIZADA);
     });
 
-    salvarSessao(criarSessao());
+    salvarSessao(criarSessao(), 'token-inicial');
     limparSessao();
 
     expect(eventos).toEqual([EVENTO_SESSAO_ATUALIZADA, EVENTO_SESSAO_ATUALIZADA]);

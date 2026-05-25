@@ -2,7 +2,9 @@
 
 ## Objetivo do sistema
 
-O monorepo `dashboards` entrega uma plataforma de dashboards operacionais, financeiros, executivos e de saude do ETL. O backend expone contratos HTTP protegidos por JWT e ACL. O frontend consome esses contratos com React Query, mantendo filtros compartilhados na URL e renderizacao progressiva.
+O monorepo `dashboards` entrega uma plataforma de dashboards operacionais, financeiros, executivos e de saude do ETL. O backend expoe contratos HTTP protegidos por JWT e ACL. O frontend consome esses contratos com React Query, mantendo filtros compartilhados na URL e renderizacao progressiva.
+
+Este projeto e consumidor dos dados publicados pelo ETL. Ele nao e dono estrutural das tabelas, views ou modelos analiticos do schema `ETL_SISTEMA` (`esl_cloud`).
 
 ## Topologia do monorepo
 
@@ -26,8 +28,8 @@ Pagina React
     -> controller Spring /api/painel/*
     -> FiltroRequestMapper
     -> service de dominio
-    -> repository / specification / fast path legado
-    -> view SQL Server
+    -> repository com projecao SQL
+    -> view SQL Server publicada pelo ETL
     -> DTO de resposta
     -> componente React (cards, graficos, tabela)
 ```
@@ -57,23 +59,29 @@ Modulos de apoio:
 
 ## Principios arquiteturais
 
-### 1. O backend e a fonte de verdade dos KPIs
+### 1. O ETL e o banco sao a fonte estrutural dos dados
 
-O frontend apresenta e organiza os dados. Ele nao deve recalcular metricas de negocio que ja foram consolidadas na API, exceto transformacoes estritamente visuais.
+O ETL e o unico owner estrutural das views `dbo.vw_*_powerbi` e `dbo.vw_dim_*` no schema `ETL_SISTEMA` (`esl_cloud`). O Dashboard consome essas views em modo leitura e nao executa DDL cross-database para cria-las, corrigir colunas ou manter wrappers locais.
 
-### 2. Filtros precisam ser reproduziveis
+No schema proprio do Dashboard, a fonte de verdade estrutural e o Flyway em `backend/src/main/resources/db/migration`. DDL em runtime dentro de Java e proibido; inicializadores ou validadores podem conferir pre-condicoes, mas nao criar estrutura automaticamente em producao.
+
+### 2. A API coordena contrato, filtro e seguranca
+
+A API nao deve puxar grandes massas para agregar, filtrar ou calcular `distinct` em memoria da JVM. Agregacoes, rankings, filtros textuais e listas distintas devem ser expressos como projecoes SQL/repositories para que o banco execute o plano correto.
+
+### 3. Filtros precisam ser reproduziveis
 
 Periodo e filtros adicionais devem estar serializados na URL. Isso garante links compartilhaveis, reproducao de bugs e query keys estaveis no React Query.
 
-### 3. Erro de negocio precisa chegar legivel ate a UI
+### 4. Erro de negocio precisa chegar legivel ate a UI
 
 O backend devolve mensagens claras via `RespostaErroPadrao`. O frontend deve consumir essas mensagens com `getApiErrorMessage()` e escolher o tipo visual correto com `getTipoErro()`.
 
-### 4. `LocalDate` e `DATETIMEOFFSET` nao sao a mesma coisa
+### 5. `LocalDate` e `DATETIMEOFFSET` nao sao a mesma coisa
 
 Essa e a principal fonte de regressao no BI. Qualquer dashboard baseado em `DATETIMEOFFSET` deve aplicar a janela local de `America/Sao_Paulo`, com inicio inclusivo e fim exclusivo.
 
-### 5. A validacao BI e parte do produto
+### 6. A validacao BI e parte do produto
 
 O script em `scripts/validate-dashboard-consistency.mjs` nao e acessorio. Ele e o mecanismo formal para comparar SQL x API e deve permanecer alinhado com a semantica atual da aplicacao.
 
@@ -82,9 +90,9 @@ O script em `scripts/validate-dashboard-consistency.mjs` nao e acessorio. Ele e 
 Backend:
 
 - `controller/`: fronteira HTTP
-- `service/`: regra de negocio e agregacoes
+- `service/`: regra de negocio, validacao de periodo e orquestracao de consultas
 - `service/acesso/`: autenticacao, ACL, auditoria e refresh token
-- `repository/`: leitura das views/tabelas
+- `repository/`: leitura projetada das views publicadas pelo ETL e das tabelas proprias do Dashboard
 - `security/`: JWT, API key, rate limit
 - `config/`: CORS, seguranca, async, password
 - `exception/`: contrato uniforme de erro
@@ -103,6 +111,9 @@ Frontend:
 
 - toda rota protegida deve exigir autenticacao;
 - toda consulta de dashboard deve validar periodo antes de chegar ao banco;
+- toda estrutura propria do Dashboard deve nascer em migration Flyway;
+- o Dashboard nao deve criar ou alterar views/tabelas do ETL;
+- agregacoes, filtros e `distinct` de BI devem permanecer em SQL, nao em memoria da JVM;
 - filtros adicionais devem usar o prefixo `f.` na URL;
 - dashboards com `DATETIMEOFFSET` devem usar `PeriodoOffsetDateTimeHelper`;
 - erros de timeout devem retornar `408 Request Timeout`;

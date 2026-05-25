@@ -5,6 +5,7 @@ import com.dashboard.api.service.acesso.AcaoAudit;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpMethod;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -82,6 +83,35 @@ class FiltroRateLimitApiTest {
         assertThat(segundaResposta.getStatus()).isEqualTo(429);
     }
 
+    @Test
+    void limitaEndpointDePerformance() throws Exception {
+        FiltroRateLimitApi filtro = filtroComLimite(1, 10);
+        autenticar("gestor@empresa.com");
+
+        MockHttpServletResponse primeiraResposta = executar(filtro, "GET", "/api/painel/performance/overview");
+        MockHttpServletResponse segundaResposta = executar(filtro, "GET", "/api/painel/performance/overview");
+
+        assertThat(primeiraResposta.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
+        assertThat(segundaResposta.getStatus()).isEqualTo(429);
+    }
+
+    @Test
+    void optionsNaoConsomeBucketDoRateLimit() throws Exception {
+        FiltroRateLimitApi filtro = filtroComLimite(1, 10);
+        autenticar("gestor@empresa.com");
+
+        for (int tentativa = 0; tentativa < 5; tentativa++) {
+            MockHttpServletResponse preflight = executar(filtro, "OPTIONS", "/api/painel/performance/overview");
+            assertThat(preflight.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
+        }
+
+        MockHttpServletResponse getPermitido = executar(filtro, "GET", "/api/painel/performance/overview");
+        MockHttpServletResponse getBloqueado = executar(filtro, "GET", "/api/painel/performance/overview");
+
+        assertThat(getPermitido.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
+        assertThat(getBloqueado.getStatus()).isEqualTo(429);
+    }
+
     private FiltroRateLimitApi filtroComLimite(int apiMaxRequests, int exportMaxRequests) {
         RateLimitService rateLimitService = new RateLimitService(
                 10,
@@ -106,7 +136,11 @@ class FiltroRateLimitApiTest {
     }
 
     private MockHttpServletResponse executar(FiltroRateLimitApi filtro, String path) throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+        return executar(filtro, HttpMethod.GET.name(), path);
+    }
+
+    private MockHttpServletResponse executar(FiltroRateLimitApi filtro, String method, String path) throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest(method, path);
         request.setRemoteAddr("10.0.0.10");
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain chain = (servletRequest, servletResponse) ->

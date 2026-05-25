@@ -88,6 +88,18 @@ class CorsConfigTest {
                 .hasMessageContaining("misturar origens locais");
     }
 
+    @Test
+    void deveFalharSemOrigemExplicita() {
+        CorsConfig config = new CorsConfig();
+        ReflectionTestUtils.setField(config, "origensPermitidas", "");
+        ReflectionTestUtils.setField(config, "springProfilesActive", "prod");
+        ReflectionTestUtils.setField(config, "appEnvironment", "");
+
+        assertThatThrownBy(config::validarOrigensDeProducao)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CORS_ORIGENS_PERMITIDAS");
+    }
+
     private static class TestCorsRegistry extends CorsRegistry {
         Map<String, CorsConfiguration> configuracoes() {
             return getCorsConfigurations();

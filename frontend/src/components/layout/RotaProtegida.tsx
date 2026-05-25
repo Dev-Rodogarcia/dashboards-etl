@@ -22,7 +22,7 @@ export default function RotaProtegida({ permissao, adminOnly, role, allowPasswor
     );
   }
 
-  if (!usuario?.token) {
+  if (!usuario) {
     return <Navigate to="/login" replace />;
   }
 
