@@ -46,7 +46,7 @@ public class IndicadoresGestaoInfraBootstrapService implements ApplicationRunner
         List<String> inconsistencias = new ArrayList<>();
         inconsistencias.addAll(auditarObjeto("vw_fretes_powerbi", List.of(
                 "ID", "Nº Minuta", "Filial Emissora", "Responsável pela Região de Destino", "Previsão de Entrega",
-                "Data de Finalização", "Performance Status", "Destino",
+                "Data de Finalização", "Performance Status", "Comprovante Anexado", "Destino",
                 "Pagador Doc", "Peso Cubado", "Total M3", "Data de extracao"
         )));
         inconsistencias.addAll(auditarObjeto("vw_localizacao_cargas_powerbi", List.of(
@@ -98,9 +98,17 @@ public class IndicadoresGestaoInfraBootstrapService implements ApplicationRunner
                 WHERE TABLE_NAME = ?
                 """, String.class, nomeObjeto);
 
-        List<String> faltantes = colunasEsperadas.stream()
-                .filter(coluna -> !colunasEncontradas.contains(coluna))
-                .toList();
+        List<String> faltantes = colunasFaltantes(colunasEsperadas, colunasEncontradas);
+
+        if (!faltantes.isEmpty() && viewExiste(nomeObjeto)) {
+            atualizarMetadadosView(nomeObjeto, faltantes);
+            colunasEncontradas = jdbcTemplate.queryForList("""
+                    SELECT COLUMN_NAME
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_NAME = ?
+                    """, String.class, nomeObjeto);
+            faltantes = colunasFaltantes(colunasEsperadas, colunasEncontradas);
+        }
 
         if (faltantes.isEmpty()) {
             log.info("Auditoria Indicadores de Gestão: {} compatível com colunas esperadas.", nomeObjeto);
@@ -111,5 +119,39 @@ public class IndicadoresGestaoInfraBootstrapService implements ApplicationRunner
         return faltantes.stream()
                 .map(coluna -> nomeObjeto + "." + coluna)
                 .toList();
+    }
+
+    private List<String> colunasFaltantes(List<String> colunasEsperadas, List<String> colunasEncontradas) {
+        return colunasEsperadas.stream()
+                .filter(coluna -> !colunasEncontradas.contains(coluna))
+                .toList();
+    }
+
+    private boolean viewExiste(String nomeObjeto) {
+        Integer existe = jdbcTemplate.queryForObject("""
+                SELECT COUNT(1)
+                FROM INFORMATION_SCHEMA.VIEWS
+                WHERE TABLE_SCHEMA = 'dbo'
+                  AND TABLE_NAME = ?
+                """, Integer.class, nomeObjeto);
+        return existe != null && existe > 0;
+    }
+
+    private void atualizarMetadadosView(String nomeObjeto, List<String> faltantes) {
+        try {
+            String nomeView = "dbo." + nomeObjeto.replace("'", "''");
+            jdbcTemplate.update("EXEC sys.sp_refreshview N'" + nomeView + "'");
+            log.info(
+                    "Auditoria Indicadores de Gestão: metadados de dbo.{} atualizados via sp_refreshview. Colunas faltantes antes do refresh: {}",
+                    nomeObjeto,
+                    faltantes
+            );
+        } catch (DataAccessException ex) {
+            log.warn(
+                    "Auditoria Indicadores de Gestão: nao foi possivel atualizar metadados de dbo.{} via sp_refreshview: {}",
+                    nomeObjeto,
+                    ex.getMessage()
+            );
+        }
     }
 }

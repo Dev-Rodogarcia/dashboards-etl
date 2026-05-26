@@ -179,6 +179,21 @@ class DashboardExportSqlBuilderTest {
     }
 
     @Test
+    void buildSelectDeveFiltrarMinutaDeFaturamentoComIgualdadeDireta() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FRETES,
+                filtro(Map.of("tabelaColuna.numeroMinuta", List.of("381633"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("[Nº Minuta] = :filtro_tabelaColuna_numeroMinuta");
+        assertThat(query.sql()).doesNotContain("TRY_CONVERT(BIGINT, [Nº Minuta])");
+        assertThat(query.sql()).doesNotContain("[N° Minuta] = :filtro_tabelaColuna_numeroMinuta");
+        assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_numeroMinuta", 381633L);
+    }
+
+    @Test
     void buildSelectNaoDeveGerarLikeAmploParaTextoCurtoPorColuna() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
                 DashboardExportDefinition.FRETES,

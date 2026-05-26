@@ -42,22 +42,25 @@ public class CotacoesService {
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoCotacoesRepository repository;
+    private final CotacoesDashboardSqlRepository dashboardSqlRepository;
     private final EscopoFilialService escopoFilialService;
     private final PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper;
 
     CotacoesService(ValidadorPeriodoService validadorPeriodo, VisaoCotacoesRepository repository) {
-        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
+        this(validadorPeriodo, repository, null, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao());
     }
 
     @Autowired
     public CotacoesService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoCotacoesRepository repository,
+            CotacoesDashboardSqlRepository dashboardSqlRepository,
             EscopoFilialService escopoFilialService,
             PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.repository = repository;
+        this.dashboardSqlRepository = dashboardSqlRepository;
         this.escopoFilialService = escopoFilialService;
         this.periodoOffsetDateTimeHelper = periodoOffsetDateTimeHelper;
     }
@@ -68,6 +71,13 @@ public class CotacoesService {
 
     public CotacoesOverviewDTO buscarOverview(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+
+        if (dashboardSqlRepository != null) {
+            CotacoesOverviewDTO overview = dashboardSqlRepository.buscarOverview(filtro);
+            log.info("Overview cotacoes calculado via SQL: total={}, periodo={} a {}",
+                    overview.totalCotacoes(), filtro.dataInicio(), filtro.dataFim());
+            return overview;
+        }
 
         List<VisaoCotacoesEntity> cotacoes = buscarRegistros(filtro);
         int totalCotacoes = cotacoes.size();
@@ -80,7 +90,6 @@ public class CotacoesService {
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
-                    0.0,
                     0.0,
                     0.0,
                     0.0,
@@ -132,8 +141,7 @@ public class CotacoesService {
 
         double conversaoValor = percentual(valorConvertido, valorPotencial);
         double conversaoQuantidade = percentual(convertidas, totalCotacoes);
-        double taxaAprovacao = percentual(totalCotacoes - reprovadas, totalCotacoes);
-        double taxaReprovacao = percentual(reprovadas, totalCotacoes);
+        double reprovacaoPercentual = percentual(reprovadas, totalCotacoes);
 
         double tempoMedioConversaoHoras = cotacoes.stream()
                 .filter(c -> c.getCteEmissao() != null && c.getDataCotacao() != null)
@@ -152,10 +160,9 @@ public class CotacoesService {
                 freteKgMedio,
                 conversaoValor,
                 conversaoQuantidade,
-                taxaAprovacao,
+                reprovacaoPercentual,
                 taxaConversaoCte,
                 taxaConversaoNfse,
-                taxaReprovacao,
                 BigDecimal.valueOf(tempoMedioConversaoHoras).setScale(2, RoundingMode.HALF_UP).doubleValue()
         );
     }

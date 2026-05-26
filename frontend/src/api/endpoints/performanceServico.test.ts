@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import clienteAxios from '../clienteAxios';
-import { buscarPerformanceHistorico, buscarPerformanceTabela, exportarPerformanceCsv } from './performanceServico';
+import { buscarPerformanceHistorico, buscarPerformanceTabelaPaginada, exportarPerformanceCsv } from './performanceServico';
 
 vi.mock('../downloadArquivo', () => ({
   extrairNomeArquivo: vi.fn((_contentDisposition: string | undefined, fallback: string) => fallback),
@@ -44,8 +44,8 @@ describe('performanceServico', () => {
     expect(params.getAll('f.pagadores')).toEqual(['Cliente A']);
   });
 
-  it('envia page e size para a tabela de performance no endpoint Spring Page', async () => {
-    await buscarPerformanceTabela({
+  it('envia filtros analíticos para a tabela paginada de performance', async () => {
+    await buscarPerformanceTabelaPaginada({
       dataInicio: '2026-05-01',
       dataFim: '2026-05-25',
       responsaveis: ['SPO'],
@@ -59,13 +59,13 @@ describe('performanceServico', () => {
       },
     });
 
-    expect(clienteMock.get).toHaveBeenCalledWith('/api/painel/performance/tabela', {
+    expect(clienteMock.get).toHaveBeenCalledWith('/api/painel/performance/tabela/paginada', {
       params: expect.any(URLSearchParams),
     });
 
     const params = clienteMock.get.mock.calls[0][1].params as URLSearchParams;
-    expect(params.get('page')).toBe('2');
-    expect(params.get('size')).toBe('50');
+    expect(params.get('pagina')).toBe('3');
+    expect(params.get('tamanhoPagina')).toBe('50');
     expect(params.getAll('f.responsaveis')).toEqual(['SPO']);
     expect(params.getAll('f.pagadores')).toEqual(['Cliente B']);
     expect(params.get('f.tabelaBusca')).toBe('atraso');

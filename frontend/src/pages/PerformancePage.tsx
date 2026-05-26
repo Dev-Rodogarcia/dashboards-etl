@@ -21,7 +21,7 @@ import {
   usePerformanceOverview,
   usePerformanceSerieTemporal,
   usePerformanceStatus,
-  usePerformanceTabela,
+  usePerformanceTabelaPaginada,
 } from '../hooks/queries/usePerformance';
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { usePerformanceData } from '../hooks/usePerformanceData';
@@ -624,7 +624,7 @@ export default function PerformancePage() {
   const historico = usePerformanceHistorico(historicoFiltro, historicoPeriodoMeses);
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
-  const tabela = usePerformanceTabela(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
+  const tabela = usePerformanceTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
   const drilldown = usePerformanceDrilldown(filtro, {
     nivel: drillNivel,
     responsavel: drillResponsavel,
@@ -661,7 +661,7 @@ export default function PerformancePage() {
   const agingOption = useMemo(() => buildAgingOption(agingData), [agingData]);
   const statusTabelaOptions = combinarStatusOptions(
     status.data?.map((item) => item.status),
-    tabela.data?.content.map((item) => item.status),
+    tabela.data?.conteudo.map((item) => item.status),
     filtros.status,
   );
   const pagadorOptions = useMemo<AsyncMultiSelectOpcao[]>(() => {

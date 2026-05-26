@@ -11,10 +11,13 @@ import com.dashboard.api.dto.performance.PerformanceSerieTemporalPointDTO;
 import com.dashboard.api.dto.performance.PerformanceStatusDistribuicaoDTO;
 import com.dashboard.api.dto.performance.PerformanceTabelaProjection;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -32,6 +35,7 @@ import java.util.Map;
 @Repository
 public class PerformanceDashboardSqlRepository {
 
+    private static final Logger log = LoggerFactory.getLogger(PerformanceDashboardSqlRepository.class);
     private static final int TAMANHO_PADRAO = 10;
     private static final int TAMANHO_MAXIMO = 100;
     private static final int DRILLDOWN_LIMITE_PADRAO = 50;
@@ -358,6 +362,7 @@ public class PerformanceDashboardSqlRepository {
                 row.pesoTaxado(),
                 row.valorNotaFiscal(),
                 row.comprovanteAnexado(),
+                row.performanceDiferencaDias(),
                 row.performanceStatus(),
                 row.performanceStatusDias()
         );
@@ -586,7 +591,7 @@ public class PerformanceDashboardSqlRepository {
         Long numero = parseLongOuNulo(termo);
         if (numero != null) {
             params.addValue(param, numero);
-            where.append("\n AND TRY_CONVERT(BIGINT, ").append(expressao).append(") = :").append(param);
+            where.append("\n AND ").append(expressao).append(" = :").append(param);
             return;
         }
 
@@ -850,15 +855,35 @@ public class PerformanceDashboardSqlRepository {
             return cached;
         }
 
+        PerformanceViewColumns carregadas = carregarColunasViewFretes();
+        if (!carregadas.contratoObrigatorioValido()) {
+            atualizarMetadadosViewFretes();
+            carregadas = carregarColunasViewFretes();
+        }
+
+        if (carregadas.contratoObrigatorioValido()) {
+            performanceViewColumns = carregadas;
+        }
+        return carregadas;
+    }
+
+    private PerformanceViewColumns carregarColunasViewFretes() {
         List<String> nomes = jdbcTemplate.queryForList("""
                 SELECT c.name
                 FROM sys.columns c
                 WHERE c.object_id = OBJECT_ID(N'dbo.vw_fretes_powerbi')
                 """, new MapSqlParameterSource(), String.class);
+        return new PerformanceViewColumns(nomes);
+    }
 
-        PerformanceViewColumns carregadas = new PerformanceViewColumns(nomes);
-        performanceViewColumns = carregadas;
-        return carregadas;
+    private void atualizarMetadadosViewFretes() {
+        try {
+            jdbcTemplate.update("EXEC sys.sp_refreshview N'dbo.vw_fretes_powerbi'", new MapSqlParameterSource());
+            log.info("Metadados de dbo.vw_fretes_powerbi atualizados via sp_refreshview.");
+        } catch (DataAccessException ex) {
+            log.warn("Nao foi possivel atualizar metadados de dbo.vw_fretes_powerbi via sp_refreshview: {}",
+                    ex.getMessage());
+        }
     }
 
     private static String baseCte(PerformanceViewColumns colunas) {
@@ -866,14 +891,13 @@ public class PerformanceDashboardSqlRepository {
         String filialEmissora = textoNullableSql(colunas, "Filial Emissora", "Filial");
         String regiaoDestino = textoComFallbackSql(colunas, "SEM_REGIAO", "Região Destino", "UF Destino");
         String cidadeDestino = textoComFallbackSql(colunas, "SEM_CIDADE", "Cidade Destino", "Destino");
-        String comprovanteAnexado = colunas.existe("Comprovante Anexado")
-                ? """
-                        CASE
-                            WHEN UPPER(LTRIM(RTRIM(CONVERT(NVARCHAR(20), [Comprovante Anexado])))) IN (N'SIM', N'TRUE', N'1') THEN 1
-                            ELSE 0
-                        END
-                        """
-                : "0";
+        exigirColuna(colunas, "Comprovante Anexado");
+        String comprovanteAnexado = """
+                CASE
+                    WHEN UPPER(LTRIM(RTRIM(CONVERT(NVARCHAR(20), [Comprovante Anexado])))) IN (N'SIM', N'TRUE', N'1') THEN 1
+                    ELSE 0
+                END
+                """;
 
         return """
                 WITH fonte AS (
@@ -945,6 +969,15 @@ public class PerformanceDashboardSqlRepository {
         );
     }
 
+    private static void exigirColuna(PerformanceViewColumns colunas, String nome) {
+        if (!colunas.existe(nome)) {
+            throw new IllegalStateException(
+                    "Contrato invalido: dbo.vw_fretes_powerbi.[" + nome
+                            + "] ausente. Atualize a view no ETL antes de consumir o KPI de Performance."
+            );
+        }
+    }
+
     private static String textoNullableSql(PerformanceViewColumns colunas, String... nomes) {
         List<String> expressoes = List.of(nomes).stream()
                 .filter(colunas::existe)
@@ -1009,7 +1042,8 @@ public class PerformanceDashboardSqlRepository {
             PerformanceViewColumns colunas
     ) {
         String where() {
-            return whereBuilder.toString();
+            String sql = whereBuilder.toString();
+            return sql.isEmpty() ? "" : sql + "\n";
         }
 
         String baseCte() {
@@ -1020,6 +1054,10 @@ public class PerformanceDashboardSqlRepository {
     private record PerformanceViewColumns(List<String> nomes) {
         boolean existe(String nome) {
             return nomes.contains(nome);
+        }
+
+        boolean contratoObrigatorioValido() {
+            return existe("Comprovante Anexado");
         }
     }
 

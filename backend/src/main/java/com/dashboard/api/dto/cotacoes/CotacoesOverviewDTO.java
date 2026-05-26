@@ -11,9 +11,8 @@ public record CotacoesOverviewDTO(
     BigDecimal freteKgMedio,
     double conversaoValor,
     double conversaoQuantidade,
-    double taxaAprovacao,
+    double reprovacaoPercentual,
     double taxaConversaoCte,
     double taxaConversaoNfse,
-    double taxaReprovacao,
     double tempoMedioConversaoHoras
 ) {}

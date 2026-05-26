@@ -8,6 +8,9 @@ import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.KpisManifestosD
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.StatusSazonalDTO;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.TipoVeiculoDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -22,6 +25,7 @@ import java.util.Map;
 @Repository
 public class ManifestosPerformanceSqlRepository {
 
+    private static final Logger log = LoggerFactory.getLogger(ManifestosPerformanceSqlRepository.class);
     private static final BigDecimal CEM = BigDecimal.valueOf(100);
     private static final GaugeMetricDTO GAUGE_ZERADO = new GaugeMetricDTO(
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO
@@ -322,15 +326,35 @@ public class ManifestosPerformanceSqlRepository {
             return cached;
         }
 
+        ManifestosViewColumns carregadas = carregarColunasViewManifestos();
+        if (!carregadas.contratoObrigatorioValido()) {
+            atualizarMetadadosViewManifestos();
+            carregadas = carregarColunasViewManifestos();
+        }
+
+        if (carregadas.contratoObrigatorioValido()) {
+            manifestosViewColumns = carregadas;
+        }
+        return carregadas;
+    }
+
+    private ManifestosViewColumns carregarColunasViewManifestos() {
         List<String> nomes = jdbcTemplate.queryForList("""
                 SELECT c.name
                 FROM sys.columns c
                 WHERE c.object_id = OBJECT_ID(N'dbo.vw_manifestos_powerbi')
                 """, new MapSqlParameterSource(), String.class);
+        return new ManifestosViewColumns(nomes);
+    }
 
-        ManifestosViewColumns carregadas = new ManifestosViewColumns(nomes);
-        manifestosViewColumns = carregadas;
-        return carregadas;
+    private void atualizarMetadadosViewManifestos() {
+        try {
+            jdbcTemplate.update("EXEC sys.sp_refreshview N'dbo.vw_manifestos_powerbi'", new MapSqlParameterSource());
+            log.info("Metadados de dbo.vw_manifestos_powerbi atualizados via sp_refreshview.");
+        } catch (DataAccessException ex) {
+            log.warn("Nao foi possivel atualizar metadados de dbo.vw_manifestos_powerbi via sp_refreshview: {}",
+                    ex.getMessage());
+        }
     }
 
     private static String baseCte(ManifestosViewColumns colunas) {
@@ -486,6 +510,27 @@ public class ManifestosPerformanceSqlRepository {
     private record ManifestosViewColumns(List<String> nomes) {
         boolean existe(String nome) {
             return nomes.contains(nome);
+        }
+
+        boolean contratoObrigatorioValido() {
+            return existe("Número")
+                    && existe("Data criação")
+                    && existe("Status")
+                    && existe("Classificação")
+                    && existe("Filial")
+                    && existe("Motorista")
+                    && existe("Veículo/Placa")
+                    && existe("Tipo Veículo")
+                    && existe("Tipo Motorista")
+                    && existe("Proprietário/Documento")
+                    && existe("KM Total")
+                    && existe("Custo total")
+                    && existe("Fretes/Total")
+                    && existe("Total peso taxado")
+                    && existe("Capacidade Lotação Kg")
+                    && existe("Itens/Finalizados")
+                    && existe("Itens/Total")
+                    && existe("Data de extracao");
         }
     }
 }

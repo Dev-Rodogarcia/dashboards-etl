@@ -14,6 +14,7 @@ public record PerformanceEntregaRowDTO(
         BigDecimal pesoTaxado,
         BigDecimal valorNotaFiscal,
         boolean comprovanteAnexado,
+        Integer performanceDiferencaDias,
         String performanceStatus,
         String performanceStatusDias
 ) {

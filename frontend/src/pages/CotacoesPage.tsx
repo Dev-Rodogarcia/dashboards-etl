@@ -29,6 +29,7 @@ import type {
   CotacoesTrendPoint,
 } from '../types/cotacoes';
 import { CORES, PALETA_SERIES } from '../utils/chartColors';
+import { dataHojeLocal, primeiroDiaMesesAtrasLocal } from '../utils/dateUtils';
 import { formatarMoeda, formatarNumero, formatarPeso, formatarPorcentagem } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
@@ -39,6 +40,7 @@ type PerdaDrillLevel = 'motivo' | 'cliente' | 'trecho';
 type FunnelMetric = 'quantidade' | 'valor';
 type ConversionViewMode = 'completo' | 'valor' | 'quantidade';
 type ConversionMetric = Exclude<ConversionViewMode, 'completo'>;
+type ConversionPeriodoMeses = 3 | 6 | 12;
 type TrechoMetric = 'potencial' | 'convertido';
 
 interface TrendBucket {
@@ -69,6 +71,11 @@ const CONVERSION_VIEW_OPTIONS: Array<{ value: ConversionViewMode; label: string;
   { value: 'completo', label: 'Completo' },
   { value: 'valor', label: 'Valor', title: 'Somente Valor' },
   { value: 'quantidade', label: 'Quantidade', title: 'Somente Quantidade' },
+];
+const CONVERSION_PERIOD_OPTIONS: Array<{ value: ConversionPeriodoMeses; label: string }> = [
+  { value: 3, label: '3 meses' },
+  { value: 6, label: '6 meses' },
+  { value: 12, label: '1 ano' },
 ];
 const TRECHO_METRIC_OPTIONS: Array<{ value: TrechoMetric; label: string }> = [
   { value: 'potencial', label: 'Potencial' },
@@ -105,6 +112,12 @@ function statusStageKey(value: string | null | undefined) {
   if (status === 'perdida' || status === 'perdido' || status === 'reprovado') return 'reprovada';
   if (status === 'convertido') return 'convertida';
   return status;
+}
+
+function normalizeConversionPeriodoMeses(value: string): ConversionPeriodoMeses {
+  if (value === '6') return 6;
+  if (value === '12') return 12;
+  return 3;
 }
 
 function percentual(parte: number, total: number): number {
@@ -375,6 +388,37 @@ function DrillBreadcrumb<T extends string>({
         );
       })}
     </div>
+  );
+}
+
+function ConversionPeriodoActions({
+  periodoMeses,
+  onPeriodoChange,
+}: {
+  periodoMeses: ConversionPeriodoMeses;
+  onPeriodoChange: (periodoMeses: ConversionPeriodoMeses) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="sr-only">Período das taxas de conversão</span>
+      <select
+        aria-label="Período das taxas de conversão"
+        value={periodoMeses}
+        onChange={(event) => onPeriodoChange(normalizeConversionPeriodoMeses(event.target.value))}
+        className="h-8 rounded-md border px-2 text-xs font-semibold outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
+        style={{
+          backgroundColor: 'var(--color-card)',
+          borderColor: 'var(--color-border)',
+          color: 'var(--color-text)',
+        }}
+      >
+        {CONVERSION_PERIOD_OPTIONS.map((item) => (
+          <option key={item.value} value={item.value}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -789,17 +833,23 @@ function TaxasConversaoCard({
   tipos,
   level,
   viewMode,
+  periodoMeses,
   isLoading,
+  erro,
   onLevelChange,
   onViewModeChange,
+  onPeriodoChange,
 }: {
   buckets: TrendBucket[];
   tipos: CotacoesAgrupamento[];
   level: ConversionDrillLevel;
   viewMode: ConversionViewMode;
+  periodoMeses: ConversionPeriodoMeses;
   isLoading: boolean;
+  erro?: string | null;
   onLevelChange: (level: ConversionDrillLevel) => void;
   onViewModeChange: (mode: ConversionViewMode) => void;
+  onPeriodoChange: (periodoMeses: ConversionPeriodoMeses) => void;
 }) {
   const tipoMap = new Map(tipos.map((item) => [normalizarTexto(item.nome), item]));
   const blocos = ['LTL', 'FTL', 'PTL'].map((tipo) => (
@@ -825,6 +875,7 @@ function TaxasConversaoCard({
       titulo="Taxas de Conversão"
       actions={(
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <ConversionPeriodoActions periodoMeses={periodoMeses} onPeriodoChange={onPeriodoChange} />
           <SegmentedControl
             value={viewMode}
             options={CONVERSION_VIEW_OPTIONS}
@@ -835,6 +886,7 @@ function TaxasConversaoCard({
         </div>
       )}
       isLoading={isLoading}
+      erro={erro}
       isEmpty={!hasData}
       className="h-full min-h-0"
       contentClassName="h-[300px] max-h-[300px] min-h-0 overflow-hidden"
@@ -900,19 +952,28 @@ export default function CotacoesPage() {
   const [trechoMetric, setTrechoMetric] = useState<TrechoMetric>('potencial');
   const [conversionLevel, setConversionLevel] = useState<ConversionDrillLevel>('mes');
   const [conversionViewMode, setConversionViewMode] = useState<ConversionViewMode>('completo');
+  const [conversionPeriodoMeses, setConversionPeriodoMeses] = useState<ConversionPeriodoMeses>(3);
   const [perdaDrillLevel, setPerdaDrillLevel] = useState<PerdaDrillLevel>('motivo');
   const [selectedTrecho, setSelectedTrecho] = useState<string | null>(null);
   const [selectedPerda, setSelectedPerda] = useState<string | null>(null);
   const filiais = useFiliais();
   const clientes = useClientes();
 
-  const filtro: CotacoesFiltro = {
+  const filtro: CotacoesFiltro = useMemo(() => ({
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
     clientes: filtros.clientes,
     statusConversao: filtros.statusConversao,
-  };
+  }), [dataFim, dataInicio, filtros.clientes, filtros.filiais, filtros.statusConversao]);
+
+  const conversionFiltro: CotacoesFiltro = useMemo(() => ({
+    dataInicio: primeiroDiaMesesAtrasLocal(conversionPeriodoMeses - 1),
+    dataFim: dataHojeLocal(),
+    filiais: filtros.filiais,
+    clientes: filtros.clientes,
+    statusConversao: filtros.statusConversao,
+  }), [conversionPeriodoMeses, filtros.clientes, filtros.filiais, filtros.statusConversao]);
 
   const activeFilters: ActiveFilter[] = [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
@@ -922,6 +983,7 @@ export default function CotacoesPage() {
 
   const overview = useCotacoesOverview(filtro);
   const serie = useCotacoesSerie(filtro);
+  const conversionSerie = useCotacoesSerie(conversionFiltro);
   const graficos = useCotacoesGraficos(filtro);
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
@@ -948,8 +1010,8 @@ export default function CotacoesPage() {
     [dataFim, dataInicio, serie.data, serieDrillLevel],
   );
   const conversionBuckets = useMemo(
-    () => aggregateTrend(serie.data ?? [], conversionLevel, dataInicio, dataFim),
-    [conversionLevel, dataFim, dataInicio, serie.data],
+    () => aggregateTrend(conversionSerie.data ?? [], conversionLevel, conversionFiltro.dataInicio, conversionFiltro.dataFim),
+    [conversionFiltro.dataFim, conversionFiltro.dataInicio, conversionLevel, conversionSerie.data],
   );
   const trechosEntries = useMemo(() => {
     if (trechoDrillLevel === 'origem') return graficos.data?.trechosPorUfOrigem ?? [];
@@ -1030,9 +1092,12 @@ export default function CotacoesPage() {
             tipos={graficos.data?.conversaoPorTipoOperacao ?? []}
             level={conversionLevel}
             viewMode={conversionViewMode}
-            isLoading={serie.isLoading || graficos.isLoading}
+            periodoMeses={conversionPeriodoMeses}
+            isLoading={conversionSerie.isLoading || graficos.isLoading}
+            erro={conversionSerie.isError ? getApiErrorMessage(conversionSerie.error, 'Erro ao carregar evolução das taxas de conversão.') : null}
             onLevelChange={setConversionLevel}
             onViewModeChange={setConversionViewMode}
+            onPeriodoChange={setConversionPeriodoMeses}
           />
         </div>
         <div className="min-h-0 xl:col-span-4">

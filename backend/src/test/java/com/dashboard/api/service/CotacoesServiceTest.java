@@ -52,7 +52,7 @@ class CotacoesServiceTest {
         CotacoesChartsDTO graficos = service.buscarGraficos(filtroPadrao());
 
         assertThat(overview.totalCotacoes()).isEqualTo(2);
-        assertThat(overview.taxaReprovacao()).isEqualTo(0.0);
+        assertThat(overview.reprovacaoPercentual()).isEqualTo(0.0);
         assertThat(graficos.motivosPerda()).isEmpty();
         assertThat(graficos.funil()).extracting(item -> item.etapa(), item -> item.total())
                 .containsExactly(org.assertj.core.groups.Tuple.tuple("Convertida", 2));
@@ -61,6 +61,21 @@ class CotacoesServiceTest {
             assertThat(corredor.valorFrete()).isEqualByComparingTo("300.00");
             assertThat(corredor.cotacoes()).isEqualTo(2);
         });
+    }
+
+    @Test
+    void buscarOverviewDeveCalcularPercentualDeReprovacaoPorStatusPerdidoOuReprovado() {
+        when(repository.findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(any(), any())).thenReturn(List.of(
+                cotacao(1L, "Convertida", null, "SP > RJ", "100.00"),
+                cotacao(2L, "Reprovada", "Preco", "SP > RJ", "200.00"),
+                cotacao(3L, "Perdida", "Concorrente", "SP > RJ", "300.00"),
+                cotacao(4L, "Pendente", null, "SP > RJ", "400.00")
+        ));
+
+        CotacoesOverviewDTO overview = service.buscarOverview(filtroPadrao());
+
+        assertThat(overview.totalCotacoes()).isEqualTo(4);
+        assertThat(overview.reprovacaoPercentual()).isEqualTo(50.0);
     }
 
     @Test

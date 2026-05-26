@@ -482,6 +482,7 @@ class DashboardExportSqlBuilder {
             case TEXT -> adicionarFiltroTextoColuna(where, params, coluna.expressions(), valores, param, false);
             case UF -> adicionarFiltroTextoColuna(where, params, coluna.expressions(), valores, param, true);
             case CODE -> adicionarFiltroCodigoColuna(where, params, coluna.expressions(), valores, param);
+            case NUMERIC_CODE -> adicionarFiltroCodigoNumericoDiretoColuna(where, params, coluna.expressions(), valores, param);
             case NUMBER -> adicionarFiltroNumeroColuna(where, params, coluna.expressions(), valores, param);
             case DATE -> adicionarFiltroDataColuna(where, params, coluna.expressions(), valores, param);
             case STATUS -> adicionarFiltroStatusColuna(where, params, coluna, valores, param);
@@ -547,6 +548,24 @@ class DashboardExportSqlBuilder {
         params.addValue(param, termo + "%");
         where.add("(" + String.join(" OR ", expressions.stream()
                 .map(expressao -> normalizarSql(expressao) + " LIKE :" + param)
+                .toList()) + ")");
+    }
+
+    private void adicionarFiltroCodigoNumericoDiretoColuna(
+            List<String> where,
+            MapSqlParameterSource params,
+            List<String> expressions,
+            Collection<String> valores,
+            String param
+    ) {
+        Long numero = parseLongOrNull(primeiroNormalizado(valores));
+        if (numero == null) {
+            return;
+        }
+
+        params.addValue(param, numero);
+        where.add("(" + String.join(" OR ", expressions.stream()
+                .map(expressao -> expressao + " = :" + param)
                 .toList()) + ")");
     }
 
@@ -923,7 +942,7 @@ class DashboardExportSqlBuilder {
             }
             case FRETES -> {
                 put(colunas, "id", codigo("[ID]"));
-                put(colunas, "numeroMinuta", codigo("[Nº Minuta]", "[N° Minuta]"));
+                put(colunas, "numeroMinuta", codigoNumericoDireto("[Nº Minuta]"));
                 put(colunas, "dataFrete", data("[data_referencia_faturamento]"));
                 put(colunas, "status", status("[Status]"));
                 put(colunas, "filial", texto("[Filial]"));
@@ -1042,6 +1061,10 @@ class DashboardExportSqlBuilder {
 
     private TableColumnFilterDefinition codigo(String... expressions) {
         return coluna(TableColumnKind.CODE, expressions);
+    }
+
+    private TableColumnFilterDefinition codigoNumericoDireto(String... expressions) {
+        return coluna(TableColumnKind.NUMERIC_CODE, expressions);
     }
 
     private TableColumnFilterDefinition numero(String... expressions) {
@@ -1165,6 +1188,7 @@ class DashboardExportSqlBuilder {
         TEXT,
         UF,
         CODE,
+        NUMERIC_CODE,
         NUMBER,
         DATE,
         STATUS

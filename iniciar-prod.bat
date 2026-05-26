@@ -5,8 +5,9 @@ SETLOCAL EnableExtensions DisableDelayedExpansion
 REM ============================================================
 REM Arquivo : iniciar-prod.bat
 REM Papel   : Builda e inicia a producao completa em 2 terminais.
-REM AVISO IA: nao execute este script. IAs devem usar somente iniciar-dev.bat.
-REM AVISO IA: nao reinicie producao, nao libere 5010/5173 e nao toque dominios publicos.
+REM AVISO IA: nao execute este script, nao faca build e nao suba producao.
+REM AVISO IA: com autorizacao literal em AGENTS, IAs podem apenas diagnosticar/testar/corrigir producao sem start/restart.
+REM AVISO IA: nao reinicie producao e nao libere 5010/5173.
 REM API     : https://api-analytics.rodogarcia.com.br -> http://127.0.0.1:5010
 REM UI      : https://analytics.rodogarcia.com.br     -> http://127.0.0.1:5173
 REM Teste   : iniciar-prod.bat --dry-run

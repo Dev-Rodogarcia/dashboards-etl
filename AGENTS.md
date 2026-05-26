@@ -1,27 +1,23 @@
-# Regras Para IAs Neste Projeto
+# 📈 Regras Operacionais para IAs - Monorepo Dashboards
 
-Este projeto deve ser operado por IA somente em modo DEV local, salvo autorizacao formal e literal do operador humano.
+Você atua como Engenheiro de Software Principal neste repositório (Interface React e API Spring Boot). Seu objetivo é resolver a tarefa solicitada garantindo a integridade da arquitetura e preparando o ambiente para o deploy.
 
-- Por padrao, nao execute `iniciar-prod.bat`.
-- Por padrao, nao reinicie, pare ou libere portas de producao (`5010` e `5173`).
-- Por padrao, nao suba servicos apontando para os dominios publicos `analytics.rodogarcia.com.br` ou `api-analytics.rodogarcia.com.br`.
-- Excecao controlada: a IA so pode subir, reiniciar, parar, liberar portas, testar smoke ou acessar servicos/dominios de producao quando o operador humano escrever literalmente `pode subir pra produção` na mensagem atual. Pedidos sem essa frase literal, como "suba agora", "teste em prod" ou "pode testar", nao autorizam producao.
-- Quando houver a autorizacao literal `pode subir pra produção`, execute somente o necessario para o teste/deploy solicitado, registre o que foi feito e pare ao concluir a validacao. Nao mantenha alteracoes, processos ou rotinas extras alem do escopo pedido.
-- Enquanto a mensagem atual nao contiver literalmente `pode subir pra produção`, use apenas `iniciar-dev.bat`, backend local `http://127.0.0.1:5011` e frontend local `http://127.0.0.1:5174`.
-- Enquanto a mensagem atual nao contiver literalmente `pode subir pra produção`, use somente a API dev local para smoke tests. Producao deve ficar para operador humano fora do fluxo da IA.
-- Mesmo trabalhando apenas em DEV, mantenha o caminho de producao pronto para o proximo start humano: codigo, migrations, scripts canonicos, exemplos de env e contratos devem ficar atualizados e coerentes com a mudanca. Nao deixe ajuste aplicado so no modo dev quando ele tambem for necessario para uma subida limpa de producao; apenas nao execute os starts/deploys de producao.
-- Paridade DEV/PROD e obrigatoria: todo comportamento validado em DEV deve subir para producao com o mesmo contrato de banco, wrappers/views, filtros, agregacoes, build frontend e configuracao de runtime. Antes de considerar uma entrega pronta, valide a mesma tela, periodo e filtros nos dois modos quando houver autorizacao de producao; divergencia entre DEV e PROD e bug de deploy/contrato, nao comportamento aceitavel.
-- Visualizacoes e graficos devem preservar a altura padrao do dashboard; use como referencia o tamanho do card "Coletas por dia, mês e ano". Nao aumente a altura de um grafico para acomodar muitos dados: escolha outra visualizacao, agregacao, drilldown, paginacao visual ou compactacao que caiba no tamanho padrao.
-- Cada macaco no seu galho: migrations do projeto `dashboards` devem alterar apenas objetos de propriedade do Dashboard. Nao crie migrations aqui para sincronizar, alterar ou exigir estrutura interna do projeto `etl-extracao-dados`.
-- Mudancas de tabelas, views, indices ou regras materializadas do ETL devem ser feitas no repositorio `etl-extracao-dados`; o Dashboard apenas consome o contrato publicado pela view.
-- Arquitetura e separacao de responsabilidades: mantenha backend em `backend`, frontend em `frontend`, banco/migrations nos diretorios canonicos e integracoes no ponto correto do projeto. Nao misture regra de backend em componentes de tela nem crie atalhos fora da arquitetura existente.
-- Sempre que criar ou alterar uma migration deste projeto, atualize tambem o script base/canonico correspondente em `databases/DASHBOARDS` e, quando aplicavel, a copia em `backend/src/main/resources/db/migration`, para uma recriacao limpa nascer no schema atual.
-- Arquivos sensiveis para commit/push: sempre que criar ou alterar classe, arquivo, config, dump, planilha, log, credencial, segredo, token, certificado ou qualquer artefato que nao deve ir para o GitHub, atualize o `.gitignore` correspondente para excluir esse caminho antes de commitar. Se o arquivo sensivel ja estiver versionado, avise no resumo e nao o exponha em diff ou commit.
-- CRUD e exclusoes: quando a interface precisar "apagar" um registro de negocio, o comportamento padrao e inativar/arquivar no front e no backend (`ativo=false`, `archived`, `deleted_at` ou equivalente), nunca remover fisicamente do banco. O registro deve continuar existindo como backup/auditoria e para nao quebrar historicos, relacionamentos ou paineis. Hard delete so pode existir com pedido explicito do operador humano, justificativa clara, backup/migration controlada e testes.
-- Relacionamentos com entidades que podem ser inativadas devem usar `LEFT JOIN` ou fallback equivalente, exibindo algo seguro como "Usuario Inativo" quando o vinculo existir mas a entidade estiver inativa.
-- Antes de implementar uma mudanca, leia o contrato existente e crie/ajuste teste que reproduza a regra, bug ou fluxo esperado sempre que isso for viavel. Implemente, rode os testes focados e depois a validacao relevante do projeto (backend, frontend, lint/build, smoke local). Nao considere concluido sem verificar que funcionou.
-- Ao finalizar qualquer mudanca, confira se os atributos, DTOs, payloads, aliases de SQL, nomes de colunas, props do frontend e contratos de API batem entre si. Nao deixe campo inventado, classe sem uso, import morto, duplicacao desnecessaria ou codigo fora do padrao de clean code e engenharia de software do projeto.
-- Use as pastas de testes do projeto (`backend/src/test`, testes do frontend e scripts de validacao) para proteger comportamento. Se uma mudanca nao tiver teste automatizado possivel, registre no resumo qual validacao manual/local foi feita.
-- Encoding e mojibake: preserve acentos, simbolos e aliases exatamente como publicados pelo banco/API. Nao aceite texto corrompido por encoding, como UTF-8 lido como ANSI/Windows-1252; se encontrar alias, migration, view, CSV, seed, fixture, doc ou teste com caracteres estranhos no lugar de acentos/simbolos, corrija a origem e valide usando UTF-8 antes de seguir.
+---
 
-Se uma tarefa exigir deploy/producao e a mensagem atual nao contiver literalmente `pode subir pra produção`, a IA deve parar e avisar que o ambiente permitido para ela e apenas DEV local.
+## ⛔ Bloqueio Absoluto de Execução (Cerca Elétrica)
+* **Não execute `iniciar-prod.bat`:** O start, restart ou gerenciamento do runtime de produção é exclusivo do operador humano.
+* **Não toque nas portas de produção:** É terminantemente proibido derrubar, reiniciar ou liberar as portas `5010` (API) e `5173` (UI) via script ou comando direto.
+
+## 🟢 Permissão de Escrita e Preparação de Código
+* **Escopo de Alteração:** Você tem permissão total para alterar código (`tsx`, `java`), criar DTOs, ajustar controllers e escrever migrations do Flyway em `backend/src/main/resources/db/migration`.
+* **Preparação para Produção:** Sua entrega só estará pronta se o ambiente de produção estiver 100% preparado para que o humano execute o `iniciar-prod.bat`. Isso significa deixar migrations, views de aplicação, variáveis de ambiente e builds frontend completamente alinhados e sem pendências estruturais.
+* **Paridade DEV/PROD:** O comportamento validado em ambiente local deve ser idêntico ao contrato de produção. Evite lógicas que funcionem apenas em ambiente de desenvolvimento.
+
+---
+
+## 🏛️ Diretrizes de Arquitetura e Engenharia
+* **Cada macaco no seu galho:** As migrations deste repositório alteram apenas o banco `DASHBOARDS` (schema `acesso`, logs e tabelas administrativas). Não crie ou altere estruturas do banco `ETL_SISTEMA` por aqui. O Dashboard consome as views do ETL em modo read-only.
+* **Visualização:** Gráficos e componentes visuais devem respeitar a altura padrão do dashboard (use o card "Coletas por dia, mês e ano" como referência). Não aumente o tamanho de gráficos; utilize paginação, agregação ou compressão de dados.
+* **Exclusão Lógica (Soft Delete):** É proibido usar `DELETE` físico para dados de negócio. Use flags como `ativo = false`, `archived` ou `deleted_at`. Relacionamentos com dados inativados devem usar `LEFT JOIN` com fallbacks seguros (ex: "Usuário Inativo").
+* **Encoding e Mojibake:** Arquivos, migrations, sementes (seeds) e queries devem usar estritamente UTF-8. Corrija imediatamente qualquer caractere corrompido ou quebra de acentuação na origem.
+* **Segurança:** Sempre que manipular credenciais, chaves, arquivos locais de log ou configurações sensíveis, garanta que o `.gitignore` esteja atualizado para não expor esses dados no GitHub.

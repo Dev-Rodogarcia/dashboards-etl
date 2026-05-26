@@ -8,13 +8,13 @@ import type {
   PerformanceAgingPoint,
   PerformanceDrilldownParams,
   PerformanceDrilldownPoint,
-  PerformanceEntregaRow,
   PerformanceFiltro,
   PerformanceHistoricoPoint,
   PerformanceOverview,
   PerformanceSerieTemporalPoint,
   PerformanceStatusDistribuicao,
   PerformanceTabelaPage,
+  PerformanceTabelaRow,
   PerformanceTempoNivel,
 } from '../../types/performance';
 import type { TableApiFilters } from '../../types/tableFilters';
@@ -126,8 +126,8 @@ export function createPerformanceServico(basePath = PERFORMANCE_API_BASE_PATH) {
       pagina: number,
       tamanhoPagina: number,
       filtrosTabela?: TableApiFilters,
-    ): Promise<PaginacaoResponse<PerformanceEntregaRow>> {
-      return buscarTabelaPaginada<PerformanceEntregaRow, PerformanceFiltro>(
+    ): Promise<PaginacaoResponse<PerformanceTabelaRow>> {
+      return buscarTabelaPaginada<PerformanceTabelaRow, PerformanceFiltro>(
         `${basePath}/tabela/paginada`,
         filtro,
         pagina,

@@ -34,10 +34,9 @@ export interface CotacoesOverview {
   freteKgMedio: number;
   conversaoValor: number;
   conversaoQuantidade: number;
-  taxaAprovacao: number;
+  reprovacaoPercentual: number;
   taxaConversaoCte: number;
   taxaConversaoNfse: number;
-  taxaReprovacao: number;
   tempoMedioConversaoHoras: number;
 }
 

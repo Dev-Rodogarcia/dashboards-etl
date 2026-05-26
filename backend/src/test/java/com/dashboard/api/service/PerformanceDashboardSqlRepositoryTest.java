@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PerformanceDashboardSqlRepositoryTest {
@@ -45,8 +46,78 @@ class PerformanceDashboardSqlRepositoryTest {
         assertEquals(0L, pagina.getTotalElements());
         assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("COUNT_BIG(1)")));
         assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("OFFSET :offsetTabela ROWS FETCH NEXT :tamanhoTabela ROWS ONLY")));
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("[Comprovante Anexado]") && sql.contains("AS comprovante_anexado")));
         assertEquals(50L, jdbcTemplate.ultimoParametroLong("offsetTabela"));
         assertEquals(50L, jdbcTemplate.ultimoParametroLong("tamanhoTabela"));
+    }
+
+    @Test
+    void performanceExigeColunaComprovanteAnexadoNoContratoDaView() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate(colunasSemComprovante());
+        PerformanceDashboardSqlRepository repository = new PerformanceDashboardSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal()
+        );
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> repository.buscarTabela(
+                new FiltroConsultaDTO(
+                        LocalDate.of(2026, 5, 1),
+                        LocalDate.of(2026, 5, 24),
+                        Map.of()
+                ),
+                PageRequest.of(0, 20)
+        ));
+
+        assertTrue(ex.getMessage().contains("Comprovante Anexado"));
+        assertEquals(1, jdbcTemplate.refreshViewCount);
+    }
+
+    @Test
+    void performanceAtualizaMetadadosDoWrapperQuandoContratoEstaObsoleto() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate(
+                colunasSemComprovante(),
+                colunasPadrao()
+        );
+        PerformanceDashboardSqlRepository repository = new PerformanceDashboardSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal()
+        );
+
+        repository.buscarTabela(
+                new FiltroConsultaDTO(
+                        LocalDate.of(2026, 5, 1),
+                        LocalDate.of(2026, 5, 24),
+                        Map.of()
+                ),
+                PageRequest.of(0, 20)
+        );
+
+        assertEquals(1, jdbcTemplate.refreshViewCount);
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("sp_refreshview")));
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("[Comprovante Anexado]")));
+    }
+
+    private static List<String> colunasSemComprovante() {
+        return List.of(
+                "Nº Minuta",
+                "Previsão de Entrega",
+                "Data de Finalização",
+                "Responsável pela Região de Destino",
+                "Filial Emissora",
+                "Kg Taxado",
+                "Valor NF",
+                "Status",
+                "Data de extracao",
+                "ID"
+        );
+    }
+
+    private static List<String> colunasPadrao() {
+        List<String> colunas = new ArrayList<>(colunasSemComprovante());
+        colunas.add(7, "Comprovante Anexado");
+        return List.copyOf(colunas);
     }
 
     @Test
@@ -106,8 +177,11 @@ class PerformanceDashboardSqlRepositoryTest {
 
         assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("filtroTabelaBuscaTexto")));
         assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("filtroTabelaStatus")));
-        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("filtroTabelaColuna_numeroMinuta")));
+        assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("numero_minuta = :filtroTabelaColuna_numeroMinuta")));
         assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql.contains("filtroTabelaColuna_cidadeDestino")));
+        String sqlTabela = jdbcTemplate.sqls.get(jdbcTemplate.sqls.size() - 1);
+        assertTrue(!sqlTabela.contains(":filtroTabelaColuna_numeroMinutaORDER"));
+        assertTrue(sqlTabela.contains(":filtroTabelaColuna_numeroMinuta\n"));
         assertEquals(123L, jdbcTemplate.ultimoParametroLong("filtroTabelaColuna_numeroMinuta"));
         assertEquals(0L, jdbcTemplate.ultimoParametroLong("offsetTabela"));
         assertEquals(20L, jdbcTemplate.ultimoParametroLong("tamanhoTabela"));
@@ -232,9 +306,18 @@ class PerformanceDashboardSqlRepositoryTest {
     private static final class CapturandoNamedParameterJdbcTemplate extends NamedParameterJdbcTemplate {
         private final List<String> sqls = new ArrayList<>();
         private SqlParameterSource ultimoParametro;
+        private final List<List<String>> colunasViewPorConsulta;
+        private int consultasColunasView;
+        private int refreshViewCount;
 
         private CapturandoNamedParameterJdbcTemplate() {
+            this(colunasPadrao());
+        }
+
+        @SafeVarargs
+        private CapturandoNamedParameterJdbcTemplate(List<String>... colunasViewPorConsulta) {
             super(new JdbcTemplate());
+            this.colunasViewPorConsulta = List.of(colunasViewPorConsulta);
         }
 
         @Override
@@ -251,18 +334,9 @@ class PerformanceDashboardSqlRepositoryTest {
         public <T> List<T> queryForList(String sql, SqlParameterSource paramSource, Class<T> elementType) {
             sqls.add(sql);
             ultimoParametro = paramSource;
-            return List.of(
-                    elementType.cast("Nº Minuta"),
-                    elementType.cast("Previsão de Entrega"),
-                    elementType.cast("Data de Finalização"),
-                    elementType.cast("Responsável pela Região de Destino"),
-                    elementType.cast("Filial Emissora"),
-                    elementType.cast("Kg Taxado"),
-                    elementType.cast("Valor NF"),
-                    elementType.cast("Status"),
-                    elementType.cast("Data de extracao"),
-                    elementType.cast("ID")
-            );
+            int indice = Math.min(consultasColunasView, colunasViewPorConsulta.size() - 1);
+            consultasColunasView++;
+            return colunasViewPorConsulta.get(indice).stream().map(elementType::cast).toList();
         }
 
         @Override
@@ -270,6 +344,16 @@ class PerformanceDashboardSqlRepositoryTest {
             sqls.add(sql);
             ultimoParametro = paramSource;
             return List.of();
+        }
+
+        @Override
+        public int update(String sql, SqlParameterSource paramSource) {
+            sqls.add(sql);
+            ultimoParametro = paramSource;
+            if (sql.contains("sp_refreshview")) {
+                refreshViewCount++;
+            }
+            return 0;
         }
 
         private long ultimoParametroLong(String nome) {

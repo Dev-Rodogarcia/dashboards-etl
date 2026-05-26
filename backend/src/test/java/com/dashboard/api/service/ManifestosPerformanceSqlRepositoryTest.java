@@ -52,7 +52,7 @@ class ManifestosPerformanceSqlRepositoryTest {
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql).contains("tipo_motorista AS tipo"));
         assertThat(jdbcTemplate.sqls)
-                .anySatisfy(sql -> assertThat(sql).contains("RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"));
+                .anySatisfy(sql -> assertThat(sql).contains("[Tipo Motorista]"));
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql).contains("COUNT(DISTINCT numero) AS quantidade"));
     }
@@ -82,6 +82,41 @@ class ManifestosPerformanceSqlRepositoryTest {
                 });
     }
 
+    @Test
+    void buscarPerformanceAtualizaMetadataQuandoWrapperManifestosEstaDesatualizado() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        jdbcTemplate.colunasManifestos = List.of(
+                "Número",
+                "Data criação",
+                "Status",
+                "Classificação",
+                "Filial",
+                "Motorista",
+                "Veículo/Placa",
+                "Tipo Veículo",
+                "KM Total",
+                "Custo total",
+                "Fretes/Total",
+                "Total peso taxado",
+                "Capacidade Lotação Kg",
+                "Itens/Finalizados",
+                "Itens/Total",
+                "Data de extracao"
+        );
+        ManifestosPerformanceSqlRepository repository = new ManifestosPerformanceSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal(),
+                PeriodoOffsetDateTimeHelper.padrao()
+        );
+
+        repository.buscarPerformance(filtroPadrao(), "dia", null, null);
+
+        assertThat(jdbcTemplate.sqls)
+                .anySatisfy(sql -> assertThat(sql).contains("sp_refreshview N'dbo.vw_manifestos_powerbi'"));
+        assertThat(jdbcTemplate.consultasColunas).isEqualTo(2);
+    }
+
     private static FiltroConsultaDTO filtroPadrao() {
         return new FiltroConsultaDTO(
                 LocalDate.of(2026, 5, 1),
@@ -105,10 +140,32 @@ class ManifestosPerformanceSqlRepositoryTest {
     private static final class CapturandoNamedParameterJdbcTemplate extends NamedParameterJdbcTemplate {
         private final List<String> sqls = new ArrayList<>();
         private final List<SqlParameterSource> parametros = new ArrayList<>();
+        private int consultasColunas;
+        private List<String> colunasManifestos = colunasManifestosValidas();
         private SqlParameterSource ultimoParametro;
 
         private CapturandoNamedParameterJdbcTemplate() {
             super(new JdbcTemplate());
+        }
+
+        @Override
+        public <T> List<T> queryForList(String sql, SqlParameterSource paramSource, Class<T> elementType) {
+            sqls.add(sql);
+            parametros.add(paramSource);
+            consultasColunas++;
+            return colunasManifestos.stream()
+                    .map(elementType::cast)
+                    .toList();
+        }
+
+        @Override
+        public int update(String sql, SqlParameterSource paramSource) {
+            sqls.add(sql);
+            parametros.add(paramSource);
+            if (sql.contains("sp_refreshview N'dbo.vw_manifestos_powerbi'")) {
+                colunasManifestos = colunasManifestosValidas();
+            }
+            return 0;
         }
 
         @Override
@@ -136,5 +193,28 @@ class ManifestosPerformanceSqlRepositoryTest {
             parametros.add(paramSource);
             return List.of();
         }
+    }
+
+    private static List<String> colunasManifestosValidas() {
+        return List.of(
+                "Número",
+                "Data criação",
+                "Status",
+                "Classificação",
+                "Filial",
+                "Motorista",
+                "Veículo/Placa",
+                "Tipo Veículo",
+                "Tipo Motorista",
+                "Proprietário/Documento",
+                "KM Total",
+                "Custo total",
+                "Fretes/Total",
+                "Total peso taxado",
+                "Capacidade Lotação Kg",
+                "Itens/Finalizados",
+                "Itens/Total",
+                "Data de extracao"
+        );
     }
 }

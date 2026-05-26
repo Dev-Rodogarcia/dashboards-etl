@@ -1,11 +1,12 @@
 import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../../shared/AnalyticalDataTable';
 import StatusBadge from '../../shared/StatusBadge';
-import type { PerformanceTabelaPage, PerformanceTabelaRow } from '../../../types/performance';
+import type { PaginacaoResponse } from '../../../types/common';
+import type { PerformanceTabelaRow } from '../../../types/performance';
 import type { TableFilters } from '../../../types/tableFilters';
 import { formatarMoeda, formatarNumero } from '../../../utils/formatadores';
 
 interface PerformanceTabelaProps {
-  pagina?: PerformanceTabelaPage;
+  pagina?: PaginacaoResponse<PerformanceTabelaRow>;
   filtros: TableFilters;
   hiddenActiveCount: number;
   hasAnyFilter: boolean;
@@ -81,7 +82,7 @@ export default function PerformanceTabela({
     <section className="mt-4">
       <AnalyticalDataTable
         titulo="Performance Analitica"
-        dados={pagina?.content ?? []}
+        dados={pagina?.conteudo ?? []}
         colunas={colunas}
         chaveLinha="numeroMinuta"
         filtros={filtros}
@@ -94,7 +95,7 @@ export default function PerformanceTabela({
         statusOptions={statusOptions}
         statusOptionsLoading={statusOptionsLoading}
         isLoading={isLoading}
-        totalRegistros={pagina?.totalElements}
+        totalRegistros={pagina?.totalElementos}
         paginaAtual={paginaAtual}
         tamanhoPagina={tamanhoPagina}
         onPaginaChange={onPaginaChange}

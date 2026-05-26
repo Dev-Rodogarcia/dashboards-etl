@@ -17,7 +17,7 @@ export default function CotacoesKpiGrid({ overview }: CotacoesKpiGridProps) {
       <KpiCard label="Frete/KG" valor={formatarMoeda(overview.freteKgMedio)} />
       <KpiCard label="Conversão Valor" valor={formatarPorcentagem(overview.conversaoValor)} />
       <KpiCard label="Conversão Quantidade" valor={formatarPorcentagem(overview.conversaoQuantidade)} />
-      <KpiCard label="Aprovação %" valor={formatarPorcentagem(overview.taxaAprovacao)} />
+      <KpiCard label="Reprovação %" valor={formatarPorcentagem(overview.reprovacaoPercentual)} />
     </KpiGrid>
   );
 }
