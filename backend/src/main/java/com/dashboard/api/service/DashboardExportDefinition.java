@@ -2,7 +2,6 @@ package com.dashboard.api.service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public enum DashboardExportDefinition {
 
@@ -114,21 +113,6 @@ public enum DashboardExportDefinition {
             List.of("[Emissão] DESC", "[Lançamento a Pagar/N°] DESC"),
             null
     ),
-    FATURAS_PROCESSOS(
-            "faturas",
-            "faturas-processos",
-            "[vw_faturas_por_cliente_powerbi]",
-            DateMode.OFFSET_DATE_TIME,
-            "[CT-e/Data de emissão]",
-            List.of("[Filial]"),
-            Map.of(
-                    "filiais", List.of("[Filial]"),
-                    "pagadores", List.of("[Pagador do frete/Nome]"),
-                    "clientesCnpj", List.of("[Cliente/CNPJ]", "[Pagador do frete/Documento]")
-            ),
-            List.of("[CT-e/Data de emissão] DESC", "[ID Único] DESC"),
-            new DedupConfig(faturaPorClienteDedupKey(), List.of("[Data da Última Atualização] DESC", "[CT-e/Data de emissão] DESC"))
-    ),
     FATURAS_POR_CLIENTE(
             "faturas-por-cliente",
             "faturas-por-cliente",
@@ -143,20 +127,6 @@ public enum DashboardExportDefinition {
             ),
             List.of("[CT-e/Data de emissão] DESC", "[ID Único] DESC"),
             new DedupConfig("[ID Único]", List.of("[Data da Última Atualização] DESC", "[CT-e/Data de emissão] DESC", "[ID Único] ASC"))
-    ),
-    FATURAS_FINANCEIRO(
-            "faturas-financeiro",
-            "faturas-titulos-financeiros",
-            "[vw_faturas_graphql_powerbi]",
-            DateMode.LOCAL_DATE,
-            "[Emissão]",
-            List.of("[Filial/Nome]"),
-            Map.of(
-                    "filiais", List.of("[Filial/Nome]"),
-                    "pago", List.of("[Pago]")
-            ),
-            List.of("[Emissão] DESC", "[Fatura/N° Documento] DESC"),
-            null
     ),
     ETL_SAUDE(
             "etl-saude",
@@ -239,24 +209,7 @@ public enum DashboardExportDefinition {
     }
 
     boolean temFiltroStatusProcesso() {
-        return Set.of(FATURAS_PROCESSOS, FATURAS_POR_CLIENTE).contains(this);
-    }
-
-    private static String faturaPorClienteDedupKey() {
-        return """
-                CASE
-                    WHEN [Fatura/N° Documento] IS NOT NULL
-                     AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))) <> ''
-                    THEN CONCAT(
-                        'fatura|',
-                        LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))))
-                    )
-                    ELSE CONCAT(
-                        'linha|',
-                        LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [ID Único]))))
-                    )
-                END
-                """;
+        return this == FATURAS_POR_CLIENTE;
     }
 
     private static String trackingProjection() {

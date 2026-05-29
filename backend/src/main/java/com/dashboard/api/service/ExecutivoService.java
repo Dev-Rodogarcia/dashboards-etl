@@ -6,8 +6,8 @@ import com.dashboard.api.dto.contaspagar.ContasAPagarMensalTrendDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarOverviewDTO;
 import com.dashboard.api.dto.executivo.ExecutivoOverviewDTO;
 import com.dashboard.api.dto.executivo.ExecutivoTrendPointDTO;
-import com.dashboard.api.dto.faturas.FaturasMensalTrendDTO;
-import com.dashboard.api.dto.faturas.FaturasOverviewDTO;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteMensalDTO;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteOverviewDTO;
 import com.dashboard.api.dto.fretes.FretesOverviewDTO;
 import com.dashboard.api.dto.fretes.FretesTrendPointDTO;
 import com.dashboard.api.dto.manifestos.ManifestosOverviewDTO;
@@ -32,7 +32,7 @@ public class ExecutivoService {
     private static final DateTimeFormatter MONTH_FMT = DateTimeFormatter.ofPattern("yyyy-MM");
 
     private final FretesService fretesService;
-    private final FaturasService faturasService;
+    private final FaturasPorClienteService faturasPorClienteService;
     private final ContasAPagarService contasAPagarService;
     private final ColetasService coletasService;
     private final TrackingService trackingService;
@@ -40,13 +40,13 @@ public class ExecutivoService {
 
     public ExecutivoService(
             FretesService fretesService,
-            FaturasService faturasService,
+            FaturasPorClienteService faturasPorClienteService,
             ContasAPagarService contasAPagarService,
             ColetasService coletasService,
             TrackingService trackingService,
             ManifestosService manifestosService) {
         this.fretesService = fretesService;
-        this.faturasService = faturasService;
+        this.faturasPorClienteService = faturasPorClienteService;
         this.contasAPagarService = contasAPagarService;
         this.coletasService = coletasService;
         this.trackingService = trackingService;
@@ -61,7 +61,7 @@ public class ExecutivoService {
         log.info("Calculando overview executivo: periodo={} a {}", filtro.dataInicio(), filtro.dataFim());
 
         FretesOverviewDTO fretes = fretesService.buscarOverview(filtro);
-        FaturasOverviewDTO faturas = faturasService.buscarOverview(filtro);
+        FaturasPorClienteOverviewDTO faturasPorCliente = faturasPorClienteService.buscarOverview(filtro);
         ContasAPagarOverviewDTO contasAPagar = contasAPagarService.buscarOverview(filtro);
         var coletas = coletasService.buscarOverview(filtro);
         TrackingOverviewDTO tracking = trackingService.buscarOverview(filtro);
@@ -70,8 +70,8 @@ public class ExecutivoService {
         return new ExecutivoOverviewDTO(
                 LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 fretes.receitaBruta(),
-                faturas.valorFaturado(),
-                faturas.saldoAberto(),
+                faturasPorCliente.valorFaturado(),
+                BigDecimal.ZERO,
                 contasAPagar.saldoAberto(),
                 coletas.totalColetas() - coletas.finalizadas(),
                 tracking.previsaoVencida(),
@@ -88,11 +88,10 @@ public class ExecutivoService {
                     acc.getOrDefault(chave, new ExecutivoTrendAccumulator()).receitaOperacional.add(ponto.receitaBruta());
         }
 
-        for (FaturasMensalTrendDTO ponto : faturasService.buscarMensal(filtro)) {
+        for (FaturasPorClienteMensalDTO ponto : faturasPorClienteService.buscarMensal(filtro)) {
             YearMonth chave = YearMonth.parse(ponto.month(), MONTH_FMT);
             ExecutivoTrendAccumulator item = acc.computeIfAbsent(chave, ignored -> new ExecutivoTrendAccumulator());
-            item.valorFaturado = item.valorFaturado.add(ponto.faturado());
-            item.saldoAReceber = item.saldoAReceber.add(ponto.saldoAberto());
+            item.valorFaturado = item.valorFaturado.add(ponto.valorFaturado());
         }
 
         for (ContasAPagarMensalTrendDTO ponto : contasAPagarService.buscarSerie(filtro)) {

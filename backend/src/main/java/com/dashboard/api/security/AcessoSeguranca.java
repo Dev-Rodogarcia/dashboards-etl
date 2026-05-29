@@ -62,7 +62,6 @@ public class AcessoSeguranca {
     public boolean podeAcessarDimensaoClientes() {
         return podeAcessar("coletas")
                 || podeAcessar("fretes")
-                || podeAcessar("faturas")
                 || podeAcessar("faturasPorCliente")
                 || podeAcessar("cotacoes");
     }

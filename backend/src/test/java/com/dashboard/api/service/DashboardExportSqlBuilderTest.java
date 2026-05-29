@@ -99,7 +99,7 @@ class DashboardExportSqlBuilderTest {
     @Test
     void buildSelectDeveMapearStatusProcessoCalculado() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
-                DashboardExportDefinition.FATURAS_PROCESSOS,
+                DashboardExportDefinition.FATURAS_POR_CLIENTE,
                 filtro(Map.of("statusProcesso", List.of("Faturado"))),
                 EscopoFilialService.EscopoFilial.comAcessoTotal(),
                 Set.of()
@@ -155,7 +155,7 @@ class DashboardExportSqlBuilderTest {
     @Test
     void buildSelectDeveMapearTabelaStatusProcessoCalculado() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
-                DashboardExportDefinition.FATURAS_PROCESSOS,
+                DashboardExportDefinition.FATURAS_POR_CLIENTE,
                 filtro(Map.of("tabelaStatus", List.of("Faturado"))),
                 EscopoFilialService.EscopoFilial.comAcessoTotal(),
                 Set.of()
@@ -242,20 +242,6 @@ class DashboardExportSqlBuilderTest {
 
         assertThat(query.sql()).contains("CASE WHEN [CT-e ID] IS NOT NULL THEN 'ct-e'");
         assertThat(query.sql()).contains(":filtro_tabelaColuna_documentoTipo");
-    }
-
-    @Test
-    void buildSelectDeveAplicarFiltroEspecialFinanceiroFaturas() {
-        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
-                DashboardExportDefinition.FATURAS_PROCESSOS,
-                filtro(Map.of("tabelaColuna.valorPago", List.of("99.90"))),
-                EscopoFilialService.EscopoFilial.comAcessoTotal(),
-                Set.of()
-        );
-
-        assertThat(query.sql()).contains("[vw_faturas_graphql_powerbi] financeiro");
-        assertThat(query.sql()).contains("financeiro.[Valor Pago]");
-        assertThat(query.sql()).contains(":filtro_tabelaColuna_valorPago");
     }
 
     @Test

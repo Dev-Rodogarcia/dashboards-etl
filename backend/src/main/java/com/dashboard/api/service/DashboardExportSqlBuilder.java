@@ -910,7 +910,7 @@ class DashboardExportSqlBuilder {
                     List.of(),
                     List.of()
             );
-            case FATURAS_PROCESSOS, FATURAS_POR_CLIENTE -> new TableFilterColumns(
+            case FATURAS_POR_CLIENTE -> new TableFilterColumns(
                     List.of("[Pagador do frete/Nome]", "[Cliente/CNPJ]", "[Pagador do frete/Documento]"),
                     List.of("[ID Único]", "[Fatura/N° Documento]", "[CT-e/Número]"),
                     List.of(),
@@ -1011,18 +1011,6 @@ class DashboardExportSqlBuilder {
                 put(colunas, "valorPago", numero("[Valor pago]"));
                 put(colunas, "statusPagamento", status("[Pago]"));
             }
-            case FATURAS_PROCESSOS -> {
-                put(colunas, "documento", codigo("[Fatura/N° Documento]", "[ID Único]"));
-                put(colunas, "emissao", data("COALESCE([Fatura/Emissão], [CT-e/Data de emissão])"));
-                put(colunas, "vencimento", data("COALESCE(" + tituloFinanceiroSql("[Vencimento]") + ", [Parcelas/Vencimento])"));
-                put(colunas, "filial", texto("[Filial]"));
-                put(colunas, "clientePagador", texto("[Pagador do frete/Nome]"));
-                put(colunas, "valorOperacional", numero(valorOperacionalFaturaSql()));
-                put(colunas, "valorFinanceiro", numero("COALESCE(" + tituloFinanceiroSql("[Valor]") + ", 0)"));
-                put(colunas, "valorPago", numero("COALESCE(" + tituloFinanceiroSql("[Valor Pago]") + ", 0)"));
-                put(colunas, "valorAberto", numero("COALESCE(" + tituloFinanceiroSql("[Valor a Pagar]") + ", 0)"));
-                put(colunas, "statusProcesso", statusProcesso());
-            }
             case FATURAS_POR_CLIENTE -> {
                 put(colunas, "idUnico", codigo("[ID Único]"));
                 put(colunas, "documentoFatura", codigo("[Fatura/N° Documento]"));
@@ -1104,15 +1092,6 @@ class DashboardExportSqlBuilder {
 
     private String valorOperacionalFaturaSql() {
         return "COALESCE([Fatura/Valor], [Fatura/Valor Total], [Frete/Valor dos CT-es])";
-    }
-
-    private String tituloFinanceiroSql(String coluna) {
-        return "(SELECT TOP 1 financeiro." + coluna
-                + " FROM [vw_faturas_graphql_powerbi] financeiro WHERE "
-                + normalizarSql("financeiro.[Fatura/N° Documento]")
-                + " = "
-                + normalizarSql("base.[Fatura/N° Documento]")
-                + ")";
     }
 
     private String normalizarSql(String coluna) {

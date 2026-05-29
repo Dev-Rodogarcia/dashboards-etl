@@ -14,7 +14,6 @@ const ManifestosPage = lazy(() => import('./pages/ManifestosPage'));
 const FaturamentoPage = lazy(() => import('./pages/FaturamentoPage'));
 const PerformancePage = lazy(() => import('./pages/PerformancePage'));
 const TrackingPage = lazy(() => import('./pages/TrackingPage'));
-const FaturasPage = lazy(() => import('./pages/FaturasPage'));
 const FaturasPorClientePage = lazy(() => import('./pages/FaturasPorClientePage'));
 const ContasAPagarPage = lazy(() => import('./pages/ContasAPagarPage'));
 const CotacoesPage = lazy(() => import('./pages/CotacoesPage'));
@@ -90,10 +89,6 @@ export default function App() {
 
             <Route element={<RotaProtegida permissao="tracking" />}>
               <Route path="/tracking" element={<TrackingPage />} />
-            </Route>
-
-            <Route element={<RotaProtegida permissao="faturas" />}>
-              <Route path="/faturas" element={<FaturasPage />} />
             </Route>
 
             <Route element={<RotaProtegida permissao="faturasPorCliente" />}>

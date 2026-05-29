@@ -6,7 +6,6 @@ import com.dashboard.api.dto.coletas.ColetaResumoDTO;
 import com.dashboard.api.dto.contaspagar.ContaPagarResumoDTO;
 import com.dashboard.api.dto.cotacoes.CotacaoResumoDTO;
 import com.dashboard.api.dto.etl.EtlExecucaoResumoDTO;
-import com.dashboard.api.dto.faturas.FaturaResumoDTO;
 import com.dashboard.api.dto.faturascliente.FaturaPorClienteResumoDTO;
 import com.dashboard.api.dto.fretes.FreteResumoDTO;
 import com.dashboard.api.dto.manifestos.ManifestoResumoDTO;
@@ -105,18 +104,6 @@ public class PainelTabelaPaginadaController {
             @RequestParam MultiValueMap<String, String> params
     ) {
         return ResponseEntity.ok(tabelaPaginadaService.buscarContasAPagar(filtro(dataInicio, dataFim, params), pagina, tamanhoPagina));
-    }
-
-    @GetMapping("/faturas/tabela/paginada")
-    @PreAuthorize("@acessoSeguranca.podeAcessar('faturas')")
-    public ResponseEntity<PaginaDTO<FaturaResumoDTO>> faturas(
-            @RequestParam LocalDate dataInicio,
-            @RequestParam LocalDate dataFim,
-            @RequestParam(defaultValue = "1") int pagina,
-            @RequestParam(defaultValue = "10") int tamanhoPagina,
-            @RequestParam MultiValueMap<String, String> params
-    ) {
-        return ResponseEntity.ok(tabelaPaginadaService.buscarFaturas(filtro(dataInicio, dataFim, params), pagina, tamanhoPagina));
     }
 
     @GetMapping("/faturas-por-cliente/tabela/paginada")

@@ -4,7 +4,6 @@ export const PERMISSION_KEYS = [
   'fretes',
   'performance',
   'tracking',
-  'faturas',
   'faturasPorCliente',
   'contasAPagar',
   'cotacoes',

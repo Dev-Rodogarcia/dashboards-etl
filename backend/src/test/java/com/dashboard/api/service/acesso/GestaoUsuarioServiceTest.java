@@ -221,17 +221,17 @@ class GestaoUsuarioServiceTest {
     }
 
     @Test
-    void deveRemoverGrantDeFaturasSemRecriarVinculoQuandoPapelNaoMuda() {
+    void deveRemoverGrantDeCotacoesSemRecriarVinculoQuandoPapelNaoMuda() {
         ContextoAtualizacao contexto = prepararContextoAtualizacao(PermissaoResolverService.PAPEL_USUARIO_COMUM);
         UsuarioEntity alvo = Objects.requireNonNull(contexto.alvo());
         SetorEntity setor = Objects.requireNonNull(contexto.setor());
         PapelEntity papelSolicitado = Objects.requireNonNull(contexto.papelSolicitado());
 
-        PermissaoEntity permissaoFaturas = criarPermissao(11L, "faturas");
+        PermissaoEntity permissaoCotacoes = criarPermissao(11L, "cotacoes");
 
         when(papelRepository.findByNome(PermissaoResolverService.PAPEL_USUARIO_COMUM))
                 .thenReturn(Optional.of(papelSolicitado));
-        when(permissaoRepository.findAllByAtivoTrue()).thenReturn(List.of(permissaoFaturas));
+        when(permissaoRepository.findAllByAtivoTrue()).thenReturn(List.of(permissaoCotacoes));
         when(templateRepository.findAllBySetorId(setor.getId())).thenReturn(List.of());
         when(overrideRepository.findAllByUsuarioId(alvo.getId())).thenReturn(List.of());
         when(usuarioRepository.save(alvo)).thenReturn(alvo);
@@ -324,8 +324,8 @@ class GestaoUsuarioServiceTest {
                 null,
                 "1",
                 PermissaoResolverService.PAPEL_USUARIO_COMUM,
-                List.of("faturas"),
-                List.of("faturas"),
+                List.of("cotacoes"),
+                List.of("cotacoes"),
                 EscopoFiliaisUsuarioPolicy.HERDAR_SETOR,
                 List.of(),
                 true

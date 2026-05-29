@@ -6,7 +6,6 @@ import com.dashboard.api.dto.coletas.ColetaResumoDTO;
 import com.dashboard.api.dto.contaspagar.ContaPagarResumoDTO;
 import com.dashboard.api.dto.cotacoes.CotacaoResumoDTO;
 import com.dashboard.api.dto.etl.EtlExecucaoResumoDTO;
-import com.dashboard.api.dto.faturas.FaturaResumoDTO;
 import com.dashboard.api.dto.faturascliente.FaturaPorClienteResumoDTO;
 import com.dashboard.api.dto.fretes.FreteResumoDTO;
 import com.dashboard.api.dto.manifestos.ManifestoResumoDTO;
@@ -18,15 +17,11 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 public class DashboardTabelaPaginadaService {
@@ -74,20 +69,6 @@ public class DashboardTabelaPaginadaService {
 
     public PaginaDTO<ContaPagarResumoDTO> buscarContasAPagar(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
         return buscarPagina(DashboardExportDefinition.CONTAS_A_PAGAR, filtro, pagina, tamanhoPagina, this::mapearContaPagar);
-    }
-
-    public PaginaDTO<FaturaResumoDTO> buscarFaturas(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
-        PaginaDTO<Map<String, Object>> paginaBruta = buscarPaginaBruta(
-                DashboardExportDefinition.FATURAS_PROCESSOS,
-                filtro,
-                pagina,
-                tamanhoPagina
-        );
-        Map<String, TituloFinanceiro> titulos = buscarTitulosFinanceiros(filtro, paginaBruta.conteudo());
-        List<FaturaResumoDTO> conteudo = paginaBruta.conteudo().stream()
-                .map(row -> mapearFatura(row, titulos))
-                .toList();
-        return copiarPagina(paginaBruta, conteudo);
     }
 
     public PaginaDTO<FaturaPorClienteResumoDTO> buscarFaturasPorCliente(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
@@ -296,30 +277,6 @@ public class DashboardTabelaPaginadaService {
         );
     }
 
-    private FaturaResumoDTO mapearFatura(Map<String, Object> row, Map<String, TituloFinanceiro> titulos) {
-        String documento = documentoFaturaOperacional(row);
-        String uniqueId = texto(row, "ID Único", "ID Unico");
-        TituloFinanceiro titulo = documento != null ? titulos.get(documento) : null;
-        BigDecimal valorFinanceiro = titulo != null ? titulo.valor() : BigDecimal.ZERO;
-        BigDecimal valorPago = titulo != null ? titulo.valorPago() : BigDecimal.ZERO;
-        BigDecimal valorAberto = titulo != null ? titulo.valorAPagar() : BigDecimal.ZERO;
-
-        return new FaturaResumoDTO(
-                uniqueId,
-                documento != null ? documento : uniqueId,
-                emissaoFaturaOperacional(row),
-                titulo != null ? titulo.vencimento() : texto(row, "Parcelas/Vencimento"),
-                texto(row, "Filial"),
-                texto(row, "Pagador do frete/Nome"),
-                valorOperacionalFatura(row),
-                valorFinanceiro,
-                valorPago,
-                valorAberto,
-                statusProcesso(row),
-                titulo != null ? titulo.status() : "Sem titulo"
-        );
-    }
-
     private FaturaPorClienteResumoDTO mapearFaturaPorCliente(Map<String, Object> row) {
         return new FaturaPorClienteResumoDTO(
                 texto(row, "ID Único", "ID Unico"),
@@ -347,54 +304,6 @@ public class DashboardTabelaPaginadaService {
                 inteiro(row, "Total Registros"),
                 texto(row, "Categoria Erro"),
                 texto(row, "Mensagem Erro")
-        );
-    }
-
-    private Map<String, TituloFinanceiro> buscarTitulosFinanceiros(FiltroConsultaDTO filtro, List<Map<String, Object>> rows) {
-        List<String> documentos = rows.stream()
-                .map(row -> texto(row, "Fatura/N° Documento", "Fatura/Nº Documento"))
-                .filter(Objects::nonNull)
-                .filter(documento -> !documento.isBlank())
-                .distinct()
-                .toList();
-
-        if (documentos.isEmpty()) {
-            return Map.of();
-        }
-
-        MapSqlParameterSource params = new MapSqlParameterSource("documentos", documentos);
-        StringBuilder sql = new StringBuilder("""
-                SELECT [Fatura/N° Documento], [Vencimento], [Valor], [Valor Pago], [Valor a Pagar], [Status]
-                FROM [vw_faturas_graphql_powerbi]
-                WHERE [Fatura/N° Documento] IN (:documentos)
-                """);
-
-        List<String> pagos = normalizar(filtro.valores("pago"));
-        if (!pagos.isEmpty()) {
-            params.addValue("pago", pagos);
-            sql.append(" AND LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pago])))) IN (:pago)");
-        }
-
-        String consultaTitulos = Objects.requireNonNull(sql.toString(), "consultaTitulos");
-        return jdbcTemplate.queryForList(consultaTitulos, params).stream()
-                .map(this::mapearTitulo)
-                .filter(titulo -> titulo.documento() != null)
-                .collect(Collectors.toMap(
-                        TituloFinanceiro::documento,
-                        Function.identity(),
-                        (atual, ignorado) -> atual,
-                        LinkedHashMap::new
-                ));
-    }
-
-    private TituloFinanceiro mapearTitulo(Map<String, Object> row) {
-        return new TituloFinanceiro(
-                texto(row, "Fatura/N° Documento", "Fatura/Nº Documento"),
-                texto(row, "Vencimento"),
-                decimal(row, "Valor"),
-                decimal(row, "Valor Pago"),
-                decimal(row, "Valor a Pagar"),
-                texto(row, "Status")
         );
     }
 
@@ -557,21 +466,4 @@ public class DashboardTabelaPaginadaService {
         return ConsultaFiltroUtils.parseBigDecimal(valor.toString()).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private List<String> normalizar(Collection<String> valores) {
-        return valores.stream()
-                .filter(valor -> valor != null && !valor.isBlank())
-                .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
-                .distinct()
-                .toList();
-    }
-
-    private record TituloFinanceiro(
-            String documento,
-            String vencimento,
-            BigDecimal valor,
-            BigDecimal valorPago,
-            BigDecimal valorAPagar,
-            String status
-    ) {
-    }
 }

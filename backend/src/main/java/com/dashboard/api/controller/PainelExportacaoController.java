@@ -173,36 +173,6 @@ public class PainelExportacaoController {
         return total(DashboardExportDefinition.CONTAS_A_PAGAR, dataInicio, dataFim, params);
     }
 
-    @GetMapping("/faturas/exportacao")
-    @PreAuthorize("@acessoSeguranca.podeAcessar('faturas')")
-    public ResponseEntity<StreamingResponseBody> exportarFaturasProcessos(
-            @RequestParam LocalDate dataInicio,
-            @RequestParam LocalDate dataFim,
-            @RequestParam MultiValueMap<String, String> params
-    ) {
-        return exportar(DashboardExportDefinition.FATURAS_PROCESSOS, dataInicio, dataFim, params);
-    }
-
-    @GetMapping("/faturas/exportacao-financeira")
-    @PreAuthorize("@acessoSeguranca.podeAcessar('faturas')")
-    public ResponseEntity<StreamingResponseBody> exportarFaturasFinanceiro(
-            @RequestParam LocalDate dataInicio,
-            @RequestParam LocalDate dataFim,
-            @RequestParam MultiValueMap<String, String> params
-    ) {
-        return exportar(DashboardExportDefinition.FATURAS_FINANCEIRO, dataInicio, dataFim, params);
-    }
-
-    @GetMapping("/faturas/tabela/total")
-    @PreAuthorize("@acessoSeguranca.podeAcessar('faturas')")
-    public ResponseEntity<TotalRegistrosDTO> totalFaturas(
-            @RequestParam LocalDate dataInicio,
-            @RequestParam LocalDate dataFim,
-            @RequestParam MultiValueMap<String, String> params
-    ) {
-        return total(DashboardExportDefinition.FATURAS_PROCESSOS, dataInicio, dataFim, params);
-    }
-
     @GetMapping("/faturas-por-cliente/exportacao")
     @PreAuthorize("@acessoSeguranca.podeAcessar('faturasPorCliente')")
     public ResponseEntity<StreamingResponseBody> exportarFaturasPorCliente(

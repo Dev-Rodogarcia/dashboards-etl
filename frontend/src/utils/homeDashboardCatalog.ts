@@ -3,7 +3,6 @@ import {
   BarChart3,
   ClipboardList,
   CreditCard,
-  FileText,
   HeartPulse,
   LayoutDashboard,
   MapPinned,
@@ -91,14 +90,6 @@ const HOME_DASHBOARD_META: Record<string, HomeDashboardMeta> = {
     Icon: MapPinned,
     accent: '#0891b2',
     priority: 84,
-  },
-  '/faturas': {
-    category: 'Financeiro',
-    description: 'Faturamento, recebimentos, saldo aberto, DSO e aging.',
-    keywords: ['faturas', 'financeiro', 'recebimento', 'saldo', 'dso'],
-    Icon: FileText,
-    accent: '#7c3aed',
-    priority: 90,
   },
   '/faturas-por-cliente': {
     category: 'Financeiro',

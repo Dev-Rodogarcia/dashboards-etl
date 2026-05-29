@@ -30,7 +30,6 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
             "/api/kpi-goals",
             "/api/painel/etl-saude",
             "/api/painel/executivo",
-            "/api/painel/faturas",
             "/api/painel/faturas-por-cliente",
             "/api/painel/fretes",
             "/api/painel/home/comunicados",
