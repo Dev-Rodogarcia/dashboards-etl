@@ -10,6 +10,7 @@ Você atua como Engenheiro de Software Principal neste repositório (Interface R
 
 ## 🟢 Permissão de Escrita e Preparação de Código
 * **Escopo de Alteração:** Você tem permissão total para alterar código (`tsx`, `java`), criar DTOs, ajustar controllers e escrever migrations do Flyway em `backend/src/main/resources/db/migration`.
+* **Preservação de Documentação Operacional:** É proibido apagar arquivos `README.md` e `AGENTS.md`. Quando necessário, apenas atualize seu conteúdo mantendo esses arquivos presentes no repositório.
 * **Preparação para Produção:** Sua entrega só estará pronta se o ambiente de produção estiver 100% preparado para que o humano execute o `iniciar-prod.bat`. Isso significa deixar migrations, views de aplicação, variáveis de ambiente e builds frontend completamente alinhados e sem pendências estruturais.
 * **Paridade DEV/PROD:** O comportamento validado em ambiente local deve ser idêntico ao contrato de produção. Evite lógicas que funcionem apenas em ambiente de desenvolvimento.
 
