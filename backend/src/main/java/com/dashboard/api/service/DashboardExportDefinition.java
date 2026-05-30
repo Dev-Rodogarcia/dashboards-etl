@@ -33,6 +33,7 @@ public enum DashboardExportDefinition {
                     "filiais", List.of("[Filial]"),
                     "status", List.of("[Status]"),
                     "pagadores", List.of("[Pagador]"),
+                    "responsaveis", List.of("[Responsável Região Destino Key]"),
                     "ufOrigem", List.of("[UF Origem]"),
                     "ufDestino", List.of("[UF Destino]"),
                     "tiposFrete", List.of("[Tipo Frete]"),
@@ -90,7 +91,8 @@ public enum DashboardExportDefinition {
                     "ufOrigem", List.of("[UF Origem]"),
                     "ufDestino", List.of("[UF Destino]"),
                     "statusConversao", List.of("[Status Conversão]"),
-                    "tabelas", List.of("[Tabela]")
+                    "tabelas", List.of("[Tabela]"),
+                    "usuarios", List.of("[Usuario Key]")
             ),
             List.of("[Data Cotação] DESC", "[N° Cotação] DESC"),
             null

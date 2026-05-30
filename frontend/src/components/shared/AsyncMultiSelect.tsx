@@ -32,6 +32,7 @@ export default function AsyncMultiSelect({
   const [busca, setBusca] = useState('');
   const labelId = useId();
   const valueId = useId();
+
   const opcoesEfetivas = useMemo(() => {
     const porValor = new Map<string, AsyncMultiSelectOpcao>();
 
@@ -49,17 +50,27 @@ export default function AsyncMultiSelect({
     return Array.from(porValor.values());
   }, [opcoes, selecionados]);
 
+  function limparBusca() {
+    if (!busca) return;
+    setBusca('');
+    onSearchChange?.('');
+  }
+
   function handleOpenChange(next: boolean) {
     setAberto(next);
     if (!next) {
-      setBusca('');
-      onSearchChange?.('');
+      limparBusca();
     }
   }
 
   function handleBuscaChange(valor: string) {
     setBusca(valor);
     onSearchChange?.(valor);
+  }
+
+  function limparSelecao() {
+    onChange([]);
+    limparBusca();
   }
 
   const opcoesFiltradas = useMemo(() => {
@@ -73,10 +84,14 @@ export default function AsyncMultiSelect({
   }, [busca, opcoesEfetivas]);
 
   function alternar(valor: string) {
-    if (selecionados.includes(valor)) {
-      onChange(selecionados.filter((v) => v !== valor));
-    } else {
-      onChange([...selecionados, valor]);
+    const proximos = selecionados.includes(valor)
+      ? selecionados.filter((v) => v !== valor)
+      : [...selecionados, valor];
+
+    onChange(proximos);
+
+    if (proximos.length === 0) {
+      limparBusca();
     }
   }
 
@@ -84,7 +99,7 @@ export default function AsyncMultiSelect({
 
   return (
     <Popover open={aberto} onOpenChange={handleOpenChange}>
-      <div className="flex w-full min-w-[148px] flex-col gap-1 self-start justify-self-start md:w-auto">
+      <div className="flex w-full min-w-[148px] flex-col gap-1 self-end justify-self-start md:w-auto">
         <span
           id={labelId}
           className="flex min-h-4 items-center gap-1.5 text-xs font-medium leading-4"
@@ -146,7 +161,7 @@ export default function AsyncMultiSelect({
         <div className="mb-2 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => onChange([])}
+            onClick={limparSelecao}
             className="cursor-pointer text-xs font-medium transition-opacity hover:opacity-70 active:scale-95"
             style={{ color: 'var(--color-primary)' }}
           >

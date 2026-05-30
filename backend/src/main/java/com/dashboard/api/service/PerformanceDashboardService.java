@@ -2,6 +2,7 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.PaginaDTO;
+import com.dashboard.api.dto.dimensoes.DimensaoOpcaoDTO;
 import com.dashboard.api.dto.performance.PerformanceAgingPointDTO;
 import com.dashboard.api.dto.performance.PerformanceDrilldownPointDTO;
 import com.dashboard.api.dto.performance.PerformanceEntregaRowDTO;
@@ -23,6 +24,18 @@ public class PerformanceDashboardService {
 
     public PerformanceDashboardService(PerformanceDashboardSqlRepository repository) {
         this.repository = repository;
+    }
+
+    public List<DimensaoOpcaoDTO> listarResponsaveis(FiltroConsultaDTO filtro) {
+        return repository.listarResponsaveis(filtro);
+    }
+
+    public List<String> listarRegioesDestino(FiltroConsultaDTO filtro) {
+        return repository.listarRegioesDestino(filtro);
+    }
+
+    public List<String> listarCidadesDestino(FiltroConsultaDTO filtro) {
+        return repository.listarCidadesDestino(filtro);
     }
 
     public PerformanceOverviewDTO buscarOverview(FiltroConsultaDTO filtro) {

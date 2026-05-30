@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
 import { ChevronRight, ChevronUp } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -13,7 +13,13 @@ import MensagemErro from '../components/ui/MensagemErro';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { exportarPerformanceCsv } from '../api/endpoints/performanceServico';
-import { useFiliais, usePagadores } from '../hooks/queries/useDimensoes';
+import {
+  useFiliais,
+  usePagadores,
+  usePerformanceCidadesDestino,
+  usePerformanceRegioesDestino,
+  usePerformanceResponsaveis,
+} from '../hooks/queries/useDimensoes';
 import {
   usePerformanceAging,
   usePerformanceDrilldown,
@@ -109,17 +115,6 @@ function monthName(value: string): string {
     return formatMonthLabel(value);
   }
   return new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(date);
-}
-
-function splitFiltroTexto(value: string): string[] {
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function joinFiltroTexto(values?: string[]): string {
-  return values?.join(', ') ?? '';
 }
 
 function normalizeDrillNivel(value: string | null): PerformanceDrilldownNivel {
@@ -366,52 +361,6 @@ function buildAgingOption(dados: PerformanceAgingPoint[]): EChartsOption {
   };
 }
 
-function TextListFilter({
-  label,
-  values,
-  onChange,
-}: {
-  label: string;
-  values?: string[];
-  onChange: (values: string[]) => void;
-}) {
-  const [rawValue, setRawValue] = useState(joinFiltroTexto(values));
-  const valuesKey = joinFiltroTexto(values);
-
-  useEffect(() => {
-    setRawValue(valuesKey);
-  }, [valuesKey]);
-
-  function commitValue() {
-    onChange(splitFiltroTexto(rawValue));
-  }
-
-  return (
-    <label className="flex w-full min-w-[180px] flex-col gap-1 self-start md:w-56">
-      <span className="text-xs font-medium leading-4" style={{ color: 'var(--color-text-muted)' }}>
-        {label}
-      </span>
-      <input
-        type="text"
-        value={rawValue}
-        onChange={(event) => setRawValue(event.target.value)}
-        onBlur={commitValue}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            commitValue();
-          }
-        }}
-        className="h-10 rounded-lg border px-3 text-sm shadow-sm outline-none transition-all duration-150 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
-        style={{
-          backgroundColor: 'var(--color-card)',
-          borderColor: 'var(--color-border)',
-          color: 'var(--color-text)',
-        }}
-      />
-    </label>
-  );
-}
-
 function PerformanceKpiSkeleton() {
   return (
     <div
@@ -590,6 +539,21 @@ export default function PerformancePage() {
     filtros.status,
   ]);
 
+  const filtroSemResponsaveis = useMemo<PerformanceFiltro>(() => ({
+    ...filtro,
+    responsaveis: undefined,
+  }), [filtro]);
+
+  const filtroSemRegioesDestino = useMemo<PerformanceFiltro>(() => ({
+    ...filtro,
+    regioesDestino: undefined,
+  }), [filtro]);
+
+  const filtroSemCidadesDestino = useMemo<PerformanceFiltro>(() => ({
+    ...filtro,
+    cidadesDestino: undefined,
+  }), [filtro]);
+
   const historicoFiltro: PerformanceFiltro = useMemo(() => ({
     dataInicio: primeiroDiaMesesAtrasLocal(historicoPeriodoMeses - 1),
     dataFim: dataHojeLocal(),
@@ -619,6 +583,9 @@ export default function PerformancePage() {
   ];
 
   const overview = usePerformanceOverview(filtro);
+  const responsaveis = usePerformanceResponsaveis(filtroSemResponsaveis);
+  const regioesDestino = usePerformanceRegioesDestino(filtroSemRegioesDestino);
+  const cidadesDestino = usePerformanceCidadesDestino(filtroSemCidadesDestino);
   const serieTemporal = usePerformanceSerieTemporal(filtro, nivelTemporal, anoTemporal, mesTemporal);
   const status = usePerformanceStatus(filtro);
   const historico = usePerformanceHistorico(historicoFiltro, historicoPeriodoMeses);
@@ -738,7 +705,6 @@ export default function PerformancePage() {
     <div className="w-full">
       <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker
-          label="Data de Previsão de Entrega"
           dataInicio={dataInicio}
           dataFim={dataFim}
           onDataInicioChange={setDataInicio}
@@ -766,20 +732,26 @@ export default function PerformancePage() {
           onSearchChange={setPagadorBusca}
           isLoading={pagadores.isFetching}
         />
-        <TextListFilter
+        <AsyncMultiSelect
           label="Responsáveis"
-          values={filtros.responsaveis}
+          opcoes={responsaveis.data ?? []}
+          selecionados={filtros.responsaveis ?? []}
           onChange={(valores) => setFiltro('responsaveis', valores)}
+          isLoading={responsaveis.isLoading}
         />
-        <TextListFilter
+        <AsyncMultiSelect
           label="Regiões"
-          values={filtros.regioesDestino}
+          opcoes={regioesDestino.data ?? []}
+          selecionados={filtros.regioesDestino ?? []}
           onChange={(valores) => setFiltro('regioesDestino', valores)}
+          isLoading={regioesDestino.isLoading}
         />
-        <TextListFilter
+        <AsyncMultiSelect
           label="Cidades"
-          values={filtros.cidadesDestino}
+          opcoes={cidadesDestino.data ?? []}
+          selecionados={filtros.cidadesDestino ?? []}
           onChange={(valores) => setFiltro('cidadesDestino', valores)}
+          isLoading={cidadesDestino.isLoading}
         />
       </FilterBar>
 

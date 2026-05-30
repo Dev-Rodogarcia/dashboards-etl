@@ -8,11 +8,18 @@ import {
   buscarVeiculos,
   buscarPlanoContas,
   buscarUsuarios,
+  buscarCotacoesUsuarios,
   buscarFaturamentoStatus,
+  buscarFaturamentoResponsaveis,
   buscarFretesStatus,
+  buscarPerformanceCidadesDestino,
+  buscarPerformanceRegioesDestino,
+  buscarPerformanceResponsaveis,
 } from '../../api/endpoints/dimensoesServico';
 import type { FaturamentoFiltro } from '../../types/faturamento';
+import type { CotacoesFiltro } from '../../types/cotacoes';
 import type { FretesFiltro } from '../../types/fretes';
+import type { PerformanceFiltro } from '../../types/performance';
 
 const STALE_TIME = 30 * 60 * 1000; // 30 minutos
 
@@ -104,6 +111,51 @@ export function useFaturamentoStatus(filtro: FaturamentoFiltro) {
   return useQuery({
     queryKey: ['dim', 'faturamento', 'status', filtro],
     queryFn: () => buscarFaturamentoStatus(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function usePerformanceResponsaveis(filtro: PerformanceFiltro) {
+  return useQuery({
+    queryKey: ['dim', 'performance', 'responsaveis', filtro],
+    queryFn: () => buscarPerformanceResponsaveis(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function usePerformanceRegioesDestino(filtro: PerformanceFiltro) {
+  return useQuery({
+    queryKey: ['dim', 'performance', 'regioes-destino', filtro],
+    queryFn: () => buscarPerformanceRegioesDestino(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function usePerformanceCidadesDestino(filtro: PerformanceFiltro) {
+  return useQuery({
+    queryKey: ['dim', 'performance', 'cidades-destino', filtro],
+    queryFn: () => buscarPerformanceCidadesDestino(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturamentoResponsaveis(filtro: FaturamentoFiltro) {
+  return useQuery({
+    queryKey: ['dim', 'faturamento', 'responsaveis', filtro],
+    queryFn: () => buscarFaturamentoResponsaveis(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useCotacoesUsuarios(filtro: CotacoesFiltro) {
+  return useQuery({
+    queryKey: ['dim', 'cotacoes', 'usuarios', filtro],
+    queryFn: () => buscarCotacoesUsuarios(filtro),
     staleTime: STALE_TIME,
     retry: 1,
   });

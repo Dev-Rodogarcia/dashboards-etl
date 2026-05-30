@@ -1,12 +1,14 @@
 package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.dimensoes.DimensaoOpcaoDTO;
 import com.dashboard.api.dto.dimensoes.PagadorDimDTO;
 import com.dashboard.api.dto.dimensoes.PlanoContasDimDTO;
 import com.dashboard.api.dto.dimensoes.UsuarioDimDTO;
 import com.dashboard.api.dto.dimensoes.VeiculoDimDTO;
 import com.dashboard.api.service.DashboardExportService;
 import com.dashboard.api.service.DimensoesService;
+import com.dashboard.api.service.PerformanceDashboardService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,10 +29,16 @@ public class DimensoesController {
 
     private final DimensoesService dimensoesService;
     private final DashboardExportService dashboardExportService;
+    private final PerformanceDashboardService performanceDashboardService;
 
-    public DimensoesController(DimensoesService dimensoesService, DashboardExportService dashboardExportService) {
+    public DimensoesController(
+            DimensoesService dimensoesService,
+            DashboardExportService dashboardExportService,
+            PerformanceDashboardService performanceDashboardService
+    ) {
         this.dimensoesService = dimensoesService;
         this.dashboardExportService = dashboardExportService;
+        this.performanceDashboardService = performanceDashboardService;
     }
 
     @GetMapping("/filiais")
@@ -90,6 +98,63 @@ public class DimensoesController {
     public List<UsuarioDimDTO> usuarios() {
         log.info("GET /api/dimensoes/usuarios");
         return dimensoesService.listarUsuarios();
+    }
+
+    @GetMapping("/performance/responsaveis")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('performance')")
+    public List<DimensaoOpcaoDTO> performanceResponsaveis(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        log.info("GET /api/dimensoes/performance/responsaveis - periodo: {} a {}", dataInicio, dataFim);
+        return performanceDashboardService.listarResponsaveis(FiltroRequestMapper.from(dataInicio, dataFim, params));
+    }
+
+    @GetMapping("/performance/regioes-destino")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('performance')")
+    public List<String> performanceRegioesDestino(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        log.info("GET /api/dimensoes/performance/regioes-destino - periodo: {} a {}", dataInicio, dataFim);
+        return performanceDashboardService.listarRegioesDestino(FiltroRequestMapper.from(dataInicio, dataFim, params));
+    }
+
+    @GetMapping("/performance/cidades-destino")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('performance')")
+    public List<String> performanceCidadesDestino(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        log.info("GET /api/dimensoes/performance/cidades-destino - periodo: {} a {}", dataInicio, dataFim);
+        return performanceDashboardService.listarCidadesDestino(FiltroRequestMapper.from(dataInicio, dataFim, params));
+    }
+
+    @GetMapping("/faturamento/responsaveis")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('fretes')")
+    public List<DimensaoOpcaoDTO> faturamentoResponsaveis(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        log.info("GET /api/dimensoes/faturamento/responsaveis - periodo: {} a {}", dataInicio, dataFim);
+        FiltroConsultaDTO filtro = FiltroRequestMapper.from(dataInicio, dataFim, params);
+        return dashboardExportService.listarResponsaveisFretes(filtro);
+    }
+
+    @GetMapping("/cotacoes/usuarios")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('cotacoes')")
+    public List<DimensaoOpcaoDTO> cotacoesUsuarios(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        log.info("GET /api/dimensoes/cotacoes/usuarios - periodo: {} a {}", dataInicio, dataFim);
+        FiltroConsultaDTO filtro = FiltroRequestMapper.from(dataInicio, dataFim, params);
+        return dashboardExportService.listarUsuariosCotacoes(filtro);
     }
 
     @GetMapping("/fretes/status")

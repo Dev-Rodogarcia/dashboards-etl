@@ -98,6 +98,41 @@ class DashboardExportSqlBuilder {
         return new ExportSql(Objects.requireNonNull(sql, "sql"), parts.params());
     }
 
+    ExportSql buildDistinctOptions(
+            DashboardExportDefinition definition,
+            String valueExpression,
+            String labelExpression,
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            Set<String> filtrosIgnorados
+    ) {
+        SqlParts parts = buildBase(definition, filtro, escopo, filtrosIgnorados);
+        String sql = """
+                SELECT
+                    value,
+                    MIN(label) AS label
+                FROM (
+                    SELECT
+                        %s AS value,
+                        %s AS label
+                    FROM %s base
+                    WHERE %s
+                ) opcoes
+                WHERE value IS NOT NULL
+                  AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), value))) <> ''
+                  AND label IS NOT NULL
+                  AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), label))) <> ''
+                GROUP BY value
+                ORDER BY label
+                """.formatted(
+                valueExpression,
+                labelExpression,
+                parts.sourceSql(),
+                parts.where()
+        );
+        return new ExportSql(Objects.requireNonNull(sql, "sql"), parts.params());
+    }
+
     ExportSql buildFilteredSource(
             DashboardExportDefinition definition,
             FiltroConsultaDTO filtro,
@@ -323,12 +358,20 @@ class DashboardExportSqlBuilder {
                 where.add("(" + String.join(" OR ", entry.getValue().stream()
                         .map(coluna -> coluna + " IN (:" + paramName + ")")
                         .toList()) + ")");
+            } else if (usaComparacaoDiretaPorChave(definition, chave)) {
+                where.add("(" + String.join(" OR ", entry.getValue().stream()
+                        .map(coluna -> coluna + " IN (:" + paramName + ")")
+                        .toList()) + ")");
             } else {
                 where.add("(" + String.join(" OR ", entry.getValue().stream()
                         .map(coluna -> normalizarSql(coluna) + " IN (:" + paramName + ")")
                         .toList()) + ")");
             }
         }
+    }
+
+    private boolean usaComparacaoDiretaPorChave(DashboardExportDefinition definition, String chaveFiltro) {
+        return definition == DashboardExportDefinition.COTACOES && "usuarios".equals(chaveFiltro);
     }
 
     private void adicionarFiltroFilialFlexivelTracking(

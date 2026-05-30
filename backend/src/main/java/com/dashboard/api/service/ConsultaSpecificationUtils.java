@@ -58,6 +58,11 @@ final class ConsultaSpecificationUtils {
     }
 
     @NonNull
+    static <T> Specification<T> filtroChaveNormalizada(FiltroConsultaDTO filtro, String chaveFiltro, String campo) {
+        return valoresExatos(campo, normalizar(filtro.valores(chaveFiltro)));
+    }
+
+    @NonNull
     static <T> Specification<T> filtroTextoQualquerCampo(FiltroConsultaDTO filtro, String chaveFiltro, String... campos) {
         return valoresIgnoreCaseQualquerCampo(filtro.valores(chaveFiltro), campos);
     }
@@ -99,6 +104,16 @@ final class ConsultaSpecificationUtils {
         }
 
         return (root, query, cb) -> cb.lower(root.get(campo)).in(normalizados);
+    }
+
+    @NonNull
+    static <T> Specification<T> valoresExatos(String campo, Collection<String> valores) {
+        List<String> normalizados = normalizar(valores);
+        if (normalizados.isEmpty()) {
+            return sempreVerdadeiro();
+        }
+
+        return (root, query, cb) -> root.get(campo).in(normalizados);
     }
 
     @NonNull

@@ -47,18 +47,17 @@ A responsabilidade do backend do Dashboard é autenticar, autorizar, aplicar esc
 
 ## 🧭 Escopo e Recursos do Portal
 
-### 🔒 10 Áreas Operacionais Protegidas
-O frontend implementa roteamento seguro e autorização granular por setor para dez painéis críticos:
-1. **Coletas**: Monitoramento de agendamentos, carregamento e performance de coletas.
+### 🔒 9 Áreas Operacionais Protegidas
+O frontend implementa roteamento seguro e autorização granular por setor para nove painéis críticos:
+1. **Coletas**: Monitoramento de agendamentos, carregamento, performance e ranking de coletores.
 2. **Manifestos**: Status de expedição, vinculação operacional e rotas ativas.
 3. **Fretes**: Análise financeira de fretes contratados e liquidações.
 4. **Tracking**: Rastreamento em tempo real de viagens, paradas e SLA de entrega.
-5. **Faturas**: Emissões, conciliação de faturas operacionais e status de pagamento.
-6. **Faturas por Cliente**: Visão detalhada de faturamento agrupado por tomador de serviço.
-7. **Contas a Pagar**: Lançamentos, provisões de saídas e fluxo de caixa operacional.
-8. **Cotações**: Taxa de conversão de propostas comerciais e volumetria.
-9. **Executivo**: Dashboard consolidado de KPIs estratégicos para a diretoria.
-10. **ETL Saúde**: Monitoramento de integridade das sincronizações diárias (GraphQL e Data Export), contagem de órfãos e falhas de processo.
+5. **Performance**: Tabela analítica e cálculo de percentual de reprovação e KPIs de performance operacional.
+6. **Contas a Pagar**: Lançamentos, provisões de saídas e fluxo de caixa operacional.
+7. **Cotações**: Taxa de conversão de propostas comerciais e volumetria.
+8. **Executivo**: Dashboard consolidado de KPIs estratégicos para a diretoria.
+9. **ETL Saúde**: Monitoramento de integridade das sincronizações diárias (GraphQL e Data Export), contagem de órfãos e falhas de processo.
 
 ### 🛠️ Área Administrativa & ACL
 * **Gestão de Setores**: Criação de agrupamentos operacionais com permissões específicas.

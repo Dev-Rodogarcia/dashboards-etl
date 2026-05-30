@@ -17,7 +17,7 @@ describe('DataTable', () => {
       }),
     );
 
-    expect(html).toContain('2 de 4944 registros carregados');
+    expect(html).toContain('2 de 4.944 registros carregados');
   });
 
   it('usa total real no rodape quando a paginacao e remota', () => {
@@ -36,8 +36,8 @@ describe('DataTable', () => {
       }),
     );
 
-    expect(html).toContain('4944 registros encontrados');
-    expect(html).toContain('Mostrando 11 a 12 de 4944');
+    expect(html).toContain('4.944 registros encontrados');
+    expect(html).toContain('Mostrando 11 a 12 de 4.944');
   });
 
   it('mostra atalhos numericos de pagina com reticencias', () => {

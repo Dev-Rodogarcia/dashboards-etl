@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -22,6 +22,16 @@ function resolverBuildId(command: string): string {
   return 'dev'
 }
 
+function dashboardBuildIdHtmlPlugin(buildId: string): Plugin {
+  return {
+    name: 'dashboard-build-id-html',
+    enforce: 'pre',
+    transformIndexHtml(html) {
+      return html.replace(/%VITE_DASHBOARD_BUILD_ID%/g, buildId)
+    },
+  }
+}
+
 export default defineConfig(({ command, mode }) => {
   const isNpmDev = process.env.npm_lifecycle_event === 'dev'
 
@@ -30,13 +40,14 @@ export default defineConfig(({ command, mode }) => {
   }
 
   const buildId = resolverBuildId(command)
+  process.env.VITE_DASHBOARD_BUILD_ID = buildId
 
   return {
     envDir: '..',
-    plugins: [react(), tailwindcss()],
+    plugins: [dashboardBuildIdHtmlPlugin(buildId), react(), tailwindcss()],
     build: {
       sourcemap: false,
-      rolldownOptions: {
+      rollupOptions: {
         output: {
           entryFileNames: `assets/[name]-${buildId}-[hash].js`,
           chunkFileNames: `assets/[name]-${buildId}-[hash].js`,

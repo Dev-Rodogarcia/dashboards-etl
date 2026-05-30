@@ -18,7 +18,7 @@ import { exportarFaturamentoCsv } from '../api/endpoints/faturamentoServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
-import { useClientes, useFiliais, useFaturamentoStatus } from '../hooks/queries/useDimensoes';
+import { useClientes, useFiliais, useFaturamentoResponsaveis, useFaturamentoStatus } from '../hooks/queries/useDimensoes';
 import {
   useFaturamentoMetas,
   useFaturamentoMetasConfiguracoes,
@@ -848,27 +848,27 @@ export default function FaturamentoPage() {
   const filiais = useFiliais();
   const clientes = useClientes();
 
-  const filtro: FaturamentoFiltro = {
+  const filtro: FaturamentoFiltro = useMemo(() => ({
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
     status: filtros.status,
     pagadores: filtros.pagadores,
-  };
+    responsaveis: filtros.responsaveis,
+  }), [dataFim, dataInicio, filtros.filiais, filtros.pagadores, filtros.responsaveis, filtros.status]);
   const filtroPeriodoAnterior = useMemo(
-    () => criarFiltroPeriodoAnterior({
-      dataInicio,
-      dataFim,
-      filiais: filtros.filiais,
-      status: filtros.status,
-      pagadores: filtros.pagadores,
-    }),
-    [dataFim, dataInicio, filtros.filiais, filtros.pagadores, filtros.status],
+    () => criarFiltroPeriodoAnterior(filtro),
+    [filtro],
   );
+  const filtroSemResponsaveis = useMemo<FaturamentoFiltro>(() => ({
+    ...filtro,
+    responsaveis: undefined,
+  }), [filtro]);
 
   const activeFilters: ActiveFilter[] = [
     { label: 'Filiais',   count: filtros.filiais?.length   ?? 0, onRemove: () => setFiltro('filiais', []) },
     { label: 'Pagadores', count: filtros.pagadores?.length ?? 0, onRemove: () => setFiltro('pagadores', []) },
+    { label: 'Responsáveis', count: filtros.responsaveis?.length ?? 0, onRemove: () => setFiltro('responsaveis', []) },
     { label: 'Status',    count: filtros.status?.length    ?? 0, onRemove: () => setFiltro('status', []) },
   ];
 
@@ -885,8 +885,15 @@ export default function FaturamentoPage() {
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
   const tabela = useFaturamentoTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
-  const filtroParaStatus: FaturamentoFiltro = { dataInicio, dataFim, filiais: filtros.filiais, pagadores: filtros.pagadores };
+  const filtroParaStatus: FaturamentoFiltro = {
+    dataInicio,
+    dataFim,
+    filiais: filtros.filiais,
+    pagadores: filtros.pagadores,
+    responsaveis: filtros.responsaveis,
+  };
   const statusFaturamento = useFaturamentoStatus(filtroParaStatus);
+  const responsaveis = useFaturamentoResponsaveis(filtroSemResponsaveis);
 
   usePageHeader({
     title: 'Faturamento',
@@ -1084,8 +1091,6 @@ export default function FaturamentoPage() {
         ) : null}
       >
         <DateRangePicker
-          label="Data de Faturamento (Emissão/Ocorrência)"
-          helpText={FATURAMENTO_DATE_HELP}
           dataInicio={dataInicio}
           dataFim={dataFim}
           onDataInicioChange={setDataInicio}
@@ -1105,6 +1110,13 @@ export default function FaturamentoPage() {
           selecionados={filtros.pagadores ?? []}
           onChange={(valores) => setFiltro('pagadores', valores)}
           isLoading={clientes.isLoading}
+        />
+        <AsyncMultiSelect
+          label="Responsáveis"
+          opcoes={responsaveis.data ?? []}
+          selecionados={filtros.responsaveis ?? []}
+          onChange={(valores) => setFiltro('responsaveis', valores)}
+          isLoading={responsaveis.isLoading}
         />
         <AsyncMultiSelect
           label="Status"

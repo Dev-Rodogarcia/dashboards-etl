@@ -197,7 +197,7 @@ export default function FilterBar({
             <div
               role="group"
               aria-label="Opções de filtro"
-              className="flex flex-wrap items-start gap-4"
+              className="flex flex-wrap items-end gap-4"
             >
               {children}
             </div>

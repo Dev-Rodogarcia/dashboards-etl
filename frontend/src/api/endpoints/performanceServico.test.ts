@@ -48,7 +48,7 @@ describe('performanceServico', () => {
     await buscarPerformanceTabelaPaginada({
       dataInicio: '2026-05-01',
       dataFim: '2026-05-25',
-      responsaveis: ['SPO'],
+      responsaveis: ['spo'],
       pagadores: ['Cliente B'],
     }, 3, 50, {
       tabelaBusca: 'atraso',
@@ -66,7 +66,7 @@ describe('performanceServico', () => {
     const params = clienteMock.get.mock.calls[0][1].params as URLSearchParams;
     expect(params.get('pagina')).toBe('3');
     expect(params.get('tamanhoPagina')).toBe('50');
-    expect(params.getAll('f.responsaveis')).toEqual(['SPO']);
+    expect(params.getAll('f.responsaveis')).toEqual(['spo']);
     expect(params.getAll('f.pagadores')).toEqual(['Cliente B']);
     expect(params.get('f.tabelaBusca')).toBe('atraso');
     expect(params.getAll('f.tabelaStatus')).toEqual(['Finalizada']);

@@ -126,6 +126,21 @@ class DashboardExportSqlBuilderTest {
     }
 
     @Test
+    void buildSelectCotacoesDeveFiltrarUsuarioPorChaveSargavel() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.COTACOES,
+                filtro(Map.of("usuarios", List.of("Maria Silva"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("[Usuario Key] IN (:filtro_usuarios)");
+        assertThat(query.sql()).doesNotContain("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Usuario Key]))))");
+        assertThat(query.sql()).doesNotContain("LIKE :filtro_usuarios");
+        assertThat(query.params().getValues()).containsEntry("filtro_usuarios", List.of("maria silva"));
+    }
+
+    @Test
     void buildSelectDeveAplicarCodigoTabelaComIgualdadeNumerica() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
                 DashboardExportDefinition.FRETES,

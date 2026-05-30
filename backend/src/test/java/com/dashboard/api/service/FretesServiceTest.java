@@ -100,7 +100,7 @@ class FretesServiceTest {
     void buscarSerieTemporalUsaAgregacaoSqlApenasDeFaturamentoElegivel() {
         when(repository.buscarSerieTemporalAgregada(
                 any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
-                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
         )).thenReturn(List.of(
                 trend("2026-04-02", "100.00", "100.00", 1),
                 trend("2026-04-03", "50.00", "50.00", 1)
@@ -122,14 +122,14 @@ class FretesServiceTest {
     private void stubOverview(VisaoFretesRepository.FretesOverviewProjection overview) {
         when(repository.buscarOverviewAgregado(
                 any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
-                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
         )).thenReturn(overview);
     }
 
     private void stubRealizados(List<VisaoFretesRepository.FretesRealizadoFilialProjection> realizados) {
         when(repository.buscarRealizadoFaturamentoPorFilial(
                 any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
-                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
         )).thenReturn(realizados);
     }
 

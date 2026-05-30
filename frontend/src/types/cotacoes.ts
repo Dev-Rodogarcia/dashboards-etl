@@ -96,4 +96,5 @@ export interface CotacoesFiltro {
   ufDestino?: string[];
   statusConversao?: string[];
   tabelas?: string[];
+  usuarios?: string[];
 }

@@ -1,7 +1,9 @@
 import clienteAxios from '../clienteAxios';
 import { montarQueryParams } from './queryParams';
 import type { FaturamentoFiltro } from '../../types/faturamento';
+import type { CotacoesFiltro } from '../../types/cotacoes';
 import type { FretesFiltro } from '../../types/fretes';
+import type { PerformanceFiltro } from '../../types/performance';
 
 export interface VeiculoDim {
   placa: string;
@@ -22,6 +24,12 @@ export interface UsuarioDim {
 export interface PagadorDim {
   nome: string;
   documento: string | null;
+}
+
+export interface DimensaoOpcao {
+  value: string;
+  label: string;
+  description?: string | null;
 }
 
 export async function buscarFiliais(): Promise<string[]> {
@@ -80,4 +88,39 @@ export async function buscarFretesStatus(filtro: FretesFiltro): Promise<string[]
 
 export async function buscarFaturamentoStatus(filtro: FaturamentoFiltro): Promise<string[]> {
   return buscarFretesStatus(filtro);
+}
+
+export async function buscarPerformanceResponsaveis(filtro: PerformanceFiltro): Promise<DimensaoOpcao[]> {
+  const { data } = await clienteAxios.get<DimensaoOpcao[]>('/api/dimensoes/performance/responsaveis', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarPerformanceRegioesDestino(filtro: PerformanceFiltro): Promise<string[]> {
+  const { data } = await clienteAxios.get<string[]>('/api/dimensoes/performance/regioes-destino', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarPerformanceCidadesDestino(filtro: PerformanceFiltro): Promise<string[]> {
+  const { data } = await clienteAxios.get<string[]>('/api/dimensoes/performance/cidades-destino', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarFaturamentoResponsaveis(filtro: FaturamentoFiltro): Promise<DimensaoOpcao[]> {
+  const { data } = await clienteAxios.get<DimensaoOpcao[]>('/api/dimensoes/faturamento/responsaveis', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarCotacoesUsuarios(filtro: CotacoesFiltro): Promise<DimensaoOpcao[]> {
+  const { data } = await clienteAxios.get<DimensaoOpcao[]>('/api/dimensoes/cotacoes/usuarios', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
 }

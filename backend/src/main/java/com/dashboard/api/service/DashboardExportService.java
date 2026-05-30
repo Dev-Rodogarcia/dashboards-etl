@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.dimensoes.DimensaoOpcaoDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -78,6 +79,44 @@ public class DashboardExportService {
         String sql = Objects.requireNonNull(query.sql(), "sql");
         MapSqlParameterSource params = Objects.requireNonNull(query.params(), "params");
         return jdbcTemplate.queryForList(sql, params, String.class);
+    }
+
+    public List<DimensaoOpcaoDTO> listarResponsaveisFretes(FiltroConsultaDTO filtro) {
+        validadorPeriodoService.validar(filtro.dataInicio(), filtro.dataFim());
+        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        DashboardExportSqlBuilder.ExportSql query = sqlBuilder.buildDistinctOptions(
+                DashboardExportDefinition.FRETES,
+                "[Responsável Região Destino Key]",
+                "COALESCE([Responsável pela Região de Destino], [Filial Emissora], [Filial], N'Responsável não informado')",
+                filtro,
+                escopo,
+                Set.of("responsaveis")
+        );
+        String sql = Objects.requireNonNull(query.sql(), "sql");
+        MapSqlParameterSource params = Objects.requireNonNull(query.params(), "params");
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new DimensaoOpcaoDTO(
+                rs.getString("value"),
+                rs.getString("label")
+        ));
+    }
+
+    public List<DimensaoOpcaoDTO> listarUsuariosCotacoes(FiltroConsultaDTO filtro) {
+        validadorPeriodoService.validar(filtro.dataInicio(), filtro.dataFim());
+        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        DashboardExportSqlBuilder.ExportSql query = sqlBuilder.buildDistinctOptions(
+                DashboardExportDefinition.COTACOES,
+                "[Usuario Key]",
+                "COALESCE([Usuário], [Usuario Key])",
+                filtro,
+                escopo,
+                Set.of("usuarios")
+        );
+        String sql = Objects.requireNonNull(query.sql(), "sql");
+        MapSqlParameterSource params = Objects.requireNonNull(query.params(), "params");
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new DimensaoOpcaoDTO(
+                rs.getString("value"),
+                rs.getString("label")
+        ));
     }
 
     public ResponseEntity<StreamingResponseBody> exportarBeans(

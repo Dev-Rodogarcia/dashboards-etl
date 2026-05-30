@@ -28,6 +28,9 @@ public class VisaoCotacoesEntity {
     @Column(name = "[Solicitante]")
     private String solicitante;
 
+    @Column(name = "[Usuario Key]")
+    private String usuarioKey;
+
     @Column(name = "[Cliente Pagador]")
     private String clientePagador;
 
@@ -111,6 +114,10 @@ public class VisaoCotacoesEntity {
 
     public String getSolicitante() {
         return solicitante;
+    }
+
+    public String getUsuarioKey() {
+        return usuarioKey;
     }
 
     public String getClientePagador() {

@@ -2,6 +2,7 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.PaginaDTO;
+import com.dashboard.api.dto.dimensoes.DimensaoOpcaoDTO;
 import com.dashboard.api.dto.performance.PerformanceAgingPointDTO;
 import com.dashboard.api.dto.performance.PerformanceDrilldownPointDTO;
 import com.dashboard.api.dto.performance.PerformanceEntregaRowDTO;
@@ -55,6 +56,51 @@ public class PerformanceDashboardSqlRepository {
         this.jdbcTemplate = jdbcTemplate;
         this.validadorPeriodo = validadorPeriodo;
         this.escopoFilialService = escopoFilialService;
+    }
+
+    public List<DimensaoOpcaoDTO> listarResponsaveis(FiltroConsultaDTO filtro) {
+        QueryContext ctx = criarContexto(filtro);
+        String sql = ctx.baseCte() + """
+                SELECT
+                    responsavel_key AS value,
+                    MIN(COALESCE(responsavel_regiao_destino, filial_emissora, N'Responsável não informado')) AS label
+                FROM entregas
+                WHERE 1 = 1
+                """ + ctx.where() + """
+                  AND responsavel_key IS NOT NULL
+                  AND LTRIM(RTRIM(CONVERT(NVARCHAR(255), responsavel_key))) <> ''
+                GROUP BY responsavel_key
+                ORDER BY label
+                OFFSET 0 ROWS FETCH NEXT 200 ROWS ONLY
+                """;
+
+        return jdbcTemplate.query(sql, ctx.params(), (rs, rowNum) -> new DimensaoOpcaoDTO(
+                rs.getString("value"),
+                rs.getString("label")
+        ));
+    }
+
+    public List<String> listarRegioesDestino(FiltroConsultaDTO filtro) {
+        return listarValoresDistintos(filtro, "regiao_destino");
+    }
+
+    public List<String> listarCidadesDestino(FiltroConsultaDTO filtro) {
+        return listarValoresDistintos(filtro, "cidade_destino");
+    }
+
+    private List<String> listarValoresDistintos(FiltroConsultaDTO filtro, String campo) {
+        QueryContext ctx = criarContexto(filtro);
+        String sql = ctx.baseCte() + """
+                SELECT DISTINCT TOP (200) %s AS valor
+                FROM entregas
+                WHERE 1 = 1
+                """.formatted(campo) + ctx.where() + """
+                  AND %s IS NOT NULL
+                  AND LTRIM(RTRIM(CONVERT(NVARCHAR(255), %s))) <> ''
+                ORDER BY valor
+                """.formatted(campo, campo);
+
+        return jdbcTemplate.queryForList(sql, ctx.params(), String.class);
     }
 
     public PerformanceOverviewDTO buscarOverview(FiltroConsultaDTO filtro) {
@@ -403,7 +449,7 @@ public class PerformanceDashboardSqlRepository {
         aplicarEscopo(ctx);
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "status", "status_norm", filtro.valores("status"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "filiais", "filial_emissora", filtro.valores("filiais"));
-        adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "responsaveis", "responsavel", filtro.valores("responsaveis"));
+        adicionarFiltroChave(ctx.whereBuilder(), ctx.params(), "responsaveis", "responsavel_key", filtro.valores("responsaveis"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "regioesDestino", "regiao_destino", filtro.valores("regioesDestino"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "cidadesDestino", "cidade_destino", filtro.valores("cidadesDestino"));
         adicionarFiltrosTabela(ctx, filtro);
@@ -767,7 +813,22 @@ public class PerformanceDashboardSqlRepository {
             return;
         }
         ctx.params().addValue("escopoFiliais", filiais);
-        ctx.whereBuilder().append("\n AND LOWER(responsavel) IN (:escopoFiliais)");
+        ctx.whereBuilder().append("\n AND responsavel_key IN (:escopoFiliais)");
+    }
+
+    private static void adicionarFiltroChave(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String chave,
+            String campo,
+            Collection<String> valores
+    ) {
+        List<String> normalizados = normalizar(valores);
+        if (normalizados.isEmpty()) {
+            return;
+        }
+        params.addValue(chave, normalizados);
+        where.append("\n AND ").append(campo).append(" IN (:").append(chave).append(")");
     }
 
     private static void adicionarFiltroTexto(
@@ -888,7 +949,14 @@ public class PerformanceDashboardSqlRepository {
 
     private static String baseCte(PerformanceViewColumns colunas) {
         String responsavelRegiao = textoNullableSql(colunas, "Responsável pela Região de Destino");
+        String responsavelKeyPublicado = textoNullableSql(colunas, "Responsável Região Destino Key");
         String filialEmissora = textoNullableSql(colunas, "Filial Emissora", "Filial");
+        String responsavelKey = """
+                COALESCE(
+                    %s,
+                    LOWER(COALESCE(%s, %s, N'SEM_RESPONSAVEL'))
+                )
+                """.formatted(responsavelKeyPublicado, responsavelRegiao, filialEmissora);
         String regiaoDestino = textoComFallbackSql(colunas, "SEM_REGIAO", "Região Destino", "UF Destino");
         String cidadeDestino = textoComFallbackSql(colunas, "SEM_CIDADE", "Cidade Destino", "Destino");
         exigirColuna(colunas, "Comprovante Anexado");
@@ -910,6 +978,7 @@ public class PerformanceDashboardSqlRepository {
                         COALESCE(%s,
                                  %s,
                                  N'SEM_RESPONSAVEL') AS responsavel,
+                        %s AS responsavel_key,
                         %s AS regiao_destino,
                         %s AS cidade_destino,
                         TRY_CONVERT(DECIMAL(18, 3), [Kg Taxado]) AS peso_taxado,
@@ -944,6 +1013,7 @@ public class PerformanceDashboardSqlRepository {
                         responsavel_regiao_destino,
                         filial_emissora,
                         responsavel,
+                        responsavel_key,
                         regiao_destino,
                         cidade_destino,
                         COALESCE(peso_taxado, 0) AS peso_taxado,
@@ -963,6 +1033,7 @@ public class PerformanceDashboardSqlRepository {
                 filialEmissora,
                 responsavelRegiao,
                 filialEmissora,
+                responsavelKey,
                 regiaoDestino,
                 cidadeDestino,
                 comprovanteAnexado

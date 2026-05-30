@@ -17,7 +17,7 @@ import { exportarCotacoesCsv } from '../api/endpoints/cotacoesServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
-import { useClientes, useFiliais } from '../hooks/queries/useDimensoes';
+import { useClientes, useCotacoesUsuarios, useFiliais } from '../hooks/queries/useDimensoes';
 import { useCotacoesGraficos, useCotacoesOverview, useCotacoesSerie, useCotacoesTabelaPaginada } from '../hooks/queries/useCotacoes';
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
@@ -965,7 +965,8 @@ export default function CotacoesPage() {
     filiais: filtros.filiais,
     clientes: filtros.clientes,
     statusConversao: filtros.statusConversao,
-  }), [dataFim, dataInicio, filtros.clientes, filtros.filiais, filtros.statusConversao]);
+    usuarios: filtros.usuarios,
+  }), [dataFim, dataInicio, filtros.clientes, filtros.filiais, filtros.statusConversao, filtros.usuarios]);
 
   const conversionFiltro: CotacoesFiltro = useMemo(() => ({
     dataInicio: primeiroDiaMesesAtrasLocal(conversionPeriodoMeses - 1),
@@ -973,12 +974,16 @@ export default function CotacoesPage() {
     filiais: filtros.filiais,
     clientes: filtros.clientes,
     statusConversao: filtros.statusConversao,
-  }), [conversionPeriodoMeses, filtros.clientes, filtros.filiais, filtros.statusConversao]);
+    usuarios: filtros.usuarios,
+  }), [conversionPeriodoMeses, filtros.clientes, filtros.filiais, filtros.statusConversao, filtros.usuarios]);
+
+  const usuariosCotacoes = useCotacoesUsuarios(filtro);
 
   const activeFilters: ActiveFilter[] = [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
     { label: 'Clientes', count: filtros.clientes?.length ?? 0, onRemove: () => setFiltro('clientes', []) },
     { label: 'Status', count: filtros.statusConversao?.length ?? 0, onRemove: () => setFiltro('statusConversao', []) },
+    { label: 'Usuário', count: filtros.usuarios?.length ?? 0, onRemove: () => setFiltro('usuarios', []) },
   ];
 
   const overview = useCotacoesOverview(filtro);
@@ -1056,6 +1061,7 @@ export default function CotacoesPage() {
         <AsyncMultiSelect label="Filiais" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />
         <AsyncMultiSelect label="Clientes" opcoes={clientes.data ?? []} selecionados={filtros.clientes ?? []} onChange={(valores) => setFiltro('clientes', valores)} isLoading={clientes.isLoading} />
         <AsyncMultiSelect label="Status" opcoes={['Convertida', 'Reprovada', 'Pendente']} selecionados={filtros.statusConversao ?? []} onChange={(valores) => setFiltro('statusConversao', valores)} />
+        <AsyncMultiSelect label="Usuário" opcoes={usuariosCotacoes.data ?? []} selecionados={filtros.usuarios ?? []} onChange={(valores) => setFiltro('usuarios', valores)} isLoading={usuariosCotacoes.isLoading} />
       </FilterBar>
 
       {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de cotações.')} tipo={getTipoErro(overview.error)} />}

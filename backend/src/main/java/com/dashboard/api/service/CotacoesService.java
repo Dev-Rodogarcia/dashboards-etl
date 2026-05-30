@@ -511,7 +511,8 @@ public class CotacoesService {
                 ConsultaSpecificationUtils.filtroTexto(filtro, "ufOrigem", "ufOrigem"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "ufDestino", "ufDestino"),
                 ConsultaSpecificationUtils.filtroTexto(filtro, "statusConversao", "statusConversao"),
-                ConsultaSpecificationUtils.filtroTexto(filtro, "tabelas", "tabela")
+                ConsultaSpecificationUtils.filtroTexto(filtro, "tabelas", "tabela"),
+                ConsultaSpecificationUtils.filtroChaveNormalizada(filtro, "usuarios", "usuarioKey")
         );
     }
 
