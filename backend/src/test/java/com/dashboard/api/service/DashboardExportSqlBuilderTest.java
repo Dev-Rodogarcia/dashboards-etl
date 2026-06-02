@@ -1,15 +1,16 @@
 package com.dashboard.api.service;
 
+import com.dashboard.api.builder.DashboardExportSqlBuilder;
+import com.dashboard.api.definition.DashboardExportDefinition;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
-import org.junit.jupiter.api.Test;
-
+import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
+import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DashboardExportSqlBuilderTest {
@@ -41,7 +42,7 @@ class DashboardExportSqlBuilderTest {
     }
 
     @Test
-    void buildCountDeveAplicarDatasLocalDateComBetween() {
+    void buildCountDeveAplicarDatasLocalDateComJanelaExclusiva() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildCount(
                 DashboardExportDefinition.CONTAS_A_PAGAR,
                 filtro(Map.of("pago", List.of("Sim"))),
@@ -49,9 +50,9 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("[Emissão] BETWEEN :dataInicio AND :dataFim");
+        assertThat(query.sql()).contains("[Emissão] >= :dataInicio AND [Emissão] < :dataFimExclusivo");
         assertThat(query.params().getValues()).containsEntry("dataInicio", LocalDate.of(2026, 3, 17));
-        assertThat(query.params().getValues()).containsEntry("dataFim", LocalDate.of(2026, 4, 16));
+        assertThat(query.params().getValues()).containsEntry("dataFimExclusivo", LocalDate.of(2026, 4, 17));
     }
 
     @Test
@@ -76,10 +77,10 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("[Solicitacao] BETWEEN :dataInicio AND :dataFim");
+        assertThat(query.sql()).contains("[Solicitacao] >= :dataInicio AND [Solicitacao] < :dataFimExclusivo");
         assertThat(query.sql()).doesNotContain("TRY_CONVERT(date, [Solicitacao])");
         assertThat(query.params().getValues()).containsEntry("dataInicio", LocalDate.of(2026, 3, 17));
-        assertThat(query.params().getValues()).containsEntry("dataFim", LocalDate.of(2026, 4, 16));
+        assertThat(query.params().getValues()).containsEntry("dataFimExclusivo", LocalDate.of(2026, 4, 17));
     }
 
     @Test
@@ -244,6 +245,25 @@ class DashboardExportSqlBuilderTest {
 
         assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Status])))) IN (:filtro_tabelaColuna_status)");
         assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_status", List.of("entregue", "pendente"));
+    }
+
+    @Test
+    void buildSelectDeveAplicarFiltroPorColunaDataComJanelaExclusiva() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.FRETES,
+                filtro(Map.of("tabelaColuna.previsaoEntrega", List.of("2026-05"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql())
+                .contains("[Previsão de Entrega] >= :filtro_tabelaColuna_previsaoEntrega_inicio")
+                .contains("[Previsão de Entrega] < :filtro_tabelaColuna_previsaoEntrega_fim")
+                .doesNotContain("CONVERT(VARCHAR(10)")
+                .doesNotContain("TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Previsão de Entrega]))");
+        assertThat(query.params().getValues())
+                .containsEntry("filtro_tabelaColuna_previsaoEntrega_inicio", LocalDate.of(2026, 5, 1))
+                .containsEntry("filtro_tabelaColuna_previsaoEntrega_fim", LocalDate.of(2026, 6, 1));
     }
 
     @Test

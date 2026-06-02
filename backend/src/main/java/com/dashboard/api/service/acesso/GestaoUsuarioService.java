@@ -1,33 +1,39 @@
 package com.dashboard.api.service.acesso;
 
+import com.dashboard.api.contract.acesso.UsuarioDependenciaCleanup;
 import com.dashboard.api.dto.acesso.PapelDTO;
 import com.dashboard.api.dto.acesso.UsuarioAcessoDTO;
 import com.dashboard.api.dto.acesso.UsuarioRequestDTO;
+import com.dashboard.api.model.acesso.AcaoAudit;
 import com.dashboard.api.model.acesso.PapelEntity;
 import com.dashboard.api.model.acesso.PermissaoEntity;
 import com.dashboard.api.model.acesso.SetorEntity;
 import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.model.acesso.UsuarioPapelVinculo;
 import com.dashboard.api.model.acesso.UsuarioPermissaoOverride;
+import com.dashboard.api.policy.EscopoFiliaisUsuarioPolicy;
+import com.dashboard.api.repository.acesso.EscopoFiliaisUsuarioStore;
 import com.dashboard.api.repository.acesso.PapelRepository;
 import com.dashboard.api.repository.acesso.PermissaoRepository;
+import com.dashboard.api.repository.acesso.SetorPermissaoTemplateRepository;
 import com.dashboard.api.repository.acesso.SetorRepository;
 import com.dashboard.api.repository.acesso.UsuarioPapelVinculoRepository;
 import com.dashboard.api.repository.acesso.UsuarioPermissaoOverrideRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
+import com.dashboard.api.security.acesso.UsuarioSupremo;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 
 @Service
 public class GestaoUsuarioService {
@@ -38,6 +44,7 @@ public class GestaoUsuarioService {
     private final UsuarioPapelVinculoRepository papelVinculoRepository;
     private final UsuarioPermissaoOverrideRepository overrideRepository;
     private final PermissaoRepository permissaoRepository;
+    private final SetorPermissaoTemplateRepository templateRepository;
     private final PasswordHashService passwordHashService;
     private final PermissaoResolverService permissaoResolver;
     private final AuditService auditService;
@@ -54,6 +61,7 @@ public class GestaoUsuarioService {
             UsuarioPapelVinculoRepository papelVinculoRepository,
             UsuarioPermissaoOverrideRepository overrideRepository,
             PermissaoRepository permissaoRepository,
+            SetorPermissaoTemplateRepository templateRepository,
             PasswordHashService passwordHashService,
             PermissaoResolverService permissaoResolver,
             AuditService auditService,
@@ -69,6 +77,7 @@ public class GestaoUsuarioService {
         this.papelVinculoRepository = papelVinculoRepository;
         this.overrideRepository = overrideRepository;
         this.permissaoRepository = permissaoRepository;
+        this.templateRepository = templateRepository;
         this.passwordHashService = passwordHashService;
         this.permissaoResolver = permissaoResolver;
         this.auditService = auditService;
@@ -81,9 +90,40 @@ public class GestaoUsuarioService {
 
     @Transactional(readOnly = true)
     public List<UsuarioAcessoDTO> listarUsuarios() {
-        return usuarioRepository.findAll().stream()
-                .sorted((a, b) -> a.getNome().compareToIgnoreCase(b.getNome()))
-                .map(this::mapearUsuario)
+        List<UsuarioRepository.UsuarioAcessoResumoProjection> usuarios = usuarioRepository.findAcessoResumo();
+        if (usuarios.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> usuarioIds = usuarios.stream()
+                .map(UsuarioRepository.UsuarioAcessoResumoProjection::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        List<Long> setorIds = usuarios.stream()
+                .map(UsuarioRepository.UsuarioAcessoResumoProjection::getSetorId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        List<PermissaoRepository.PermissaoResumoProjection> catalogoPermissoes = permissaoRepository.findCatalogoAtivoResumo();
+        Map<Long, String> papeisPorUsuario = listarPapeisPorUsuario(usuarioIds);
+        Map<Long, List<UsuarioPermissaoOverrideRepository.UsuarioPermissaoOverrideProjection>> overridesPorUsuario =
+                listarOverridesPorUsuario(usuarioIds);
+        Map<Long, Set<Long>> templatesPorSetor = listarTemplatesPorSetor(setorIds);
+        Map<Long, List<String>> filiaisPorSetor = listarFiliaisPorSetor(setorIds);
+        Map<Long, EscopoFiliaisUsuarioStore.EscopoUsuario> escoposPorUsuario =
+                escopoFiliaisUsuarioStore.carregarPorUsuarios(usuarioIds);
+
+        return usuarios.stream()
+                .map(usuario -> mapearUsuarioResumo(
+                        usuario,
+                        catalogoPermissoes,
+                        papeisPorUsuario,
+                        overridesPorUsuario,
+                        templatesPorSetor,
+                        filiaisPorSetor,
+                        escoposPorUsuario
+                ))
                 .toList();
     }
 
@@ -210,13 +250,176 @@ public class GestaoUsuarioService {
         Long operadorId = Objects.requireNonNull(operador.getId(), "usuario.id é obrigatório.");
         boolean papelElevado = permissaoResolver.ehAdminPlataforma(operadorId) || permissaoResolver.ehDesenvolvedor(operadorId);
 
-        return papelRepository.findAll().stream()
-                .filter(PapelEntity::isAtivo)
-                .filter(papel -> papelElevado || PermissaoResolverService.PAPEL_USUARIO_COMUM.equals(papel.getNome()))
-                .filter(papel -> !usuarioSupremo.papel().equals(papel.getNome()))
-                .sorted(Comparator.comparingInt(PapelEntity::getNivel).reversed())
-                .map(papel -> new PapelDTO(papel.getId(), papel.getNome(), papel.getDescricao(), papel.getNivel()))
+        if (papelElevado) {
+            return papelRepository.findDtosAtivosExceto(usuarioSupremo.papel());
+        }
+        return papelRepository.findDtosAtivosPorNomeExceto(
+                PermissaoResolverService.PAPEL_USUARIO_COMUM,
+                usuarioSupremo.papel()
+        );
+    }
+
+    private UsuarioAcessoDTO mapearUsuarioResumo(
+            UsuarioRepository.UsuarioAcessoResumoProjection usuario,
+            List<PermissaoRepository.PermissaoResumoProjection> catalogoPermissoes,
+            Map<Long, String> papeisPorUsuario,
+            Map<Long, List<UsuarioPermissaoOverrideRepository.UsuarioPermissaoOverrideProjection>> overridesPorUsuario,
+            Map<Long, Set<Long>> templatesPorSetor,
+            Map<Long, List<String>> filiaisPorSetor,
+            Map<Long, EscopoFiliaisUsuarioStore.EscopoUsuario> escoposPorUsuario
+    ) {
+        Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
+        Long setorId = Objects.requireNonNull(usuario.getSetorId(), "usuario.setorId é obrigatório.");
+        String papel = papeisPorUsuario.getOrDefault(usuarioId, PermissaoResolverService.PAPEL_USUARIO_COMUM);
+        List<UsuarioPermissaoOverrideRepository.UsuarioPermissaoOverrideProjection> overrides =
+                overridesPorUsuario.getOrDefault(usuarioId, List.of());
+        EscopoFiliaisUsuarioStore.EscopoUsuario escopo =
+                escoposPorUsuario.getOrDefault(usuarioId, EscopoFiliaisUsuarioStore.EscopoUsuario.herdarSetor());
+        String escopoFiliaisTipo = EscopoFiliaisUsuarioPolicy.normalizarTipo(escopo.tipo());
+        List<String> filiaisPermitidasUsuario = ordenarFiliais(escopo.filiais());
+        boolean acessoTotalFiliais = papelElevado(papel) || EscopoFiliaisUsuarioPolicy.TODAS.equals(escopoFiliaisTipo);
+        List<String> filiaisPermitidasEfetivas = acessoTotalFiliais
+                ? List.of()
+                : EscopoFiliaisUsuarioPolicy.SELECIONADAS.equals(escopoFiliaisTipo)
+                        ? filiaisPermitidasUsuario
+                        : ordenarFiliais(filiaisPorSetor.getOrDefault(setorId, List.of()));
+
+        return new UsuarioAcessoDTO(
+                String.valueOf(usuarioId),
+                usuario.getNome(),
+                usuario.getEmail(),
+                Boolean.TRUE.equals(usuario.getAtivo()),
+                String.valueOf(setorId),
+                usuario.getSetorNome(),
+                papel,
+                permissoesEfetivas(
+                        papel,
+                        setorId,
+                        catalogoPermissoes,
+                        templatesPorSetor,
+                        overrides
+                ),
+                escopoFiliaisTipo,
+                filiaisPermitidasUsuario,
+                filiaisPermitidasEfetivas,
+                chavesOverridePorTipo(overrides, "DENY"),
+                chavesOverridePorTipo(overrides, "GRANT"),
+                passwordHashService.statusAdministrativo(usuario.getAlgoritmoHash()).valor(),
+                passwordHashService.algoritmoExibicao(usuario.getAlgoritmoHash())
+        );
+    }
+
+    private Map<Long, String> listarPapeisPorUsuario(List<Long> usuarioIds) {
+        Map<Long, String> resultado = new LinkedHashMap<>();
+        if (usuarioIds.isEmpty()) {
+            return resultado;
+        }
+        papelVinculoRepository.findPapeisPorUsuarios(usuarioIds)
+                .forEach(papel -> resultado.putIfAbsent(papel.getUsuarioId(), papel.getPapelNome()));
+        return resultado;
+    }
+
+    private Map<Long, List<UsuarioPermissaoOverrideRepository.UsuarioPermissaoOverrideProjection>> listarOverridesPorUsuario(
+            List<Long> usuarioIds
+    ) {
+        Map<Long, List<UsuarioPermissaoOverrideRepository.UsuarioPermissaoOverrideProjection>> resultado = new LinkedHashMap<>();
+        if (usuarioIds.isEmpty()) {
+            return resultado;
+        }
+        overrideRepository.findOverridesPorUsuarios(usuarioIds)
+                .forEach(override -> resultado
+                        .computeIfAbsent(override.getUsuarioId(), ignored -> new ArrayList<>())
+                        .add(override));
+        return resultado;
+    }
+
+    private Map<Long, Set<Long>> listarTemplatesPorSetor(List<Long> setorIds) {
+        Map<Long, Set<Long>> resultado = new LinkedHashMap<>();
+        if (setorIds.isEmpty()) {
+            return resultado;
+        }
+        templateRepository.findPermissoesPorSetores(setorIds)
+                .forEach(template -> resultado
+                        .computeIfAbsent(template.getSetorId(), ignored -> new LinkedHashSet<>())
+                        .add(template.getPermissaoId()));
+        return resultado;
+    }
+
+    private Map<Long, List<String>> listarFiliaisPorSetor(List<Long> setorIds) {
+        Map<Long, List<String>> resultado = new LinkedHashMap<>();
+        if (setorIds.isEmpty()) {
+            return resultado;
+        }
+        setorRepository.findFiliaisPermitidasPorSetores(setorIds)
+                .forEach(filial -> resultado
+                        .computeIfAbsent(filial.getSetorId(), ignored -> new ArrayList<>())
+                        .add(filial.getFilialNome()));
+        return resultado;
+    }
+
+    private Map<String, Boolean> permissoesEfetivas(
+            String papel,
+            Long setorId,
+            List<PermissaoRepository.PermissaoResumoProjection> catalogoPermissoes,
+            Map<Long, Set<Long>> templatesPorSetor,
+            List<UsuarioPermissaoOverrideRepository.UsuarioPermissaoOverrideProjection> overrides
+    ) {
+        Map<String, Boolean> resultado = new LinkedHashMap<>();
+        if (papelElevado(papel)) {
+            catalogoPermissoes.forEach(permissao -> resultado.put(permissao.getChave(), true));
+            return resultado;
+        }
+
+        Set<Long> templates = templatesPorSetor.getOrDefault(setorId, Set.of());
+        Set<Long> negadas = idsOverridePorTipo(overrides, "DENY");
+        Set<Long> concedidas = idsOverridePorTipo(overrides, "GRANT");
+        for (PermissaoRepository.PermissaoResumoProjection permissao : catalogoPermissoes) {
+            Long permissaoId = permissao.getId();
+            resultado.put(permissao.getChave(), (templates.contains(permissaoId) && !negadas.contains(permissaoId))
+                    || concedidas.contains(permissaoId));
+        }
+        return resultado;
+    }
+
+    private Set<Long> idsOverridePorTipo(
+            List<UsuarioPermissaoOverrideRepository.UsuarioPermissaoOverrideProjection> overrides,
+            String tipo
+    ) {
+        Set<Long> ids = new LinkedHashSet<>();
+        overrides.stream()
+                .filter(override -> tipo.equals(override.getTipo()))
+                .map(UsuarioPermissaoOverrideRepository.UsuarioPermissaoOverrideProjection::getPermissaoId)
+                .filter(Objects::nonNull)
+                .forEach(ids::add);
+        return ids;
+    }
+
+    private List<String> chavesOverridePorTipo(
+            List<UsuarioPermissaoOverrideRepository.UsuarioPermissaoOverrideProjection> overrides,
+            String tipo
+    ) {
+        return overrides.stream()
+                .filter(override -> tipo.equals(override.getTipo()))
+                .map(UsuarioPermissaoOverrideRepository.UsuarioPermissaoOverrideProjection::getChave)
+                .filter(chave -> chave != null && !chave.isBlank())
+                .map(String::trim)
+                .distinct()
+                .sorted()
                 .toList();
+    }
+
+    private List<String> ordenarFiliais(List<String> filiais) {
+        return filiais.stream()
+                .filter(filial -> filial != null && !filial.isBlank())
+                .map(String::trim)
+                .distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    private boolean papelElevado(String papel) {
+        return PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA.equals(papel)
+                || usuarioSupremo.papel().equals(papel);
     }
 
     private UsuarioAcessoDTO mapearUsuario(UsuarioEntity usuario) {

@@ -1,11 +1,10 @@
 package com.dashboard.api.service.acesso;
 
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
-
-
+import com.dashboard.api.contract.acesso.UsuarioDependenciaCleanup;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
 
 @Service
 public class UsuarioDependenciaCleanupService implements UsuarioDependenciaCleanup {

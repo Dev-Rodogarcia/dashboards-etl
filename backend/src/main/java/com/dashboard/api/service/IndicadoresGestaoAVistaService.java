@@ -1,46 +1,37 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
-import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorarioCorteRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
+import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.model.VisaoHorariosCorteEntity;
+import com.dashboard.api.repository.HorariosCorteRasterDataSource;
 import com.dashboard.api.repository.VisaoHorariosCorteRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
-import org.springframework.stereotype.Service;
-
+import com.dashboard.api.util.ConsultaLimiteUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Duration;
-import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
 
 @Service
 public class IndicadoresGestaoAVistaService {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
-    private static final Duration CACHE_FONTE_TTL = Duration.ofMinutes(2);
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final HorariosCorteRasterDataSource rasterSqlRepository;
     private final VisaoHorariosCorteRepository repository;
     private final EscopoFilialService escopoFilialService;
     private final HorarioCorteFilialMapperService filialMapperService;
-    private final ConcurrentMap<HorarioCorteFonteCacheKey, HorarioCorteFonteCacheEntry> horariosCorteFonteCache = new ConcurrentHashMap<>();
 
     public IndicadoresGestaoAVistaService(
             ValidadorPeriodoService validadorPeriodo,
@@ -59,69 +50,35 @@ public class IndicadoresGestaoAVistaService {
     public HorariosCorteOverviewDTO buscarHorariosCorteOverview(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
-        List<HorarioCorteRegistroResolvido> rows = buscarHorariosCorte(filtro);
-        if (rows.isEmpty()) {
-            return new HorariosCorteOverviewDTO(
-                    LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-                    0,
-                    0,
-                    0.0,
-                    null,
-                    null
-            );
-        }
-
-        List<HorarioCorteRegistroResolvido> calculaveis = rows.stream()
-                .filter(this::isCalculavelParaKpi)
-                .toList();
-        int totalProgramado = calculaveis.size();
-        int saidasNoHorario = (int) calculaveis.stream()
-                .filter(row -> Boolean.TRUE.equals(row.entity().getSaiuNoHorario()))
-                .count();
+        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        HorariosCorteRasterDataSource.HorariosCorteResumo resumo = rasterSqlRepository.buscarResumoPorPeriodo(
+                filtro.dataInicio(),
+                filtro.dataFim(),
+                escopo,
+                filtro.valores("filiais")
+        );
+        int totalProgramado = inteiro(resumo.totalProgramado());
+        int saidasNoHorario = inteiro(resumo.saidasNoHorario());
         double pctNoHorario = percentual(saidasNoHorario, totalProgramado);
 
-        HorarioCorteRegistroResolvido ultimaImportacao = rows.stream()
-                .filter(row -> row.entity().getImportadoEm() != null)
-                .max(Comparator.comparing(row -> row.entity().getImportadoEm()))
-                .orElse(null);
-
         return new HorariosCorteOverviewDTO(
-                ConsultaFiltroUtils.latestUpdate(rows, row -> row.entity().getDataExtracao()),
+                updatedAtOuAgora(resumo.updatedAt()),
                 saidasNoHorario,
                 totalProgramado,
                 pctNoHorario,
-                ultimaImportacao != null ? ultimaImportacao.entity().getImportadoEm().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null,
-                ultimaImportacao != null ? ultimaImportacao.entity().getNomeArquivo() : null
+                resumo.ultimaImportacaoEm(),
+                resumo.ultimaImportacaoArquivo()
         );
     }
 
     public List<HorariosCorteSeriePointDTO> buscarHorariosCorteSerie(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
-
-        Map<String, List<HorarioCorteRegistroResolvido>> agrupado = buscarHorariosCorte(filtro).stream()
-                .filter(this::isCalculavelParaKpi)
-                .collect(Collectors.groupingBy(row -> chaveSerie(row.entity().getData(), row.filial())));
-
-        return agrupado.entrySet().stream()
-                .map(entry -> {
-                    List<HorarioCorteRegistroResolvido> grupo = entry.getValue();
-                    HorarioCorteRegistroResolvido amostra = grupo.get(0);
-                    int totalProgramado = grupo.size();
-                    int saidasNoHorario = (int) grupo.stream()
-                            .filter(row -> Boolean.TRUE.equals(row.entity().getSaiuNoHorario()))
-                            .count();
-
-                    return new HorariosCorteSeriePointDTO(
-                            amostra.entity().getData() != null ? amostra.entity().getData().format(DATE_FMT) : null,
-                            amostra.filial(),
-                            saidasNoHorario,
-                            totalProgramado,
-                            percentual(saidasNoHorario, totalProgramado)
-                    );
-                })
-                .sorted(Comparator.comparing(HorariosCorteSeriePointDTO::date, Comparator.nullsLast(String::compareTo))
-                        .thenComparing(HorariosCorteSeriePointDTO::filial, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
-                .toList();
+        return rasterSqlRepository.buscarSeriePorPeriodo(
+                filtro.dataInicio(),
+                filtro.dataFim(),
+                escopoFilialService.escopoAtual(),
+                filtro.valores("filiais")
+        );
     }
 
     public List<HorarioCorteRowDTO> buscarHorariosCorteTabela(FiltroConsultaDTO filtro, int limite) {
@@ -258,57 +215,11 @@ public class IndicadoresGestaoAVistaService {
     private List<HorarioCorteRegistroResolvido> buscarHorariosCorte(FiltroConsultaDTO filtro) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         HorarioCorteFilialMapperService.FilialMappingContext mappingContext = filialMapperService.criarContextoRasterPadrao();
-        return buscarHorariosCorteNaFonteComCache(filtro).stream()
+        return rasterSqlRepository.findByDataBetween(filtro.dataInicio(), filtro.dataFim()).stream()
                 .map(row -> new HorarioCorteRegistroResolvido(row, resolverFilial(row, mappingContext)))
                 .filter(row -> escopo.permiteAlgumaFilial(row.filial()))
                 .filter(row -> filtro.corresponde("filiais", row.filial()))
                 .toList();
-    }
-
-    private List<VisaoHorariosCorteEntity> buscarHorariosCorteNaFonteComCache(FiltroConsultaDTO filtro) {
-        HorarioCorteFonteCacheKey key = new HorarioCorteFonteCacheKey(filtro.dataInicio(), filtro.dataFim());
-        Instant agora = Instant.now();
-        HorarioCorteFonteCacheEntry novaEntry = new HorarioCorteFonteCacheEntry(
-                new CompletableFuture<>(),
-                agora.plus(CACHE_FONTE_TTL)
-        );
-
-        HorarioCorteFonteCacheEntry entry = horariosCorteFonteCache.compute(key, (cacheKey, existente) ->
-                existente != null && existente.validaEm(agora) ? existente : novaEntry
-        );
-
-        if (entry == novaEntry) {
-            try {
-                List<VisaoHorariosCorteEntity> rows = carregarHorariosCorteNaFonte(filtro);
-                novaEntry.future().complete(rows);
-                return rows;
-            } catch (RuntimeException ex) {
-                novaEntry.future().completeExceptionally(ex);
-                horariosCorteFonteCache.remove(key, novaEntry);
-                throw ex;
-            }
-        }
-
-        try {
-            return entry.future().join();
-        } catch (CompletionException ex) {
-            if (ex.getCause() instanceof RuntimeException runtimeException) {
-                throw runtimeException;
-            }
-            throw ex;
-        }
-    }
-
-    private List<VisaoHorariosCorteEntity> carregarHorariosCorteNaFonte(FiltroConsultaDTO filtro) {
-        return rasterSqlRepository.findByDataBetween(filtro.dataInicio(), filtro.dataFim());
-    }
-
-    private boolean isCalculavelParaKpi(HorarioCorteRegistroResolvido row) {
-        VisaoHorariosCorteEntity entity = row.entity();
-        return entity.getData() != null
-                && entity.getSaidaEfetiva() != null
-                && entity.getHorarioCorte() != null
-                && entity.getSaiuNoHorario() != null;
     }
 
     private String resolverFilial(
@@ -333,8 +244,20 @@ public class IndicadoresGestaoAVistaService {
                 .doubleValue();
     }
 
-    private String chaveSerie(LocalDate data, String filial) {
-        return formatar(data) + "|" + (filial == null ? "" : filial);
+    private String updatedAtOuAgora(String updatedAt) {
+        return updatedAt != null && !updatedAt.isBlank()
+                ? updatedAt
+                : LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+    }
+
+    private int inteiro(long valor) {
+        if (valor > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        if (valor < Integer.MIN_VALUE) {
+            return Integer.MIN_VALUE;
+        }
+        return (int) valor;
     }
 
     private String formatar(LocalDate data) {
@@ -355,15 +278,4 @@ public class IndicadoresGestaoAVistaService {
     ) {
     }
 
-    private record HorarioCorteFonteCacheKey(LocalDate dataInicio, LocalDate dataFim) {
-    }
-
-    private record HorarioCorteFonteCacheEntry(
-            CompletableFuture<List<VisaoHorariosCorteEntity>> future,
-            Instant expiraEm
-    ) {
-        boolean validaEm(Instant instante) {
-            return expiraEm.isAfter(instante);
-        }
-    }
 }

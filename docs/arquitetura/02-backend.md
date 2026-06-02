@@ -79,7 +79,7 @@ Regra importante:
 
 ### Schema do Dashboard
 
-- A unica fonte de verdade estrutural e o Flyway em `backend/src/main/resources/db/migration`.
+- A unica fonte de verdade estrutural e o Flyway em `database/migrations`.
 - `spring.jpa.hibernate.ddl-auto` deve permanecer sem geracao automatica de schema.
 - DDL em runtime dentro de Java e proibido em producao.
 - Inicializadores/validadores podem validar estado, registrar alerta ou falhar cedo; eles nao devem criar tabelas, alterar colunas ou corrigir schema em tempo de execucao.

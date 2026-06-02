@@ -262,7 +262,7 @@ Backend:
 - `backend/src/main/java/com/dashboard/api/repository/*`
 - `backend/src/main/resources/application.yml`
 - `backend/src/main/resources/application-dev.yml`
-- `backend/src/main/resources/db/migration/*`
+- `database/migrations/*`
 
 Frontend:
 

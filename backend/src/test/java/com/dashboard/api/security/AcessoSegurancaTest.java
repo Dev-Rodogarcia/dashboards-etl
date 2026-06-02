@@ -1,13 +1,11 @@
 package com.dashboard.api.security;
 
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AcessoSegurancaTest {

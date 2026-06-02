@@ -7,14 +7,14 @@ import com.dashboard.api.repository.acesso.PermissaoRepository;
 import com.dashboard.api.repository.acesso.SetorPermissaoTemplateRepository;
 import com.dashboard.api.repository.acesso.UsuarioPapelVinculoRepository;
 import com.dashboard.api.repository.acesso.UsuarioPermissaoOverrideRepository;
-import org.springframework.stereotype.Service;
-
+import com.dashboard.api.security.acesso.UsuarioSupremo;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
 
 @Service
 public class PermissaoResolverService {

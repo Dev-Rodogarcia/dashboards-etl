@@ -1,16 +1,16 @@
 package com.dashboard.api.controller;
 
-import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalConflictDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalEffectiveDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalHistoryDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalOverridesByIndicatorDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalsFullDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalsUpdateRequestDTO;
+import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.exception.KpiGoalOverrideConflictException;
 import com.dashboard.api.service.KpiGoalService;
-import com.dashboard.api.service.acesso.KpiGoalsSchemaInitializer;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,24 +25,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/kpi-goals")
 public class KpiGoalController {
 
     private final KpiGoalService service;
-    private final KpiGoalsSchemaInitializer schemaInitializer;
 
-    public KpiGoalController(KpiGoalService service, KpiGoalsSchemaInitializer schemaInitializer) {
+    public KpiGoalController(KpiGoalService service) {
         this.service = service;
-        this.schemaInitializer = schemaInitializer;
     }
 
     @GetMapping
     @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
     public KpiGoalsFullDTO buscarCompletas() {
-        schemaInitializer.garantirSchema();
         return service.buscarMetasCompletas();
     }
 
@@ -58,7 +53,6 @@ public class KpiGoalController {
             @Valid @RequestBody KpiGoalsUpdateRequestDTO request,
             Authentication authentication
     ) {
-        schemaInitializer.garantirSchema();
         return service.atualizarMetasGlobais(request, usuarioLogin(authentication));
     }
 
@@ -69,7 +63,6 @@ public class KpiGoalController {
             @Valid @RequestBody KpiGoalsUpdateRequestDTO request,
             Authentication authentication
     ) {
-        schemaInitializer.garantirSchema();
         return service.atualizarMetasFilial(branchId, request, usuarioLogin(authentication));
     }
 
@@ -79,7 +72,6 @@ public class KpiGoalController {
             @PathVariable String branchId,
             Authentication authentication
     ) {
-        schemaInitializer.garantirSchema();
         return service.removerOverrideFilial(branchId, usuarioLogin(authentication));
     }
 
@@ -89,7 +81,6 @@ public class KpiGoalController {
             @RequestParam(required = false) String branchId,
             @RequestParam(defaultValue = "10") int limit
     ) {
-        schemaInitializer.garantirSchema();
         return service.buscarHistorico(branchId, limit);
     }
 
@@ -100,7 +91,6 @@ public class KpiGoalController {
             @RequestParam(defaultValue = "1") int pagina,
             @RequestParam(defaultValue = "10") int tamanhoPagina
     ) {
-        schemaInitializer.garantirSchema();
         return service.buscarHistoricoPaginado(branchId, pagina, tamanhoPagina);
     }
 

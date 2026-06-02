@@ -1,189 +1,168 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.cotacoes.CotacaoResumoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesChartsDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesOverviewDTO;
-import com.dashboard.api.model.VisaoCotacoesEntity;
-import com.dashboard.api.repository.VisaoCotacoesRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import java.lang.reflect.Constructor;
+import com.dashboard.api.dto.cotacoes.CotacoesTrendPointDTO;
+import com.dashboard.api.repository.CotacoesDashboardSqlRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessResourceFailureException;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@ExtendWith(MockitoExtension.class)
 class CotacoesServiceTest {
 
-    @Mock
-    private VisaoCotacoesRepository repository;
-
+    private FakeCotacoesDashboardSqlRepository dashboardSqlRepository;
     private CotacoesService service;
 
     @BeforeEach
     void setUp() {
-        service = new CotacoesService(new ValidadorPeriodoService(), repository);
+        dashboardSqlRepository = new FakeCotacoesDashboardSqlRepository();
+        service = new CotacoesService(
+                new ValidadorPeriodoService(),
+                dashboardSqlRepository
+        );
     }
 
     @Test
-    void buscarGraficosDeveRetornarMotivosVaziosQuandoNaoHaMotivoPerdaNemReprovacao() {
-        when(repository.findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(any(), any())).thenReturn(List.of(
-                cotacao(1L, "Convertida", null, "SP > RJ", "100.00"),
-                cotacao(2L, "Convertida", "", "SP > RJ", "200.00")
+    void buscarOverviewDeveDelegarParaRepositorioSqlSemConsultarJpa() {
+        FiltroConsultaDTO filtro = filtroPadrao();
+        CotacoesOverviewDTO esperado = new CotacoesOverviewDTO(
+                "2026-03-23T09:00:00",
+                2,
+                BigDecimal.valueOf(300).setScale(2),
+                BigDecimal.valueOf(100).setScale(2),
+                BigDecimal.valueOf(150).setScale(2),
+                BigDecimal.TEN.setScale(2),
+                33.33,
+                50.0,
+                0.0,
+                50.0,
+                0.0,
+                2.0
+        );
+        dashboardSqlRepository.overviewResponse = esperado;
+
+        CotacoesOverviewDTO resultado = service.buscarOverview(filtro);
+
+        assertThat(resultado).isSameAs(esperado);
+        assertThat(dashboardSqlRepository.overviewFiltro).isSameAs(filtro);
+    }
+
+    @Test
+    void buscarSerieDeveDelegarParaRepositorioSql() {
+        FiltroConsultaDTO filtro = filtroPadrao();
+        List<CotacoesTrendPointDTO> esperado = List.of(new CotacoesTrendPointDTO(
+                "2026-03-20",
+                2,
+                1,
+                0,
+                BigDecimal.valueOf(300).setScale(2),
+                BigDecimal.valueOf(100).setScale(2)
         ));
+        dashboardSqlRepository.serieResponse = esperado;
 
-        CotacoesOverviewDTO overview = service.buscarOverview(filtroPadrao());
-        CotacoesChartsDTO graficos = service.buscarGraficos(filtroPadrao());
-
-        assertThat(overview.totalCotacoes()).isEqualTo(2);
-        assertThat(overview.reprovacaoPercentual()).isEqualTo(0.0);
-        assertThat(graficos.motivosPerda()).isEmpty();
-        assertThat(graficos.funil()).extracting(item -> item.etapa(), item -> item.total())
-                .containsExactly(org.assertj.core.groups.Tuple.tuple("Convertida", 2));
-        assertThat(graficos.corredoresMaisValiosos()).singleElement().satisfies(corredor -> {
-            assertThat(corredor.trecho()).isEqualTo("SP > RJ");
-            assertThat(corredor.valorFrete()).isEqualByComparingTo("300.00");
-            assertThat(corredor.cotacoes()).isEqualTo(2);
-        });
+        assertThat(service.buscarSerie(filtro)).isSameAs(esperado);
+        assertThat(dashboardSqlRepository.serieFiltro).isSameAs(filtro);
     }
 
     @Test
-    void buscarOverviewDeveCalcularPercentualDeReprovacaoPorStatusPerdidoOuReprovado() {
-        when(repository.findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(any(), any())).thenReturn(List.of(
-                cotacao(1L, "Convertida", null, "SP > RJ", "100.00"),
-                cotacao(2L, "Reprovada", "Preco", "SP > RJ", "200.00"),
-                cotacao(3L, "Perdida", "Concorrente", "SP > RJ", "300.00"),
-                cotacao(4L, "Pendente", null, "SP > RJ", "400.00")
+    void buscarGraficosDevePropagarFalhaSqlSemFallbackJpa() {
+        FiltroConsultaDTO filtro = filtroPadrao();
+        dashboardSqlRepository.graficosException = new DataAccessResourceFailureException("falha no SQL de cotacoes");
+
+        assertThatThrownBy(() -> service.buscarGraficos(filtro))
+                .isInstanceOf(DataAccessResourceFailureException.class)
+                .hasMessageContaining("falha no SQL de cotacoes");
+        assertThat(dashboardSqlRepository.graficosFiltro).isSameAs(filtro);
+    }
+
+    @Test
+    void buscarTabelaDeveDelegarParaRepositorioSqlComLimiteAplicado() {
+        FiltroConsultaDTO filtro = filtroPadrao();
+        List<CotacaoResumoDTO> esperado = List.of(new CotacaoResumoDTO(
+                1L,
+                "2026-03-20T10:00Z",
+                "SPO",
+                "Maria",
+                "Cliente Pagador",
+                "Cliente",
+                "SPO-CAS",
+                new BigDecimal("100.00"),
+                "Convertida",
+                null,
+                "LTL",
+                1,
+                new BigDecimal("10.00"),
+                new BigDecimal("10.00"),
+                BigDecimal.ZERO.setScale(2),
+                new BigDecimal("1000.00"),
+                new BigDecimal("10.00"),
+                "Tabela A",
+                "Sao Paulo - SP",
+                "Cascavel - PR",
+                null,
+                null
         ));
+        dashboardSqlRepository.tabelaResponse = esperado;
 
-        CotacoesOverviewDTO overview = service.buscarOverview(filtroPadrao());
-
-        assertThat(overview.totalCotacoes()).isEqualTo(4);
-        assertThat(overview.reprovacaoPercentual()).isEqualTo(50.0);
-    }
-
-    @Test
-    void buscarOverviewDeveConsultarPeriodoNoFusoDeSaoPaulo() {
-        when(repository.findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(any(), any())).thenReturn(List.of());
-
-        service.buscarOverview(filtroPadrao());
-
-        ArgumentCaptor<OffsetDateTime> inicio = ArgumentCaptor.forClass(OffsetDateTime.class);
-        ArgumentCaptor<OffsetDateTime> fim = ArgumentCaptor.forClass(OffsetDateTime.class);
-        verify(repository).findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(inicio.capture(), fim.capture());
-
-        assertThat(inicio.getValue())
-                .isEqualTo(OffsetDateTime.of(2026, 2, 21, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
-        assertThat(fim.getValue())
-                .isEqualTo(OffsetDateTime.of(2026, 3, 24, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
-    }
-
-    @Test
-    void buscarGraficosDeveNormalizarTiposOperacaoParaLtlFtlPtl() {
-        when(repository.findByDataCotacaoGreaterThanEqualAndDataCotacaoLessThan(any(), any())).thenReturn(List.of(
-                cotacao(1L, "Convertida", null, "SP > RJ", "100.00", "FRACIONADA", "PADRÃO"),
-                cotacao(2L, "Pendente", null, "SP > RJ", "200.00", "FECHADA", "PADRÃO"),
-                cotacao(3L, "Perdida", "Sem espaço", "SP > RJ", "300.00", "FRAC / DED", "PADRÃO")
-        ));
-
-        CotacoesChartsDTO graficos = service.buscarGraficos(filtroPadrao());
-
-        assertThat(graficos.conversaoPorTipoOperacao())
-                .extracting(item -> item.nome())
-                .contains("LTL", "FTL", "PTL");
-
-        assertThat(graficos.conversaoPorTipoOperacao())
-                .filteredOn(item -> item.nome().equals("LTL"))
-                .singleElement()
-                .satisfies(item -> {
-                    assertThat(item.valorPotencial()).isEqualByComparingTo("100.00");
-                    assertThat(item.valorConvertido()).isEqualByComparingTo("100.00");
-                    assertThat(item.cotacoes()).isEqualTo(1);
-                    assertThat(item.convertidas()).isEqualTo(1);
-                });
-
-        assertThat(graficos.conversaoPorTipoOperacao())
-                .filteredOn(item -> item.nome().equals("FTL"))
-                .singleElement()
-                .satisfies(item -> {
-                    assertThat(item.valorPotencial()).isEqualByComparingTo("200.00");
-                    assertThat(item.valorConvertido()).isEqualByComparingTo("0.00");
-                    assertThat(item.cotacoes()).isEqualTo(1);
-                    assertThat(item.convertidas()).isEqualTo(0);
-                });
-
-        assertThat(graficos.conversaoPorTipoOperacao())
-                .filteredOn(item -> item.nome().equals("PTL"))
-                .singleElement()
-                .satisfies(item -> {
-                    assertThat(item.valorPotencial()).isEqualByComparingTo("300.00");
-                    assertThat(item.valorConvertido()).isEqualByComparingTo("0.00");
-                    assertThat(item.cotacoes()).isEqualTo(1);
-                    assertThat(item.reprovadas()).isEqualTo(1);
-                });
+        assertThat(service.buscarTabela(filtro, 999)).isSameAs(esperado);
+        assertThat(dashboardSqlRepository.tabelaFiltro).isSameAs(filtro);
+        assertThat(dashboardSqlRepository.tabelaLimite).isEqualTo(200);
     }
 
     private static FiltroConsultaDTO filtroPadrao() {
         return new FiltroConsultaDTO(LocalDate.of(2026, 2, 21), LocalDate.of(2026, 3, 23), Map.of());
     }
 
-    private static VisaoCotacoesEntity cotacao(
-            Long sequenceCode,
-            String statusConversao,
-            String motivoPerda,
-            String trecho,
-            String valorFrete
-    ) {
-        return cotacao(sequenceCode, statusConversao, motivoPerda, trecho, valorFrete, null, null);
-    }
+    private static class FakeCotacoesDashboardSqlRepository extends CotacoesDashboardSqlRepository {
 
-    private static VisaoCotacoesEntity cotacao(
-            Long sequenceCode,
-            String statusConversao,
-            String motivoPerda,
-            String trecho,
-            String valorFrete,
-            String tipoOperacao,
-            String tabela
-    ) {
-        VisaoCotacoesEntity entity = Objects.requireNonNull(novaInstancia(VisaoCotacoesEntity.class));
-        ReflectionTestUtils.setField(entity, "sequenceCode", sequenceCode);
-        ReflectionTestUtils.setField(entity, "statusConversao", statusConversao);
-        ReflectionTestUtils.setField(entity, "motivoPerda", motivoPerda);
-        ReflectionTestUtils.setField(entity, "trecho", trecho);
-        ReflectionTestUtils.setField(entity, "tipoOperacao", tipoOperacao);
-        ReflectionTestUtils.setField(entity, "tabela", tabela);
-        ReflectionTestUtils.setField(entity, "valorFrete", new BigDecimal(valorFrete));
-        ReflectionTestUtils.setField(entity, "pesoTaxado", new BigDecimal("10.00"));
-        ReflectionTestUtils.setField(entity, "dataCotacao", OffsetDateTime.of(2026, 3, 20, 10, 0, 0, 0, ZoneOffset.UTC));
-        ReflectionTestUtils.setField(entity, "cteEmissao", OffsetDateTime.of(2026, 3, 20, 12, 0, 0, 0, ZoneOffset.UTC));
-        ReflectionTestUtils.setField(entity, "dataExtracao", LocalDateTime.of(2026, 3, 23, 9, 0));
-        return entity;
-    }
+        private FiltroConsultaDTO overviewFiltro;
+        private CotacoesOverviewDTO overviewResponse;
+        private FiltroConsultaDTO serieFiltro;
+        private List<CotacoesTrendPointDTO> serieResponse = List.of();
+        private FiltroConsultaDTO graficosFiltro;
+        private RuntimeException graficosException;
+        private FiltroConsultaDTO tabelaFiltro;
+        private int tabelaLimite;
+        private List<CotacaoResumoDTO> tabelaResponse = List.of();
 
-    private static <T> T novaInstancia(Class<T> type) {
-        try {
-            Constructor<T> constructor = type.getDeclaredConstructor();
-            constructor.setAccessible(true);
-            return constructor.newInstance();
-        } catch (ReflectiveOperationException ex) {
-            throw new IllegalStateException("Nao foi possivel instanciar " + type.getSimpleName(), ex);
+        FakeCotacoesDashboardSqlRepository() {
+            super(null, null, null);
+        }
+
+        @Override
+        public CotacoesOverviewDTO buscarOverview(FiltroConsultaDTO filtro) {
+            overviewFiltro = filtro;
+            return overviewResponse;
+        }
+
+        @Override
+        public List<CotacoesTrendPointDTO> buscarSerie(FiltroConsultaDTO filtro) {
+            serieFiltro = filtro;
+            return serieResponse;
+        }
+
+        @Override
+        public CotacoesChartsDTO buscarGraficos(FiltroConsultaDTO filtro) {
+            graficosFiltro = filtro;
+            if (graficosException != null) {
+                throw graficosException;
+            }
+            return new CotacoesChartsDTO(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+        }
+
+        @Override
+        public List<CotacaoResumoDTO> buscarTabela(FiltroConsultaDTO filtro, int limite) {
+            tabelaFiltro = filtro;
+            tabelaLimite = limite;
+            return tabelaResponse;
         }
     }
 }

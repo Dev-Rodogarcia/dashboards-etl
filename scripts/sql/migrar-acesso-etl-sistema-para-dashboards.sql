@@ -435,7 +435,7 @@ GO
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
 
-:r databases/DASHBOARDS/migrations/V007__criar_estrutura_horarios_corte.sql
+:r database/migrations/V007__criar_estrutura_horarios_corte.sql
 GO
 
 SET ANSI_NULLS ON;
@@ -510,10 +510,10 @@ BEGIN
 END;
 GO
 
-:r databases/DASHBOARDS/migrations/V010__garantir_usuario_supremo_desenvolvedor.sql
+:r database/migrations/V010__garantir_usuario_supremo_desenvolvedor.sql
 GO
 
-:r databases/DASHBOARDS/migrations/V011__adicionar_escopo_filiais_usuario.sql
+:r database/migrations/V011__adicionar_escopo_filiais_usuario.sql
 GO
 
 IF SUSER_ID(N'$(AppLogin)') IS NOT NULL

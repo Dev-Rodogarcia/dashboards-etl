@@ -54,7 +54,7 @@ docs/
 - timezone canonico para filtros `DATETIMEOFFSET`: `America/Sao_Paulo`
 - serializacao de filtros adicionais na URL: prefixo `f.`
 - relatorios do validador BI: pasta `reports/`
-- estrutura propria do Dashboard: somente Flyway em `backend/src/main/resources/db/migration`
+- estrutura propria do Dashboard: somente Flyway em `database/migrations`
 - views analiticas `dbo.vw_*_powerbi` e `dbo.vw_dim_*`: owner estrutural e o projeto ETL
 - acesso do Dashboard ao schema do ETL: leitura, sem DDL cross-database
 

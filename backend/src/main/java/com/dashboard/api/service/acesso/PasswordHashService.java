@@ -1,12 +1,12 @@
 package com.dashboard.api.service.acesso;
 
+import com.dashboard.api.model.acesso.StatusSenhaUsuario;
 import com.dashboard.api.model.acesso.UsuarioEntity;
+import java.util.Locale;
+import java.util.Objects;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.Locale;
-import java.util.Objects;
 
 @Service
 public class PasswordHashService {
@@ -58,7 +58,11 @@ public class PasswordHashService {
     }
 
     public StatusSenhaUsuario statusAdministrativo(UsuarioEntity usuario) {
-        String algoritmo = algoritmoNormalizado(usuario.getAlgoritmoHash());
+        return statusAdministrativo(usuario.getAlgoritmoHash());
+    }
+
+    public StatusSenhaUsuario statusAdministrativo(String algoritmoHash) {
+        String algoritmo = algoritmoNormalizado(algoritmoHash);
         return switch (algoritmo) {
             case ALGORITMO_ARGON2ID -> StatusSenhaUsuario.SEGURA;
             case ALGORITMO_BCRYPT -> StatusSenhaUsuario.MIGRAR_NO_LOGIN;
@@ -67,7 +71,11 @@ public class PasswordHashService {
     }
 
     public String algoritmoExibicao(UsuarioEntity usuario) {
-        return algoritmoEfetivo(algoritmoNormalizado(usuario.getAlgoritmoHash()));
+        return algoritmoExibicao(usuario.getAlgoritmoHash());
+    }
+
+    public String algoritmoExibicao(String algoritmoHash) {
+        return algoritmoEfetivo(algoritmoNormalizado(algoritmoHash));
     }
 
     public String inferirAlgoritmoMigracaoLegada(String senhaHash) {

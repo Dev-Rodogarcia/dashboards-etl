@@ -1,7 +1,6 @@
 package com.dashboard.api.model.acesso;
 
 import jakarta.persistence.*;
-
 import java.time.Instant;
 
 @Entity

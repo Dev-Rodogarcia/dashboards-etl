@@ -1,27 +1,30 @@
 package com.dashboard.api.service;
 
-import com.dashboard.api.dto.FiltroConsultaDTO;
-import com.dashboard.api.dto.PaginaDTO;
+import com.dashboard.api.builder.DashboardExportSqlBuilder;
+import com.dashboard.api.definition.DashboardExportDefinition;
 import com.dashboard.api.dto.coletas.ColetaResumoDTO;
 import com.dashboard.api.dto.contaspagar.ContaPagarResumoDTO;
 import com.dashboard.api.dto.cotacoes.CotacaoResumoDTO;
 import com.dashboard.api.dto.etl.EtlExecucaoResumoDTO;
 import com.dashboard.api.dto.faturascliente.FaturaPorClienteResumoDTO;
+import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.fretes.FreteResumoDTO;
 import com.dashboard.api.dto.manifestos.ManifestoResumoDTO;
+import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.dto.tracking.TrackingResumoDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.stereotype.Service;
-
+import com.dashboard.api.util.ConsultaFiltroUtils;
+import com.dashboard.api.util.ConsultaLimiteUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.function.Function;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Service;
 
 @Service
 public class DashboardTabelaPaginadaService {
@@ -29,6 +32,7 @@ public class DashboardTabelaPaginadaService {
     private static final int PAGINA_PADRAO = 1;
     private static final int TAMANHO_PADRAO = 10;
     private static final int TAMANHO_MAXIMO = 100;
+    private static final int TAMANHO_MAXIMO_TABELA_LEGADA = 200;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final DashboardExportSqlBuilder sqlBuilder;
@@ -51,12 +55,20 @@ public class DashboardTabelaPaginadaService {
         return buscarPagina(DashboardExportDefinition.COLETAS, filtro, pagina, tamanhoPagina, this::mapearColeta);
     }
 
+    public List<ColetaResumoDTO> buscarPrimeiraPaginaColetas(FiltroConsultaDTO filtro, int limite) {
+        return buscarPrimeiraPagina(DashboardExportDefinition.COLETAS, filtro, limite, this::mapearColeta);
+    }
+
     public PaginaDTO<FreteResumoDTO> buscarFretes(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
         return buscarPagina(DashboardExportDefinition.FRETES, filtro, pagina, tamanhoPagina, this::mapearFrete);
     }
 
     public PaginaDTO<TrackingResumoDTO> buscarTracking(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
         return buscarPagina(DashboardExportDefinition.TRACKING, filtro, pagina, tamanhoPagina, this::mapearTracking);
+    }
+
+    public List<TrackingResumoDTO> buscarPrimeiraPaginaTracking(FiltroConsultaDTO filtro, int limite) {
+        return buscarPrimeiraPagina(DashboardExportDefinition.TRACKING, filtro, limite, this::mapearTracking);
     }
 
     public PaginaDTO<ManifestoResumoDTO> buscarManifestos(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
@@ -71,8 +83,16 @@ public class DashboardTabelaPaginadaService {
         return buscarPagina(DashboardExportDefinition.CONTAS_A_PAGAR, filtro, pagina, tamanhoPagina, this::mapearContaPagar);
     }
 
+    public List<ContaPagarResumoDTO> buscarPrimeiraPaginaContasAPagar(FiltroConsultaDTO filtro, int limite) {
+        return buscarPrimeiraPagina(DashboardExportDefinition.CONTAS_A_PAGAR, filtro, limite, this::mapearContaPagar);
+    }
+
     public PaginaDTO<FaturaPorClienteResumoDTO> buscarFaturasPorCliente(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
         return buscarPagina(DashboardExportDefinition.FATURAS_POR_CLIENTE, filtro, pagina, tamanhoPagina, this::mapearFaturaPorCliente);
+    }
+
+    public List<FaturaPorClienteResumoDTO> buscarPrimeiraPaginaFaturasPorCliente(FiltroConsultaDTO filtro, int limite) {
+        return buscarPrimeiraPagina(DashboardExportDefinition.FATURAS_POR_CLIENTE, filtro, limite, this::mapearFaturaPorCliente);
     }
 
     public PaginaDTO<EtlExecucaoResumoDTO> buscarEtlSaude(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
@@ -86,20 +106,42 @@ public class DashboardTabelaPaginadaService {
             int tamanhoSolicitado,
             Function<Map<String, Object>, T> mapper
     ) {
-        PaginaDTO<Map<String, Object>> pagina = buscarPaginaBruta(definition, filtro, paginaSolicitada, tamanhoSolicitado);
+        PaginaDTO<Map<String, Object>> pagina = buscarPaginaBruta(
+                definition,
+                filtro,
+                paginaSolicitada,
+                tamanhoSolicitado,
+                TAMANHO_MAXIMO
+        );
         return copiarPagina(pagina, pagina.conteudo().stream().map(mapper).toList());
+    }
+
+    private <T> List<T> buscarPrimeiraPagina(
+            DashboardExportDefinition definition,
+            FiltroConsultaDTO filtro,
+            int limite,
+            Function<Map<String, Object>, T> mapper
+    ) {
+        return buscarPaginaBruta(
+                definition,
+                filtro,
+                PAGINA_PADRAO,
+                limite,
+                TAMANHO_MAXIMO_TABELA_LEGADA
+        ).conteudo().stream().map(mapper).toList();
     }
 
     private PaginaDTO<Map<String, Object>> buscarPaginaBruta(
             DashboardExportDefinition definition,
             FiltroConsultaDTO filtro,
             int paginaSolicitada,
-            int tamanhoSolicitado
+            int tamanhoSolicitado,
+            int tamanhoMaximo
     ) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
         int pagina = Math.max(PAGINA_PADRAO, paginaSolicitada);
-        int tamanho = ConsultaLimiteUtils.limitar(tamanhoSolicitado, TAMANHO_PADRAO, TAMANHO_MAXIMO);
+        int tamanho = ConsultaLimiteUtils.limitar(tamanhoSolicitado, TAMANHO_PADRAO, tamanhoMaximo);
         long offset = (long) (pagina - 1) * tamanho;
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
 

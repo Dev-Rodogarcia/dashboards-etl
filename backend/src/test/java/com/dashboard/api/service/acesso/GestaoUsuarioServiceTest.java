@@ -1,5 +1,6 @@
 package com.dashboard.api.service.acesso;
 
+import com.dashboard.api.contract.acesso.UsuarioDependenciaCleanup;
 import com.dashboard.api.dto.acesso.UsuarioRequestDTO;
 import com.dashboard.api.model.acesso.PapelEntity;
 import com.dashboard.api.model.acesso.PermissaoEntity;
@@ -7,33 +8,34 @@ import com.dashboard.api.model.acesso.SetorEntity;
 import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.model.acesso.UsuarioPapelVinculo;
 import com.dashboard.api.model.acesso.UsuarioPermissaoOverride;
+import com.dashboard.api.policy.EscopoFiliaisUsuarioPolicy;
 import com.dashboard.api.repository.acesso.AuditLogRepository;
+import com.dashboard.api.repository.acesso.EscopoFiliaisUsuarioStore;
 import com.dashboard.api.repository.acesso.PapelRepository;
 import com.dashboard.api.repository.acesso.PermissaoRepository;
 import com.dashboard.api.repository.acesso.RefreshTokenSessionRepository;
-import com.dashboard.api.repository.acesso.SetorRepository;
 import com.dashboard.api.repository.acesso.SetorPermissaoTemplateRepository;
+import com.dashboard.api.repository.acesso.SetorRepository;
 import com.dashboard.api.repository.acesso.UsuarioPapelVinculoRepository;
 import com.dashboard.api.repository.acesso.UsuarioPermissaoOverrideRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
+import com.dashboard.api.security.acesso.UsuarioSupremo;
 import com.dashboard.api.security.IpClienteResolver;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.core.context.SecurityContextHolder;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mock;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -91,6 +93,7 @@ class GestaoUsuarioServiceTest {
                 papelVinculoRepository,
                 overrideRepository,
                 permissaoRepository,
+                templateRepository,
                 passwordHashService,
                 permissaoResolver,
                 auditService,

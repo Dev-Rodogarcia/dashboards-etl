@@ -1,13 +1,9 @@
 package com.dashboard.api.service.acesso;
 
 import com.dashboard.api.model.acesso.UsuarioEntity;
+import com.dashboard.api.policy.EscopoFiliaisUsuarioPolicy;
+import com.dashboard.api.repository.acesso.EscopoFiliaisUsuarioStore;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -15,6 +11,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class EscopoFilialService {

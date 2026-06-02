@@ -1,20 +1,18 @@
 package com.dashboard.api.security;
 
+import com.dashboard.api.model.acesso.AcaoAudit;
 import com.dashboard.api.service.acesso.AuditService;
-import com.dashboard.api.service.acesso.AcaoAudit;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpMethod;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FiltroRateLimitApiTest {

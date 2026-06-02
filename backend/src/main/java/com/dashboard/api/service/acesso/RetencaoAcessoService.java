@@ -2,6 +2,8 @@ package com.dashboard.api.service.acesso;
 
 import com.dashboard.api.repository.acesso.AuditLogRepository;
 import com.dashboard.api.repository.acesso.RefreshTokenSessionRepository;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,9 +11,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 @Service
 public class RetencaoAcessoService {

@@ -1,10 +1,9 @@
 package com.dashboard.api.repository.acesso;
 
 import com.dashboard.api.model.acesso.HomeComunicadoEntity;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-
-import java.util.List;
 
 public interface HomeComunicadoRepository extends JpaRepository<HomeComunicadoEntity, Long> {
 

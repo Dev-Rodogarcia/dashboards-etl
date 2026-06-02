@@ -1,24 +1,25 @@
 package com.dashboard.api.service;
 
-import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.builder.DashboardExportSqlBuilder;
 import com.dashboard.api.dto.dimensoes.DimensaoOpcaoDTO;
+import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-
+import com.dashboard.api.util.CsvExportWriter;
+import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DashboardExportServiceTest {

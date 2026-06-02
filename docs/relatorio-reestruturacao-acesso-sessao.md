@@ -161,7 +161,7 @@ Foi criada uma migracao para consolidar o modelo novo:
 
 Arquivo central:
 
-- `backend/src/main/resources/db/migration/V005__papel_unico_refresh_tokens_e_email_login.sql`
+- `database/migrations/V005__papel_unico_refresh_tokens_e_email_login.sql`
 
 ### 3.6 Ajustes administrativos
 

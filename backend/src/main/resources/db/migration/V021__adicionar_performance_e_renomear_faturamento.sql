@@ -1,3 +1,0 @@
--- No-op intencional para a fronteira ETL.
--- Rotas/permissoes de Performance e aliases de Faturamento nao devem recriar dbo.vw_fretes_powerbi.
--- O contrato da view deve ser publicado pelo owner do ETL e apenas consumido aqui.

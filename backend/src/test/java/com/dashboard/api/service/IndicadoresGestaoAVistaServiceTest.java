@@ -5,14 +5,9 @@ import com.dashboard.api.dto.indicadoresgestao.HorarioCorteRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
 import com.dashboard.api.model.VisaoHorariosCorteEntity;
+import com.dashboard.api.repository.HorariosCorteRasterDataSource;
 import com.dashboard.api.repository.VisaoHorariosCorteRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.time.LocalDate;
@@ -20,9 +15,15 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
-
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mock;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,11 +49,8 @@ class IndicadoresGestaoAVistaServiceTest {
 
     @Test
     void buscarOverviewDeveCalcularTotaisPercentualEUltimaImportacao() {
-        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(
-                row(1L, "SPO", LocalDate.of(2026, 4, 2), true, 0, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0)),
-                row(2L, "SPO", LocalDate.of(2026, 4, 2), false, 62, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0)),
-                row(3L, "REC", LocalDate.of(2026, 4, 3), true, -451, "arquivo-2.xlsx", LocalDateTime.of(2026, 4, 3, 9, 30))
-        ));
+        when(rasterSqlRepository.buscarResumoPorPeriodo(any(), any(), any(), any()))
+                .thenReturn(resumo(3, 2, 1, "2026-04-03T09:30:00", "arquivo-2.xlsx"));
 
         HorariosCorteOverviewDTO overview = service.buscarHorariosCorteOverview(
                 new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
@@ -63,14 +61,14 @@ class IndicadoresGestaoAVistaServiceTest {
         assertThat(overview.pctNoHorario()).isEqualTo(66.7);
         assertThat(overview.ultimaImportacaoArquivo()).isEqualTo("arquivo-2.xlsx");
         assertThat(overview.ultimaImportacaoEm()).isEqualTo("2026-04-03T09:30:00");
+        verify(rasterSqlRepository, never()).findByDataBetween(any(), any());
     }
 
     @Test
-    void buscarSerieDeveAgruparPorDataEFilial() {
-        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(
-                row(1L, "SPO", LocalDate.of(2026, 4, 2), true, 0, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0)),
-                row(2L, "SPO", LocalDate.of(2026, 4, 2), false, 62, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0)),
-                row(3L, "REC", LocalDate.of(2026, 4, 2), true, 0, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0))
+    void buscarSerieDeveRepassarAgregadoDoSql() {
+        when(rasterSqlRepository.buscarSeriePorPeriodo(any(), any(), any(), any())).thenReturn(List.of(
+                new HorariosCorteSeriePointDTO("2026-04-02", "REC", 1, 1, 100.0),
+                new HorariosCorteSeriePointDTO("2026-04-02", "SPO", 1, 2, 50.0)
         ));
 
         List<HorariosCorteSeriePointDTO> serie = service.buscarHorariosCorteSerie(
@@ -82,6 +80,7 @@ class IndicadoresGestaoAVistaServiceTest {
                         org.assertj.core.groups.Tuple.tuple("REC", 1, 1),
                         org.assertj.core.groups.Tuple.tuple("SPO", 2, 1)
                 );
+        verify(rasterSqlRepository, never()).findByDataBetween(any(), any());
     }
 
     @Test
@@ -93,6 +92,11 @@ class IndicadoresGestaoAVistaServiceTest {
         setField(semHorarioCorte, "observacao", "Sem horario de corte em HC Apoio");
 
         when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(calculavel, semHorarioCorte));
+        when(rasterSqlRepository.buscarResumoPorPeriodo(any(), any(), any(), any()))
+                .thenReturn(resumo(1, 1, 0, "2026-04-02T10:00:00", "Raster API - SQL Server"));
+        when(rasterSqlRepository.buscarSeriePorPeriodo(any(), any(), any(), any())).thenReturn(List.of(
+                new HorariosCorteSeriePointDTO("2026-04-02", "SPO", 1, 1, 100.0)
+        ));
 
         FiltroConsultaDTO filtro = new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of());
         HorariosCorteOverviewDTO overview = service.buscarHorariosCorteOverview(filtro);
@@ -111,10 +115,8 @@ class IndicadoresGestaoAVistaServiceTest {
 
     @Test
     void buscarOverviewDeveRespeitarFiltroDeFiliais() {
-        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(
-                row(1L, "SPO", LocalDate.of(2026, 4, 2), true, 0, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0)),
-                row(2L, "REC", LocalDate.of(2026, 4, 2), false, 45, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0))
-        ));
+        when(rasterSqlRepository.buscarResumoPorPeriodo(any(), any(), any(), any()))
+                .thenReturn(resumo(1, 1, 0, "2026-04-02T10:00:00", "arquivo-1.xlsx"));
 
         HorariosCorteOverviewDTO overview = service.buscarHorariosCorteOverview(
                 new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of("filiais", List.of("SPO")))
@@ -126,24 +128,19 @@ class IndicadoresGestaoAVistaServiceTest {
     }
 
     @Test
-    void buscarOverviewDeveResolverFilialAPartirDaLinhaOperacaoQuandoVierNaoMapeada() {
+    void buscarTabelaDeveResolverFilialAPartirDaLinhaOperacaoQuandoVierNaoMapeada() {
         filialMapperService.definirMapeamento("SPO-CAS", "SPO");
 
         when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(
                 row(1L, HorarioCorteFilialMapperService.FILIAL_NAO_MAPEADA, "SPO-CAS", LocalDate.of(2026, 4, 2), true, 0, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0))
         ));
 
-        HorariosCorteOverviewDTO overview = service.buscarHorariosCorteOverview(
-                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of("filiais", List.of("SPO")))
+        List<HorarioCorteRowDTO> tabela = service.buscarHorariosCorteTabela(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of("filiais", List.of("SPO"))),
+                10
         );
 
-        List<HorariosCorteSeriePointDTO> serie = service.buscarHorariosCorteSerie(
-                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
-        );
-
-        assertThat(overview.totalProgramado()).isEqualTo(1);
-        assertThat(overview.saidasNoHorario()).isEqualTo(1);
-        assertThat(serie).extracting(HorariosCorteSeriePointDTO::filial)
+        assertThat(tabela).extracting(HorarioCorteRowDTO::filial)
                 .containsExactly("SPO");
     }
 
@@ -187,6 +184,23 @@ class IndicadoresGestaoAVistaServiceTest {
             assertThat(row.previsaoChegadaDestino()).isEqualTo("04:40");
             assertThat(row.transitTime()).isEqualTo("05:10");
         });
+    }
+
+    private static HorariosCorteRasterDataSource.HorariosCorteResumo resumo(
+            long totalProgramado,
+            long saidasNoHorario,
+            long saidasForaHorario,
+            String ultimaImportacaoEm,
+            String ultimaImportacaoArquivo
+    ) {
+        return new HorariosCorteRasterDataSource.HorariosCorteResumo(
+                ultimaImportacaoEm,
+                totalProgramado,
+                saidasNoHorario,
+                saidasForaHorario,
+                ultimaImportacaoEm,
+                ultimaImportacaoArquivo
+        );
     }
 
     private static VisaoHorariosCorteEntity row(

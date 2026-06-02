@@ -1,35 +1,27 @@
 package com.dashboard.api.service.acesso;
 
+import com.dashboard.api.contract.acesso.UsuarioDependenciaCleanup;
 import com.dashboard.api.dto.acesso.UsuarioAcessoDTO;
 import com.dashboard.api.dto.acesso.UsuarioImportacaoLoteRequestDTO;
 import com.dashboard.api.dto.acesso.UsuarioImportacaoSetorResolucaoDTO;
 import com.dashboard.api.model.acesso.SetorEntity;
 import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.model.acesso.UsuarioImportacaoLoteEntity;
+import com.dashboard.api.policy.EscopoFiliaisUsuarioPolicy;
+import com.dashboard.api.repository.acesso.AuditLogRepository;
+import com.dashboard.api.repository.acesso.EscopoFiliaisUsuarioStore;
 import com.dashboard.api.repository.acesso.PapelRepository;
 import com.dashboard.api.repository.acesso.PermissaoRepository;
 import com.dashboard.api.repository.acesso.RefreshTokenSessionRepository;
-import com.dashboard.api.repository.acesso.AuditLogRepository;
-import com.dashboard.api.repository.acesso.SetorRepository;
 import com.dashboard.api.repository.acesso.SetorPermissaoTemplateRepository;
+import com.dashboard.api.repository.acesso.SetorRepository;
 import com.dashboard.api.repository.acesso.UsuarioImportacaoLoteRepository;
 import com.dashboard.api.repository.acesso.UsuarioPapelVinculoRepository;
 import com.dashboard.api.repository.acesso.UsuarioPermissaoOverrideRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
+import com.dashboard.api.security.acesso.UsuarioSupremo;
 import com.dashboard.api.security.IpClienteResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
@@ -37,7 +29,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mock;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -233,6 +235,7 @@ class UsuarioImportacaoServiceTest {
                     mock(UsuarioPapelVinculoRepository.class),
                     mock(UsuarioPermissaoOverrideRepository.class),
                     mock(PermissaoRepository.class),
+                    mock(SetorPermissaoTemplateRepository.class),
                     new PasswordHashService(
                             org.springframework.security.crypto.argon2.Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8(),
                             new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder()

@@ -25,7 +25,7 @@ graph TD
 
 ## 🏛️ Arquitetura, Banco de Dados e SSOT
 
-O **Flyway** em `backend/src/main/resources/db/migration` é a **única fonte de verdade estrutural** dos objetos pertencentes ao Dashboard. Toda criação, alteração ou remoção de schema, tabela, índice, constraint, seed estrutural ou view própria deve entrar como migration versionada.
+O **Flyway** em `database/migrations` é a **única fonte de verdade estrutural** dos objetos pertencentes ao Dashboard. Toda criação, alteração ou remoção de schema, tabela, índice, constraint, seed estrutural ou view própria deve entrar como migration versionada.
 
 DDL em runtime via Java é proibido. O backend roda com `spring.jpa.hibernate.ddl-auto=none`; classes de validação de schema podem apenas verificar contratos e falhar de forma explícita quando uma migration obrigatória não foi aplicada. Elas não devem executar `CREATE`, `ALTER`, `DROP` ou sincronizações estruturais.
 
@@ -72,7 +72,7 @@ O frontend implementa roteamento seguro e autorização granular por setor para 
 * **Java 17 & Spring Boot 3.2.5**
 * **Spring Security & Spring Data JPA**
 * **Microsoft JDBC Driver para SQL Server**
-* **Flyway** (`backend/src/main/resources/db/migration`) como SSOT estrutural do banco do Dashboard.
+* **Flyway** (`database/migrations`) como SSOT estrutural do banco do Dashboard.
 * **JWT (JSON Web Tokens - `jjwt-api` / `jjwt-impl`)** para controle de sessões sem estado.
 * **Spring Boot Actuator**: Monitoramento de integridade e endpoints de liveness/readiness.
 
@@ -250,7 +250,7 @@ Se você identificar acentos ou cedilhas quebrados nas descrições de setores o
 
 ```sql
 -- Executar no banco de dados DASHBOARDS
--- Localizado em: backend/src/main/resources/db/migration/V004__corrigir_mojibake_acesso.sql
+-- Localizado em: database/migrations/V004__corrigir_mojibake_acesso.sql
 ```
 
 Para conferir se restam registros inconsistentes no banco, utilize a query de auditoria:

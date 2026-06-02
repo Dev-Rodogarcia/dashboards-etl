@@ -2,19 +2,20 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO;
+import com.dashboard.api.repository.ManifestosPerformanceSqlRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
-import org.junit.jupiter.api.Test;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-
+import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
+import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.core.RowMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ManifestosPerformanceSqlRepositoryTest {
@@ -71,14 +72,16 @@ class ManifestosPerformanceSqlRepositoryTest {
 
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql)
-                        .contains("YEAR(data_criacao_date) = :anoTemporal")
-                        .contains("MONTH(data_criacao_date) = :mesTemporal")
+                        .contains("data_criacao_date >= :inicioTemporal")
+                        .contains("data_criacao_date < :fimTemporal")
+                        .doesNotContain("YEAR(data_criacao_date) =")
+                        .doesNotContain("MONTH(data_criacao_date) =")
                         .contains("GROUP BY data_criacao_date"));
         assertThat(jdbcTemplate.parametros)
-                .filteredOn(params -> params.hasValue("anoTemporal") && params.hasValue("mesTemporal"))
+                .filteredOn(params -> params.hasValue("inicioTemporal") && params.hasValue("fimTemporal"))
                 .anySatisfy(params -> {
-                    assertThat(params.getValue("anoTemporal")).isEqualTo(2026);
-                    assertThat(params.getValue("mesTemporal")).isEqualTo(5);
+                    assertThat(params.getValue("inicioTemporal")).isEqualTo(Date.valueOf(LocalDate.of(2026, 5, 1)));
+                    assertThat(params.getValue("fimTemporal")).isEqualTo(Date.valueOf(LocalDate.of(2026, 6, 1)));
                 });
     }
 

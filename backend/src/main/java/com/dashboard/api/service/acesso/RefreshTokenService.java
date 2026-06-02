@@ -1,12 +1,9 @@
 package com.dashboard.api.service.acesso;
 
+import com.dashboard.api.exception.CredencialInvalidaException;
 import com.dashboard.api.model.acesso.RefreshTokenSession;
 import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.repository.acesso.RefreshTokenSessionRepository;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -17,6 +14,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RefreshTokenService {

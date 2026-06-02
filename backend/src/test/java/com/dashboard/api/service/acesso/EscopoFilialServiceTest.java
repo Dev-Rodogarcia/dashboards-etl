@@ -2,19 +2,19 @@ package com.dashboard.api.service.acesso;
 
 import com.dashboard.api.model.acesso.SetorEntity;
 import com.dashboard.api.model.acesso.UsuarioEntity;
+import com.dashboard.api.policy.EscopoFiliaisUsuarioPolicy;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-
+import com.dashboard.api.security.acesso.UsuarioSupremo;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mock;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

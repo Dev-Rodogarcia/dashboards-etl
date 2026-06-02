@@ -2,6 +2,7 @@ package com.dashboard.api.service.acesso;
 
 import com.dashboard.api.dto.acesso.SetorDTO;
 import com.dashboard.api.dto.acesso.SetorRequestDTO;
+import com.dashboard.api.model.acesso.AcaoAudit;
 import com.dashboard.api.model.acesso.PermissaoEntity;
 import com.dashboard.api.model.acesso.SetorEntity;
 import com.dashboard.api.model.acesso.SetorPermissaoTemplate;
@@ -10,9 +11,6 @@ import com.dashboard.api.repository.acesso.SetorPermissaoTemplateRepository;
 import com.dashboard.api.repository.acesso.SetorRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
 import com.dashboard.api.security.PermissaoCatalogo;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,6 +18,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class GestaoSetorService {

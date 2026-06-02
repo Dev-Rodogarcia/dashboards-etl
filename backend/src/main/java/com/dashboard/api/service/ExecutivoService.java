@@ -1,6 +1,5 @@
 package com.dashboard.api.service;
 
-import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.coletas.ColetasTrendPointDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarMensalTrendDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarOverviewDTO;
@@ -8,22 +7,22 @@ import com.dashboard.api.dto.executivo.ExecutivoOverviewDTO;
 import com.dashboard.api.dto.executivo.ExecutivoTrendPointDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteMensalDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteOverviewDTO;
+import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.fretes.FretesOverviewDTO;
 import com.dashboard.api.dto.fretes.FretesTrendPointDTO;
 import com.dashboard.api.dto.manifestos.ManifestosOverviewDTO;
 import com.dashboard.api.dto.tracking.TrackingOverviewDTO;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 @Service
 public class ExecutivoService {

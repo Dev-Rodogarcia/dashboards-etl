@@ -3,12 +3,6 @@ package com.dashboard.api.service;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteImportacaoResultadoDTO;
 import com.dashboard.api.model.HorarioCorteEntity;
 import com.dashboard.api.repository.HorarioCorteRepository;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockMultipartFile;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -21,9 +15,14 @@ import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 class HorariosCorteImportacaoServiceTest {
 
     private HorarioCorteRepository repository;

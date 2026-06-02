@@ -26,7 +26,9 @@ spring:
 
   flyway:
     enabled: true
-    locations: classpath:db/migration
+    locations:
+      - filesystem:database/migrations
+      - filesystem:../database/migrations
     baseline-on-migrate: true
     baseline-version: 22
     baseline-description: Baseline schema existente ate V022

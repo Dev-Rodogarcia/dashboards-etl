@@ -1,3 +1,0 @@
--- No-op intencional.
--- O Dashboard nao cria nem sincroniza wrappers de views pertencentes ao ETL.
--- O contrato de dbo.vw_manifestos_powerbi deve ser publicado pelo owner do ETL e apenas consumido aqui.

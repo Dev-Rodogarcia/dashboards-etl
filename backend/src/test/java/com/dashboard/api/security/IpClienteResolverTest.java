@@ -2,7 +2,6 @@ package com.dashboard.api.security;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 class IpClienteResolverTest {

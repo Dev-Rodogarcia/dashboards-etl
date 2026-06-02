@@ -1,11 +1,6 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.repository.DimFilialRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
-import org.springframework.stereotype.Service;
-
 import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -13,6 +8,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.stereotype.Service;
 
 @Service
 public class HorarioCorteFilialMapperService {
@@ -41,8 +40,7 @@ public class HorarioCorteFilialMapperService {
     public FilialMappingContext criarContexto() {
         Map<String, String> lookup = criarLookupPadrao();
         try {
-            dimFilialRepository.findAll().stream()
-                    .map(f -> f.getNomeFilial())
+            dimFilialRepository.findDistinctNomes().stream()
                     .filter(valor -> valor != null && !valor.isBlank())
                     .map(String::trim)
                     .distinct()

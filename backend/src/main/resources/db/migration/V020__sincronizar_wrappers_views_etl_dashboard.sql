@@ -1,3 +1,0 @@
--- No-op intencional.
--- O Dashboard nao cria wrappers locais para views publicadas por outro banco.
--- A validacao de contrato ETL deve ocorrer como readiness/health check, sem DDL nesta migration.

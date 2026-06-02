@@ -1,3 +1,0 @@
--- No-op intencional.
--- O Dashboard nao cria views baseadas em tabelas Raster do ETL.
--- Horarios de corte devem consumir apenas contratos publicados sob ownership do Dashboard.

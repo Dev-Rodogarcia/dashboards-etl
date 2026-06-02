@@ -1,7 +1,5 @@
 package com.dashboard.api.service;
 
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -11,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+import org.junit.jupiter.api.Test;
 import static java.util.Map.entry;
 import static org.assertj.core.api.Assertions.assertThat;
 

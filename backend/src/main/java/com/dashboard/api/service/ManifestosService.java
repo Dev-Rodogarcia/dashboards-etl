@@ -9,20 +9,23 @@ import com.dashboard.api.dto.manifestos.ManifestosOcupacaoScatterDTO;
 import com.dashboard.api.dto.manifestos.ManifestosOverviewDTO;
 import com.dashboard.api.dto.manifestos.ManifestosRankingMotoristaDTO;
 import com.dashboard.api.dto.manifestos.ManifestosTrendPointDTO;
+import com.dashboard.api.filter.DashboardQueryFilters;
 import com.dashboard.api.repository.VisaoManifestosRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
+import com.dashboard.api.util.ConsultaFiltroUtils;
+import com.dashboard.api.util.ConsultaLimiteUtils;
+import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 @Service
 public class ManifestosService {

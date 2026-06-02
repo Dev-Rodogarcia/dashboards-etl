@@ -2,21 +2,20 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.performance.PerformanceTabelaProjection;
+import com.dashboard.api.repository.PerformanceDashboardSqlRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
-import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-
 import java.sql.Date;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
+import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.core.RowMapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -285,11 +284,13 @@ class PerformanceDashboardSqlRepositoryTest {
         assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql
                 .contains("SUM(CASE WHEN status_norm = N'Em Trânsito'")
                 && sql.contains("SUM(CASE WHEN status_norm = N'Pendente'")
-                && sql.contains("YEAR(data_previsao_entrega) = :anoTemporal")
-                && sql.contains("MONTH(data_previsao_entrega) = :mesTemporal")
+                && sql.contains("data_previsao_entrega >= :inicioTemporal")
+                && sql.contains("data_previsao_entrega < :fimTemporal")
                 && sql.contains("GROUP BY data_previsao_entrega")));
-        assertEquals(2026L, jdbcTemplate.ultimoParametroLong("anoTemporal"));
-        assertEquals(5L, jdbcTemplate.ultimoParametroLong("mesTemporal"));
+        assertTrue(jdbcTemplate.sqls.stream().noneMatch(sql -> sql.contains("YEAR(data_previsao_entrega) =")));
+        assertTrue(jdbcTemplate.sqls.stream().noneMatch(sql -> sql.contains("MONTH(data_previsao_entrega) =")));
+        assertEquals(Date.valueOf(LocalDate.of(2026, 5, 1)), jdbcTemplate.ultimoParametro("inicioTemporal"));
+        assertEquals(Date.valueOf(LocalDate.of(2026, 6, 1)), jdbcTemplate.ultimoParametro("fimTemporal"));
     }
 
     @Test

@@ -1,13 +1,12 @@
 package com.dashboard.api.repository;
 
 import com.dashboard.api.model.VisaoContasAPagarEntity;
+import java.time.LocalDate;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import java.time.LocalDate;
-import java.util.List;
 
 public interface VisaoContasAPagarRepository extends JpaRepository<VisaoContasAPagarEntity, Long>,
         JpaSpecificationExecutor<VisaoContasAPagarEntity> {

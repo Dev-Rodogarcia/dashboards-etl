@@ -1,9 +1,11 @@
 package com.dashboard.api.service.acesso;
 
-import com.dashboard.api.security.IpClienteResolver;
+import com.dashboard.api.model.acesso.AcaoAudit;
 import com.dashboard.api.model.acesso.AuditLog;
 import com.dashboard.api.repository.acesso.AuditLogRepository;
+import com.dashboard.api.security.IpClienteResolver;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,8 +14,6 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-
-import java.util.Objects;
 
 @Service
 public class AuditService {

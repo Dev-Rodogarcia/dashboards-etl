@@ -1,21 +1,26 @@
 package com.dashboard.api.service;
 
-import org.junit.jupiter.api.Test;
-
+import com.dashboard.api.repository.HorariosCorteRasterSqlRepository;
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-
+import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HorariosCorteRasterSqlRepositoryTest {
 
     @Test
-    void queryDeveAncorarHorarioCorteNaDataBaseDaSm() throws ReflectiveOperationException {
+    void queryDeveFiltrarJanelaDaSmComPredicadosSargaveis() throws ReflectiveOperationException {
         String sql = sql();
 
         assertThat(sql).contains("CAST(COALESCE(v.data_hora_prev_ini, v.data_hora_real_ini) AS DATETIME2(0)) AS data_base_sm_at");
-        assertThat(sql).contains("WHERE COALESCE(v.data_hora_prev_ini, v.data_hora_real_ini) >= CAST(? AS DATE)");
+        assertThat(sql).contains("WHERE v.data_hora_prev_ini >= :dataInicio");
+        assertThat(sql).contains("AND v.data_hora_prev_ini < :dataFimExclusivo");
+        assertThat(sql).contains("WHERE v.data_hora_prev_ini IS NULL");
+        assertThat(sql).contains("AND v.data_hora_real_ini >= :dataInicio");
+        assertThat(sql).contains("AND v.data_hora_real_ini < :dataFimExclusivo");
+        assertThat(sql).doesNotContain("WHERE COALESCE(v.data_hora_prev_ini, v.data_hora_real_ini)");
+        assertThat(sql).doesNotContain("CAST(? AS DATE)");
         assertThat(sql).contains("CAST(rc.data_base_sm_at AS DATE) AS data_corte");
         assertThat(sql).contains("CAST(CAST(rc.data_base_sm_at AS DATE) AS DATETIME2(0))");
         assertThat(sql).doesNotContain("data_corte_base_at");
@@ -29,6 +34,17 @@ class HorariosCorteRasterSqlRepositoryTest {
         assertThat(sql).contains("WHEN data_hora_real_ini_at IS NULL OR corte_at IS NULL THEN NULL");
         assertThat(sql).contains("WHEN data_hora_real_ini_at <= corte_at THEN CAST(1 AS BIT)");
         assertThat(sql).contains("ELSE DATEDIFF(MINUTE, corte_at, data_hora_real_ini_at)");
+    }
+
+    @Test
+    void serieDeveAgruparKpiNoSqlServer() throws ReflectiveOperationException {
+        String sql = sqlSerie();
+
+        assertThat(sql).contains("COUNT_BIG(1) AS total_programado");
+        assertThat(sql).contains("SUM(CASE WHEN saiu_no_horario = 1 THEN 1 ELSE 0 END)");
+        assertThat(sql).contains("SUM(CASE WHEN saiu_no_horario = 0 THEN 1 ELSE 0 END)");
+        assertThat(sql).contains("GROUP BY data_corte, filial");
+        assertThat(sql).contains("ORDER BY data_corte, filial");
     }
 
     @Test
@@ -47,6 +63,12 @@ class HorariosCorteRasterSqlRepositoryTest {
 
     private String sql() throws ReflectiveOperationException {
         Field field = HorariosCorteRasterSqlRepository.class.getDeclaredField("SQL");
+        field.setAccessible(true);
+        return (String) field.get(null);
+    }
+
+    private String sqlSerie() throws ReflectiveOperationException {
+        Field field = HorariosCorteRasterSqlRepository.class.getDeclaredField("SQL_SERIE");
         field.setAccessible(true);
         return (String) field.get(null);
     }

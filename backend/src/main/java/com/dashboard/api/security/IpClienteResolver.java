@@ -1,10 +1,9 @@
 package com.dashboard.api.security;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import java.util.Arrays;
 
 @Component
 public class IpClienteResolver {

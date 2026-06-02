@@ -1,14 +1,14 @@
 package com.dashboard.api.service;
 
-import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalBranchDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalEffectiveDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalHistoryDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalOverrideDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalOverridesByIndicatorDTO;
-import com.dashboard.api.dto.indicadoresgestao.KpiGoalUserDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalsFullDTO;
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalsUpdateRequestDTO;
+import com.dashboard.api.dto.indicadoresgestao.KpiGoalUserDTO;
+import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.exception.KpiGoalOverrideConflictException;
 import com.dashboard.api.model.acesso.KpiGoalEntity;
 import com.dashboard.api.model.acesso.KpiGoalHistoryEntity;
@@ -16,11 +16,6 @@ import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.repository.acesso.KpiGoalHistoryRepository;
 import com.dashboard.api.repository.acesso.KpiGoalRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collection;
@@ -32,6 +27,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class KpiGoalService {

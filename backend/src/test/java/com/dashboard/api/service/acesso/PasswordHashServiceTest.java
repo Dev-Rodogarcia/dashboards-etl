@@ -1,10 +1,10 @@
 package com.dashboard.api.service.acesso;
 
+import com.dashboard.api.model.acesso.StatusSenhaUsuario;
 import com.dashboard.api.model.acesso.UsuarioEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PasswordHashServiceTest {

@@ -1,13 +1,12 @@
 package com.dashboard.api.repository.acesso;
 
 import com.dashboard.api.model.acesso.KpiGoalEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface KpiGoalRepository extends JpaRepository<KpiGoalEntity, Long> {
     List<KpiGoalEntity> findAllByBranchIdIn(Collection<String> branchIds);

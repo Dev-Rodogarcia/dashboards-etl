@@ -1,7 +1,7 @@
 package com.dashboard.api.service.acesso;
 
-import com.dashboard.api.dto.acesso.UsuarioImportacaoCriadoDTO;
 import com.dashboard.api.dto.acesso.UsuarioImportacaoCredencialTemporariaDTO;
+import com.dashboard.api.dto.acesso.UsuarioImportacaoCriadoDTO;
 import com.dashboard.api.dto.acesso.UsuarioImportacaoErroDTO;
 import com.dashboard.api.dto.acesso.UsuarioImportacaoIgnoradoDTO;
 import com.dashboard.api.dto.acesso.UsuarioImportacaoLoteRequestDTO;
@@ -11,18 +11,14 @@ import com.dashboard.api.dto.acesso.UsuarioImportacaoResultadoDTO;
 import com.dashboard.api.dto.acesso.UsuarioImportacaoSetorResolucaoDTO;
 import com.dashboard.api.dto.acesso.UsuarioImportacaoTotaisDTO;
 import com.dashboard.api.dto.acesso.UsuarioRequestDTO;
+import com.dashboard.api.model.acesso.AcaoAudit;
 import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.model.acesso.UsuarioImportacaoLoteEntity;
+import com.dashboard.api.policy.EscopoFiliaisUsuarioPolicy;
 import com.dashboard.api.repository.acesso.UsuarioImportacaoLoteRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.SecureRandom;
@@ -33,6 +29,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class UsuarioImportacaoService {

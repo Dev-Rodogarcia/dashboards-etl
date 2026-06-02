@@ -1,13 +1,11 @@
 package com.dashboard.api.service;
 
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.regex.Pattern;
-
+import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HorariosCorteRasterMigrationSqlTest {
@@ -18,8 +16,7 @@ class HorariosCorteRasterMigrationSqlTest {
 
     @Test
     void migrationV013NaoDeveConsumirRasterDaEtl() throws IOException {
-        String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
-                "V013__horarios_corte_consumir_raster_etl.sql"));
+        String sql = lerMigration("V013__horarios_corte_consumir_raster_etl.sql");
 
         assertThat(sql).contains("No-op intencional");
         assertThat(sql).contains("nao cria views baseadas em tabelas Raster do ETL");
@@ -31,8 +28,7 @@ class HorariosCorteRasterMigrationSqlTest {
 
     @Test
     void migrationV013DevePreservarFronteiraSemMojibake() throws IOException {
-        String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
-                "V013__horarios_corte_consumir_raster_etl.sql"));
+        String sql = lerMigration("V013__horarios_corte_consumir_raster_etl.sql");
 
         assertThat(sql).contains("contratos publicados sob ownership do Dashboard");
         assertThat(sql).doesNotContain("raster_viagens");
@@ -42,8 +38,7 @@ class HorariosCorteRasterMigrationSqlTest {
 
     @Test
     void migrationV013NaoDeveConterRegrasOperacionaisRaster() throws IOException {
-        String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
-                "V013__horarios_corte_consumir_raster_etl.sql"));
+        String sql = lerMigration("V013__horarios_corte_consumir_raster_etl.sql");
 
         assertThat(sql).doesNotContain("data_hora_prev_ini");
         assertThat(sql).doesNotContain("data_hora_real_ini_at <= corte_at");
@@ -52,8 +47,7 @@ class HorariosCorteRasterMigrationSqlTest {
 
     @Test
     void migrationV024DeveAncorarCorteNaDataOperacaoSemViradaPorInicio() throws IOException {
-        String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
-                "V024__corrigir_sla_horario_corte.sql"));
+        String sql = lerMigration("V024__corrigir_sla_horario_corte.sql");
 
         assertThat(sql).contains("DATEADD(SECOND, DATEDIFF(SECOND, CAST(''00:00:00'' AS TIME(0)), hc.corte), CAST(hc.data_operacao AS DATETIME2(0)))");
         assertThat(sql).contains("WHEN sm_gerada_at <= corte_at THEN CAST(1 AS BIT)");
@@ -62,23 +56,21 @@ class HorariosCorteRasterMigrationSqlTest {
     }
 
     @Test
-    void migrationV013DoBackendDeveFicarIgualAoCatalogoDatabase() throws IOException {
-        String backendSql = lerSql(Path.of("src", "main", "resources", "db", "migration",
-                "V013__horarios_corte_consumir_raster_etl.sql"));
-        String catalogoSql = lerSql(Path.of("..", "databases", "DASHBOARDS", "migrations",
-                "V013__horarios_corte_consumir_raster_etl.sql"));
+    void migrationV013DeveExistirNoCatalogoDatabaseUnificado() throws IOException {
+        String sql = lerMigration("V013__horarios_corte_consumir_raster_etl.sql");
 
-        assertThat(backendSql).isEqualTo(catalogoSql);
+        assertThat(sql).isNotBlank();
     }
 
     @Test
-    void migrationV024DoBackendDeveFicarIgualAoCatalogoDatabase() throws IOException {
-        String backendSql = lerSql(Path.of("src", "main", "resources", "db", "migration",
-                "V024__corrigir_sla_horario_corte.sql"));
-        String catalogoSql = lerSql(Path.of("..", "databases", "DASHBOARDS", "migrations",
-                "V024__corrigir_sla_horario_corte.sql"));
+    void migrationV024DeveExistirNoCatalogoDatabaseUnificado() throws IOException {
+        String sql = lerMigration("V024__corrigir_sla_horario_corte.sql");
 
-        assertThat(backendSql).isEqualTo(catalogoSql);
+        assertThat(sql).isNotBlank();
+    }
+
+    private String lerMigration(String arquivo) throws IOException {
+        return lerSql(Path.of("..", "database", "migrations", arquivo));
     }
 
     private String lerSql(Path path) throws IOException {

@@ -2,6 +2,7 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO;
+import com.dashboard.api.repository.ManifestosPerformanceSqlRepository;
 import org.springframework.stereotype.Service;
 
 @Service

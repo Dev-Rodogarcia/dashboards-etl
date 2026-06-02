@@ -2,12 +2,11 @@ package com.dashboard.api.exception;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 
 public final class RespostaErroHttpWriter {
 

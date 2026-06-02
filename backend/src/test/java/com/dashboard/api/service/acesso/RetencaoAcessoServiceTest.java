@@ -2,10 +2,8 @@ package com.dashboard.api.service.acesso;
 
 import com.dashboard.api.repository.acesso.AuditLogRepository;
 import com.dashboard.api.repository.acesso.RefreshTokenSessionRepository;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
-
+import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;

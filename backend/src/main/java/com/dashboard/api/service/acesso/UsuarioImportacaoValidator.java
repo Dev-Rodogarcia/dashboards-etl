@@ -3,8 +3,6 @@ package com.dashboard.api.service.acesso;
 import com.dashboard.api.model.acesso.SetorEntity;
 import com.dashboard.api.repository.acesso.SetorRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
-import org.springframework.stereotype.Service;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -13,8 +11,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.Set;
+import org.springframework.stereotype.Service;
 
 @Service
 public class UsuarioImportacaoValidator {

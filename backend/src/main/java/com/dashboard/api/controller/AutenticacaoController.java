@@ -1,17 +1,21 @@
 package com.dashboard.api.controller;
 
+import com.dashboard.api.dto.acesso.AlterarSenhaRequestDTO;
 import com.dashboard.api.dto.LoginRequestDTO;
 import com.dashboard.api.dto.LoginResponseDTO;
 import com.dashboard.api.dto.SessaoUsuarioDTO;
-import com.dashboard.api.dto.acesso.AlterarSenhaRequestDTO;
+import com.dashboard.api.exception.CredencialInvalidaException;
 import com.dashboard.api.exception.RespostaErroPadrao;
 import com.dashboard.api.security.IpClienteResolver;
 import com.dashboard.api.security.RateLimitService;
 import com.dashboard.api.service.acesso.AutenticacaoService;
-import com.dashboard.api.service.acesso.CredencialInvalidaException;
 import com.dashboard.api.service.acesso.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,11 +28,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/auth")

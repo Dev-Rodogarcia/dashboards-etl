@@ -1,14 +1,11 @@
 package com.dashboard.api.service;
-
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.regex.Pattern;
-
+import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SchemaGovernanceMigrationSqlTest {
@@ -20,8 +17,7 @@ class SchemaGovernanceMigrationSqlTest {
 
     @Test
     void migrationV023CorrigeDriftDeConfiguracoesSegurancaEIndicesFiltrados() throws IOException {
-        String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
-                "V023__corrigir_drift_schema_acesso.sql"));
+        String sql = lerMigration("V023__corrigir_drift_schema_acesso.sql");
 
         assertThat(sql).contains("CREATE TABLE acesso.configuracoes_seguranca");
         assertThat(sql).contains("CREATE UNIQUE INDEX UX_usuarios_chave_legado_not_null");
@@ -35,34 +31,55 @@ class SchemaGovernanceMigrationSqlTest {
     }
 
     @Test
-    void migrationV023DoBackendDeveFicarIgualAoCatalogoDatabase() throws IOException {
-        String backendSql = lerSql(Path.of("src", "main", "resources", "db", "migration",
-                "V023__corrigir_drift_schema_acesso.sql"));
-        String catalogoSql = lerSql(Path.of("..", "databases", "DASHBOARDS", "migrations",
-                "V023__corrigir_drift_schema_acesso.sql"));
+    void migrationV023DeveExistirNoCatalogoDatabaseUnificado() throws IOException {
+        String sql = lerMigration("V023__corrigir_drift_schema_acesso.sql");
 
-        assertThat(backendSql).isEqualTo(catalogoSql);
+        assertThat(sql).isNotBlank();
     }
 
     @Test
-    void validadoresDeSchemaNaoDevemExecutarDdlNoRuntime() throws IOException {
+    void inicializadoresDeSchemaDevemPermanecerForaDoRuntime() {
         List<Path> arquivos = List.of(
+                Path.of("src", "main", "java", "com", "dashboard", "api", "config", "acesso", "KpiGoalsSchemaInitializer.java"),
+                Path.of("src", "main", "java", "com", "dashboard", "api", "config", "acesso", "RefreshTokenSchemaInitializer.java"),
+                Path.of("src", "main", "java", "com", "dashboard", "api", "config", "acesso", "HomeComunicadosSchemaInitializer.java"),
+                Path.of("src", "main", "java", "com", "dashboard", "api", "config", "acesso", "EscopoFiliaisUsuarioSchemaInitializer.java"),
                 Path.of("src", "main", "java", "com", "dashboard", "api", "service", "acesso", "KpiGoalsSchemaInitializer.java"),
                 Path.of("src", "main", "java", "com", "dashboard", "api", "service", "acesso", "RefreshTokenSchemaInitializer.java"),
                 Path.of("src", "main", "java", "com", "dashboard", "api", "service", "acesso", "HomeComunicadosSchemaInitializer.java"),
-                Path.of("src", "main", "java", "com", "dashboard", "api", "service", "acesso", "EscopoFiliaisUsuarioSchemaInitializer.java"),
-                Path.of("src", "main", "java", "com", "dashboard", "api", "service", "FretesGoalService.java")
+                Path.of("src", "main", "java", "com", "dashboard", "api", "service", "acesso", "EscopoFiliaisUsuarioSchemaInitializer.java")
         );
 
         for (Path arquivo : arquivos) {
-            String source = lerSql(arquivo);
-            assertThat(DDL_PATTERN.matcher(source).find())
-                    .as("DDL runtime em " + arquivo)
+            assertThat(Files.exists(arquivo))
+                    .as("Inicializador de schema em runtime: " + arquivo)
                     .isFalse();
+        }
+    }
+
+    @Test
+    void codigoJavaNaoDeveExecutarDdlEstruturalNoRuntime() throws IOException {
+        Path sourceRoot = Path.of("src", "main", "java");
+        try (var arquivos = Files.walk(sourceRoot)) {
+            List<Path> fontes = arquivos
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.toString().endsWith(".java"))
+                    .toList();
+
+            for (Path arquivo : fontes) {
+                String source = lerSql(arquivo);
+                assertThat(DDL_PATTERN.matcher(source).find())
+                        .as("DDL runtime em " + arquivo)
+                        .isFalse();
+            }
         }
     }
 
     private String lerSql(Path path) throws IOException {
         return Files.readString(path, StandardCharsets.UTF_8);
+    }
+
+    private String lerMigration(String arquivo) throws IOException {
+        return lerSql(Path.of("..", "database", "migrations", arquivo));
     }
 }

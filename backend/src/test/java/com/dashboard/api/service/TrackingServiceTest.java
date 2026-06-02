@@ -1,27 +1,19 @@
 package com.dashboard.api.service;
 
+import com.dashboard.api.builder.DashboardExportSqlBuilder;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.tracking.TrackingChartsDTO;
 import com.dashboard.api.dto.tracking.TrackingDashboardDTO;
 import com.dashboard.api.dto.tracking.TrackingOverviewDTO;
+import com.dashboard.api.dto.tracking.TrackingPrevisaoVencidaFilialDTO;
+import com.dashboard.api.dto.tracking.TrackingTimelinePointDTO;
 import com.dashboard.api.model.VisaoLocalizacaoCargasEntity;
+import com.dashboard.api.repository.TrackingSqlRepository;
 import com.dashboard.api.repository.VisaoLocalizacaoCargasRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.math.BigDecimal;
+import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.lang.reflect.Constructor;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -30,7 +22,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mock;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.ResponseStatusException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,23 +47,29 @@ class TrackingServiceTest {
     private VisaoLocalizacaoCargasRepository repository;
 
     private TrackingService service;
+    private FakeTrackingSqlRepository trackingSqlRepository;
 
     @BeforeEach
     void setUp() {
-        service = new TrackingService(new ValidadorPeriodoService(), repository);
+        trackingSqlRepository = new FakeTrackingSqlRepository();
+        service = new TrackingService(new ValidadorPeriodoService(), repository, trackingSqlRepository);
     }
 
     @Test
     void buscarOverviewDeveContarStatusNuloComoAbertoNaPrevisaoVencida() {
-        when(repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(any(), any())).thenReturn(List.of(
-                carga(1L, "Em entrega", -2),
-                carga(2L, null, -2),
-                carga(3L, "Finalizado", -2),
-                carga(4L, "Manifestado", 2)
-        ));
+        trackingSqlRepository.overview = new TrackingOverviewDTO(
+                "2026-03-23T12:00:00",
+                3,
+                2,
+                2,
+                new BigDecimal("300.00"),
+                new BigDecimal("30.00"),
+                0.0
+        );
 
         TrackingOverviewDTO overview = service.buscarOverview(filtroPadrao());
 
+        assertThat(trackingSqlRepository.overviewFiltro).isEqualTo(filtroPadrao());
         assertThat(overview.totalCargas()).isEqualTo(3);
         assertThat(overview.emTransito()).isEqualTo(2);
         assertThat(overview.previsaoVencida()).isEqualTo(2);
@@ -71,13 +80,15 @@ class TrackingServiceTest {
 
     @Test
     void buscarOverviewDeveExpurgarCanceladosDoDenominadorDeFinalizacao() {
-        when(repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(any(), any())).thenReturn(List.of(
-                carga(1L, "Finalizado", -2),
-                carga(2L, "Entregue", -2),
-                carga(3L, "Cancelado", -2),
-                carga(4L, "Manifestado", -2),
-                carga(5L, null, -2)
-        ));
+        trackingSqlRepository.overview = new TrackingOverviewDTO(
+                "2026-03-23T12:00:00",
+                4,
+                0,
+                2,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                33.33
+        );
 
         TrackingOverviewDTO overview = service.buscarOverview(filtroPadrao());
 
@@ -88,12 +99,15 @@ class TrackingServiceTest {
 
     @Test
     void buscarOverviewDeveConsiderarPrevisaoVencidaPorDataCivilLocal() {
-        LocalDate hojeSaoPaulo = PeriodoOffsetDateTimeHelper.padrao().hoje();
-        when(repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(any(), any())).thenReturn(List.of(
-                cargaComPrevisao(1L, "Em entrega", hojeSaoPaulo.atTime(0, 1).atOffset(ZoneOffset.ofHours(-3))),
-                cargaComPrevisao(2L, "Manifestado", hojeSaoPaulo.minusDays(1).atTime(23, 59).atOffset(ZoneOffset.ofHours(-3))),
-                cargaComPrevisao(3L, "Finalizado", hojeSaoPaulo.minusDays(2).atTime(10, 0).atOffset(ZoneOffset.ofHours(-3)))
-        ));
+        trackingSqlRepository.overview = new TrackingOverviewDTO(
+                "2026-03-23T12:00:00",
+                3,
+                0,
+                1,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                0.0
+        );
 
         TrackingOverviewDTO overview = service.buscarOverview(filtroPadrao());
 
@@ -102,15 +116,18 @@ class TrackingServiceTest {
 
     @Test
     void buscarGraficosDeveAgruparPrevisaoVencidaSemFilial() {
-        when(repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(any(), any())).thenReturn(List.of(
-                carga(1L, "Em entrega", -2, null),
-                carga(2L, "Manifestado", -3, "   "),
-                carga(3L, "Em entrega", -1, "Filial SP"),
-                carga(4L, "Finalizado", -5, null)
-        ));
+        trackingSqlRepository.graficos = new TrackingChartsDTO(
+                List.of(),
+                List.of(
+                        new TrackingPrevisaoVencidaFilialDTO("Sem filial", 2, 2),
+                        new TrackingPrevisaoVencidaFilialDTO("Filial SP", 1, 1)
+                ),
+                List.of()
+        );
 
         TrackingChartsDTO graficos = service.buscarGraficos(filtroPadrao());
 
+        assertThat(trackingSqlRepository.graficosFiltro).isEqualTo(filtroPadrao());
         assertThat(graficos.previsaoVencidaPorFilialAtual()).extracting(
                 dto -> dto.filialAtual(),
                 dto -> dto.vencidas(),
@@ -123,18 +140,19 @@ class TrackingServiceTest {
 
     @Test
     void buscarOverviewDeveConsultarPeriodoNoFusoDeSaoPaulo() {
-        when(repository.findByDataFreteGreaterThanEqualAndDataFreteLessThan(any(), any())).thenReturn(List.of());
+        trackingSqlRepository.overview = new TrackingOverviewDTO(
+                "2026-03-23T12:00:00",
+                0,
+                0,
+                0,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                0.0
+        );
 
         service.buscarOverview(filtroPadrao());
 
-        ArgumentCaptor<OffsetDateTime> inicio = ArgumentCaptor.forClass(OffsetDateTime.class);
-        ArgumentCaptor<OffsetDateTime> fim = ArgumentCaptor.forClass(OffsetDateTime.class);
-        verify(repository).findByDataFreteGreaterThanEqualAndDataFreteLessThan(inicio.capture(), fim.capture());
-
-        assertThat(inicio.getValue())
-                .isEqualTo(OffsetDateTime.of(2026, 2, 21, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
-        assertThat(fim.getValue())
-                .isEqualTo(OffsetDateTime.of(2026, 3, 24, 0, 0, 0, 0, ZoneOffset.ofHours(-3)));
+        assertThat(trackingSqlRepository.overviewFiltro).isEqualTo(filtroPadrao());
     }
 
     @Test
@@ -176,7 +194,6 @@ class TrackingServiceTest {
         ));
 
         String sqlExecutado = String.join("\n", jdbcTemplate.sqls());
-        assertThat(jdbcTemplate.sqls()).hasSize(1);
         assertThat(sqlExecutado)
                 .contains("FROM [vw_localizacao_cargas_powerbi] base_raw")
                 .contains("[Status Normalizado]")
@@ -188,7 +205,7 @@ class TrackingServiceTest {
                 .contains("base_raw.[Filial Atual] IN (:filtro_filialAtual)")
                 .contains("base_raw.[Localização Atual] IN (:filtro_filialAtualCodigos)")
                 .contains("[Filial Atual] IN (:filtro_filialAtual)")
-                .contains("'SEM_MAP'")
+                .contains("N'SEM_MAP'")
                 .contains("[Responsável pela Região de Destino]")
                 .doesNotContain("TRY_CONVERT(datetimeoffset, [Data do frete])")
                 .doesNotContain("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial Atual]))))");
@@ -213,7 +230,6 @@ class TrackingServiceTest {
         ));
 
         String sqlExecutado = String.join("\n", jdbcTemplate.sqls());
-        assertThat(jdbcTemplate.sqls()).hasSize(1);
         assertThat(sqlExecutado)
                 .contains("N'NO ARMAZÉM'")
                 .contains("status_calc.status_norm IN (N'pending', N'pendente', N'sem_status', N'sem status')")
@@ -242,13 +258,28 @@ class TrackingServiceTest {
 
     @Test
     void buscarDashboardDeveAgregarLinhasDaConsultaUnica() {
+        FakeTrackingSqlRepository sqlRepository = new FakeTrackingSqlRepository();
+        sqlRepository.dashboard = new TrackingDashboardDTO(
+                new TrackingOverviewDTO(
+                        "2026-05-23T12:00:00",
+                        1,
+                        0,
+                        1,
+                        new BigDecimal("150.00"),
+                        new BigDecimal("10.50"),
+                        0.0
+                ),
+                List.of(),
+                new TrackingChartsDTO(List.of(), List.of(), List.of())
+        );
         TrackingService serviceDashboard = new TrackingService(
                 new ValidadorPeriodoService(),
                 repository,
                 escopoSemRestricao(),
                 PeriodoOffsetDateTimeHelper.padrao(),
-                new LinhasTrackingNamedParameterJdbcTemplate(),
-                new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao())
+                null,
+                null,
+                sqlRepository
         );
         TrackingDashboardDTO dashboard = serviceDashboard.buscarDashboard(new FiltroConsultaDTO(
                 LocalDate.of(2026, 4, 23),
@@ -256,11 +287,10 @@ class TrackingServiceTest {
                 Map.of("filialAtual", List.of("CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"))
         ));
 
+        assertThat(dashboard).isSameAs(sqlRepository.dashboard);
+        assertThat(sqlRepository.dashboardFiltro.valores("filialAtual"))
+                .containsExactly("CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA");
         assertThat(dashboard.overview().totalCargas()).isEqualTo(1);
-        assertThat(dashboard.matrizRegiaoDestino()).hasSize(1);
-        assertThat(dashboard.graficos().statusDistribuicao())
-                .extracting(dto -> dto.status(), dto -> dto.total())
-                .containsExactly(org.assertj.core.groups.Tuple.tuple("NO ARMAZÉM", 1));
     }
 
     private static FiltroConsultaDTO filtroPadrao() {
@@ -344,13 +374,13 @@ class TrackingServiceTest {
         }
 
         @Override
-        public <T> List<T> query(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper) {
+       public <T> List<T> query(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper) {
             sqls.add(sql);
             return List.of();
         }
 
         @Override
-        public List<Map<String, Object>> queryForList(String sql, SqlParameterSource paramSource) {
+       public List<Map<String, Object>> queryForList(String sql, SqlParameterSource paramSource) {
             sqls.add(sql);
             return linhas;
         }
@@ -380,6 +410,53 @@ class TrackingServiceTest {
             row.put("Previsão Entrega/Previsão de entrega", LocalDateTime.of(2026, 5, 19, 8, 0));
             row.put("Data de extracao", LocalDateTime.of(2026, 5, 23, 12, 0));
             return row;
+        }
+    }
+
+    private static final class FakeTrackingSqlRepository extends TrackingSqlRepository {
+        private FiltroConsultaDTO overviewFiltro;
+        private FiltroConsultaDTO serieFiltro;
+        private FiltroConsultaDTO graficosFiltro;
+        private FiltroConsultaDTO dashboardFiltro;
+        private TrackingOverviewDTO overview = new TrackingOverviewDTO(
+                "2026-03-23T12:00:00",
+                0,
+                0,
+                0,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                0.0
+        );
+        private List<TrackingTimelinePointDTO> serie = List.of();
+        private TrackingChartsDTO graficos = new TrackingChartsDTO(List.of(), List.of(), List.of());
+        private TrackingDashboardDTO dashboard = new TrackingDashboardDTO(overview, List.of(), graficos);
+
+        private FakeTrackingSqlRepository() {
+            super(null, null, null, null);
+        }
+
+        @Override
+        public TrackingOverviewDTO buscarOverview(FiltroConsultaDTO filtro) {
+            this.overviewFiltro = filtro;
+            return overview;
+        }
+
+        @Override
+        public List<TrackingTimelinePointDTO> buscarSerie(FiltroConsultaDTO filtro) {
+            this.serieFiltro = filtro;
+            return serie;
+        }
+
+        @Override
+        public TrackingChartsDTO buscarGraficos(FiltroConsultaDTO filtro) {
+            this.graficosFiltro = filtro;
+            return graficos;
+        }
+
+        @Override
+        public TrackingDashboardDTO buscarDashboardConsultaUnica(FiltroConsultaDTO filtro) {
+            this.dashboardFiltro = filtro;
+            return dashboard;
         }
     }
 

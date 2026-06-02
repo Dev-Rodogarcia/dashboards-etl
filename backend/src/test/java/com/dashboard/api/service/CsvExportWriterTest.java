@@ -1,13 +1,12 @@
 package com.dashboard.api.service;
 
-import org.junit.jupiter.api.Test;
-
+import com.dashboard.api.util.CsvExportWriter;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
-
+import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CsvExportWriterTest {

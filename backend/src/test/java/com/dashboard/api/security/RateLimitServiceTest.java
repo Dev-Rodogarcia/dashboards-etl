@@ -1,7 +1,6 @@
 package com.dashboard.api.security;
 
 import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RateLimitServiceTest {

@@ -8,16 +8,17 @@ import com.dashboard.api.repository.acesso.PapelRepository;
 import com.dashboard.api.repository.acesso.SetorRepository;
 import com.dashboard.api.repository.acesso.UsuarioPapelVinculoRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
+import com.dashboard.api.security.acesso.UsuarioSupremo;
+import com.dashboard.api.service.acesso.PasswordHashService;
+import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Objects;
 
 @Component
 @Order(6)

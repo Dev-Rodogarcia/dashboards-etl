@@ -1,18 +1,17 @@
 package com.dashboard.api.service.acesso;
 
+import com.dashboard.api.model.acesso.AcaoAudit;
 import com.dashboard.api.model.acesso.AuditLog;
 import com.dashboard.api.repository.acesso.AuditLogRepository;
 import com.dashboard.api.security.IpClienteResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.lang.NonNull;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-
-import org.mockito.ArgumentCaptor;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.mock;

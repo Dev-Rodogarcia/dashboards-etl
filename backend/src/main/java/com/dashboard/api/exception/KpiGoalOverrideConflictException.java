@@ -1,7 +1,6 @@
 package com.dashboard.api.exception;
 
 import com.dashboard.api.dto.indicadoresgestao.KpiGoalBranchDTO;
-
 import java.util.List;
 
 public class KpiGoalOverrideConflictException extends RuntimeException {

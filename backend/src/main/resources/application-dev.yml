@@ -5,7 +5,9 @@ spring:
   sql:
     init:
       mode: always
-      data-locations: classpath:db/testdata/data-dev.sql
+      data-locations:
+        - optional:file:database/testdata/data-dev.sql
+        - optional:file:../database/testdata/data-dev.sql
       encoding: UTF-8
       separator: "@@"
 

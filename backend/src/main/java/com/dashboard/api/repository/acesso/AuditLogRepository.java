@@ -1,11 +1,10 @@
 package com.dashboard.api.repository.acesso;
 
 import com.dashboard.api.model.acesso.AuditLog;
+import java.time.Instant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import java.time.Instant;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     Page<AuditLog> findAllByOrderByTimestampUtcDesc(Pageable pageable);

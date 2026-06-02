@@ -63,7 +63,7 @@ Modulos de apoio:
 
 O ETL e o unico owner estrutural das views `dbo.vw_*_powerbi` e `dbo.vw_dim_*` no schema `ETL_SISTEMA` (`esl_cloud`). O Dashboard consome essas views em modo leitura e nao executa DDL cross-database para cria-las, corrigir colunas ou manter wrappers locais.
 
-No schema proprio do Dashboard, a fonte de verdade estrutural e o Flyway em `backend/src/main/resources/db/migration`. DDL em runtime dentro de Java e proibido; inicializadores ou validadores podem conferir pre-condicoes, mas nao criar estrutura automaticamente em producao.
+No schema proprio do Dashboard, a fonte de verdade estrutural e o Flyway em `database/migrations`. DDL em runtime dentro de Java e proibido; inicializadores ou validadores podem conferir pre-condicoes, mas nao criar estrutura automaticamente em producao.
 
 ### 2. A API coordena contrato, filtro e seguranca
 

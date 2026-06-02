@@ -1,7 +1,6 @@
 package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
-import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasSeriePointDTO;
@@ -18,11 +17,14 @@ import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRankingDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresSeriePointDTO;
+import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.service.CubagemMercadoriasIndicadorService;
 import com.dashboard.api.service.IndenizacaoMercadoriasIndicadorService;
 import com.dashboard.api.service.IndicadoresGestaoAVistaService;
 import com.dashboard.api.service.PerformanceEntregaIndicadorService;
 import com.dashboard.api.service.UtilizacaoColetoresIndicadorService;
+import java.time.LocalDate;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -32,9 +34,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.time.LocalDate;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/painel/indicadores-gestao-a-vista")

@@ -1,13 +1,11 @@
 package com.dashboard.api.service;
 
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.regex.Pattern;
-
+import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DashboardEtlWrappersMigrationSqlTest {
@@ -18,8 +16,7 @@ class DashboardEtlWrappersMigrationSqlTest {
 
     @Test
     void migrationV020NaoDeveCriarWrappersDeViewsDaEtl() throws IOException {
-        String sql = lerSql(Path.of("src", "main", "resources", "db", "migration",
-                "V020__sincronizar_wrappers_views_etl_dashboard.sql"));
+        String sql = lerMigration("V020__sincronizar_wrappers_views_etl_dashboard.sql");
 
         assertThat(sql).contains("No-op intencional");
         assertThat(sql).contains("nao cria wrappers locais");
@@ -32,13 +29,14 @@ class DashboardEtlWrappersMigrationSqlTest {
     }
 
     @Test
-    void migrationV020DoBackendDeveFicarIgualAoCatalogoDatabase() throws IOException {
-        String backendSql = lerSql(Path.of("src", "main", "resources", "db", "migration",
-                "V020__sincronizar_wrappers_views_etl_dashboard.sql"));
-        String catalogoSql = lerSql(Path.of("..", "databases", "DASHBOARDS", "migrations",
-                "V020__sincronizar_wrappers_views_etl_dashboard.sql"));
+    void migrationV020DeveExistirNoCatalogoDatabaseUnificado() throws IOException {
+        String sql = lerMigration("V020__sincronizar_wrappers_views_etl_dashboard.sql");
 
-        assertThat(backendSql).isEqualTo(catalogoSql);
+        assertThat(sql).isNotBlank();
+    }
+
+    private String lerMigration(String arquivo) throws IOException {
+        return lerSql(Path.of("..", "database", "migrations", arquivo));
     }
 
     private String lerSql(Path path) throws IOException {

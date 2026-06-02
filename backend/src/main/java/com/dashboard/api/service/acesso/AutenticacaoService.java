@@ -3,23 +3,26 @@ package com.dashboard.api.service.acesso;
 import com.dashboard.api.dto.LoginResponseDTO;
 import com.dashboard.api.dto.SessaoUsuarioDTO;
 import com.dashboard.api.dto.SetorSessaoDTO;
+import com.dashboard.api.exception.CredencialInvalidaException;
+import com.dashboard.api.model.acesso.AcaoAudit;
 import com.dashboard.api.model.acesso.UsuarioEntity;
+import com.dashboard.api.policy.EscopoFiliaisUsuarioPolicy;
+import com.dashboard.api.repository.acesso.EscopoFiliaisUsuarioStore;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
 import com.dashboard.api.security.GerenciadorTokenJwt;
 import com.dashboard.api.security.PermissaoCatalogo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AutenticacaoService {

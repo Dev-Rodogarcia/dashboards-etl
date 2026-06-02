@@ -3,6 +3,7 @@ package com.dashboard.api.service.acesso;
 import com.dashboard.api.model.acesso.PermissaoEntity;
 import com.dashboard.api.repository.acesso.PermissaoRepository;
 import com.dashboard.api.security.PermissaoCatalogo;
+import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -10,8 +11,6 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Arrays;
 
 @Component
 @Order(5)
