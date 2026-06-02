@@ -278,6 +278,8 @@ export default function ManifestosPage() {
         onClearFilters={filtrosTabela.clearTableFilters}
         statusOptions={statusTabelaOptions}
         isLoading={tabela.isLoading}
+        error={tabela.error}
+        errorFallbackMessage="Erro ao carregar manifestos analíticos."
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}
         tamanhoPagina={paginacaoTabela.tamanhoPagina}

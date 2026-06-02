@@ -10,10 +10,11 @@ import com.dashboard.api.repository.VisaoFretesRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -35,8 +36,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class CubagemMercadoriasIndicadorService {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(CubagemMercadoriasIndicadorService.class);
 
     private static final String STATUS_CANCELADO = "cancelado";
     private static final Duration CACHE_REGISTROS_TTL = Duration.ofMinutes(2);
@@ -140,19 +139,7 @@ public class CubagemMercadoriasIndicadorService {
                 .sorted(Comparator.comparing(CubagemRegistro::dataFrete, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(CubagemRegistro::numeroMinuta, Comparator.reverseOrder()))
                 .limit(limiteAplicado)
-                .map(registro -> new CubagemMercadoriasRowDTO(
-                        registro.numeroMinuta(),
-                        IndicadoresGestaoMetricasUtils.formatar(registro.dataFrete()),
-                        registro.filialEmissora(),
-                        registro.pagador(),
-                        registro.remetenteDocumento(),
-                        registro.destino(),
-                        IndicadoresGestaoMetricasUtils.zero(registro.pesoTaxado()),
-                        IndicadoresGestaoMetricasUtils.zero(registro.pesoReal()),
-                        IndicadoresGestaoMetricasUtils.zero(registro.pesoCubado()),
-                        IndicadoresGestaoMetricasUtils.zero(registro.totalM3()),
-                        registro.cubado()
-                ))
+                .map(this::toRow)
                 .toList();
     }
 
@@ -162,24 +149,43 @@ public class CubagemMercadoriasIndicadorService {
         return buscarRegistros(filtro).stream()
                 .sorted(Comparator.comparing(CubagemRegistro::dataFrete, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(CubagemRegistro::numeroMinuta, Comparator.reverseOrder()))
-                .map(registro -> new CubagemMercadoriasRowDTO(
-                        registro.numeroMinuta(),
-                        IndicadoresGestaoMetricasUtils.formatar(registro.dataFrete()),
-                        registro.filialEmissora(),
-                        registro.pagador(),
-                        registro.remetenteDocumento(),
-                        registro.destino(),
-                        IndicadoresGestaoMetricasUtils.zero(registro.pesoTaxado()),
-                        IndicadoresGestaoMetricasUtils.zero(registro.pesoReal()),
-                        IndicadoresGestaoMetricasUtils.zero(registro.pesoCubado()),
-                        IndicadoresGestaoMetricasUtils.zero(registro.totalM3()),
-                        registro.cubado()
-                ))
+                .map(this::toRow)
                 .toList();
     }
 
     public PaginaDTO<CubagemMercadoriasRowDTO> buscarTabelaPaginada(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
-        return PaginacaoListaUtils.paginar(buscarExportacao(filtro), pagina, tamanhoPagina);
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        int paginaAplicada = Math.max(1, pagina);
+        int tamanhoAplicado = ConsultaLimiteUtils.limitar(tamanhoPagina, 10, 100);
+        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        Page<VisaoFretesEntity> paginaFretes = fretesRepository.findAll(
+                criarSpecification(filtro, escopo, janela),
+                PageRequest.of(
+                        paginaAplicada - 1,
+                        tamanhoAplicado,
+                        Sort.by(
+                                Sort.Order.desc("dataFrete"),
+                                Sort.Order.desc("numeroMinuta")
+                        )
+                )
+        );
+
+        Map<Long, CubagemRegistro> porMinuta = new LinkedHashMap<>();
+        for (VisaoFretesEntity frete : paginaFretes.getContent()) {
+            CubagemRegistro registro = criarRegistro(frete);
+            if (registro != null) {
+                porMinuta.merge(registro.numeroMinuta(), registro, this::preferirRegistroMaisAtual);
+            }
+        }
+
+        return new PaginaDTO<>(
+                porMinuta.values().stream().map(this::toRow).toList(),
+                paginaFretes.getTotalElements(),
+                paginaFretes.getTotalPages(),
+                paginaAplicada,
+                tamanhoAplicado
+        );
     }
 
     private List<CubagemRegistro> buscarRegistros(FiltroConsultaDTO filtro) {
@@ -230,44 +236,55 @@ public class CubagemMercadoriasIndicadorService {
             JanelaOffsetDateTime janela
     ) {
         Map<Long, CubagemRegistro> porMinuta = new LinkedHashMap<>();
-        List<VisaoFretesEntity> fretes;
-        try {
-            fretes = fretesRepository.findAll(criarSpecification(filtro, escopo, janela));
-        } catch (RuntimeException ex) {
-            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
-                throw ex;
-            }
-            DatabaseReadFallbackUtils.logFallback(LOGGER, "Falha ao consultar cubagem de mercadorias", ex);
-            return List.of();
-        }
-
+        List<VisaoFretesEntity> fretes = fretesRepository.findAll(criarSpecification(filtro, escopo, janela));
         for (VisaoFretesEntity frete : fretes) {
-            Long numeroMinuta = frete.getNumeroMinuta();
-            if (numeroMinuta == null
-                    || statusCancelado(frete.getStatus())
-                    || !IndicadoresGestaoMetricasUtils.freteComValorOperacionalElegivel(frete)
-                    || pagadorDocumentoExcluido(frete.getPagadorDocumento())) {
-                continue;
+            CubagemRegistro registro = criarRegistro(frete);
+            if (registro != null) {
+                porMinuta.merge(registro.numeroMinuta(), registro, this::preferirRegistroMaisAtual);
             }
-
-            CubagemRegistro registro = new CubagemRegistro(
-                    numeroMinuta,
-                    frete.getDataFrete(),
-                    textoOuPadrao(frete.getFilialEmissora(), frete.getFilialNome()),
-                    frete.getPagadorNome(),
-                    normalizarDocumento(frete.getPagadorDocumento()),
-                    frete.getDestinoCidade(),
-                    frete.getPesoTaxado(),
-                    frete.getPesoReal(),
-                    frete.getTotalM3(),
-                    frete.getPesoCubado(),
-                    frete.getDataExtracao()
-            );
-
-            porMinuta.merge(numeroMinuta, registro, this::preferirRegistroMaisAtual);
         }
 
         return porMinuta.values().stream().toList();
+    }
+
+    private CubagemRegistro criarRegistro(VisaoFretesEntity frete) {
+        Long numeroMinuta = frete.getNumeroMinuta();
+        if (numeroMinuta == null
+                || statusCancelado(frete.getStatus())
+                || !IndicadoresGestaoMetricasUtils.freteComValorOperacionalElegivel(frete)
+                || pagadorDocumentoExcluido(frete.getPagadorDocumento())) {
+            return null;
+        }
+
+        return new CubagemRegistro(
+                numeroMinuta,
+                frete.getDataFrete(),
+                textoOuPadrao(frete.getFilialEmissora(), frete.getFilialNome()),
+                frete.getPagadorNome(),
+                normalizarDocumento(frete.getPagadorDocumento()),
+                frete.getDestinoCidade(),
+                frete.getPesoTaxado(),
+                frete.getPesoReal(),
+                frete.getTotalM3(),
+                frete.getPesoCubado(),
+                frete.getDataExtracao()
+        );
+    }
+
+    private CubagemMercadoriasRowDTO toRow(CubagemRegistro registro) {
+        return new CubagemMercadoriasRowDTO(
+                registro.numeroMinuta(),
+                IndicadoresGestaoMetricasUtils.formatar(registro.dataFrete()),
+                registro.filialEmissora(),
+                registro.pagador(),
+                registro.remetenteDocumento(),
+                registro.destino(),
+                IndicadoresGestaoMetricasUtils.zero(registro.pesoTaxado()),
+                IndicadoresGestaoMetricasUtils.zero(registro.pesoReal()),
+                IndicadoresGestaoMetricasUtils.zero(registro.pesoCubado()),
+                IndicadoresGestaoMetricasUtils.zero(registro.totalM3()),
+                registro.cubado()
+        );
     }
 
     @NonNull

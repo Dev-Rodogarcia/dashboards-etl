@@ -38,15 +38,46 @@ final class ConsultaFiltroUtils {
     }
 
     static BigDecimal parseBigDecimal(String value) {
+        BigDecimal parsed = parseBigDecimalOrNull(value);
+        return parsed != null ? parsed : BigDecimal.ZERO;
+    }
+
+    static BigDecimal parseBigDecimalOrNull(String value) {
         if (value == null || value.isBlank()) {
-            return BigDecimal.ZERO;
+            return null;
         }
 
-        try {
-            return new BigDecimal(value.trim().replace(",", "."));
-        } catch (NumberFormatException ex) {
-            return BigDecimal.ZERO;
+        String normalizado = normalizarNumeroDecimal(value);
+        if (normalizado.isBlank()) {
+            return null;
         }
+        try {
+            return new BigDecimal(normalizado);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private static String normalizarNumeroDecimal(String value) {
+        String texto = value
+                .replace('\u00A0', ' ')
+                .trim()
+                .replaceAll("\\s+", "");
+        if (texto.isBlank()) {
+            return "";
+        }
+
+        int ultimaVirgula = texto.lastIndexOf(',');
+        int ultimoPonto = texto.lastIndexOf('.');
+        if (ultimaVirgula >= 0 && ultimoPonto >= 0) {
+            return ultimaVirgula > ultimoPonto
+                    ? texto.replace(".", "").replace(",", ".")
+                    : texto.replace(",", "");
+        }
+        if (ultimaVirgula >= 0) {
+            return texto.replace(".", "").replace(",", ".");
+        }
+        return texto.replace(",", "");
     }
 
     static <T> String latestUpdate(List<T> rows, Function<T, LocalDateTime> extractor) {

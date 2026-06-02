@@ -116,21 +116,23 @@ export function usePerformanceEntregaOverview(filtro: IndicadoresGestaoVistaFilt
   });
 }
 
-export function usePerformanceEntregaSerie(filtro: IndicadoresGestaoVistaFiltro) {
+export function usePerformanceEntregaSerie(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'performance-entrega', 'serie', filtro],
     queryFn: () => buscarPerformanceEntregaSerie(filtro),
     staleTime: STALE_TIME,
     retry: 1,
+    enabled,
   });
 }
 
-export function usePerformanceEntregaTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100) {
+export function usePerformanceEntregaTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100, enabled = true) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'performance-entrega', 'tabela', filtro, limite],
     queryFn: () => buscarPerformanceEntregaTabela(filtro, limite),
     staleTime: STALE_TIME,
     retry: 1,
+    enabled,
   });
 }
 
@@ -159,31 +161,34 @@ export function useUtilizacaoColetoresOverview(filtro: IndicadoresGestaoVistaFil
   });
 }
 
-export function useUtilizacaoColetoresSerie(filtro: IndicadoresGestaoVistaFiltro) {
+export function useUtilizacaoColetoresSerie(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'utilizacao-coletores', 'serie', filtro],
     queryFn: () => buscarUtilizacaoColetoresSerie(filtro),
     staleTime: STALE_TIME,
     retry: 1,
+    enabled,
   });
 }
 
-export function useUtilizacaoColetoresRanking(filtro: IndicadoresGestaoVistaFiltro) {
+export function useUtilizacaoColetoresRanking(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'utilizacao-coletores', 'ranking', filtro],
     queryFn: () => buscarUtilizacaoColetoresRanking(filtro),
     staleTime: STALE_TIME,
     retry: false,
     refetchOnWindowFocus: false,
+    enabled,
   });
 }
 
-export function useUtilizacaoColetoresTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100) {
+export function useUtilizacaoColetoresTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100, enabled = true) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'utilizacao-coletores', 'tabela', filtro, limite],
     queryFn: () => buscarUtilizacaoColetoresTabela(filtro, limite),
     staleTime: STALE_TIME,
     retry: 1,
+    enabled,
   });
 }
 
@@ -212,21 +217,23 @@ export function useCubagemMercadoriasOverview(filtro: IndicadoresGestaoVistaFilt
   });
 }
 
-export function useCubagemMercadoriasSerie(filtro: IndicadoresGestaoVistaFiltro) {
+export function useCubagemMercadoriasSerie(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'cubagem-mercadorias', 'serie', filtro],
     queryFn: () => buscarCubagemMercadoriasSerie(filtro),
     staleTime: STALE_TIME,
     retry: 1,
+    enabled,
   });
 }
 
-export function useCubagemMercadoriasTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100) {
+export function useCubagemMercadoriasTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100, enabled = true) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'cubagem-mercadorias', 'tabela', filtro, limite],
     queryFn: () => buscarCubagemMercadoriasTabela(filtro, limite),
     staleTime: STALE_TIME,
     retry: 1,
+    enabled,
   });
 }
 
@@ -255,21 +262,23 @@ export function useIndenizacaoMercadoriasOverview(filtro: IndicadoresGestaoVista
   });
 }
 
-export function useIndenizacaoMercadoriasSerie(filtro: IndicadoresGestaoVistaFiltro) {
+export function useIndenizacaoMercadoriasSerie(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'indenizacao-mercadorias', 'serie', filtro],
     queryFn: () => buscarIndenizacaoMercadoriasSerie(filtro),
     staleTime: STALE_TIME,
     retry: 1,
+    enabled,
   });
 }
 
-export function useIndenizacaoMercadoriasTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100) {
+export function useIndenizacaoMercadoriasTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100, enabled = true) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'indenizacao-mercadorias', 'tabela', filtro, limite],
     queryFn: () => buscarIndenizacaoMercadoriasTabela(filtro, limite),
     staleTime: STALE_TIME,
     retry: 1,
+    enabled,
   });
 }
 
@@ -298,21 +307,23 @@ export function useHorariosCorteOverview(filtro: IndicadoresGestaoVistaFiltro) {
   });
 }
 
-export function useHorariosCorteSerie(filtro: IndicadoresGestaoVistaFiltro) {
+export function useHorariosCorteSerie(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'horarios-corte', 'serie', filtro],
     queryFn: () => buscarHorariosCorteSerie(filtro),
     staleTime: STALE_TIME,
     retry: 1,
+    enabled,
   });
 }
 
-export function useHorariosCorteTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100) {
+export function useHorariosCorteTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100, enabled = true) {
   return useQuery({
     queryKey: ['indicadores-gestao-a-vista', 'horarios-corte', 'tabela', filtro, limite],
     queryFn: () => buscarHorariosCorteTabela(filtro, limite),
     staleTime: STALE_TIME,
     retry: 1,
+    enabled,
   });
 }
 

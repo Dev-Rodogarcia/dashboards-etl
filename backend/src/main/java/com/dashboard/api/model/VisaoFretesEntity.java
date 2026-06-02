@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.Immutable;
 
 import java.math.BigDecimal;
@@ -21,12 +22,15 @@ public class VisaoFretesEntity {
     private Long id;
 
     @Column(name = "[Data frete]")
+    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Data frete]))")
     private OffsetDateTime dataFrete;
 
     @Column(name = "[Nº Minuta]")
+    @ColumnTransformer(read = "TRY_CONVERT(BIGINT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Nº Minuta]))), N''))")
     private Long numeroMinuta;
 
     @Column(name = "[Criado em]")
+    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Criado em]))")
     private OffsetDateTime criadoEm;
 
     @Column(name = "[Valor Total do Serviço]")
@@ -42,6 +46,7 @@ public class VisaoFretesEntity {
     private BigDecimal subtotal;
 
     @Column(name = "[Volumes]")
+    @ColumnTransformer(read = "TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Volumes]))), N''))")
     private Integer volumes;
 
     @Column(name = "[Kg Taxado]")
@@ -117,15 +122,19 @@ public class VisaoFretesEntity {
     private String usuarioNome;
 
     @Column(name = "[Previsão de Entrega]")
+    @ColumnTransformer(read = "TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Previsão de Entrega]))")
     private LocalDate previsaoEntrega;
 
     @Column(name = "[Data de Finalização]")
+    @ColumnTransformer(read = "TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Data de Finalização]))")
     private LocalDate dataFinalizacao;
 
     @Column(name = "[Finalização da Performance]")
+    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Finalização da Performance]))")
     private OffsetDateTime finalizacaoPerformance;
 
     @Column(name = "[Performance Diferença de Dias]")
+    @ColumnTransformer(read = "TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Performance Diferença de Dias]))), N''))")
     private Integer performanceDiferencaDias;
 
     @Column(name = "[Performance Status]")
@@ -156,27 +165,34 @@ public class VisaoFretesEntity {
     private String chaveCte;
 
     @Column(name = "[Nº CT-e]")
+    @ColumnTransformer(read = "TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Nº CT-e]))), N''))")
     private Integer numeroCte;
 
     @Column(name = "[Série]")
+    @ColumnTransformer(read = "TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Série]))), N''))")
     private Integer serieCte;
 
     @Column(name = "[CT-e Emissão]")
+    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [CT-e Emissão]))")
     private OffsetDateTime cteEmissao;
 
     @Column(name = "[data_referencia_faturamento]")
+    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [data_referencia_faturamento]))")
     private OffsetDateTime dataReferenciaFaturamento;
 
     @Column(name = "[is_elegivel_faturamento]")
     private Boolean elegivelFaturamento;
 
     @Column(name = "[CT-e ID]")
+    @ColumnTransformer(read = "TRY_CONVERT(BIGINT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [CT-e ID]))), N''))")
     private Long cteId;
 
     @Column(name = "[Nº NFS-e]")
+    @ColumnTransformer(read = "TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Nº NFS-e]))), N''))")
     private Integer nfseNumero;
 
     @Column(name = "[NFS-e/Emissão]")
+    @ColumnTransformer(read = "TRY_CONVERT(date, CONVERT(NVARCHAR(64), [NFS-e/Emissão]))")
     private LocalDate nfseEmissao;
 
     @Column(name = "[KM]")
@@ -192,6 +208,7 @@ public class VisaoFretesEntity {
     private BigDecimal valorCofins;
 
     @Column(name = "[Data de extracao]")
+    @ColumnTransformer(read = "TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [Data de extracao]))")
     private LocalDateTime dataExtracao;
 
     protected VisaoFretesEntity() {

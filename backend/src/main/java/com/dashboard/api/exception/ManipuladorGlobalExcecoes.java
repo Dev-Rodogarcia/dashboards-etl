@@ -159,12 +159,12 @@ public class ManipuladorGlobalExcecoes {
 
         RespostaErroPadrao resposta = new RespostaErroPadrao(
                 LocalDateTime.now(),
-                HttpStatus.REQUEST_TIMEOUT.value(),
-                "Request Timeout",
+                HttpStatus.GATEWAY_TIMEOUT.value(),
+                "Gateway Timeout",
                 "A consulta excedeu o tempo limite. Reduza o período ou os filtros e tente novamente."
         );
 
-        return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(resposta);
+        return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).body(resposta);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

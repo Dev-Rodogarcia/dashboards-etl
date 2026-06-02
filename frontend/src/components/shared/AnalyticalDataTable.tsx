@@ -5,6 +5,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import type { ColunaTabela } from './DataTable';
 import { calcularLarguraMinimaTabela, getColumnSizingStyle } from './tableLayout';
 import type { TableColumnFilterValue, TableFilterField, TableFilters } from '../../types/tableFilters';
+import MensagemErro from '../ui/MensagemErro';
+import { getApiErrorMessage, getTipoErro } from '../../utils/apiError';
 
 export type ColunaTabelaAnalitica<T> = ColunaTabela<T> & {
   filtroTabela?: TableFilterField;
@@ -36,6 +38,8 @@ interface AnalyticalDataTableProps<T> {
   tamanhoPagina: number;
   onPaginaChange: (pagina: number) => void;
   onTamanhoPaginaChange: (tamanhoPagina: number) => void;
+  error?: unknown;
+  errorFallbackMessage?: string;
 }
 
 function useIsMobile() {
@@ -490,16 +494,21 @@ export default function AnalyticalDataTable<T>({
   tamanhoPagina,
   onPaginaChange,
   onTamanhoPaginaChange,
+  error,
+  errorFallbackMessage = 'Erro ao carregar tabela analítica.',
 }: AnalyticalDataTableProps<T>) {
   const [ordenarPor, setOrdenarPor] = useState<string | null>(null);
   const [direcao, setDirecao] = useState<'asc' | 'desc'>('asc');
   const colunaOrdenada = colunas.find((coluna) => coluna.chave === ordenarPor);
+  const hasError = Boolean(error);
   const totalReal = totalRegistros ?? dados.length;
   const totalPaginas = Math.max(1, Math.ceil(totalReal / tamanhoPagina));
   const paginaSegura = Math.min(paginaAtual, totalPaginas);
   const inicio = (paginaSegura - 1) * tamanhoPagina;
   const fimExibido = Math.min(inicio + dados.length, totalReal);
-  const resumoRegistros = `${formatarInteiro(totalReal)} registros encontrados`;
+  const resumoRegistros = hasError
+    ? 'Falha ao carregar registros'
+    : `${formatarInteiro(totalReal)} registros encontrados`;
   const statusOptionsEfetivas = statusOptions ?? [];
   const larguraMinimaTabela = calcularLarguraMinimaTabela(colunas);
 
@@ -698,7 +707,13 @@ export default function AnalyticalDataTable<T>({
             </tr>
           </thead>
           <tbody>
-            {dadosOrdenados.length === 0 ? (
+            {hasError ? (
+              <tr>
+                <td colSpan={colunas.length} className="px-3 py-6">
+                  <MensagemErro mensagem={getApiErrorMessage(error, errorFallbackMessage)} tipo={getTipoErro(error)} />
+                </td>
+              </tr>
+            ) : dadosOrdenados.length === 0 ? (
               <tr>
                 <td
                   colSpan={colunas.length}
@@ -745,78 +760,80 @@ export default function AnalyticalDataTable<T>({
         </table>
       </div>
 
-      <div
-        className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-xs"
-        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
-      >
-        <span>
-          Mostrando {formatarInteiro(dados.length === 0 ? 0 : inicio + 1)} a {formatarInteiro(fimExibido)} de {formatarInteiro(totalReal)}
-        </span>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => onPaginaChange(Math.max(1, paginaSegura - 1))}
-            disabled={paginaSegura === 1}
-            className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-          >
-            Anterior
-          </button>
-          <div className="flex flex-wrap items-center justify-center gap-1" aria-label="Paginas da tabela">
-            {itensPaginacao.map((item) => {
-              if (typeof item !== 'number') {
-                return (
-                  <span
-                    key={item}
-                    className="px-1.5 text-xs"
-                    style={{ color: 'var(--color-text-muted)' }}
-                    aria-hidden="true"
-                  >
-                    ...
-                  </span>
-                );
-              }
-
-              const ativo = item === paginaSegura;
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => onPaginaChange(item)}
-                  aria-current={ativo ? 'page' : undefined}
-                  className="min-w-8 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed"
-                  style={
-                    ativo
-                      ? {
-                          backgroundColor: 'var(--color-primary)',
-                          borderColor: 'var(--color-primary)',
-                          color: 'white',
-                        }
-                      : {
-                          borderColor: 'var(--color-border)',
-                          color: 'var(--color-text)',
-                        }
-                  }
-                >
-                  {item}
-                </button>
-              );
-            })}
-          </div>
-          <span className="min-w-[92px] text-center">
-            Pagina {paginaSegura} de {totalPaginas}
+      {!hasError && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-xs"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+        >
+          <span>
+            Mostrando {formatarInteiro(dados.length === 0 ? 0 : inicio + 1)} a {formatarInteiro(fimExibido)} de {formatarInteiro(totalReal)}
           </span>
-          <button
-            type="button"
-            onClick={() => onPaginaChange(Math.min(totalPaginas, paginaSegura + 1))}
-            disabled={paginaSegura === totalPaginas}
-            className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-          >
-            Proxima
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => onPaginaChange(Math.max(1, paginaSegura - 1))}
+              disabled={paginaSegura === 1}
+              className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+            >
+              Anterior
+            </button>
+            <div className="flex flex-wrap items-center justify-center gap-1" aria-label="Paginas da tabela">
+              {itensPaginacao.map((item) => {
+                if (typeof item !== 'number') {
+                  return (
+                    <span
+                      key={item}
+                      className="px-1.5 text-xs"
+                      style={{ color: 'var(--color-text-muted)' }}
+                      aria-hidden="true"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+
+                const ativo = item === paginaSegura;
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => onPaginaChange(item)}
+                    aria-current={ativo ? 'page' : undefined}
+                    className="min-w-8 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed"
+                    style={
+                      ativo
+                        ? {
+                            backgroundColor: 'var(--color-primary)',
+                            borderColor: 'var(--color-primary)',
+                            color: 'white',
+                          }
+                        : {
+                            borderColor: 'var(--color-border)',
+                            color: 'var(--color-text)',
+                          }
+                    }
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+            </div>
+            <span className="min-w-[92px] text-center">
+              Pagina {paginaSegura} de {totalPaginas}
+            </span>
+            <button
+              type="button"
+              onClick={() => onPaginaChange(Math.min(totalPaginas, paginaSegura + 1))}
+              disabled={paginaSegura === totalPaginas}
+              className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+            >
+              Proxima
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -414,7 +414,8 @@ public class DashboardTabelaPaginadaService {
         if (texto.isEmpty()) {
             return null;
         }
-        return new BigDecimal(texto.replace(",", ".")).longValue();
+        BigDecimal decimal = ConsultaFiltroUtils.parseBigDecimalOrNull(texto);
+        return decimal != null ? decimal.longValue() : null;
     }
 
     private Integer inteiro(Map<String, Object> row, String... colunas) {
@@ -429,7 +430,8 @@ public class DashboardTabelaPaginadaService {
         if (texto.isEmpty()) {
             return null;
         }
-        return new BigDecimal(texto.replace(",", ".")).intValue();
+        BigDecimal decimal = ConsultaFiltroUtils.parseBigDecimalOrNull(texto);
+        return decimal != null ? decimal.intValue() : null;
     }
 
     private BigDecimal decimal(Map<String, Object> row, String... colunas) {

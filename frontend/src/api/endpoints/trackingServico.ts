@@ -1,7 +1,7 @@
 import clienteAxios from '../clienteAxios';
 import { baixarCsv } from '../downloadCsv';
 import { aplicarFiltrosTabelaParams } from '../tableFilters';
-import { buscarTabelaPaginada } from '../tabelaPaginada';
+import { buscarTabelaPaginada, normalizarPaginacaoResponse } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
 import type { TrackingCharts, TrackingDashboard, TrackingFiltro, TrackingOverview, TrackingRawRow, TrackingTimelinePoint } from '../../types/tracking';
@@ -96,19 +96,22 @@ export async function buscarTrackingTabelaPaginada(
 
 export async function buscarTrackingDetalhesPaginada(
   filtro: TrackingFiltro,
-  page: number,
-  size: number,
+  pagina: number,
+  tamanhoPagina: number,
   filtrosTabela?: TableApiFilters,
 ): Promise<PaginacaoResponse<TrackingRawRow>> {
   const params = montarQueryParams(filtro);
   aplicarFiltrosTabelaParams(params, filtrosTabela);
-  params.set('page', String(page));
-  params.set('size', String(size));
+  params.set('pagina', String(pagina));
+  params.set('tamanhoPagina', String(tamanhoPagina));
+  params.set('page', String(Math.max(0, pagina - 1)));
+  params.set('size', String(tamanhoPagina));
 
   const { data } = await clienteAxios.get<PaginacaoResponse<TrackingApiRow>>('/api/painel/tracking/detalhes', { params });
+  const resposta = normalizarPaginacaoResponse(data, pagina, tamanhoPagina);
   return {
-    ...data,
-    conteudo: data.conteudo.map(normalizarTrackingRow),
+    ...resposta,
+    conteudo: resposta.conteudo.map(normalizarTrackingRow),
   };
 }
 

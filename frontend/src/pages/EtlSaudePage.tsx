@@ -159,6 +159,8 @@ export default function EtlSaudePage() {
         colunas={colunas}
         chaveLinha="id"
         isLoading={tabela.isLoading}
+        error={tabela.error}
+        errorFallbackMessage="Erro ao carregar execuções do ETL."
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}
         tamanhoPagina={paginacaoTabela.tamanhoPagina}

@@ -385,8 +385,8 @@ public class ManifestosPerformanceSqlRepository {
                             THEN N'cargaFechada'
                             ELSE N'distribuicao'
                         END AS classificacao_bucket,
-                        TRY_CONVERT(datetimeoffset, [Data criação]) AS data_criacao,
-                        TRY_CONVERT(date, [Data criação]) AS data_criacao_date,
+                        [Data criação] AS data_criacao,
+                        CAST([Data criação] AS date) AS data_criacao_date,
                         COALESCE(TRY_CONVERT(DECIMAL(18, 2), [KM Total]), 0) AS km_total,
                         COALESCE(TRY_CONVERT(DECIMAL(18, 2), [Custo total]), 0) AS custo_total,
                         COALESCE(TRY_CONVERT(DECIMAL(18, 2), [Fretes/Total]), 0) AS receita_total,
@@ -396,8 +396,8 @@ public class ManifestosPerformanceSqlRepository {
                         COALESCE(TRY_CONVERT(DECIMAL(18, 2), [Itens/Total]), 0) AS servicos_total,
                         TRY_CONVERT(datetime2, [Data de extracao]) AS data_extracao
                     FROM dbo.vw_manifestos_powerbi
-                    WHERE TRY_CONVERT(datetimeoffset, [Data criação]) >= :inicioOffset
-                      AND TRY_CONVERT(datetimeoffset, [Data criação]) < :fimOffset
+                    WHERE [Data criação] >= :inicioOffset
+                      AND [Data criação] < :fimOffset
                 )
                 """.formatted(tipoMotorista);
     }

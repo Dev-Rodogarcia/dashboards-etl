@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAutenticacao } from './contexts/AutenticacaoContext';
 import RotaProtegida from './components/layout/RotaProtegida';
 import LayoutPainel from './components/layout/LayoutPainel';
+import ApiStatusToast from './components/ui/ApiStatusToast';
 import { firstAccessibleRoute } from './utils/accessControl';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -57,74 +58,77 @@ function RotaLogin() {
 
 export default function App() {
   return (
-    <Suspense fallback={<TelaCarregamento />}>
-      <Routes>
-        <Route path="/login" element={<RotaLogin />} />
-        <Route path="/acesso-negado" element={<AcessoNegadoPage />} />
+    <>
+      <ApiStatusToast />
+      <Suspense fallback={<TelaCarregamento />}>
+        <Routes>
+          <Route path="/login" element={<RotaLogin />} />
+          <Route path="/acesso-negado" element={<AcessoNegadoPage />} />
 
-        <Route element={<RotaProtegida allowPasswordChange />}>
-          <Route path="/alterar-senha" element={<AlterarSenhaPage />} />
-        </Route>
+          <Route element={<RotaProtegida allowPasswordChange />}>
+            <Route path="/alterar-senha" element={<AlterarSenhaPage />} />
+          </Route>
 
-        <Route element={<RotaProtegida />}>
-          <Route element={<LayoutPainel />}>
-            <Route path="/" element={<HomePage />} />
+          <Route element={<RotaProtegida />}>
+            <Route element={<LayoutPainel />}>
+              <Route path="/" element={<HomePage />} />
 
-            <Route element={<RotaProtegida permissao="coletas" />}>
-              <Route path="/coletas" element={<ColetasPage />} />
-            </Route>
+              <Route element={<RotaProtegida permissao="coletas" />}>
+                <Route path="/coletas" element={<ColetasPage />} />
+              </Route>
 
-            <Route element={<RotaProtegida permissao="manifestos" />}>
-              <Route path="/manifestos" element={<ManifestosPage />} />
-            </Route>
+              <Route element={<RotaProtegida permissao="manifestos" />}>
+                <Route path="/manifestos" element={<ManifestosPage />} />
+              </Route>
 
-            <Route element={<RotaProtegida permissao="fretes" />}>
-              <Route path="/faturamento" element={<FaturamentoPage />} />
-              <Route path="/fretes" element={<Navigate to="/faturamento" replace />} />
-            </Route>
+              <Route element={<RotaProtegida permissao="fretes" />}>
+                <Route path="/faturamento" element={<FaturamentoPage />} />
+                <Route path="/fretes" element={<Navigate to="/faturamento" replace />} />
+              </Route>
 
-            <Route element={<RotaProtegida permissao="performance" />}>
-              <Route path="/performance" element={<PerformancePage />} />
-            </Route>
+              <Route element={<RotaProtegida permissao="performance" />}>
+                <Route path="/performance" element={<PerformancePage />} />
+              </Route>
 
-            <Route element={<RotaProtegida permissao="tracking" />}>
-              <Route path="/tracking" element={<TrackingPage />} />
-            </Route>
+              <Route element={<RotaProtegida permissao="tracking" />}>
+                <Route path="/tracking" element={<TrackingPage />} />
+              </Route>
 
-            <Route element={<RotaProtegida permissao="faturasPorCliente" />}>
-              <Route path="/faturas-por-cliente" element={<FaturasPorClientePage />} />
-            </Route>
+              <Route element={<RotaProtegida permissao="faturasPorCliente" />}>
+                <Route path="/faturas-por-cliente" element={<FaturasPorClientePage />} />
+              </Route>
 
-            <Route element={<RotaProtegida permissao="contasAPagar" />}>
-              <Route path="/contas-a-pagar" element={<ContasAPagarPage />} />
-            </Route>
+              <Route element={<RotaProtegida permissao="contasAPagar" />}>
+                <Route path="/contas-a-pagar" element={<ContasAPagarPage />} />
+              </Route>
 
-            <Route element={<RotaProtegida permissao="cotacoes" />}>
-              <Route path="/cotacoes" element={<CotacoesPage />} />
-            </Route>
+              <Route element={<RotaProtegida permissao="cotacoes" />}>
+                <Route path="/cotacoes" element={<CotacoesPage />} />
+              </Route>
 
-            <Route element={<RotaProtegida permissao="indicadoresGestaoAVista" />}>
-              <Route path="/indicadores-gestao-a-vista" element={<IndicadoresGestaoAVistaPage />} />
-            </Route>
+              <Route element={<RotaProtegida permissao="indicadoresGestaoAVista" />}>
+                <Route path="/indicadores-gestao-a-vista" element={<IndicadoresGestaoAVistaPage />} />
+              </Route>
 
-            <Route element={<RotaProtegida permissao="executivo" />}>
-              <Route path="/executivo" element={<ExecutivoPage />} />
-            </Route>
+              <Route element={<RotaProtegida permissao="executivo" />}>
+                <Route path="/executivo" element={<ExecutivoPage />} />
+              </Route>
 
-            <Route element={<RotaProtegida permissao="etlSaude" />}>
-              <Route path="/etl-saude" element={<EtlSaudePage />} />
-            </Route>
+              <Route element={<RotaProtegida permissao="etlSaude" />}>
+                <Route path="/etl-saude" element={<EtlSaudePage />} />
+              </Route>
 
-            <Route element={<RotaProtegida adminOnly />}>
-              <Route path="/admin" element={<Navigate to="/admin/setores" replace />} />
-              <Route path="/admin/setores" element={<AdminSetoresPage />} />
-              <Route path="/admin/usuarios" element={<AdminUsuariosPage />} />
+              <Route element={<RotaProtegida adminOnly />}>
+                <Route path="/admin" element={<Navigate to="/admin/setores" replace />} />
+                <Route path="/admin/setores" element={<AdminSetoresPage />} />
+                <Route path="/admin/usuarios" element={<AdminUsuariosPage />} />
+              </Route>
             </Route>
           </Route>
-        </Route>
 
-        <Route path="*" element={<RedirecionamentoInicial />} />
-      </Routes>
-    </Suspense>
+          <Route path="*" element={<RedirecionamentoInicial />} />
+        </Routes>
+      </Suspense>
+    </>
   );
 }

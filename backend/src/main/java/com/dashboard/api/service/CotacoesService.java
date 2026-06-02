@@ -170,6 +170,10 @@ public class CotacoesService {
     public List<CotacoesTrendPointDTO> buscarSerie(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
+        if (dashboardSqlRepository != null) {
+            return dashboardSqlRepository.buscarSerie(filtro);
+        }
+
         return buscarRegistros(filtro).stream()
                 .filter(c -> c.getDataCotacao() != null)
                 .collect(Collectors.groupingBy(c -> c.getDataCotacao().toLocalDate()))
@@ -234,7 +238,7 @@ public class CotacoesService {
                 c.getStatusConversao(),
                 c.getMotivoPerda(),
                 c.getTipoOperacao(),
-                c.getVolume(),
+                inteiroOuNulo(c.getVolume()),
                 pesoTaxado,
                 dividir(valorFrete, pesoTaxado),
                 ConsultaFiltroUtils.zeroSeNulo(c.getMinFreteKg()).setScale(2, RoundingMode.HALF_UP),
@@ -250,6 +254,10 @@ public class CotacoesService {
 
     public CotacoesChartsDTO buscarGraficos(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+
+        if (dashboardSqlRepository != null) {
+            return dashboardSqlRepository.buscarGraficos(filtro);
+        }
 
         List<VisaoCotacoesEntity> cotacoes = buscarRegistros(filtro);
 
@@ -482,6 +490,14 @@ public class CotacoesService {
 
     private String textoOuPadrao(String valor, String padrao) {
         return Objects.requireNonNullElse(valor, "").isBlank() ? padrao : valor;
+    }
+
+    private Integer inteiroOuNulo(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return null;
+        }
+        BigDecimal decimal = ConsultaFiltroUtils.parseBigDecimalOrNull(valor);
+        return decimal != null ? decimal.intValue() : null;
     }
 
     private String cidadeUf(String cidade, String uf) {

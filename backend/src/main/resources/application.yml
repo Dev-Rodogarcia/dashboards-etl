@@ -18,8 +18,8 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
     hikari:
-      connection-timeout: 3000
-      maximum-pool-size: 15
+      connection-timeout: 10000
+      maximum-pool-size: 40
       idle-timeout: 600000
       max-lifetime: 1800000
       connection-init-sql: SET ANSI_NULLS ON; SET QUOTED_IDENTIFIER ON

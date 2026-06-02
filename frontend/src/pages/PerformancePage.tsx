@@ -31,6 +31,7 @@ import {
 } from '../hooks/queries/usePerformance';
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { usePerformanceData } from '../hooks/usePerformanceData';
+import { useStaggeredQueryEnabled } from '../hooks/useStaggeredQueryEnabled';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type {
   PerformanceAgingPoint,
@@ -583,21 +584,34 @@ export default function PerformancePage() {
   ];
 
   const overview = usePerformanceOverview(filtro);
+  const overviewReady = overview.isSuccess && Boolean(overview.data);
+  const serieTemporalEnabled = useStaggeredQueryEnabled(overviewReady, 150);
+  const statusEnabled = useStaggeredQueryEnabled(overviewReady, 250);
+  const historicoEnabled = useStaggeredQueryEnabled(overviewReady, 350);
+  const drilldownEnabled = useStaggeredQueryEnabled(overviewReady, 550);
+  const agingEnabled = useStaggeredQueryEnabled(overviewReady, 700);
+  const tabelaEnabled = useStaggeredQueryEnabled(overviewReady, 900);
   const responsaveis = usePerformanceResponsaveis(filtroSemResponsaveis);
   const regioesDestino = usePerformanceRegioesDestino(filtroSemRegioesDestino);
   const cidadesDestino = usePerformanceCidadesDestino(filtroSemCidadesDestino);
-  const serieTemporal = usePerformanceSerieTemporal(filtro, nivelTemporal, anoTemporal, mesTemporal);
-  const status = usePerformanceStatus(filtro);
-  const historico = usePerformanceHistorico(historicoFiltro, historicoPeriodoMeses);
+  const serieTemporal = usePerformanceSerieTemporal(filtro, nivelTemporal, anoTemporal, mesTemporal, serieTemporalEnabled);
+  const status = usePerformanceStatus(filtro, statusEnabled);
+  const historico = usePerformanceHistorico(historicoFiltro, historicoPeriodoMeses, historicoEnabled);
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
-  const tabela = usePerformanceTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
+  const tabela = usePerformanceTabelaPaginada(
+    filtro,
+    paginacaoTabela.pagina,
+    paginacaoTabela.tamanhoPagina,
+    filtrosTabela.apiFilters,
+    tabelaEnabled,
+  );
   const drilldown = usePerformanceDrilldown(filtro, {
     nivel: drillNivel,
     responsavel: drillResponsavel,
     regiaoDestino: drillRegiao,
-  });
-  const aging = usePerformanceAging(filtro);
+  }, drilldownEnabled);
+  const aging = usePerformanceAging(filtro, agingEnabled);
 
   usePageHeader({
     title: 'Performance',
@@ -873,12 +887,6 @@ export default function PerformancePage() {
         </div>
       </div>
 
-      {tabela.isError && (
-        <MensagemErro
-          mensagem={getApiErrorMessage(tabela.error, 'Erro ao carregar tabela de performance.')}
-          tipo={getTipoErro(tabela.error)}
-        />
-      )}
       <div className="mt-6 mb-3 flex justify-end">
         <ExportButton nomeArquivo="performance" onExport={() => exportarPerformanceCsv(filtro, filtrosTabela.apiFilters)} />
       </div>
@@ -890,6 +898,7 @@ export default function PerformancePage() {
         statusOptions={statusTabelaOptions}
         statusOptionsLoading={status.isLoading}
         isLoading={tabela.isLoading}
+        error={tabela.error}
         paginaAtual={paginacaoTabela.pagina}
         tamanhoPagina={paginacaoTabela.tamanhoPagina}
         onTextFilterChange={filtrosTabela.setTextFilter}

@@ -676,9 +676,9 @@ public class PerformanceDashboardSqlRepository {
         }
 
         params.addValue(param, termo + "%");
-        where.append("\n AND CONVERT(VARCHAR(10), TRY_CONVERT(date, ")
+        where.append("\n AND CONVERT(VARCHAR(10), ")
                 .append(expressao)
-                .append("), 23) LIKE :")
+                .append(", 23) LIKE :")
                 .append(param);
     }
 
@@ -971,8 +971,8 @@ public class PerformanceDashboardSqlRepository {
                 WITH fonte AS (
                     SELECT
                         TRY_CONVERT(BIGINT, [Nº Minuta]) AS numero_minuta,
-                        TRY_CONVERT(date, [Previsão de Entrega]) AS data_previsao_entrega,
-                        TRY_CONVERT(date, [Data de Finalização]) AS data_finalizacao,
+                        CAST([Previsão de Entrega] AS date) AS data_previsao_entrega,
+                        CAST([Data de Finalização] AS date) AS data_finalizacao,
                         %s AS responsavel_regiao_destino,
                         %s AS filial_emissora,
                         COALESCE(%s,
@@ -991,18 +991,18 @@ public class PerformanceDashboardSqlRepository {
                             WHEN LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) IN (N'occurrence_treatment', N'tratamento de ocorrência', N'tratamento de ocorrencia', N'em tratativa', N'tratativa', N'standby', N'aguardando') THEN N'Em Tratativa'
                             ELSE N'Pendente'
                         END AS status_norm,
-                        TRY_CONVERT(datetime2, [Data de extracao]) AS data_extracao,
+                        TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [Data de extracao])) AS data_extracao,
                         ROW_NUMBER() OVER (
                             PARTITION BY TRY_CONVERT(BIGINT, [Nº Minuta])
                             ORDER BY
                                 CASE WHEN [Data de Finalização] IS NOT NULL THEN 0 ELSE 1 END,
-                                TRY_CONVERT(datetime2, [Data de extracao]) DESC,
+                                TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [Data de extracao])) DESC,
                                 TRY_CONVERT(BIGINT, [ID]) DESC
                         ) AS rn
                     FROM dbo.vw_fretes_powerbi base_raw
                     WHERE TRY_CONVERT(BIGINT, [Nº Minuta]) IS NOT NULL
-                      AND TRY_CONVERT(date, [Previsão de Entrega]) >= :dataInicio
-                      AND TRY_CONVERT(date, [Previsão de Entrega]) < :dataFim
+                      AND [Previsão de Entrega] >= :dataInicio
+                      AND [Previsão de Entrega] < :dataFim
                       AND (:pagadoresVazio = 1 OR base_raw.[Pagador] IN (:pagadores))
                 ),
                 entregas AS (

@@ -13,6 +13,7 @@ Você atua como Engenheiro de Software Principal neste repositório (Interface R
 * **Preservação de Documentação Operacional:** É proibido apagar arquivos `README.md` e `AGENTS.md`. Quando necessário, apenas atualize seu conteúdo mantendo esses arquivos presentes no repositório.
 * **Preparação para Produção:** Sua entrega só estará pronta se o ambiente de produção estiver 100% preparado para que o humano execute o `iniciar-prod.bat`. Isso significa deixar migrations, views de aplicação, variáveis de ambiente e builds frontend completamente alinhados e sem pendências estruturais.
 * **Paridade DEV/PROD:** O comportamento validado em ambiente local deve ser idêntico ao contrato de produção. Evite lógicas que funcionem apenas em ambiente de desenvolvimento.
+* **Paridade de Schema (Baseline Parity):** Toda alteração estrutural via Migration/Flyway (ex: arquivos em `backend/src/main/resources/db/migration/`) DEVE obrigatoriamente ser refletida nos scripts base, seeds ou artefatos canônicos de criação correspondentes quando existirem. A recriação do banco de dados do zero deve produzir um schema idêntico ao banco atualizado via migrations. Esta regra não autoriza DDL/DML no `ETL_SISTEMA`.
 
 ---
 

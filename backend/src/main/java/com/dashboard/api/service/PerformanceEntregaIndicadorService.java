@@ -9,10 +9,11 @@ import com.dashboard.api.model.VisaoFretesEntity;
 import com.dashboard.api.repository.VisaoFretesRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -33,8 +34,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class PerformanceEntregaIndicadorService {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(PerformanceEntregaIndicadorService.class);
 
     private static final String STATUS_CANCELADO = "cancelado";
     private static final String PERFORMANCE_EM_ABERTO = "EM ABERTO";
@@ -132,16 +131,7 @@ public class PerformanceEntregaIndicadorService {
                         .thenComparing(PerformanceEntregaRegistro::dataFinalizacao, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(PerformanceEntregaRegistro::numeroMinuta, Comparator.reverseOrder()))
                 .limit(limiteAplicado)
-                .map(registro -> new PerformanceEntregaRowDTO(
-                        registro.numeroMinuta(),
-                        IndicadoresGestaoMetricasUtils.formatar(registro.dataFrete()),
-                        registro.filialPerformance(),
-                        registro.filialEmissora(),
-                        IndicadoresGestaoMetricasUtils.formatar(registro.previsaoEntrega()),
-                        IndicadoresGestaoMetricasUtils.formatar(registro.dataFinalizacao()),
-                        registro.performanceDiferencaDias(),
-                        registro.performanceStatus()
-                ))
+                .map(this::toRow)
                 .toList();
     }
 
@@ -153,21 +143,44 @@ public class PerformanceEntregaIndicadorService {
                         .thenComparing(PerformanceEntregaRegistro::dataFrete, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(PerformanceEntregaRegistro::dataFinalizacao, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(PerformanceEntregaRegistro::numeroMinuta, Comparator.reverseOrder()))
-                .map(registro -> new PerformanceEntregaRowDTO(
-                        registro.numeroMinuta(),
-                        IndicadoresGestaoMetricasUtils.formatar(registro.dataFrete()),
-                        registro.filialPerformance(),
-                        registro.filialEmissora(),
-                        IndicadoresGestaoMetricasUtils.formatar(registro.previsaoEntrega()),
-                        IndicadoresGestaoMetricasUtils.formatar(registro.dataFinalizacao()),
-                        registro.performanceDiferencaDias(),
-                        registro.performanceStatus()
-                ))
+                .map(this::toRow)
                 .toList();
     }
 
     public PaginaDTO<PerformanceEntregaRowDTO> buscarTabelaPaginada(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
-        return PaginacaoListaUtils.paginar(buscarExportacao(filtro), pagina, tamanhoPagina);
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        int paginaAplicada = Math.max(1, pagina);
+        int tamanhoAplicado = ConsultaLimiteUtils.limitar(tamanhoPagina, 10, 100);
+        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        Page<VisaoFretesEntity> paginaFretes = fretesRepository.findAll(
+                criarFretesSpecification(filtro, escopo),
+                PageRequest.of(
+                        paginaAplicada - 1,
+                        tamanhoAplicado,
+                        Sort.by(
+                                Sort.Order.desc("previsaoEntrega"),
+                                Sort.Order.desc("dataFrete"),
+                                Sort.Order.desc("dataFinalizacao"),
+                                Sort.Order.desc("numeroMinuta")
+                        )
+                )
+        );
+
+        Map<Long, PerformanceEntregaRegistro> porMinuta = new LinkedHashMap<>();
+        for (VisaoFretesEntity frete : paginaFretes.getContent()) {
+            PerformanceEntregaRegistro registro = criarRegistro(frete, filtro, escopo);
+            if (registro != null) {
+                porMinuta.merge(registro.numeroMinuta(), registro, this::preferirRegistroMaisCompleto);
+            }
+        }
+
+        return new PaginaDTO<>(
+                porMinuta.values().stream().map(this::toRow).toList(),
+                paginaFretes.getTotalElements(),
+                paginaFretes.getTotalPages(),
+                paginaAplicada,
+                tamanhoAplicado
+        );
     }
 
     private List<PerformanceEntregaRegistro> buscarRegistros(FiltroConsultaDTO filtro) {
@@ -215,53 +228,64 @@ public class PerformanceEntregaIndicadorService {
             FiltroConsultaDTO filtro,
             EscopoFilialService.EscopoFilial escopo
     ) {
-        List<VisaoFretesEntity> fretes;
-        try {
-            fretes = fretesRepository.findAll(criarFretesSpecification(filtro, escopo));
-        } catch (RuntimeException ex) {
-            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
-                throw ex;
-            }
-            DatabaseReadFallbackUtils.logFallback(LOGGER, "Falha ao consultar performance de entrega", ex);
-            return List.of();
-        }
-
+        List<VisaoFretesEntity> fretes = fretesRepository.findAll(criarFretesSpecification(filtro, escopo));
         Map<Long, PerformanceEntregaRegistro> porMinuta = new LinkedHashMap<>();
         for (VisaoFretesEntity frete : fretes) {
-            Long numeroMinuta = frete.getNumeroMinuta();
-            if (numeroMinuta == null
-                    || frete.getPrevisaoEntrega() == null
-                    || statusCancelado(frete.getStatus())
-                    || !IndicadoresGestaoMetricasUtils.freteOperacionalElegivel(frete)) {
-                continue;
+            PerformanceEntregaRegistro registro = criarRegistro(frete, filtro, escopo);
+            if (registro != null) {
+                porMinuta.merge(registro.numeroMinuta(), registro, this::preferirRegistroMaisCompleto);
             }
-            String performanceStatus = textoStatusOuAberto(frete.getPerformanceStatus());
-
-            String filialEmissora = primeiroTexto(frete.getFilialEmissora(), frete.getFilialNome());
-            String filialPerformance = primeiroTexto(
-                    frete.getResponsavelRegiaoDestino(),
-                    filialEmissora
-            );
-            if (!permiteFilial(escopo, filtro, filialPerformance)) {
-                continue;
-            }
-
-            PerformanceEntregaRegistro registro = new PerformanceEntregaRegistro(
-                    numeroMinuta,
-                    frete.getDataFrete(),
-                    frete.getPrevisaoEntrega(),
-                    frete.getDataFinalizacao(),
-                    filialPerformance,
-                    filialEmissora,
-                    frete.getPerformanceDiferencaDias(),
-                    performanceStatus,
-                    frete.getDataExtracao()
-            );
-
-            porMinuta.merge(numeroMinuta, registro, this::preferirRegistroMaisCompleto);
         }
 
         return porMinuta.values().stream().toList();
+    }
+
+    private PerformanceEntregaRegistro criarRegistro(
+            VisaoFretesEntity frete,
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo
+    ) {
+        Long numeroMinuta = frete.getNumeroMinuta();
+        if (numeroMinuta == null
+                || frete.getPrevisaoEntrega() == null
+                || statusCancelado(frete.getStatus())
+                || !IndicadoresGestaoMetricasUtils.freteOperacionalElegivel(frete)) {
+            return null;
+        }
+
+        String filialEmissora = primeiroTexto(frete.getFilialEmissora(), frete.getFilialNome());
+        String filialPerformance = primeiroTexto(
+                frete.getResponsavelRegiaoDestino(),
+                filialEmissora
+        );
+        if (!permiteFilial(escopo, filtro, filialPerformance)) {
+            return null;
+        }
+
+        return new PerformanceEntregaRegistro(
+                numeroMinuta,
+                frete.getDataFrete(),
+                frete.getPrevisaoEntrega(),
+                frete.getDataFinalizacao(),
+                filialPerformance,
+                filialEmissora,
+                frete.getPerformanceDiferencaDias(),
+                textoStatusOuAberto(frete.getPerformanceStatus()),
+                frete.getDataExtracao()
+        );
+    }
+
+    private PerformanceEntregaRowDTO toRow(PerformanceEntregaRegistro registro) {
+        return new PerformanceEntregaRowDTO(
+                registro.numeroMinuta(),
+                IndicadoresGestaoMetricasUtils.formatar(registro.dataFrete()),
+                registro.filialPerformance(),
+                registro.filialEmissora(),
+                IndicadoresGestaoMetricasUtils.formatar(registro.previsaoEntrega()),
+                IndicadoresGestaoMetricasUtils.formatar(registro.dataFinalizacao()),
+                registro.performanceDiferencaDias(),
+                registro.performanceStatus()
+        );
     }
 
     @NonNull

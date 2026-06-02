@@ -30,7 +30,7 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("TRY_CONVERT(datetimeoffset, [data_referencia_faturamento]) >= :inicioOffset AND TRY_CONVERT(datetimeoffset, [data_referencia_faturamento]) < :fimOffset");
+        assertThat(query.sql()).contains("[data_referencia_faturamento] >= :inicioOffset AND [data_referencia_faturamento] < :fimOffset");
         assertThat(query.sql()).contains("ORDER BY [data_referencia_faturamento] DESC");
         assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial])))) IN (:escopoFiliais)");
         assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Status])))) IN (:filtro_status)");
@@ -49,7 +49,7 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("TRY_CONVERT(date, [Emissão]) BETWEEN :dataInicio AND :dataFim");
+        assertThat(query.sql()).contains("[Emissão] BETWEEN :dataInicio AND :dataFim");
         assertThat(query.params().getValues()).containsEntry("dataInicio", LocalDate.of(2026, 3, 17));
         assertThat(query.params().getValues()).containsEntry("dataFim", LocalDate.of(2026, 4, 16));
     }
@@ -126,7 +126,7 @@ class DashboardExportSqlBuilderTest {
     }
 
     @Test
-    void buildSelectCotacoesDeveFiltrarUsuarioPorChaveSargavel() {
+    void buildSelectCotacoesDeveFiltrarUsuarioPorSolicitanteNormalizado() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
                 DashboardExportDefinition.COTACOES,
                 filtro(Map.of("usuarios", List.of("Maria Silva"))),
@@ -134,8 +134,8 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("[Usuario Key] IN (:filtro_usuarios)");
-        assertThat(query.sql()).doesNotContain("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Usuario Key]))))");
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Solicitante])))) IN (:filtro_usuarios)");
+        assertThat(query.sql()).doesNotContain("[Usuario Key]");
         assertThat(query.sql()).doesNotContain("LIKE :filtro_usuarios");
         assertThat(query.params().getValues()).containsEntry("filtro_usuarios", List.of("maria silva"));
     }

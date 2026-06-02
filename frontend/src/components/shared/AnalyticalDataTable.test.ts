@@ -92,4 +92,15 @@ describe('AnalyticalDataTable', () => {
     expect(html).not.toContain('table-fixed');
     expect(html).not.toContain('min-w-0 truncate');
   });
+
+  it('exibe erro sem cair no estado vazio', () => {
+    const html = renderTabela({
+      dados: [],
+      totalRegistros: undefined,
+      error: new Error('Falha de comunicação'),
+    });
+
+    expect(html).toContain('Falha de comunicação');
+    expect(html).not.toContain('Nenhum registro encontrado.');
+  });
 });

@@ -32,6 +32,7 @@ import {
 } from '../hooks/queries/useFaturamento';
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { usePermissions } from '../hooks/usePermissions';
+import { useStaggeredQueryEnabled } from '../hooks/useStaggeredQueryEnabled';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type {
   FaturamentoClienteRanking,
@@ -873,17 +874,30 @@ export default function FaturamentoPage() {
   ];
 
   const overview = useFaturamentoOverview(filtro);
-  const serie = useFaturamentoSerie(filtro);
-  const graficos = useFaturamentoGraficos(filtro);
-  const metas = useFaturamentoMetas(filtro);
+  const overviewReady = overview.isSuccess && Boolean(overview.data);
+  const metasEnabled = useStaggeredQueryEnabled(overviewReady, 120);
+  const serieEnabled = useStaggeredQueryEnabled(overviewReady, 240);
+  const graficosEnabled = useStaggeredQueryEnabled(overviewReady, 380);
+  const topClientesEnabled = useStaggeredQueryEnabled(overviewReady, 620);
+  const topClientesAnteriorEnabled = useStaggeredQueryEnabled(overviewReady, 760);
+  const tabelaEnabled = useStaggeredQueryEnabled(overviewReady, 950);
+  const serie = useFaturamentoSerie(filtro, serieEnabled);
+  const graficos = useFaturamentoGraficos(filtro, graficosEnabled);
+  const metas = useFaturamentoMetas(filtro, metasEnabled);
   const metasConfiguracoes = useFaturamentoMetasConfiguracoes(goalsPanelYear, goalsPanelMonth, goalsPanelOpen);
   const salvarMeta = useSalvarFaturamentoMetaConfiguracao();
   const removerMeta = useRemoverFaturamentoMetaConfiguracao();
-  const topClientes = useFaturamentoTopClientes(filtro, 10);
-  const topClientesPeriodoAnterior = useFaturamentoTopClientes(filtroPeriodoAnterior, 50);
+  const topClientes = useFaturamentoTopClientes(filtro, 10, topClientesEnabled);
+  const topClientesPeriodoAnterior = useFaturamentoTopClientes(filtroPeriodoAnterior, 50, topClientesAnteriorEnabled);
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
-  const tabela = useFaturamentoTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
+  const tabela = useFaturamentoTabelaPaginada(
+    filtro,
+    paginacaoTabela.pagina,
+    paginacaoTabela.tamanhoPagina,
+    filtrosTabela.apiFilters,
+    tabelaEnabled,
+  );
 
   const filtroParaStatus: FaturamentoFiltro = {
     dataInicio,
@@ -1298,6 +1312,8 @@ export default function FaturamentoPage() {
           statusOptions={statusTabelaOptions}
           statusOptionsLoading={statusFaturamento.isLoading}
           isLoading={tabela.isLoading}
+          error={tabela.error}
+          errorFallbackMessage="Erro ao carregar faturamento analítico."
           totalRegistros={tabela.data?.totalElementos}
           paginaAtual={paginacaoTabela.pagina}
           tamanhoPagina={paginacaoTabela.tamanhoPagina}

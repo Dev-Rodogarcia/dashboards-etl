@@ -515,6 +515,8 @@ export default function TrackingPage() {
             statusOptions={statusTabelaOptions}
             statusOptionsLoading={dashboard.isLoading}
             isLoading={tabela.isLoading}
+            error={tabela.error}
+            errorFallbackMessage="Erro ao carregar detalhamento de cargas."
             totalRegistros={tabela.data?.totalElementos}
             paginaAtual={paginacaoTabela.pagina}
             tamanhoPagina={paginacaoTabela.tamanhoPagina}

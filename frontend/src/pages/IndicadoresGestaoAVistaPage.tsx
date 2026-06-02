@@ -48,6 +48,7 @@ import {
 } from '../hooks/queries/useIndicadoresGestaoAVista';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import { usePermissions } from '../hooks/usePermissions';
+import { useStaggeredQueryEnabled } from '../hooks/useStaggeredQueryEnabled';
 import type {
   CubagemMercadoriasRow,
   HorarioCorteRow,
@@ -205,44 +206,49 @@ export default function IndicadoresGestaoAVistaPage() {
   const canManageKpiGoals = canAccess('can_manage_kpi_goals');
 
   const performanceOverview = usePerformanceEntregaOverview(filtroBase);
-  const performanceSerie = usePerformanceEntregaSerie(filtroBase);
+  const coletoresOverview = useUtilizacaoColetoresOverview(filtroColetores);
+  const cubagemOverview = useCubagemMercadoriasOverview(filtroBase);
+  const indenizacaoOverview = useIndenizacaoMercadoriasOverview(filtroBase);
+  const horariosOverview = useHorariosCorteOverview(filtroBase);
+  const performanceSecondaryEnabled = useStaggeredQueryEnabled(performanceOverview.isSuccess && Boolean(performanceOverview.data), 150);
+  const coletoresSecondaryEnabled = useStaggeredQueryEnabled(coletoresOverview.isSuccess && Boolean(coletoresOverview.data), 220);
+  const cubagemSecondaryEnabled = useStaggeredQueryEnabled(cubagemOverview.isSuccess && Boolean(cubagemOverview.data), 290);
+  const indenizacaoSecondaryEnabled = useStaggeredQueryEnabled(indenizacaoOverview.isSuccess && Boolean(indenizacaoOverview.data), 360);
+  const horariosSecondaryEnabled = useStaggeredQueryEnabled(horariosOverview.isSuccess && Boolean(horariosOverview.data), 430);
+  const performanceSerie = usePerformanceEntregaSerie(filtroBase, performanceSecondaryEnabled);
   const performanceTabela = usePerformanceEntregaTabelaPaginada(
     filtroBase,
     performancePaginacao.pagina,
     performancePaginacao.tamanhoPagina,
-    expandedSection === 'performance',
+    expandedSection === 'performance' && performanceSecondaryEnabled,
   );
-  const coletoresOverview = useUtilizacaoColetoresOverview(filtroColetores);
-  const coletoresRankingQuery = useUtilizacaoColetoresRanking(filtroColetores);
+  const coletoresRankingQuery = useUtilizacaoColetoresRanking(filtroColetores, coletoresSecondaryEnabled);
   const coletoresTabela = useUtilizacaoColetoresTabelaPaginada(
     filtroColetores,
     coletoresPaginacao.pagina,
     coletoresPaginacao.tamanhoPagina,
-    expandedSection === 'coletores',
+    expandedSection === 'coletores' && coletoresSecondaryEnabled,
   );
-  const cubagemOverview = useCubagemMercadoriasOverview(filtroBase);
-  const cubagemSerie = useCubagemMercadoriasSerie(filtroBase);
+  const cubagemSerie = useCubagemMercadoriasSerie(filtroBase, cubagemSecondaryEnabled);
   const cubagemTabela = useCubagemMercadoriasTabelaPaginada(
     filtroBase,
     cubagemPaginacao.pagina,
     cubagemPaginacao.tamanhoPagina,
-    expandedSection === 'cubagem',
+    expandedSection === 'cubagem' && cubagemSecondaryEnabled,
   );
-  const indenizacaoOverview = useIndenizacaoMercadoriasOverview(filtroBase);
-  const indenizacaoSerie = useIndenizacaoMercadoriasSerie(filtroBase);
+  const indenizacaoSerie = useIndenizacaoMercadoriasSerie(filtroBase, indenizacaoSecondaryEnabled);
   const indenizacaoTabela = useIndenizacaoMercadoriasTabelaPaginada(
     filtroBase,
     indenizacaoPaginacao.pagina,
     indenizacaoPaginacao.tamanhoPagina,
-    expandedSection === 'indenizacao',
+    expandedSection === 'indenizacao' && indenizacaoSecondaryEnabled,
   );
-  const horariosOverview = useHorariosCorteOverview(filtroBase);
-  const horariosSerie = useHorariosCorteSerie(filtroBase);
+  const horariosSerie = useHorariosCorteSerie(filtroBase, horariosSecondaryEnabled);
   const horariosTabela = useHorariosCorteTabelaPaginada(
     filtroBase,
     horariosPaginacao.pagina,
     horariosPaginacao.tamanhoPagina,
-    expandedSection === 'horarios',
+    expandedSection === 'horarios' && horariosSecondaryEnabled,
   );
   const kpiGoals = useKpiGoalsEffective(goalBranchId);
   const canFetchGoalOverrides = kpiGoals.isSuccess;
@@ -912,6 +918,7 @@ export default function IndicadoresGestaoAVistaPage() {
         tableColumns={performanceColumns}
         rowKey="numeroMinuta"
         tableLoading={performanceTabela.isLoading}
+        tableError={performanceTabela.error}
         tableTotal={performanceTabela.data?.totalElementos}
         tablePage={performancePaginacao.pagina}
         tablePageSize={performancePaginacao.tamanhoPagina}
@@ -947,6 +954,7 @@ export default function IndicadoresGestaoAVistaPage() {
         tableColumns={coletoresColumns}
         rowKey="chave"
         tableLoading={coletoresTabela.isLoading}
+        tableError={coletoresTabela.error}
         tableTotal={coletoresTabela.data?.totalElementos}
         tablePage={coletoresPaginacao.pagina}
         tablePageSize={coletoresPaginacao.tamanhoPagina}
@@ -982,6 +990,7 @@ export default function IndicadoresGestaoAVistaPage() {
         tableColumns={cubagemColumns}
         rowKey="numeroMinuta"
         tableLoading={cubagemTabela.isLoading}
+        tableError={cubagemTabela.error}
         tableTotal={cubagemTabela.data?.totalElementos}
         tablePage={cubagemPaginacao.pagina}
         tablePageSize={cubagemPaginacao.tamanhoPagina}
@@ -1017,6 +1026,7 @@ export default function IndicadoresGestaoAVistaPage() {
         tableColumns={indenizacaoColumns}
         rowKey="numeroSinistro"
         tableLoading={indenizacaoTabela.isLoading}
+        tableError={indenizacaoTabela.error}
         tableTotal={indenizacaoTabela.data?.totalElementos}
         tablePage={indenizacaoPaginacao.pagina}
         tablePageSize={indenizacaoPaginacao.tamanhoPagina}
@@ -1052,6 +1062,7 @@ export default function IndicadoresGestaoAVistaPage() {
         tableColumns={horariosColumns}
         rowKey="id"
         tableLoading={horariosTabela.isLoading}
+        tableError={horariosTabela.error}
         tableTotal={horariosTabela.data?.totalElementos}
         tablePage={horariosPaginacao.pagina}
         tablePageSize={horariosPaginacao.tamanhoPagina}

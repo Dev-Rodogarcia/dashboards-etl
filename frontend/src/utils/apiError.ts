@@ -11,6 +11,9 @@ type RespostaErroBackend = {
   status?: unknown;
 };
 
+export const SERVER_INSTABILITY_MESSAGE = 'Instabilidade no servidor. Tente novamente em alguns instantes.';
+export const DATABASE_TIMEOUT_MESSAGE = 'Timeout na base de dados. Reduza o período ou tente novamente.';
+
 function errorCodeIndicaTimeout(error: AxiosError): boolean {
   return error.code === 'ECONNABORTED' || error.message.toLowerCase().includes('timeout');
 }
@@ -49,8 +52,12 @@ export function getApiErrorMessage(error: unknown, fallback = 'Não foi possíve
         : 'Muitas requisições em pouco tempo. Aguarde alguns instantes e tente novamente.';
     }
 
+    if (status === 503) {
+      return SERVER_INSTABILITY_MESSAGE;
+    }
+
     if (status === 408 || status === 504 || errorCodeIndicaTimeout(error)) {
-      return 'A API demorou mais do que o esperado. Verifique a conexão e tente novamente.';
+      return DATABASE_TIMEOUT_MESSAGE;
     }
 
     // Tenta o campo "mensagem" (formato do nosso ManipuladorGlobalExcecoes)
@@ -79,7 +86,7 @@ export function getApiErrorMessage(error: unknown, fallback = 'Não foi possíve
  * Retorna o tipo de erro com base no HTTP status para uso em variantes de UI.
  * - 'periodo'   → 400 com mensagem de período (validação do backend)
  * - 'timeout'   → 408 / 504 (query demorou demais)
- * - 'indisponivel' → sem resposta (API offline)
+ * - 'indisponivel' → sem resposta / 502 / 503 (API offline ou instavel)
  * - 'erro'      → demais erros
  */
 export type TipoErro = 'periodo' | 'timeout' | 'indisponivel' | 'erro';
@@ -95,6 +102,7 @@ export function getTipoErro(error: unknown): TipoErro {
     const status = error.response.status;
     if (status === 400) return 'periodo';
     if (status === 408 || status === 504) return 'timeout';
+    if (status === 502 || status === 503) return 'indisponivel';
   }
   return 'erro';
 }

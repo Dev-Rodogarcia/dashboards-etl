@@ -213,6 +213,8 @@ export default function FaturasPorClientePage() {
         statusOptions={statusTabelaOptions}
         statusOptionsLoading={statusProcesso.isLoading}
         isLoading={tabela.isLoading}
+        error={tabela.error}
+        errorFallbackMessage="Erro ao carregar faturas por cliente."
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}
         tamanhoPagina={paginacaoTabela.tamanhoPagina}

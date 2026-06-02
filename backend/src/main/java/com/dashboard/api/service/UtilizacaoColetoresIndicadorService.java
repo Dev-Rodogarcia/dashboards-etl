@@ -13,8 +13,9 @@ import com.dashboard.api.repository.VisaoInventarioRepository;
 import com.dashboard.api.repository.VisaoManifestosRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -42,8 +42,6 @@ import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class UtilizacaoColetoresIndicadorService {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(UtilizacaoColetoresIndicadorService.class);
 
     private static final String CLASSIFICACAO_GERAL = "Geral";
     private static final Duration CACHE_PONTOS_TTL = Duration.ofMinutes(2);
@@ -261,7 +259,44 @@ public class UtilizacaoColetoresIndicadorService {
     }
 
     public PaginaDTO<UtilizacaoColetoresRowDTO> buscarTabelaPaginada(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
-        return PaginacaoListaUtils.paginar(buscarExportacao(filtro), pagina, tamanhoPagina);
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        int paginaAplicada = Math.max(1, pagina);
+        int tamanhoAplicado = ConsultaLimiteUtils.limitar(tamanhoPagina, 10, 100);
+        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
+        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+
+        Page<VisaoManifestosEntity> paginaManifestos = manifestosRepository.findAll(
+                criarManifestosSpecification(janela),
+                PageRequest.of(
+                        paginaAplicada - 1,
+                        tamanhoAplicado,
+                        Sort.by(Sort.Order.desc("dataCriacao"))
+                )
+        );
+        Page<VisaoInventarioEntity> paginaOrdens = inventarioRepository.findAll(
+                criarInventarioSpecification(janela),
+                PageRequest.of(
+                        paginaAplicada - 1,
+                        tamanhoAplicado,
+                        Sort.by(Sort.Order.desc("dataHoraInicio"))
+                )
+        );
+
+        List<UtilizacaoColetoresRowDTO> conteudo = calcularPontos(
+                filtro,
+                escopo,
+                paginaManifestos.getContent(),
+                paginaOrdens.getContent()
+        ).stream()
+                .sorted(Comparator.comparing(UtilizacaoColetoresPonto::data, Comparator.reverseOrder())
+                        .thenComparing(UtilizacaoColetoresPonto::filial, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                        .thenComparing(UtilizacaoColetoresPonto::classificacao, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .map(this::toRow)
+                .toList();
+
+        long totalElementos = Math.max(paginaManifestos.getTotalElements(), paginaOrdens.getTotalElements());
+        int totalPaginas = totalElementos == 0 ? 0 : (int) Math.ceil(totalElementos / (double) tamanhoAplicado);
+        return new PaginaDTO<>(conteudo, totalElementos, totalPaginas, paginaAplicada, tamanhoAplicado);
     }
 
     private List<UtilizacaoColetoresPonto> buscarPontos(FiltroConsultaDTO filtro) {
@@ -311,24 +346,19 @@ public class UtilizacaoColetoresIndicadorService {
             EscopoFilialService.EscopoFilial escopo,
             JanelaOffsetDateTime janela
     ) {
-        Map<String, String> filiaisValidas = carregarFiliaisValidas();
-        List<VisaoManifestosEntity> manifestos;
-        List<VisaoInventarioEntity> ordens;
-        try {
-            manifestos = Optional
-                    .ofNullable(manifestosRepository.findAll(criarManifestosSpecification(janela)))
-                    .orElse(List.of());
-            ordens = Optional
-                    .ofNullable(inventarioRepository.findAll(criarInventarioSpecification(janela)))
-                    .orElse(List.of());
-        } catch (RuntimeException ex) {
-            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
-                throw ex;
-            }
-            DatabaseReadFallbackUtils.logFallback(LOGGER, "Falha ao consultar dados de utilizacao de coletores", ex);
-            return List.of();
-        }
+        List<VisaoManifestosEntity> manifestos = manifestosRepository.findAll(criarManifestosSpecification(janela));
+        List<VisaoInventarioEntity> ordens = inventarioRepository.findAll(criarInventarioSpecification(janela));
 
+        return calcularPontos(filtro, escopo, manifestos, ordens);
+    }
+
+    private List<UtilizacaoColetoresPonto> calcularPontos(
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            List<VisaoManifestosEntity> manifestos,
+            List<VisaoInventarioEntity> ordens
+    ) {
+        Map<String, String> filiaisValidas = carregarFiliaisValidas();
         Map<String, AcumuladorPonto> pontos = new LinkedHashMap<>();
         Set<String> emitidosRegistrados = new LinkedHashSet<>();
         Set<String> descarregamentosRegistrados = new LinkedHashSet<>();
@@ -379,6 +409,21 @@ public class UtilizacaoColetoresIndicadorService {
                 .map(AcumuladorPonto::toPonto)
                 .filter(ponto -> ponto.totalManifestos() > 0 || ponto.manifestosBipados() > 0)
                 .toList();
+    }
+
+    private UtilizacaoColetoresRowDTO toRow(UtilizacaoColetoresPonto ponto) {
+        return new UtilizacaoColetoresRowDTO(
+                chavePonto(ponto.data(), ponto.filial(), ponto.classificacao()),
+                IndicadoresGestaoMetricasUtils.formatar(ponto.data()),
+                ponto.filial(),
+                ponto.classificacao(),
+                ponto.manifestosBipados(),
+                ponto.manifestosEmitidos(),
+                ponto.manifestosDescarregamento(),
+                ponto.totalManifestos(),
+                ponto.manifestosIncompletos(),
+                IndicadoresGestaoMetricasUtils.percentual(ponto.manifestosBipados(), ponto.totalManifestos())
+        );
     }
 
     private ManifestoElegivel analisarManifesto(VisaoManifestosEntity manifesto) {

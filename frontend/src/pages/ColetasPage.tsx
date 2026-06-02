@@ -412,6 +412,8 @@ export default function ColetasPage() {
         statusOptions={statusTabelaOptions}
         statusOptionsLoading={graficos.isLoading}
         isLoading={tabela.isLoading}
+        error={tabela.error}
+        errorFallbackMessage="Erro ao carregar coletas analíticas."
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}
         tamanhoPagina={paginacaoTabela.tamanhoPagina}

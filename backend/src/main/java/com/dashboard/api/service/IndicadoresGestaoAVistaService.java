@@ -8,9 +8,6 @@ import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
 import com.dashboard.api.model.VisaoHorariosCorteEntity;
 import com.dashboard.api.repository.VisaoHorariosCorteRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
-import org.springframework.dao.DataAccessException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -34,7 +31,6 @@ import java.util.stream.Collectors;
 @Service
 public class IndicadoresGestaoAVistaService {
 
-    private static final Logger log = LoggerFactory.getLogger(IndicadoresGestaoAVistaService.class);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final Duration CACHE_FONTE_TTL = Duration.ofMinutes(2);
@@ -207,7 +203,56 @@ public class IndicadoresGestaoAVistaService {
     }
 
     public PaginaDTO<HorarioCorteRowDTO> buscarHorariosCorteTabelaPaginada(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
-        return PaginacaoListaUtils.paginar(buscarHorariosCorteExportacao(filtro), pagina, tamanhoPagina);
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        PaginaDTO<VisaoHorariosCorteEntity> paginaFonte = rasterSqlRepository.findPageByDataBetween(
+                filtro.dataInicio(),
+                filtro.dataFim(),
+                pagina,
+                tamanhoPagina
+        );
+        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        HorarioCorteFilialMapperService.FilialMappingContext mappingContext = filialMapperService.criarContextoRasterPadrao();
+
+        List<HorarioCorteRowDTO> conteudo = paginaFonte.conteudo().stream()
+                .map(row -> new HorarioCorteRegistroResolvido(row, resolverFilial(row, mappingContext)))
+                .filter(row -> escopo.permiteAlgumaFilial(row.filial()))
+                .filter(row -> filtro.corresponde("filiais", row.filial()))
+                .map(row -> new HorarioCorteRowDTO(
+                        Objects.requireNonNullElse(row.entity().getId(), 0L),
+                        formatar(row.entity().getData()),
+                        row.filial(),
+                        row.entity().getLinhaOuOperacao(),
+                        row.entity().getOrigemSm(),
+                        row.entity().getDestinoSm(),
+                        row.entity().getOrigemDestino(),
+                        row.entity().getOrigem(),
+                        row.entity().getOrdem(),
+                        row.entity().getDestino(),
+                        row.entity().getHorarioCorteSm(),
+                        row.entity().getPrevisaoChegadaDestino(),
+                        row.entity().getTransitTime(),
+                        formatar(row.entity().getInicio()),
+                        formatar(row.entity().getManifestado()),
+                        formatar(row.entity().getSmGerada()),
+                        formatar(row.entity().getCorte()),
+                        formatar(row.entity().getSaidaEfetiva()),
+                        formatar(row.entity().getHorarioCorte()),
+                        row.entity().getSaiuNoHorario(),
+                        row.entity().getAtrasoMinutos(),
+                        row.entity().getObservacao(),
+                        row.entity().getNomeArquivo(),
+                        formatar(row.entity().getImportadoEm()),
+                        row.entity().getImportadoPor()
+                ))
+                .toList();
+
+        return new PaginaDTO<>(
+                conteudo,
+                paginaFonte.totalElementos(),
+                paginaFonte.totalPaginas(),
+                paginaFonte.paginaAtual(),
+                paginaFonte.tamanhoPagina()
+        );
     }
 
     private List<HorarioCorteRegistroResolvido> buscarHorariosCorte(FiltroConsultaDTO filtro) {
@@ -255,33 +300,7 @@ public class IndicadoresGestaoAVistaService {
     }
 
     private List<VisaoHorariosCorteEntity> carregarHorariosCorteNaFonte(FiltroConsultaDTO filtro) {
-        try {
-            return rasterSqlRepository.findByDataBetween(filtro.dataInicio(), filtro.dataFim());
-        } catch (DataAccessException ex) {
-            log.warn(
-                    "Falha ao consultar Horario de Corte diretamente nas tabelas Raster; tentando fallback pela view vw_horarios_corte_powerbi. causa={}",
-                    ex.getMostSpecificCause().getMessage()
-            );
-            return buscarHorariosCorteNaView(filtro);
-        } catch (RuntimeException ex) {
-            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
-                throw ex;
-            }
-            DatabaseReadFallbackUtils.logFallback(log, "Falha ao consultar Horario de Corte diretamente nas tabelas Raster", ex);
-            return buscarHorariosCorteNaView(filtro);
-        }
-    }
-
-    private List<VisaoHorariosCorteEntity> buscarHorariosCorteNaView(FiltroConsultaDTO filtro) {
-        try {
-            return repository.findByDataBetween(filtro.dataInicio(), filtro.dataFim());
-        } catch (RuntimeException ex) {
-            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
-                throw ex;
-            }
-            DatabaseReadFallbackUtils.logFallback(log, "Falha ao consultar fallback de Horario de Corte pela view", ex);
-            return List.of();
-        }
+        return rasterSqlRepository.findByDataBetween(filtro.dataInicio(), filtro.dataFim());
     }
 
     private boolean isCalculavelParaKpi(HorarioCorteRegistroResolvido row) {

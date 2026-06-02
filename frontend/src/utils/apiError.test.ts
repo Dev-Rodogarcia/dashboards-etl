@@ -50,8 +50,22 @@ describe('apiError', () => {
     });
 
     expect(getApiErrorMessage(error)).toBe(
-      'A API demorou mais do que o esperado. Verifique a conexão e tente novamente.',
+      'Timeout na base de dados. Reduza o período ou tente novamente.',
     );
+    expect(getTipoErro(error)).toBe('timeout');
+  });
+
+  it('traduz 503 como instabilidade de servidor', () => {
+    const error = criarAxiosError({ status: 503 });
+
+    expect(getApiErrorMessage(error)).toBe('Instabilidade no servidor. Tente novamente em alguns instantes.');
+    expect(getTipoErro(error)).toBe('indisponivel');
+  });
+
+  it('traduz 504 como timeout de base de dados', () => {
+    const error = criarAxiosError({ status: 504 });
+
+    expect(getApiErrorMessage(error)).toBe('Timeout na base de dados. Reduza o período ou tente novamente.');
     expect(getTipoErro(error)).toBe('timeout');
   });
 });

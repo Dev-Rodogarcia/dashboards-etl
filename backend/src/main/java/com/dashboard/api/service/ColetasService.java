@@ -38,7 +38,6 @@ import java.util.stream.Collectors;
 public class ColetasService {
 
     private static final Logger log = LoggerFactory.getLogger(ColetasService.class);
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoColetasRepository repository;
@@ -149,28 +148,7 @@ public class ColetasService {
 
     public List<ColetasTrendPointDTO> buscarSerieTemporal(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
-
-        Map<LocalDate, List<VisaoColetasEntity>> agrupado = buscarRegistros(filtro).stream()
-                .filter(c -> c.getSolicitacao() != null)
-                .collect(Collectors.groupingBy(VisaoColetasEntity::getSolicitacao));
-
-        return agrupado.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(entry -> {
-                    List<VisaoColetasEntity> grupo = entry.getValue();
-                    int finalizadas = (int) grupo.stream().filter(this::isFinalizada).count();
-                    int canceladas = (int) grupo.stream().filter(c -> "Cancelada".equalsIgnoreCase(c.getStatus())).count();
-                    int emTratativa = (int) grupo.stream().filter(c -> "Em tratativa".equalsIgnoreCase(c.getStatus())).count();
-
-                    return new ColetasTrendPointDTO(
-                            entry.getKey().format(DATE_FMT),
-                            grupo.size(),
-                            finalizadas,
-                            canceladas,
-                            emTratativa
-                    );
-                })
-                .toList();
+        return agregadosSqlRepository.buscarSerieTemporal(filtro);
     }
 
     public List<ColetaResumoDTO> buscarTabela(FiltroConsultaDTO filtro, int limite) {

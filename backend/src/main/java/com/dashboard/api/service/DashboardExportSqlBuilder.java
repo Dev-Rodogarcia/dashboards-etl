@@ -271,23 +271,14 @@ class DashboardExportSqlBuilder {
         }
 
         if (definition.dateMode() == DashboardExportDefinition.DateMode.LOCAL_DATE) {
-            String colunaData = "TRY_CONVERT(date, " + definition.dateColumn() + ")";
-            where.add(colunaData + " BETWEEN :dataInicio AND :dataFim");
+            where.add(definition.dateColumn() + " BETWEEN :dataInicio AND :dataFim");
             params.addValue("dataInicio", dataInicio);
             params.addValue("dataFim", dataFim);
             return;
         }
 
         JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(dataInicio, dataFim);
-        if (definition == DashboardExportDefinition.TRACKING) {
-            where.add(definition.dateColumn() + " >= :inicioOffset AND " + definition.dateColumn() + " < :fimOffset");
-            params.addValue("inicioOffset", janela.inicioInclusivo());
-            params.addValue("fimOffset", janela.fimExclusivo());
-            return;
-        }
-
-        String colunaData = "TRY_CONVERT(datetimeoffset, " + definition.dateColumn() + ")";
-        where.add(colunaData + " >= :inicioOffset AND " + colunaData + " < :fimOffset");
+        where.add(definition.dateColumn() + " >= :inicioOffset AND " + definition.dateColumn() + " < :fimOffset");
         params.addValue("inicioOffset", janela.inicioInclusivo());
         params.addValue("fimOffset", janela.fimExclusivo());
     }
@@ -358,20 +349,12 @@ class DashboardExportSqlBuilder {
                 where.add("(" + String.join(" OR ", entry.getValue().stream()
                         .map(coluna -> coluna + " IN (:" + paramName + ")")
                         .toList()) + ")");
-            } else if (usaComparacaoDiretaPorChave(definition, chave)) {
-                where.add("(" + String.join(" OR ", entry.getValue().stream()
-                        .map(coluna -> coluna + " IN (:" + paramName + ")")
-                        .toList()) + ")");
             } else {
                 where.add("(" + String.join(" OR ", entry.getValue().stream()
                         .map(coluna -> normalizarSql(coluna) + " IN (:" + paramName + ")")
                         .toList()) + ")");
             }
         }
-    }
-
-    private boolean usaComparacaoDiretaPorChave(DashboardExportDefinition definition, String chaveFiltro) {
-        return definition == DashboardExportDefinition.COTACOES && "usuarios".equals(chaveFiltro);
     }
 
     private void adicionarFiltroFilialFlexivelTracking(
@@ -888,7 +871,11 @@ class DashboardExportSqlBuilder {
     }
 
     private String dataSql(String expressao) {
-        return "CONVERT(VARCHAR(10), TRY_CONVERT(date, " + expressao + "), 23)";
+        return "CONVERT(VARCHAR(10), " + tryConvertDateSql(expressao) + ", 23)";
+    }
+
+    private String tryConvertDateSql(String expressao) {
+        return "TRY_CONVERT(date, CONVERT(NVARCHAR(64), " + expressao + "))";
     }
 
     private List<String> juntar(List<String> primeira, List<String> segunda) {

@@ -153,7 +153,7 @@ public class FretesDashboardSqlRepository {
                         %s AS numero_cte,
                         %s AS cte_emissao,
                         %s AS data_referencia_faturamento,
-                        TRY_CONVERT(date, %s) AS data_referencia_periodo,
+                        TRY_CONVERT(date, CONVERT(NVARCHAR(64), %s)) AS data_referencia_periodo,
                         %s AS elegivel_faturamento,
                         %s AS cte_id,
                         %s AS nfse_numero,
@@ -276,7 +276,7 @@ public class FretesDashboardSqlRepository {
     private static String dataSql(FretesViewColumns colunas, String... nomes) {
         List<String> expressoes = List.of(nomes).stream()
                 .filter(colunas::existe)
-                .map(nome -> "TRY_CONVERT(date, [" + nome + "])")
+                .map(nome -> "TRY_CONVERT(date, CONVERT(NVARCHAR(64), [" + nome + "]))")
                 .toList();
         return coalesceOuNull(expressoes);
     }
@@ -284,7 +284,7 @@ public class FretesDashboardSqlRepository {
     private static String dataHoraSql(FretesViewColumns colunas, String... nomes) {
         List<String> expressoes = List.of(nomes).stream()
                 .filter(colunas::existe)
-                .map(nome -> "TRY_CONVERT(datetime2, [" + nome + "])")
+                .map(nome -> "TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [" + nome + "]))")
                 .toList();
         return coalesceOuNull(expressoes);
     }

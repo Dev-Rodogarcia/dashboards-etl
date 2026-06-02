@@ -13,6 +13,7 @@ interface PerformanceTabelaProps {
   statusOptions: string[];
   statusOptionsLoading?: boolean;
   isLoading?: boolean;
+  error?: unknown;
   paginaAtual: number;
   tamanhoPagina: number;
   onTextFilterChange: (campo: Exclude<keyof TableFilters, 'status' | 'columnFilters'>, valor: string) => void;
@@ -69,6 +70,7 @@ export default function PerformanceTabela({
   statusOptions,
   statusOptionsLoading,
   isLoading,
+  error,
   paginaAtual,
   tamanhoPagina,
   onTextFilterChange,
@@ -95,6 +97,8 @@ export default function PerformanceTabela({
         statusOptions={statusOptions}
         statusOptionsLoading={statusOptionsLoading}
         isLoading={isLoading}
+        error={error}
+        errorFallbackMessage="Erro ao carregar tabela de performance."
         totalRegistros={pagina?.totalElementos}
         paginaAtual={paginaAtual}
         tamanhoPagina={tamanhoPagina}

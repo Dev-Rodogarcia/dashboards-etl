@@ -4,9 +4,18 @@ import { API_BASE_URL, API_REQUEST_TIMEOUT_MS, AUTH_REQUEST_TIMEOUT_MS } from '.
 import type { LoginResponse } from '../types/auth';
 import { limparSessao, obterAccessToken, salvarSessaoDoLogin } from '../utils/gerenciadorSessao';
 import { ehSessaoExpiradaError, normalizarErroSessao } from '../utils/authSession';
+import { DATABASE_TIMEOUT_MESSAGE, SERVER_INSTABILITY_MESSAGE } from '../utils/apiError';
 
 export interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
+}
+
+export const API_STATUS_ALERT_EVENT = 'dashboard:api-status-alert';
+
+export interface ApiStatusAlertDetail {
+  status?: number;
+  mensagem: string;
+  tipo: 'timeout' | 'indisponivel';
 }
 
 const clienteAxios = axios.create({
@@ -17,6 +26,8 @@ const clienteAxios = axios.create({
 });
 
 let refreshEmAndamento: Promise<LoginResponse> | null = null;
+let ultimoAlertaInfraestrutura: { chave: string; timestamp: number } | null = null;
+const API_STATUS_ALERT_COOLDOWN_MS = 5000;
 
 clienteAxios.interceptors.request.use((config) => {
   const accessToken = obterAccessToken();
@@ -78,6 +89,41 @@ function encerrarSessaoLocal(deps: Pick<TratamentoErroRespostaDeps, 'limparSessa
   }
 }
 
+function obterAlertaInfraestrutura(status?: number): ApiStatusAlertDetail | null {
+  if (status === 503) {
+    return { status, mensagem: SERVER_INSTABILITY_MESSAGE, tipo: 'indisponivel' };
+  }
+
+  if (status === 504) {
+    return { status, mensagem: DATABASE_TIMEOUT_MESSAGE, tipo: 'timeout' };
+  }
+
+  return null;
+}
+
+function notificarErroInfraestrutura(status?: number): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const alerta = obterAlertaInfraestrutura(status);
+  if (!alerta) {
+    return;
+  }
+
+  const agora = Date.now();
+  const chave = `${alerta.status}:${alerta.mensagem}`;
+  if (
+    ultimoAlertaInfraestrutura?.chave === chave
+    && agora - ultimoAlertaInfraestrutura.timestamp < API_STATUS_ALERT_COOLDOWN_MS
+  ) {
+    return;
+  }
+
+  ultimoAlertaInfraestrutura = { chave, timestamp: agora };
+  window.dispatchEvent(new CustomEvent<ApiStatusAlertDetail>(API_STATUS_ALERT_EVENT, { detail: alerta }));
+}
+
 export async function tratarErroRespostaApi(
   error: unknown,
   deps: TratamentoErroRespostaDeps,
@@ -89,6 +135,8 @@ export async function tratarErroRespostaApi(
   const status = resposta.response?.status;
   const originalRequest = resposta.config;
   const url = obterUrlRequisicao(originalRequest);
+
+  notificarErroInfraestrutura(status);
 
   if (status === 401 && originalRequest && !originalRequest._retry && !ehEndpointAuth(url)) {
     originalRequest._retry = true;

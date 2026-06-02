@@ -287,9 +287,10 @@ class PerformanceDashboardSqlRepositoryTest {
         );
 
         assertTrue(jdbcTemplate.sqls.stream().anyMatch(sql -> sql
-                .contains("TRY_CONVERT(date, [Previsão de Entrega]) >= :dataInicio")
-                && sql.contains("TRY_CONVERT(date, [Previsão de Entrega]) < :dataFim")
+                .contains("[Previsão de Entrega] >= :dataInicio")
+                && sql.contains("[Previsão de Entrega] < :dataFim")
                 && sql.contains("GROUP BY CONVERT(char(7), data_previsao_entrega, 23)")));
+        assertTrue(jdbcTemplate.sqls.stream().noneMatch(sql -> sql.contains("TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Previsão de Entrega])) >= :dataInicio")));
         assertEquals(Date.valueOf(LocalDate.of(2026, 3, 1)), jdbcTemplate.ultimoParametro("dataInicio"));
         assertEquals(Date.valueOf(LocalDate.of(2026, 5, 26)), jdbcTemplate.ultimoParametro("dataFim"));
     }

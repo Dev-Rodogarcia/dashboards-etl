@@ -1,5 +1,6 @@
 package com.dashboard.api.service;
 
+import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.model.VisaoHorariosCorteEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -206,6 +207,13 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
               AND data_corte <= ?
             """;
 
+    private static final String SQL_PAGED = SQL + """
+            ORDER BY data DESC, importado_em DESC, filial, linha_ou_operacao
+            OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+            """;
+
+    private static final String SQL_COUNT = "SELECT COUNT(1) FROM (" + SQL + ") horarios";
+
     private final JdbcTemplate jdbcTemplate;
 
     public HorariosCorteRasterSqlRepository(JdbcTemplate jdbcTemplate) {
@@ -215,6 +223,27 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
     @Override
     public List<VisaoHorariosCorteEntity> findByDataBetween(LocalDate dataInicio, LocalDate dataFim) {
         return jdbcTemplate.query(SQL, this::mapRow, dataInicio, dataFim, dataInicio, dataFim);
+    }
+
+    @Override
+    public PaginaDTO<VisaoHorariosCorteEntity> findPageByDataBetween(
+            LocalDate dataInicio,
+            LocalDate dataFim,
+            int paginaSolicitada,
+            int tamanhoSolicitado
+    ) {
+        int pagina = Math.max(1, paginaSolicitada);
+        int tamanho = ConsultaLimiteUtils.limitar(tamanhoSolicitado, 10, 100);
+        long offset = (long) (pagina - 1) * tamanho;
+        Long total = jdbcTemplate.queryForObject(SQL_COUNT, Long.class, dataInicio, dataFim, dataInicio, dataFim);
+        long totalElementos = total != null ? total : 0L;
+        int totalPaginas = totalElementos == 0 ? 0 : (int) Math.ceil(totalElementos / (double) tamanho);
+
+        List<VisaoHorariosCorteEntity> conteudo = offset >= totalElementos
+                ? List.of()
+                : jdbcTemplate.query(SQL_PAGED, this::mapRow, dataInicio, dataFim, dataInicio, dataFim, offset, tamanho);
+
+        return new PaginaDTO<>(conteudo, totalElementos, totalPaginas, pagina, tamanho);
     }
 
     private VisaoHorariosCorteEntity mapRow(ResultSet rs, int rowNum) throws SQLException {

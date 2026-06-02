@@ -25,8 +25,8 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Classificação]))), '') AS classificacao,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '') AS filial,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial_normalizada,
-                    TRY_CONVERT(datetimeoffset, [Data criação]) AS data_criacao,
-                    TRY_CONVERT(date, [Data criação]) AS data_criacao_periodo,
+                    [Data criação] AS data_criacao,
+                    CAST([Data criação] AS date) AS data_criacao_periodo,
                     TRY_CONVERT(datetimeoffset, [Fechamento]) AS fechamento,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), [Veículo/Placa]))), '') AS veiculo_placa,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), [Veículo/Placa]))), '')) AS veiculo_placa_normalizado,
@@ -54,8 +54,8 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
             filtrados AS (
                 SELECT *
                 FROM manifestos
-                WHERE data_criacao_periodo >= :dataInicio
-                  AND data_criacao_periodo < :dataFimExclusivo
+                WHERE data_criacao >= :dataInicio
+                  AND data_criacao < :dataFimExclusivo
                   AND (:escopoFiliaisVazio = 1 OR filial_normalizada IN (:escopoFiliais))
                   AND (:filiaisVazio = 1 OR filial_normalizada IN (:filiais))
                   AND (:statusVazio = 1 OR status_normalizado IN (:status))

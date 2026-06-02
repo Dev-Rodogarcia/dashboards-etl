@@ -66,6 +66,8 @@ describe('performanceServico', () => {
     const params = clienteMock.get.mock.calls[0][1].params as URLSearchParams;
     expect(params.get('pagina')).toBe('3');
     expect(params.get('tamanhoPagina')).toBe('50');
+    expect(params.get('page')).toBe('2');
+    expect(params.get('size')).toBe('50');
     expect(params.getAll('f.responsaveis')).toEqual(['spo']);
     expect(params.getAll('f.pagadores')).toEqual(['Cliente B']);
     expect(params.get('f.tabelaBusca')).toBe('atraso');

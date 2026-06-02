@@ -4,12 +4,14 @@ import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.coletas.ColetasAgingBucketDTO;
 import com.dashboard.api.dto.coletas.ColetasCidadeOrigemDTO;
 import com.dashboard.api.dto.coletas.ColetasRegiaoOrigemDTO;
+import com.dashboard.api.dto.coletas.ColetasTrendPointDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,6 +37,53 @@ class ColetasAgregadosSqlRepository {
         this.jdbcTemplate = jdbcTemplate;
         this.sqlBuilder = sqlBuilder;
         this.escopoFilialService = escopoFilialService;
+    }
+
+    List<ColetasTrendPointDTO> buscarSerieTemporal(FiltroConsultaDTO filtro) {
+        DashboardExportSqlBuilder.ExportSql source = source(filtro);
+        String sql = """
+                WITH base_filtrada AS (
+                    SELECT *
+                    %s
+                ),
+                base_deduplicada AS (
+                    SELECT *
+                    FROM (
+                        SELECT
+                            base_filtrada.*,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY [ID]
+                                ORDER BY [Data de extracao] DESC, [Solicitacao] DESC, [Numero Manifesto] DESC
+                            ) AS [__rn]
+                        FROM base_filtrada
+                    ) dedup
+                    WHERE [__rn] = 1
+                ),
+                base_metricas AS (
+                    SELECT
+                        [Solicitacao] AS data_solicitacao,
+                        LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) AS status_normalizado
+                    FROM base_deduplicada
+                    WHERE [Solicitacao] IS NOT NULL
+                )
+                SELECT
+                    data_solicitacao,
+                    COUNT(1) AS total_coletas,
+                    SUM(CASE WHEN status_normalizado IN (N'finalizada', N'coletada') THEN 1 ELSE 0 END) AS finalizadas,
+                    SUM(CASE WHEN status_normalizado = N'cancelada' THEN 1 ELSE 0 END) AS canceladas,
+                    SUM(CASE WHEN status_normalizado = N'em tratativa' THEN 1 ELSE 0 END) AS em_tratativa
+                FROM base_metricas
+                GROUP BY data_solicitacao
+                ORDER BY data_solicitacao
+                """.formatted(source.sql());
+
+        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new ColetasTrendPointDTO(
+                data(rs.getDate("data_solicitacao")),
+                rs.getInt("total_coletas"),
+                rs.getInt("finalizadas"),
+                rs.getInt("canceladas"),
+                rs.getInt("em_tratativa")
+        ));
     }
 
     List<ColetasRegiaoOrigemDTO> buscarRegioesOrigem(FiltroConsultaDTO filtro) {
@@ -193,5 +242,9 @@ class ColetasAgregadosSqlRepository {
 
     private BigDecimal zeroSeNulo(BigDecimal valor) {
         return valor != null ? valor : BigDecimal.ZERO;
+    }
+
+    private String data(Date data) {
+        return data != null ? data.toLocalDate().toString() : null;
     }
 }

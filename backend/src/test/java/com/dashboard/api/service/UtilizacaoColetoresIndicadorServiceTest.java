@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -219,17 +220,13 @@ class UtilizacaoColetoresIndicadorServiceTest {
     }
 
     @Test
-    void buscarOverviewDeveRetornarVazioQuandoBaseIndisponivel() {
+    void buscarOverviewDevePropagarFalhaQuandoBaseIndisponivel() {
         when(manifestosRepository.findAll(TestSpecificationMatchers.anySpecification()))
                 .thenThrow(new DataAccessResourceFailureException("view indisponivel"));
 
-        UtilizacaoColetoresOverviewDTO overview = service.buscarOverview(
+        assertThatThrownBy(() -> service.buscarOverview(
                 new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
-        );
-
-        assertThat(overview.manifestosBipados()).isZero();
-        assertThat(overview.totalManifestos()).isZero();
-        assertThat(overview.pctUtilizacao()).isZero();
+        )).isInstanceOf(DataAccessResourceFailureException.class);
     }
 
     private static VisaoManifestosEntity manifesto(

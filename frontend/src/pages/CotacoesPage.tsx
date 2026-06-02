@@ -20,6 +20,7 @@ import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useClientes, useCotacoesUsuarios, useFiliais } from '../hooks/queries/useDimensoes';
 import { useCotacoesGraficos, useCotacoesOverview, useCotacoesSerie, useCotacoesTabelaPaginada } from '../hooks/queries/useCotacoes';
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
+import { useStaggeredQueryEnabled } from '../hooks/useStaggeredQueryEnabled';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type {
   CotacaoResumoRow,
@@ -987,12 +988,23 @@ export default function CotacoesPage() {
   ];
 
   const overview = useCotacoesOverview(filtro);
-  const serie = useCotacoesSerie(filtro);
-  const conversionSerie = useCotacoesSerie(conversionFiltro);
-  const graficos = useCotacoesGraficos(filtro);
+  const overviewReady = overview.isSuccess && Boolean(overview.data);
+  const serieEnabled = useStaggeredQueryEnabled(overviewReady, 150);
+  const graficosEnabled = useStaggeredQueryEnabled(overviewReady, 320);
+  const conversionSerieEnabled = useStaggeredQueryEnabled(overviewReady, 520);
+  const tabelaEnabled = useStaggeredQueryEnabled(overviewReady, 850);
+  const serie = useCotacoesSerie(filtro, serieEnabled);
+  const conversionSerie = useCotacoesSerie(conversionFiltro, conversionSerieEnabled);
+  const graficos = useCotacoesGraficos(filtro, graficosEnabled);
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
-  const tabela = useCotacoesTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
+  const tabela = useCotacoesTabelaPaginada(
+    filtro,
+    paginacaoTabela.pagina,
+    paginacaoTabela.tamanhoPagina,
+    filtrosTabela.apiFilters,
+    tabelaEnabled,
+  );
 
   usePageHeader({
     title: 'Cotações',
@@ -1174,6 +1186,8 @@ export default function CotacoesPage() {
         statusOptions={statusTabelaOptions}
         statusOptionsLoading={graficos.isLoading}
         isLoading={tabela.isLoading}
+        error={tabela.error}
+        errorFallbackMessage="Erro ao carregar cotações analíticas."
         totalRegistros={tabela.data?.totalElementos}
         paginaAtual={paginacaoTabela.pagina}
         tamanhoPagina={paginacaoTabela.tamanhoPagina}

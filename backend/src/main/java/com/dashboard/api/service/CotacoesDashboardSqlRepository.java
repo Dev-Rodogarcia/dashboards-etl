@@ -1,7 +1,13 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.cotacoes.CotacoesAgrupamentoDTO;
+import com.dashboard.api.dto.cotacoes.CotacoesChartsDTO;
+import com.dashboard.api.dto.cotacoes.CotacoesCorredorValiosoDTO;
+import com.dashboard.api.dto.cotacoes.CotacoesFunilDTO;
+import com.dashboard.api.dto.cotacoes.CotacoesMotivoPerdaDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesOverviewDTO;
+import com.dashboard.api.dto.cotacoes.CotacoesTrendPointDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
@@ -9,9 +15,12 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Repository
@@ -56,10 +65,10 @@ class CotacoesDashboardSqlRepository {
                     SELECT
                         COALESCE(TRY_CONVERT(DECIMAL(19,4), [Valor frete]), 0) AS valor_frete,
                         COALESCE(TRY_CONVERT(DECIMAL(19,4), [Peso taxado]), 0) AS peso_taxado,
-                        TRY_CONVERT(datetimeoffset, [Data Cotação]) AS data_cotacao,
-                        TRY_CONVERT(datetimeoffset, [CT-e/Data de emissão]) AS cte_emissao,
-                        TRY_CONVERT(datetimeoffset, [Nfse/Data de emissão]) AS nfse_emissao,
-                        TRY_CONVERT(datetime2, [Data de extracao]) AS data_extracao,
+                        TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Data Cotação])) AS data_cotacao,
+                        TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [CT-e/Data de emissão])) AS cte_emissao,
+                        TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Nfse/Data de emissão])) AS nfse_emissao,
+                        TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [Data de extracao])) AS data_extracao,
                         %s AS status_normalizado
                     FROM base_filtrada
                 ),
@@ -120,6 +129,249 @@ class CotacoesDashboardSqlRepository {
         ));
     }
 
+    List<CotacoesTrendPointDTO> buscarSerie(FiltroConsultaDTO filtro) {
+        DashboardExportSqlBuilder.ExportSql source = sqlBuilder.buildFilteredSource(
+                DashboardExportDefinition.COTACOES,
+                filtro,
+                escopoFilialService.escopoAtual(),
+                Set.of()
+        );
+
+        String sql = """
+                WITH base_filtrada AS (
+                    SELECT *
+                    %s
+                ),
+                base_deduplicada AS (
+                    SELECT *
+                    FROM (
+                        SELECT
+                            base_filtrada.*,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY [N° Cotação]
+                                ORDER BY [Data de extracao] DESC, [Data Cotação] DESC, [N° Cotação] DESC
+                            ) AS [__rn]
+                        FROM base_filtrada
+                    ) dedup
+                    WHERE [__rn] = 1
+                ),
+                base_metricas AS (
+                    SELECT
+                        CAST([Data Cotação] AS date) AS data_cotacao,
+                        COALESCE(TRY_CONVERT(DECIMAL(19,4), [Valor frete]), 0) AS valor_frete,
+                        %s AS status_normalizado
+                    FROM base_deduplicada
+                    WHERE [Data Cotação] IS NOT NULL
+                )
+                SELECT
+                    data_cotacao,
+                    COUNT(1) AS total_cotacoes,
+                    SUM(CASE WHEN %s THEN 1 ELSE 0 END) AS convertidas,
+                    SUM(CASE WHEN %s THEN 1 ELSE 0 END) AS reprovadas,
+                    CAST(COALESCE(SUM(valor_frete), 0) AS DECIMAL(19,2)) AS valor_potencial,
+                    CAST(COALESCE(SUM(CASE WHEN %s THEN valor_frete ELSE 0 END), 0) AS DECIMAL(19,2)) AS valor_convertido
+                FROM base_metricas
+                GROUP BY data_cotacao
+                ORDER BY data_cotacao
+                """.formatted(
+                source.sql(),
+                STATUS_NORMALIZADO_SQL,
+                STATUS_CONVERTIDA_SQL,
+                STATUS_REPROVADA_SQL,
+                STATUS_CONVERTIDA_SQL
+        );
+
+        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new CotacoesTrendPointDTO(
+                data(rs.getDate("data_cotacao")),
+                rs.getInt("total_cotacoes"),
+                rs.getInt("convertidas"),
+                rs.getInt("reprovadas"),
+                decimal(rs.getBigDecimal("valor_potencial")),
+                decimal(rs.getBigDecimal("valor_convertido"))
+        ));
+    }
+
+    CotacoesChartsDTO buscarGraficos(FiltroConsultaDTO filtro) {
+        DashboardExportSqlBuilder.ExportSql source = sqlBuilder.buildFilteredSource(
+                DashboardExportDefinition.COTACOES,
+                filtro,
+                escopoFilialService.escopoAtual(),
+                Set.of()
+        );
+
+        return new CotacoesChartsDTO(
+                buscarFunil(source),
+                buscarCorredoresMaisValiosos(source),
+                buscarPerdas(source, "motivo_perda", "motivo"),
+                buscarAgrupamentos(source, "trecho", "nome"),
+                buscarAgrupamentos(source, "uf_origem", "nome"),
+                buscarAgrupamentos(source, "uf_destino", "nome"),
+                buscarAgrupamentos(source, "tipo_operacao_normalizado", "nome"),
+                buscarPerdas(source, "cliente_pagador", "motivo"),
+                buscarPerdas(source, "trecho", "motivo")
+        );
+    }
+
+    private List<CotacoesFunilDTO> buscarFunil(DashboardExportSqlBuilder.ExportSql source) {
+        String sql = baseMetricasSql(source) + """
+                SELECT
+                    status_exibicao AS etapa,
+                    COUNT(1) AS total,
+                    CAST(COALESCE(SUM(valor_frete), 0) AS DECIMAL(19,2)) AS valor
+                FROM base_metricas
+                GROUP BY status_exibicao
+                ORDER BY total DESC, etapa
+                """;
+
+        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new CotacoesFunilDTO(
+                rs.getString("etapa"),
+                rs.getInt("total"),
+                decimal(rs.getBigDecimal("valor"))
+        ));
+    }
+
+    private List<CotacoesCorredorValiosoDTO> buscarCorredoresMaisValiosos(DashboardExportSqlBuilder.ExportSql source) {
+        String sql = baseMetricasSql(source) + """
+                SELECT TOP (10)
+                    trecho,
+                    CAST(COALESCE(SUM(valor_frete), 0) AS DECIMAL(19,2)) AS valor_frete,
+                    COUNT(1) AS cotacoes
+                FROM base_metricas
+                GROUP BY trecho
+                ORDER BY valor_frete DESC, trecho
+                """;
+
+        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new CotacoesCorredorValiosoDTO(
+                rs.getString("trecho"),
+                decimal(rs.getBigDecimal("valor_frete")),
+                rs.getInt("cotacoes")
+        ));
+    }
+
+    private List<CotacoesMotivoPerdaDTO> buscarPerdas(
+            DashboardExportSqlBuilder.ExportSql source,
+            String campo,
+            String alias
+    ) {
+        String sql = baseMetricasSql(source) + """
+                SELECT TOP (10)
+                    %1$s AS %2$s,
+                    COUNT(1) AS total
+                FROM base_metricas
+                WHERE %3$s
+                GROUP BY %1$s
+                ORDER BY total DESC, %1$s
+                """.formatted(campo, alias, STATUS_REPROVADA_SQL);
+
+        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new CotacoesMotivoPerdaDTO(
+                rs.getString(alias),
+                rs.getInt("total")
+        ));
+    }
+
+    private List<CotacoesAgrupamentoDTO> buscarAgrupamentos(
+            DashboardExportSqlBuilder.ExportSql source,
+            String campo,
+            String alias
+    ) {
+        String sql = baseMetricasSql(source) + """
+                SELECT TOP (10)
+                    %1$s AS %2$s,
+                    CAST(COALESCE(SUM(valor_frete), 0) AS DECIMAL(19,2)) AS valor_potencial,
+                    CAST(COALESCE(SUM(CASE WHEN %3$s THEN valor_frete ELSE 0 END), 0) AS DECIMAL(19,2)) AS valor_convertido,
+                    COUNT(1) AS cotacoes,
+                    SUM(CASE WHEN %3$s THEN 1 ELSE 0 END) AS convertidas,
+                    SUM(CASE WHEN %4$s THEN 1 ELSE 0 END) AS reprovadas
+                FROM base_metricas
+                GROUP BY %1$s
+                ORDER BY valor_potencial DESC, %1$s
+                """.formatted(campo, alias, STATUS_CONVERTIDA_SQL, STATUS_REPROVADA_SQL);
+
+        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new CotacoesAgrupamentoDTO(
+                rs.getString(alias),
+                decimal(rs.getBigDecimal("valor_potencial")),
+                decimal(rs.getBigDecimal("valor_convertido")),
+                rs.getInt("cotacoes"),
+                rs.getInt("convertidas"),
+                rs.getInt("reprovadas")
+        ));
+    }
+
+    private String baseMetricasSql(DashboardExportSqlBuilder.ExportSql source) {
+        return """
+                WITH base_filtrada AS (
+                    SELECT *
+                    %s
+                ),
+                base_deduplicada AS (
+                    SELECT *
+                    FROM (
+                        SELECT
+                            base_filtrada.*,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY [N° Cotação]
+                                ORDER BY [Data de extracao] DESC, [Data Cotação] DESC, [N° Cotação] DESC
+                            ) AS [__rn]
+                        FROM base_filtrada
+                    ) dedup
+                    WHERE [__rn] = 1
+                ),
+                base_metricas AS (
+                    SELECT
+                        COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Status Conversão]))), N''), N'Sem status') AS status_exibicao,
+                        %s AS status_normalizado,
+                        %s AS valor_frete,
+                        COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Trecho]))), N''), N'Sem trecho') AS trecho,
+                        COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Motivo Perda]))), N''), N'Sem motivo') AS motivo_perda,
+                        COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Cliente Pagador]))), N''), N'Sem cliente') AS cliente_pagador,
+                        COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), [UF Origem]))), N''), N'Sem UF origem') AS uf_origem,
+                        COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), [UF Destino]))), N''), N'Sem UF destino') AS uf_destino,
+                        %s AS tipo_operacao_normalizado
+                    FROM base_deduplicada
+                )
+                """.formatted(
+                source.sql(),
+                STATUS_NORMALIZADO_SQL,
+                decimalSql("[Valor frete]"),
+                tipoOperacaoNormalizadoSql()
+        );
+    }
+
+    private static String decimalSql(String coluna) {
+        String textoSemEspacos = "REPLACE(REPLACE(CONVERT(NVARCHAR(100), " + coluna + "), NCHAR(160), N''), N' ', N'')";
+        return """
+                COALESCE(
+                    TRY_CONVERT(DECIMAL(19,4), %1$s),
+                    TRY_CONVERT(DECIMAL(19,4), %2$s),
+                    TRY_CONVERT(DECIMAL(19,4), REPLACE(REPLACE(%2$s, '.', ''), ',', '.')),
+                    0
+                )
+                """.formatted(coluna, textoSemEspacos);
+    }
+
+    private static String tipoOperacaoNormalizadoSql() {
+        return """
+                CASE
+                    WHEN UPPER(COALESCE(CONVERT(NVARCHAR(255), [Tipo de operação]), N'') + N' ' + COALESCE(CONVERT(NVARCHAR(255), [Tabela]), N'')) LIKE N'%%PTL%%'
+                      OR UPPER(COALESCE(CONVERT(NVARCHAR(255), [Tipo de operação]), N'') + N' ' + COALESCE(CONVERT(NVARCHAR(255), [Tabela]), N'')) LIKE N'%%FRAC / DED%%'
+                      OR (
+                            UPPER(COALESCE(CONVERT(NVARCHAR(255), [Tipo de operação]), N'') + N' ' + COALESCE(CONVERT(NVARCHAR(255), [Tabela]), N'')) LIKE N'%%FRAC%%'
+                        AND UPPER(COALESCE(CONVERT(NVARCHAR(255), [Tipo de operação]), N'') + N' ' + COALESCE(CONVERT(NVARCHAR(255), [Tabela]), N'')) LIKE N'%%DED%%'
+                      )
+                      OR UPPER(COALESCE(CONVERT(NVARCHAR(255), [Tipo de operação]), N'') + N' ' + COALESCE(CONVERT(NVARCHAR(255), [Tabela]), N'')) LIKE N'%%PARCIAL%%'
+                    THEN N'PTL'
+                    WHEN UPPER(COALESCE(CONVERT(NVARCHAR(255), [Tipo de operação]), N'') + N' ' + COALESCE(CONVERT(NVARCHAR(255), [Tabela]), N'')) LIKE N'%%FTL%%'
+                      OR UPPER(COALESCE(CONVERT(NVARCHAR(255), [Tipo de operação]), N'') + N' ' + COALESCE(CONVERT(NVARCHAR(255), [Tabela]), N'')) LIKE N'%%FECHAD%%'
+                      OR UPPER(COALESCE(CONVERT(NVARCHAR(255), [Tipo de operação]), N'') + N' ' + COALESCE(CONVERT(NVARCHAR(255), [Tabela]), N'')) LIKE N'%%DEDICAD%%'
+                    THEN N'FTL'
+                    WHEN UPPER(COALESCE(CONVERT(NVARCHAR(255), [Tipo de operação]), N'') + N' ' + COALESCE(CONVERT(NVARCHAR(255), [Tabela]), N'')) LIKE N'%%LTL%%'
+                      OR UPPER(COALESCE(CONVERT(NVARCHAR(255), [Tipo de operação]), N'') + N' ' + COALESCE(CONVERT(NVARCHAR(255), [Tabela]), N'')) LIKE N'%%FRACIONAD%%'
+                    THEN N'LTL'
+                    ELSE COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Tipo de operação]))), N''), N'Outros')
+                END
+                """;
+    }
+
     private MapSqlParameterSource copiarParams(DashboardExportSqlBuilder.ExportSql source) {
         return new MapSqlParameterSource(source.params().getValues());
     }
@@ -131,6 +383,10 @@ class CotacoesDashboardSqlRepository {
 
     private BigDecimal decimal(BigDecimal valor) {
         return (valor != null ? valor : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private String data(Date data) {
+        return data != null ? data.toLocalDate().toString() : null;
     }
 
     private double percentual(BigDecimal valor) {

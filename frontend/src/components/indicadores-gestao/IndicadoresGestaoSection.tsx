@@ -50,6 +50,7 @@ interface IndicadoresGestaoSectionProps<T> {
   tableColumns: ColunaTabela<T>[];
   rowKey: keyof T & string;
   tableLoading: boolean;
+  tableError?: unknown;
   tableTotal?: number;
   tablePage?: number;
   tablePageSize?: number;
@@ -81,6 +82,7 @@ export default function IndicadoresGestaoSection<T>({
   tableColumns,
   rowKey,
   tableLoading,
+  tableError,
   tableTotal,
   tablePage,
   tablePageSize,
@@ -89,8 +91,11 @@ export default function IndicadoresGestaoSection<T>({
   isExpanded,
   onToggleTable,
 }: IndicadoresGestaoSectionProps<T>) {
+  const hasTableError = Boolean(tableError);
   const totalTabela = tableTotal ?? tableData.length;
-  const resumoTabela = tableTotal == null
+  const resumoTabela = hasTableError
+    ? 'Falha ao carregar registros'
+    : tableTotal == null
     ? `${tableData.length} registros carregados`
     : `${totalTabela} registros encontrados`;
 
@@ -189,6 +194,8 @@ export default function IndicadoresGestaoSection<T>({
               colunas={tableColumns}
               chaveLinha={rowKey}
               isLoading={tableLoading}
+              error={tableError}
+              errorFallbackMessage={`Erro ao carregar ${tableTitle}.`}
               mostrarCabecalho={false}
               totalRegistros={tableTotal}
               paginaAtual={tablePage}

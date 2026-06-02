@@ -2,6 +2,7 @@ package com.dashboard.api.exception;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BeanPropertyBindingResult;
@@ -44,6 +45,18 @@ class ManipuladorGlobalExcecoesTest {
         RespostaErroPadrao body = Objects.requireNonNull(resposta.getBody());
         assertThat(body.status()).isEqualTo(409);
         assertThat(body.erro()).isEqualTo("Conflict");
+    }
+
+    @Test
+    void deveRetornar504ParaTimeoutDeConsulta() {
+        ManipuladorGlobalExcecoes handler = new ManipuladorGlobalExcecoes();
+
+        var resposta = handler.handleQueryTimeout(new QueryTimeoutException("timeout na view"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT);
+        RespostaErroPadrao body = Objects.requireNonNull(resposta.getBody());
+        assertThat(body.status()).isEqualTo(504);
+        assertThat(body.erro()).isEqualTo("Gateway Timeout");
     }
 
     @Test

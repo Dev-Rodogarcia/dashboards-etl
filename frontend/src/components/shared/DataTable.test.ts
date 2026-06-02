@@ -83,4 +83,21 @@ describe('DataTable', () => {
     expect(html).toContain('Cliente com nome muito comprido');
     expect(html).not.toContain('min-w-0 truncate');
   });
+
+  it('exibe erro sem cair no estado vazio', () => {
+    type Row = { id: number; nome: string };
+    const Tabela = DataTable<Row>;
+    const html = renderToStaticMarkup(
+      createElement(Tabela, {
+        titulo: 'Fretes',
+        dados: [],
+        colunas: [{ chave: 'nome', label: 'Nome' }],
+        chaveLinha: 'id',
+        error: new Error('Falha de comunicação'),
+      }),
+    );
+
+    expect(html).toContain('Falha de comunicação');
+    expect(html).not.toContain('Nenhum registro encontrado.');
+  });
 });

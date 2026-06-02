@@ -1,6 +1,14 @@
 app:
   environment: dev
 
+spring:
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:db/testdata/data-dev.sql
+      encoding: UTF-8
+      separator: "@@"
+
 server:
   address: 127.0.0.1
   port: 5011

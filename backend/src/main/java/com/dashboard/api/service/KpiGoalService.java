@@ -16,8 +16,6 @@ import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.repository.acesso.KpiGoalHistoryRepository;
 import com.dashboard.api.repository.acesso.KpiGoalRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -37,8 +35,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class KpiGoalService {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(KpiGoalService.class);
 
     public static final String GLOBAL_BRANCH_ID = "GLOBAL";
     public static final String SOURCE_GLOBAL = "GLOBAL";
@@ -87,43 +83,23 @@ public class KpiGoalService {
 
     @Transactional(readOnly = true)
     public KpiGoalsFullDTO buscarMetasCompletas() {
-        try {
-            Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas();
-            List<KpiGoalBranchDTO> branches = branchesFromOverrides(repository.findAllBranchOverrides(), globalGoals);
-            return new KpiGoalsFullDTO(globalGoals, branches);
-        } catch (RuntimeException ex) {
-            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
-                throw ex;
-            }
-            logReadFallback("metas completas", ex);
-            return new KpiGoalsFullDTO(defaultGoals(), List.of());
-        }
+        Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas();
+        List<KpiGoalBranchDTO> branches = branchesFromOverrides(repository.findAllBranchOverrides(), globalGoals);
+        return new KpiGoalsFullDTO(globalGoals, branches);
     }
 
     @Transactional(readOnly = true)
     public KpiGoalEffectiveDTO buscarMetaEfetiva(String branchId) {
         String normalizedBranchId = normalizarBranchId(branchId);
-        try {
-            Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas();
-            if (normalizedBranchId == null) {
-                return new KpiGoalEffectiveDTO(GLOBAL_BRANCH_ID, SOURCE_GLOBAL, globalGoals);
-            }
-
-            List<KpiGoalEntity> branchOverrides = repository.findAllByBranchId(normalizedBranchId);
-            Map<String, BigDecimal> effectiveGoals = mergeGoals(globalGoals, branchOverrides);
-            String source = branchOverrides.isEmpty() ? SOURCE_GLOBAL : SOURCE_BRANCH_OVERRIDE;
-            return new KpiGoalEffectiveDTO(normalizedBranchId, source, effectiveGoals);
-        } catch (RuntimeException ex) {
-            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
-                throw ex;
-            }
-            logReadFallback("meta efetiva", ex);
-            return new KpiGoalEffectiveDTO(
-                    normalizedBranchId == null ? GLOBAL_BRANCH_ID : normalizedBranchId,
-                    SOURCE_GLOBAL,
-                    defaultGoals()
-            );
+        Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas();
+        if (normalizedBranchId == null) {
+            return new KpiGoalEffectiveDTO(GLOBAL_BRANCH_ID, SOURCE_GLOBAL, globalGoals);
         }
+
+        List<KpiGoalEntity> branchOverrides = repository.findAllByBranchId(normalizedBranchId);
+        Map<String, BigDecimal> effectiveGoals = mergeGoals(globalGoals, branchOverrides);
+        String source = branchOverrides.isEmpty() ? SOURCE_GLOBAL : SOURCE_BRANCH_OVERRIDE;
+        return new KpiGoalEffectiveDTO(normalizedBranchId, source, effectiveGoals);
     }
 
     @Transactional
@@ -241,87 +217,59 @@ public class KpiGoalService {
                 ? null
                 : normalizarBranchId(branchId);
 
-        try {
-            Page<KpiGoalHistoryEntity> history = branchId == null || branchId.isBlank()
-                    ? historyRepository.findAllByOrderByUpdatedAtDesc(pageRequest)
-                    : normalizedBranchId == null
-                        ? historyRepository.findByBranchIdIsNullOrderByUpdatedAtDesc(pageRequest)
-                        : historyRepository.findByBranchIdOrderByUpdatedAtDesc(normalizedBranchId, pageRequest);
+        Page<KpiGoalHistoryEntity> history = branchId == null || branchId.isBlank()
+                ? historyRepository.findAllByOrderByUpdatedAtDesc(pageRequest)
+                : normalizedBranchId == null
+                    ? historyRepository.findByBranchIdIsNullOrderByUpdatedAtDesc(pageRequest)
+                    : historyRepository.findByBranchIdOrderByUpdatedAtDesc(normalizedBranchId, pageRequest);
 
-            return new PaginaDTO<>(
-                    history.getContent().stream().map(this::toHistoryDto).toList(),
-                    history.getTotalElements(),
-                    history.getTotalPages(),
-                    history.getNumber() + 1,
-                    history.getSize()
-            );
-        } catch (RuntimeException ex) {
-            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
-                throw ex;
-            }
-            logReadFallback("historico de metas", ex);
-            return new PaginaDTO<>(List.of(), 0, 0, paginaAplicada, tamanhoAplicado);
-        }
+        return new PaginaDTO<>(
+                history.getContent().stream().map(this::toHistoryDto).toList(),
+                history.getTotalElements(),
+                history.getTotalPages(),
+                history.getNumber() + 1,
+                history.getSize()
+        );
     }
 
     @Transactional(readOnly = true)
     public KpiGoalOverridesByIndicatorDTO buscarOverridesPorIndicador(String indicatorKey) {
         String normalizedIndicator = normalizarIndicatorKey(indicatorKey);
-        try {
-            BigDecimal globalGoal = buscarMetasGlobaisEfetivas().get(normalizedIndicator);
-            List<KpiGoalOverrideDTO> overrides = repository.findAllBranchOverridesByIndicatorKey(normalizedIndicator)
-                    .stream()
-                    .map(goal -> new KpiGoalOverrideDTO(
-                            goal.getBranchId(),
-                            goal.getBranchId(),
-                            goal.getGoalValue(),
-                            goal.getUpdatedAt(),
-                            toUserDto(goal.getUpdatedByUser())
-                    ))
-                    .sorted(Comparator.comparing(KpiGoalOverrideDTO::branchName, String.CASE_INSENSITIVE_ORDER))
-                    .toList();
+        BigDecimal globalGoal = buscarMetasGlobaisEfetivas().get(normalizedIndicator);
+        List<KpiGoalOverrideDTO> overrides = repository.findAllBranchOverridesByIndicatorKey(normalizedIndicator)
+                .stream()
+                .map(goal -> new KpiGoalOverrideDTO(
+                        goal.getBranchId(),
+                        goal.getBranchId(),
+                        goal.getGoalValue(),
+                        goal.getUpdatedAt(),
+                        toUserDto(goal.getUpdatedByUser())
+                ))
+                .sorted(Comparator.comparing(KpiGoalOverrideDTO::branchName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
 
-            return new KpiGoalOverridesByIndicatorDTO(normalizedIndicator, globalGoal, overrides);
-        } catch (RuntimeException ex) {
-            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
-                throw ex;
-            }
-            logReadFallback("overrides por indicador", ex);
-            return new KpiGoalOverridesByIndicatorDTO(
-                    normalizedIndicator,
-                    DEFAULT_GOALS.get(normalizedIndicator),
-                    List.of()
-            );
-        }
+        return new KpiGoalOverridesByIndicatorDTO(normalizedIndicator, globalGoal, overrides);
     }
 
     public Map<String, BigDecimal> buscarMetasEfetivasPorIndicador(String indicatorKey, Collection<String> branchIds) {
         String normalizedIndicator = normalizarIndicatorKey(indicatorKey);
-        try {
-            BigDecimal globalGoal = buscarMetasGlobaisEfetivas().get(normalizedIndicator);
-            Map<String, BigDecimal> result = new LinkedHashMap<>();
-            for (String branchId : branchIds) {
-                String normalizedBranch = normalizarBranchId(branchId);
-                if (normalizedBranch != null) {
-                    result.put(normalizedBranch, globalGoal);
-                }
+        BigDecimal globalGoal = buscarMetasGlobaisEfetivas().get(normalizedIndicator);
+        Map<String, BigDecimal> result = new LinkedHashMap<>();
+        for (String branchId : branchIds) {
+            String normalizedBranch = normalizarBranchId(branchId);
+            if (normalizedBranch != null) {
+                result.put(normalizedBranch, globalGoal);
             }
-            if (result.isEmpty()) {
-                return result;
-            }
-
-            repository.findAllByBranchIdIn(result.keySet()).stream()
-                    .filter(goal -> normalizedIndicator.equals(goal.getIndicatorKey()))
-                    .forEach(goal -> result.put(goal.getBranchId(), goal.getGoalValue()));
-
-            return result;
-        } catch (RuntimeException ex) {
-            if (!DatabaseReadFallbackUtils.isRecoverableReadFailure(ex)) {
-                throw ex;
-            }
-            logReadFallback("metas efetivas por indicador", ex);
-            return defaultGoalsByBranch(normalizedIndicator, branchIds);
         }
+        if (result.isEmpty()) {
+            return result;
+        }
+
+        repository.findAllByBranchIdIn(result.keySet()).stream()
+                .filter(goal -> normalizedIndicator.equals(goal.getIndicatorKey()))
+                .forEach(goal -> result.put(goal.getBranchId(), goal.getGoalValue()));
+
+        return result;
     }
 
     public static List<String> indicatorOrder() {
@@ -342,21 +290,6 @@ public class KpiGoalService {
         Map<String, BigDecimal> result = new LinkedHashMap<>();
         INDICATOR_ORDER.forEach(indicator -> result.put(indicator, DEFAULT_GOALS.get(indicator)));
         return result;
-    }
-
-    private Map<String, BigDecimal> defaultGoalsByBranch(String indicatorKey, Collection<String> branchIds) {
-        Map<String, BigDecimal> result = new LinkedHashMap<>();
-        for (String branchId : branchIds) {
-            String normalizedBranch = normalizarBranchId(branchId);
-            if (normalizedBranch != null) {
-                result.put(normalizedBranch, DEFAULT_GOALS.get(indicatorKey));
-            }
-        }
-        return result;
-    }
-
-    private void logReadFallback(String contexto, RuntimeException ex) {
-        DatabaseReadFallbackUtils.logFallback(LOGGER, "Falha ao ler " + contexto + " de KPI", ex);
     }
 
     private List<KpiGoalBranchDTO> branchesFromOverrides(

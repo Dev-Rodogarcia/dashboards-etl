@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.Immutable;
 
 import java.math.BigDecimal;
@@ -20,6 +21,7 @@ public class VisaoCotacoesEntity {
     private Long sequenceCode;
 
     @Column(name = "[Data Cotação]")
+    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Data Cotação]))")
     private OffsetDateTime dataCotacao;
 
     @Column(name = "[Filial]")
@@ -28,7 +30,7 @@ public class VisaoCotacoesEntity {
     @Column(name = "[Solicitante]")
     private String solicitante;
 
-    @Column(name = "[Usuario Key]")
+    @Column(name = "[Solicitante]", insertable = false, updatable = false)
     private String usuarioKey;
 
     @Column(name = "[Cliente Pagador]")
@@ -62,7 +64,7 @@ public class VisaoCotacoesEntity {
     private String trecho;
 
     @Column(name = "[Volume]")
-    private Integer volume;
+    private String volume;
 
     @Column(name = "[Peso taxado]")
     private BigDecimal pesoTaxado;
@@ -89,12 +91,15 @@ public class VisaoCotacoesEntity {
     private String motivoPerda;
 
     @Column(name = "[CT-e/Data de emissão]")
+    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [CT-e/Data de emissão]))")
     private OffsetDateTime cteEmissao;
 
     @Column(name = "[Nfse/Data de emissão]")
+    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Nfse/Data de emissão]))")
     private OffsetDateTime nfseEmissao;
 
     @Column(name = "[Data de extracao]")
+    @ColumnTransformer(read = "TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [Data de extracao]))")
     private LocalDateTime dataExtracao;
 
     protected VisaoCotacoesEntity() {
@@ -160,7 +165,7 @@ public class VisaoCotacoesEntity {
         return trecho;
     }
 
-    public Integer getVolume() {
+    public String getVolume() {
         return volume;
     }
 

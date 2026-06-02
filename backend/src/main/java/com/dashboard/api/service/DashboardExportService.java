@@ -86,7 +86,7 @@ public class DashboardExportService {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         DashboardExportSqlBuilder.ExportSql query = sqlBuilder.buildDistinctOptions(
                 DashboardExportDefinition.FRETES,
-                "[Responsável Região Destino Key]",
+                "LOWER(COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Responsável pela Região de Destino]))), ''), NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), ''), NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), ''), N'sem_responsavel'))",
                 "COALESCE([Responsável pela Região de Destino], [Filial Emissora], [Filial], N'Responsável não informado')",
                 filtro,
                 escopo,
@@ -105,8 +105,8 @@ public class DashboardExportService {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         DashboardExportSqlBuilder.ExportSql query = sqlBuilder.buildDistinctOptions(
                 DashboardExportDefinition.COTACOES,
-                "[Usuario Key]",
-                "COALESCE([Usuário], [Usuario Key])",
+                "LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Solicitante]))), ''))",
+                "NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Solicitante]))), '')",
                 filtro,
                 escopo,
                 Set.of("usuarios")

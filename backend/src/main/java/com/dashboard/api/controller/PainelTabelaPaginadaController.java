@@ -12,6 +12,8 @@ import com.dashboard.api.dto.manifestos.ManifestoResumoDTO;
 import com.dashboard.api.dto.tracking.TrackingResumoDTO;
 import com.dashboard.api.service.DashboardTabelaPaginadaService;
 import com.dashboard.api.service.TrackingService;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.MultiValueMap;
@@ -87,10 +89,11 @@ public class PainelTabelaPaginadaController {
     public ResponseEntity<PaginaDTO<CotacaoResumoDTO>> cotacoes(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
-            @RequestParam(defaultValue = "1") int pagina,
-            @RequestParam(defaultValue = "10") int tamanhoPagina,
-            @RequestParam MultiValueMap<String, String> params
+            @RequestParam MultiValueMap<String, String> params,
+            @PageableDefault(size = 10) Pageable pageable
     ) {
+        int pagina = pageable.getPageNumber() + 1;
+        int tamanhoPagina = pageable.getPageSize();
         return ResponseEntity.ok(tabelaPaginadaService.buscarCotacoes(filtro(dataInicio, dataFim, params), pagina, tamanhoPagina));
     }
 

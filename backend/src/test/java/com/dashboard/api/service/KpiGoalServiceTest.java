@@ -78,18 +78,11 @@ class KpiGoalServiceTest {
     }
 
     @Test
-    void buscarMetaEfetivaDeveRetornarDefaultsQuandoTabelaIndisponivel() {
+    void buscarMetaEfetivaDevePropagarFalhaQuandoTabelaIndisponivel() {
         when(repository.findGlobalGoals()).thenThrow(new DataAccessResourceFailureException("schema ausente"));
 
-        KpiGoalEffectiveDTO dto = service.buscarMetaEfetiva("GLOBAL");
-
-        assertThat(dto.source()).isEqualTo(KpiGoalService.SOURCE_GLOBAL);
-        assertThat(dto.goals())
-                .containsEntry("delivery_performance", BigDecimal.valueOf(95))
-                .containsEntry("collector_usage", BigDecimal.valueOf(90))
-                .containsEntry("cargo_cubage", BigDecimal.valueOf(85))
-                .containsEntry("cargo_indemnity", BigDecimal.valueOf(2))
-                .containsEntry("cutoff_time", BigDecimal.valueOf(98));
+        assertThatThrownBy(() -> service.buscarMetaEfetiva("GLOBAL"))
+                .isInstanceOf(DataAccessResourceFailureException.class);
     }
 
     @Test
@@ -201,13 +194,11 @@ class KpiGoalServiceTest {
     }
 
     @Test
-    void buscarOverridesPorIndicadorDeveRetornarVazioQuandoTabelaIndisponivel() {
+    void buscarOverridesPorIndicadorDevePropagarFalhaQuandoTabelaIndisponivel() {
         when(repository.findGlobalGoals()).thenThrow(new DataAccessResourceFailureException("schema ausente"));
 
-        var response = service.buscarOverridesPorIndicador("collector_usage");
-
-        assertThat(response.globalGoal()).isEqualByComparingTo("90");
-        assertThat(response.overrides()).isEmpty();
+        assertThatThrownBy(() -> service.buscarOverridesPorIndicador("collector_usage"))
+                .isInstanceOf(DataAccessResourceFailureException.class);
     }
 
     @Test
@@ -252,18 +243,13 @@ class KpiGoalServiceTest {
     }
 
     @Test
-    void buscarMetasEfetivasPorIndicadorDeveRetornarDefaultPorFilialQuandoTabelaIndisponivel() {
+    void buscarMetasEfetivasPorIndicadorDevePropagarFalhaQuandoTabelaIndisponivel() {
         when(repository.findGlobalGoals()).thenThrow(new DataAccessResourceFailureException("schema ausente"));
 
-        Map<String, BigDecimal> goals = service.buscarMetasEfetivasPorIndicador(
+        assertThatThrownBy(() -> service.buscarMetasEfetivasPorIndicador(
                 "collector_usage",
                 List.of("SPO", "GLOBAL", "REC")
-        );
-
-        assertThat(goals)
-                .containsEntry("SPO", BigDecimal.valueOf(90))
-                .containsEntry("REC", BigDecimal.valueOf(90))
-                .doesNotContainKey("GLOBAL");
+        )).isInstanceOf(DataAccessResourceFailureException.class);
     }
 
     private Map<String, BigDecimal> defaultGoals() {
