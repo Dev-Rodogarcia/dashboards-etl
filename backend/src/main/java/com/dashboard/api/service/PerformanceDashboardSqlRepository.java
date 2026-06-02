@@ -12,13 +12,10 @@ import com.dashboard.api.dto.performance.PerformanceSerieTemporalPointDTO;
 import com.dashboard.api.dto.performance.PerformanceStatusDistribuicaoDTO;
 import com.dashboard.api.dto.performance.PerformanceTabelaProjection;
 import com.dashboard.api.service.acesso.EscopoFilialService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -36,7 +33,6 @@ import java.util.Map;
 @Repository
 public class PerformanceDashboardSqlRepository {
 
-    private static final Logger log = LoggerFactory.getLogger(PerformanceDashboardSqlRepository.class);
     private static final int TAMANHO_PADRAO = 10;
     private static final int TAMANHO_MAXIMO = 100;
     private static final int DRILLDOWN_LIMITE_PADRAO = 50;
@@ -917,11 +913,6 @@ public class PerformanceDashboardSqlRepository {
         }
 
         PerformanceViewColumns carregadas = carregarColunasViewFretes();
-        if (!carregadas.contratoObrigatorioValido()) {
-            atualizarMetadadosViewFretes();
-            carregadas = carregarColunasViewFretes();
-        }
-
         if (carregadas.contratoObrigatorioValido()) {
             performanceViewColumns = carregadas;
         }
@@ -937,28 +928,15 @@ public class PerformanceDashboardSqlRepository {
         return new PerformanceViewColumns(nomes);
     }
 
-    private void atualizarMetadadosViewFretes() {
-        try {
-            jdbcTemplate.update("EXEC sys.sp_refreshview N'dbo.vw_fretes_powerbi'", new MapSqlParameterSource());
-            log.info("Metadados de dbo.vw_fretes_powerbi atualizados via sp_refreshview.");
-        } catch (DataAccessException ex) {
-            log.warn("Nao foi possivel atualizar metadados de dbo.vw_fretes_powerbi via sp_refreshview: {}",
-                    ex.getMessage());
-        }
-    }
-
     private static String baseCte(PerformanceViewColumns colunas) {
+        exigirColuna(colunas, "Responsável Região Destino Key");
         String responsavelRegiao = textoNullableSql(colunas, "Responsável pela Região de Destino");
-        String responsavelKeyPublicado = textoNullableSql(colunas, "Responsável Região Destino Key");
         String filialEmissora = textoNullableSql(colunas, "Filial Emissora", "Filial");
-        String responsavelKey = """
-                COALESCE(
-                    %s,
-                    LOWER(COALESCE(%s, %s, N'SEM_RESPONSAVEL'))
-                )
-                """.formatted(responsavelKeyPublicado, responsavelRegiao, filialEmissora);
+        String responsavelKey = textoNullableColunaSql("Responsável Região Destino Key");
         String regiaoDestino = textoComFallbackSql(colunas, "SEM_REGIAO", "Região Destino", "UF Destino");
         String cidadeDestino = textoComFallbackSql(colunas, "SEM_CIDADE", "Cidade Destino", "Destino");
+        String performanceDiferencaDias = inteiroNullableSql(colunas, "Performance Diferença de Dias");
+        String finalizacaoPerformance = dataNullableSql(colunas, "Finalização da Performance", "Data de Finalização");
         exigirColuna(colunas, "Comprovante Anexado");
         String comprovanteAnexado = """
                 CASE
@@ -973,6 +951,7 @@ public class PerformanceDashboardSqlRepository {
                         TRY_CONVERT(BIGINT, [Nº Minuta]) AS numero_minuta,
                         CAST([Previsão de Entrega] AS date) AS data_previsao_entrega,
                         CAST([Data de Finalização] AS date) AS data_finalizacao,
+                        %s AS data_finalizacao_performance,
                         %s AS responsavel_regiao_destino,
                         %s AS filial_emissora,
                         COALESCE(%s,
@@ -992,6 +971,7 @@ public class PerformanceDashboardSqlRepository {
                             ELSE N'Pendente'
                         END AS status_norm,
                         TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [Data de extracao])) AS data_extracao,
+                        %s AS performance_diferenca_dias_publicada,
                         ROW_NUMBER() OVER (
                             PARTITION BY TRY_CONVERT(BIGINT, [Nº Minuta])
                             ORDER BY
@@ -1021,14 +1001,18 @@ public class PerformanceDashboardSqlRepository {
                         comprovante_anexado,
                         status_norm,
                         data_extracao,
-                        CASE
-                            WHEN data_finalizacao IS NULL THEN NULL
-                            ELSE DATEDIFF(day, data_previsao_entrega, data_finalizacao)
-                        END AS performance_diferenca_dias
+                        COALESCE(
+                            performance_diferenca_dias_publicada,
+                            CASE
+                                WHEN data_finalizacao_performance IS NULL THEN NULL
+                                ELSE DATEDIFF(day, data_previsao_entrega, data_finalizacao_performance)
+                            END
+                        ) AS performance_diferenca_dias
                     FROM fonte
                     WHERE rn = 1
                 )
                 """.formatted(
+                finalizacaoPerformance,
                 responsavelRegiao,
                 filialEmissora,
                 responsavelRegiao,
@@ -1036,7 +1020,8 @@ public class PerformanceDashboardSqlRepository {
                 responsavelKey,
                 regiaoDestino,
                 cidadeDestino,
-                comprovanteAnexado
+                comprovanteAnexado,
+                performanceDiferencaDias
         );
     }
 
@@ -1070,6 +1055,34 @@ public class PerformanceDashboardSqlRepository {
 
     private static String textoNullableColunaSql(String nome) {
         return "NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [" + nome + "]))), '')";
+    }
+
+    private static String inteiroNullableSql(PerformanceViewColumns colunas, String... nomes) {
+        List<String> expressoes = List.of(nomes).stream()
+                .filter(colunas::existe)
+                .map(nome -> "TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [" + nome + "]))), N''))")
+                .toList();
+        if (expressoes.isEmpty()) {
+            return "CAST(NULL AS INT)";
+        }
+        if (expressoes.size() == 1) {
+            return expressoes.get(0);
+        }
+        return "COALESCE(" + String.join(", ", expressoes) + ")";
+    }
+
+    private static String dataNullableSql(PerformanceViewColumns colunas, String... nomes) {
+        List<String> expressoes = List.of(nomes).stream()
+                .filter(colunas::existe)
+                .map(nome -> "CAST([" + nome + "] AS date)")
+                .toList();
+        if (expressoes.isEmpty()) {
+            return "CAST(NULL AS date)";
+        }
+        if (expressoes.size() == 1) {
+            return expressoes.get(0);
+        }
+        return "COALESCE(" + String.join(", ", expressoes) + ")";
     }
 
     private static String texto(Map<String, Object> row, String chave) {
@@ -1128,7 +1141,8 @@ public class PerformanceDashboardSqlRepository {
         }
 
         boolean contratoObrigatorioValido() {
-            return existe("Comprovante Anexado");
+            return existe("Comprovante Anexado")
+                    && existe("Responsável Região Destino Key");
         }
     }
 

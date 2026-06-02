@@ -126,7 +126,7 @@ class DashboardExportSqlBuilderTest {
     }
 
     @Test
-    void buildSelectCotacoesDeveFiltrarUsuarioPorSolicitanteNormalizado() {
+    void buildSelectCotacoesDeveFiltrarUsuarioPorChavePublicada() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
                 DashboardExportDefinition.COTACOES,
                 filtro(Map.of("usuarios", List.of("Maria Silva"))),
@@ -134,8 +134,8 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Solicitante])))) IN (:filtro_usuarios)");
-        assertThat(query.sql()).doesNotContain("[Usuario Key]");
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Usuario Key])))) IN (:filtro_usuarios)");
+        assertThat(query.sql()).doesNotContain("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Solicitante])))) IN (:filtro_usuarios)");
         assertThat(query.sql()).doesNotContain("LIKE :filtro_usuarios");
         assertThat(query.params().getValues()).containsEntry("filtro_usuarios", List.of("maria silva"));
     }

@@ -30,7 +30,7 @@ public class VisaoCotacoesEntity {
     @Column(name = "[Solicitante]")
     private String solicitante;
 
-    @Column(name = "[Solicitante]", insertable = false, updatable = false)
+    @Column(name = "[Usuario Key]", insertable = false, updatable = false)
     private String usuarioKey;
 
     @Column(name = "[Cliente Pagador]")

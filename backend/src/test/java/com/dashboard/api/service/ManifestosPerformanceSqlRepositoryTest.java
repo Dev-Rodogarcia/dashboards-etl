@@ -83,7 +83,7 @@ class ManifestosPerformanceSqlRepositoryTest {
     }
 
     @Test
-    void buscarPerformanceAtualizaMetadataQuandoWrapperManifestosEstaDesatualizado() {
+    void buscarPerformanceNaoAtualizaMetadataQuandoWrapperManifestosEstaDesatualizado() {
         CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
         jdbcTemplate.colunasManifestos = List.of(
                 "Número",
@@ -111,9 +111,10 @@ class ManifestosPerformanceSqlRepositoryTest {
         );
 
         repository.buscarPerformance(filtroPadrao(), "dia", null, null);
+        repository.buscarPerformance(filtroPadrao(), "dia", null, null);
 
         assertThat(jdbcTemplate.sqls)
-                .anySatisfy(sql -> assertThat(sql).contains("sp_refreshview N'dbo.vw_manifestos_powerbi'"));
+                .noneSatisfy(sql -> assertThat(sql).contains("sp_refreshview"));
         assertThat(jdbcTemplate.consultasColunas).isEqualTo(2);
     }
 
@@ -156,16 +157,6 @@ class ManifestosPerformanceSqlRepositoryTest {
             return colunasManifestos.stream()
                     .map(elementType::cast)
                     .toList();
-        }
-
-        @Override
-        public int update(String sql, SqlParameterSource paramSource) {
-            sqls.add(sql);
-            parametros.add(paramSource);
-            if (sql.contains("sp_refreshview N'dbo.vw_manifestos_powerbi'")) {
-                colunasManifestos = colunasManifestosValidas();
-            }
-            return 0;
         }
 
         @Override

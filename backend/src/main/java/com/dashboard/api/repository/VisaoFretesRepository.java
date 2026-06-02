@@ -35,12 +35,7 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial_nome_normalizada,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), '') AS filial_emissora,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Responsável pela Região de Destino]))), '') AS responsavel_regiao_destino,
-                    LOWER(COALESCE(
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Responsável pela Região de Destino]))), ''),
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), ''),
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), ''),
-                        N'sem_responsavel'
-                    )) AS responsavel_destino_key,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Responsável Região Destino Key]))), '') AS responsavel_destino_key,
                     COALESCE(
                         NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Responsável pela Região de Destino]))), ''),
                         NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), ''),
