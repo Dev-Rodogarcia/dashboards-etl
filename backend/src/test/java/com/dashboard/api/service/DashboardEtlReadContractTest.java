@@ -21,7 +21,7 @@ class DashboardEtlReadContractTest {
             entry("VisaoColetasEntity.java", "vw_coletas_powerbi"),
             entry("VisaoContasAPagarEntity.java", "vw_contas_a_pagar_powerbi"),
             entry("VisaoCotacoesEntity.java", "vw_cotacoes_powerbi"),
-            entry("VisaoFaturasClienteEntity.java", "vw_faturas_por_cliente_powerbi"),
+            entry("VisaoFaturasClienteEntity.java", "fato_gestao_vista_faturas"),
             entry("VisaoFretesEntity.java", "fato_fretes_faturamento"),
             entry("VisaoInventarioEntity.java", "vw_inventario_powerbi"),
             entry("VisaoLocalizacaoCargasEntity.java", "vw_localizacao_cargas_powerbi"),

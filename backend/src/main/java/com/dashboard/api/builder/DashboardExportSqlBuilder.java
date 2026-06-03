@@ -173,6 +173,7 @@ public class DashboardExportSqlBuilder {
         List<String> where = new ArrayList<>();
 
         adicionarPeriodo(where, params, definition, filtro.dataInicio(), filtro.dataFim());
+        adicionarFiltroAtivosFaturas(where, definition);
         adicionarEscopo(where, params, definition, escopo);
         adicionarFiltros(where, params, definition, filtro, filtrosIgnorados);
         adicionarStatusProcesso(where, filtro, definition, filtrosIgnorados);
@@ -301,6 +302,12 @@ public class DashboardExportSqlBuilder {
         where.add(definition.dateColumn() + " >= :inicioOffset AND " + definition.dateColumn() + " < :fimOffset");
         params.addValue("inicioOffset", janela.inicioInclusivo());
         params.addValue("fimOffset", janela.fimExclusivo());
+    }
+
+    private void adicionarFiltroAtivosFaturas(List<String> where, DashboardExportDefinition definition) {
+        if (definition == DashboardExportDefinition.FATURAS_POR_CLIENTE) {
+            where.add("excluido_na_origem = 0");
+        }
     }
 
     private void adicionarEscopo(
@@ -453,19 +460,14 @@ public class DashboardExportSqlBuilder {
 
     private void adicionarStatusProcessoCalculado(List<String> where, List<String> valores) {
         List<String> permitidos = new ArrayList<>();
-        String documentoNormalizado = normalizarSql("[Fatura/N° Documento]");
-        String documentoPreenchido = "([Fatura/N° Documento] IS NOT NULL AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))) <> '')";
-        String statusFaturado = documentoNormalizado + " = 'faturado'";
-        String statusAguardando = documentoNormalizado + " = 'aguardando faturamento'";
-        String documentoNaoEhStatus = "(" + documentoNormalizado + " NOT IN ('faturado', 'aguardando faturamento'))";
 
         if (valores.contains("faturado")) {
-            permitidos.add("(" + statusFaturado + " OR (" + documentoPreenchido + " AND " + documentoNaoEhStatus + "))");
+            permitidos.add("N'Faturado'");
         }
         if (valores.contains("aguardando faturamento")) {
-            permitidos.add("(" + statusAguardando + " OR [Fatura/N° Documento] IS NULL OR LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))) = '')");
+            permitidos.add("N'Aguardando Faturamento'");
         }
-        where.add(permitidos.isEmpty() ? "1 = 0" : "(" + String.join(" OR ", permitidos) + ")");
+        where.add(permitidos.isEmpty() ? "1 = 0" : "status_processo IN (" + String.join(", ", permitidos) + ")");
     }
 
     private void adicionarFiltrosTabela(
@@ -976,11 +978,11 @@ public class DashboardExportSqlBuilder {
                     List.of()
             );
             case FATURAS_POR_CLIENTE -> new TableFilterColumns(
-                    List.of("[Pagador do frete/Nome]", "[Cliente/CNPJ]", "[Pagador do frete/Documento]"),
-                    List.of("[ID Único]", "[Fatura/N° Documento]", "[CT-e/Número]"),
+                    List.of("pagador_nome", "cliente_nome", "cliente_cnpj", "pagador_documento", "status_processo"),
+                    List.of("unique_id", "documento_fatura", "numero_fatura", "numero_documento", "numero_cte"),
                     List.of(),
-                    List.of(),
-                    List.of("[Pagador do frete/Nome]", "[Cliente/CNPJ]", "[Pagador do frete/Documento]"),
+                    List.of("status_processo"),
+                    List.of("pagador_nome", "cliente_nome", "cliente_cnpj", "pagador_documento"),
                     List.of(),
                     List.of()
             );
@@ -1077,15 +1079,15 @@ public class DashboardExportSqlBuilder {
                 put(colunas, "statusPagamento", status("[Pago]"));
             }
             case FATURAS_POR_CLIENTE -> {
-                put(colunas, "idUnico", codigo("[ID Único]"));
-                put(colunas, "documentoFatura", codigo("[Fatura/N° Documento]"));
-                put(colunas, "emissao", data("COALESCE([Fatura/Emissão], [CT-e/Data de emissão])"));
-                put(colunas, "vencimento", data("[Parcelas/Vencimento]"));
-                put(colunas, "baixa", data("[Fatura/Baixa]"));
-                put(colunas, "filial", texto("[Filial]"));
-                put(colunas, "clientePagador", texto("[Pagador do frete/Nome]"));
-                put(colunas, "clienteCnpj", texto("[Cliente/CNPJ]", "[Pagador do frete/Documento]"));
-                put(colunas, "numeroCte", codigo("[CT-e/Número]"));
+                put(colunas, "idUnico", codigo("unique_id"));
+                put(colunas, "documentoFatura", codigo("documento_fatura", "numero_fatura", "numero_documento"));
+                put(colunas, "emissao", data("COALESCE(data_emissao_fatura, data_emissao_cte_date)"));
+                put(colunas, "vencimento", data("data_vencimento_fatura"));
+                put(colunas, "baixa", data("data_baixa_fatura"));
+                put(colunas, "filial", texto("filial"));
+                put(colunas, "clientePagador", texto("pagador_nome"));
+                put(colunas, "clienteCnpj", texto("cliente_cnpj", "cliente_cnpj_key", "pagador_documento", "pagador_documento_key"));
+                put(colunas, "numeroCte", codigo("numero_cte"));
                 put(colunas, "valorFaturado", numero(valorOperacionalFaturaSql()));
                 put(colunas, "statusProcesso", statusProcesso());
             }
@@ -1133,7 +1135,7 @@ public class DashboardExportSqlBuilder {
     }
 
     private TableColumnFilterDefinition statusProcesso() {
-        return new TableColumnFilterDefinition(TableColumnKind.STATUS, List.of("[Fatura/N° Documento]"), true);
+        return new TableColumnFilterDefinition(TableColumnKind.STATUS, List.of("status_processo"), true);
     }
 
     private TableColumnFilterDefinition coluna(TableColumnKind kind, String... expressions) {
@@ -1156,7 +1158,7 @@ public class DashboardExportSqlBuilder {
     }
 
     private String valorOperacionalFaturaSql() {
-        return "COALESCE([Fatura/Valor], [Fatura/Valor Total], [Frete/Valor dos CT-es])";
+        return "valor_operacional";
     }
 
     private String normalizarSql(String coluna) {

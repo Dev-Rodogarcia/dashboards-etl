@@ -99,7 +99,7 @@ class DashboardExportSqlBuilderTest {
     }
 
     @Test
-    void buildSelectDeveMapearStatusProcessoCalculado() {
+    void buildSelectDeveMapearStatusProcessoMaterializado() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
                 DashboardExportDefinition.FATURAS_POR_CLIENTE,
                 filtro(Map.of("statusProcesso", List.of("Faturado"))),
@@ -107,8 +107,9 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("[Fatura/N° Documento] IS NOT NULL");
-        assertThat(query.sql()).contains("LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))) <> ''");
+        assertThat(query.sql()).contains("[ETL_SISTEMA].dbo.fato_gestao_vista_faturas");
+        assertThat(query.sql()).contains("excluido_na_origem = 0");
+        assertThat(query.sql()).contains("status_processo IN (N'Faturado')");
     }
 
     @Test
@@ -120,10 +121,11 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ])))) IN (:filtro_clientesCnpj)");
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Documento])))) IN (:filtro_clientesCnpj)");
-        assertThat(query.sql()).contains("PARTITION BY");
-        assertThat(query.sql()).contains("PARTITION BY [ID Único]");
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), cliente_cnpj)))) IN (:filtro_clientesCnpj)");
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), cliente_cnpj_key)))) IN (:filtro_clientesCnpj)");
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), pagador_documento)))) IN (:filtro_clientesCnpj)");
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), pagador_documento_key)))) IN (:filtro_clientesCnpj)");
+        assertThat(query.sql()).doesNotContain("PARTITION BY");
         assertThat(query.params().getValues()).containsKey("filtro_clientesCnpj");
     }
 
@@ -170,7 +172,7 @@ class DashboardExportSqlBuilderTest {
     }
 
     @Test
-    void buildSelectDeveMapearTabelaStatusProcessoCalculado() {
+    void buildSelectDeveMapearTabelaStatusProcessoMaterializado() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
                 DashboardExportDefinition.FATURAS_POR_CLIENTE,
                 filtro(Map.of("tabelaStatus", List.of("Faturado"))),
@@ -178,8 +180,7 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("[Fatura/N° Documento] IS NOT NULL");
-        assertThat(query.sql()).contains("faturado");
+        assertThat(query.sql()).contains("status_processo IN (N'Faturado')");
     }
 
     @Test

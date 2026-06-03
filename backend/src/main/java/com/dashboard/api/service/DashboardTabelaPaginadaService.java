@@ -321,15 +321,15 @@ public class DashboardTabelaPaginadaService {
 
     private FaturaPorClienteResumoDTO mapearFaturaPorCliente(Map<String, Object> row) {
         return new FaturaPorClienteResumoDTO(
-                texto(row, "ID Único", "ID Unico"),
+                texto(row, "unique_id", "ID Único", "ID Unico"),
                 documentoFaturaOperacional(row),
                 emissaoFaturaOperacional(row),
                 vencimentoFaturaOperacional(row),
                 baixaFaturaOperacional(row),
-                texto(row, "Filial"),
-                texto(row, "Pagador do frete/Nome"),
+                texto(row, "filial", "Filial"),
+                texto(row, "pagador_nome", "Pagador do frete/Nome"),
                 clienteCnpjOperacional(row),
-                longo(row, "CT-e/Número", "CT-e/Numero"),
+                longo(row, "numero_cte", "CT-e/Número", "CT-e/Numero"),
                 valorOperacionalFatura(row),
                 statusProcesso(row)
         );
@@ -365,6 +365,11 @@ public class DashboardTabelaPaginadaService {
     }
 
     private BigDecimal valorOperacionalFatura(Map<String, Object> row) {
+        Object valorOperacional = valor(row, "valor_operacional");
+        if (valorOperacional != null) {
+            return decimalObjeto(valorOperacional);
+        }
+
         Object valorFitAnt = viewFaturasClienteDeslocada(row)
                 ? valor(row, "Fatura/Valor Total")
                 : valor(row, "Fatura/Valor");
@@ -381,6 +386,11 @@ public class DashboardTabelaPaginadaService {
     }
 
     private String statusProcesso(Map<String, Object> row) {
+        String status = texto(row, "status_processo");
+        if (status != null && !status.isBlank()) {
+            return status;
+        }
+
         String documento = texto(row, "Fatura/N° Documento", "Fatura/Nº Documento");
         if (ehStatusProcesso(documento)) {
             return documento;
@@ -399,12 +409,22 @@ public class DashboardTabelaPaginadaService {
     }
 
     private String documentoFaturaOperacional(Map<String, Object> row) {
+        String documento = texto(row, "documento_fatura", "numero_fatura", "numero_documento");
+        if (documento != null && !documento.isBlank()) {
+            return documento;
+        }
+
         return viewFaturasClienteDeslocada(row)
                 ? texto(row, "Fatura/Emissão", "Fatura/Emissao")
                 : texto(row, "Fatura/N° Documento", "Fatura/Nº Documento");
     }
 
     private String emissaoFaturaOperacional(Map<String, Object> row) {
+        String emissao = texto(row, "data_emissao_fatura", "data_emissao_cte_date", "data_emissao_cte");
+        if (emissao != null && !emissao.isBlank()) {
+            return emissao;
+        }
+
         if (viewFaturasClienteDeslocada(row)) {
             return texto(row, "Fatura/Valor", "CT-e/Data de emissão", "CT-e/Data de emissao");
         }
@@ -412,18 +432,33 @@ public class DashboardTabelaPaginadaService {
     }
 
     private String vencimentoFaturaOperacional(Map<String, Object> row) {
+        String vencimento = texto(row, "data_vencimento_fatura");
+        if (vencimento != null && !vencimento.isBlank()) {
+            return vencimento;
+        }
+
         return viewFaturasClienteDeslocada(row)
                 ? texto(row, "Fatura/Baixa")
                 : texto(row, "Parcelas/Vencimento");
     }
 
     private String baixaFaturaOperacional(Map<String, Object> row) {
+        String baixa = texto(row, "data_baixa_fatura");
+        if (baixa != null && !baixa.isBlank()) {
+            return baixa;
+        }
+
         return viewFaturasClienteDeslocada(row)
                 ? texto(row, "Fatura/Data Vencimento Original")
                 : texto(row, "Fatura/Baixa");
     }
 
     private String clienteCnpjOperacional(Map<String, Object> row) {
+        String clienteCnpj = texto(row, "cliente_cnpj", "cliente_cnpj_key", "pagador_documento", "pagador_documento_key");
+        if (clienteCnpj != null && !clienteCnpj.isBlank()) {
+            return clienteCnpj;
+        }
+
         return viewFaturasClienteDeslocada(row)
                 ? texto(row, "Remetente/Nome", "Pagador do frete/Documento")
                 : texto(row, "Cliente/CNPJ", "Pagador do frete/Documento");

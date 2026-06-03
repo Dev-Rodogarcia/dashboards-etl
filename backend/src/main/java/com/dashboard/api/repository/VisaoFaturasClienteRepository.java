@@ -18,9 +18,10 @@ public interface VisaoFaturasClienteRepository extends JpaRepository<VisaoFatura
 
     @Query(value = """
             SELECT *
-            FROM dbo.vw_faturas_por_cliente_powerbi
-            WHERE [CT-e/Data de emissão] >= :inicioInclusivo
-              AND [CT-e/Data de emissão] < :fimExclusivo
+            FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+            WHERE data_emissao_cte >= :inicioInclusivo
+              AND data_emissao_cte < :fimExclusivo
+              AND excluido_na_origem = 0
             """, nativeQuery = true)
     List<VisaoFaturasClienteEntity> findPowerBiRowsByDataEmissaoCteNaJanela(
             @Param("inicioInclusivo") OffsetDateTime inicioInclusivo,
@@ -30,14 +31,17 @@ public interface VisaoFaturasClienteRepository extends JpaRepository<VisaoFatura
     @Query(value = """
             SELECT DISTINCT cliente
             FROM (
-                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador do frete/Nome]))), '') AS cliente
-                FROM dbo.vw_faturas_por_cliente_powerbi
+                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '') AS cliente
+                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                WHERE excluido_na_origem = 0
                 UNION ALL
-                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Remetente/Nome]))), '') AS cliente
-                FROM dbo.vw_faturas_por_cliente_powerbi
+                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), remetente_nome))), '') AS cliente
+                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                WHERE excluido_na_origem = 0
                 UNION ALL
-                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Destinatário/Nome]))), '') AS cliente
-                FROM dbo.vw_faturas_por_cliente_powerbi
+                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destinatario_nome))), '') AS cliente
+                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                WHERE excluido_na_origem = 0
             ) clientes
             WHERE cliente IS NOT NULL
             ORDER BY cliente
@@ -48,19 +52,22 @@ public interface VisaoFaturasClienteRepository extends JpaRepository<VisaoFatura
             SELECT DISTINCT cliente
             FROM (
                 SELECT
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador do frete/Nome]))), '') AS cliente,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial
-                FROM dbo.vw_faturas_por_cliente_powerbi
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '') AS cliente,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial))), '')) AS filial
+                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Remetente/Nome]))), '') AS cliente,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial
-                FROM dbo.vw_faturas_por_cliente_powerbi
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), remetente_nome))), '') AS cliente,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial))), '')) AS filial
+                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Destinatário/Nome]))), '') AS cliente,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial
-                FROM dbo.vw_faturas_por_cliente_powerbi
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destinatario_nome))), '') AS cliente,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial))), '')) AS filial
+                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                WHERE excluido_na_origem = 0
             ) clientes
             WHERE cliente IS NOT NULL
               AND filial IN (:filiais)
@@ -70,29 +77,31 @@ public interface VisaoFaturasClienteRepository extends JpaRepository<VisaoFatura
 
     @Query(value = """
             SELECT DISTINCT c.clienteCnpj
-            FROM dbo.vw_faturas_por_cliente_powerbi
+            FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
             CROSS APPLY (VALUES (
                 COALESCE(
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ]))), ''),
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Documento]))), '')
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), cliente_cnpj))), ''),
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), pagador_documento))), '')
                 )
             )) c(clienteCnpj)
             WHERE c.clienteCnpj IS NOT NULL
+              AND excluido_na_origem = 0
             ORDER BY clienteCnpj
             """, nativeQuery = true)
     List<String> findDistinctClienteCnpj();
 
     @Query(value = """
             SELECT DISTINCT c.clienteCnpj
-            FROM dbo.vw_faturas_por_cliente_powerbi
+            FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
             CROSS APPLY (VALUES (
                 COALESCE(
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ]))), ''),
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Documento]))), '')
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), cliente_cnpj))), ''),
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), pagador_documento))), '')
                 )
             )) c(clienteCnpj)
             WHERE c.clienteCnpj IS NOT NULL
-              AND LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial])))) IN (:filiais)
+              AND excluido_na_origem = 0
+              AND LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), filial)))) IN (:filiais)
             ORDER BY clienteCnpj
             """, nativeQuery = true)
     List<String> findDistinctClienteCnpjByFilialIn(@Param("filiais") List<String> filiais);

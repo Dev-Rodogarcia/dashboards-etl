@@ -24,7 +24,7 @@ export interface NavItem {
 
 export const DASHBOARD_NAV_ITEMS: NavItem[] = [
   { label: 'Coletas', path: '/coletas', permission: 'coletas' },
-  { label: 'Manifestos - Perf. Veículos', path: '/manifestos', permission: 'manifestos' },
+  { label: 'Manifestos - Performan. Veículos', path: '/manifestos', permission: 'manifestos' },
   { label: 'Faturamento', path: '/faturamento', permission: 'fretes' },
   { label: 'Performance', path: '/performance', permission: 'performance' },
   { label: 'Localização de Cargas', path: '/tracking', permission: 'tracking' },

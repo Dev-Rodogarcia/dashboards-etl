@@ -14,112 +14,112 @@ import org.hibernate.annotations.Immutable;
 
 @Entity
 @Immutable
-@Table(name = "vw_faturas_por_cliente_powerbi")
+@Table(name = "fato_gestao_vista_faturas", schema = "dbo", catalog = "ETL_SISTEMA")
 public class VisaoFaturasClienteEntity {
 
     private static final DateTimeFormatter DATA_BR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     @Id
-    @Column(name = "[ID Único]")
+    @Column(name = "unique_id")
     private String uniqueId;
 
-    @Column(name = "[Filial]")
+    @Column(name = "filial")
     private String filial;
 
-    @Column(name = "[Estado]")
+    @Column(name = "estado")
     private String estado;
 
-    @Column(name = "[CT-e/Número]")
+    @Column(name = "numero_cte")
     private Long numeroCte;
 
-    @Column(name = "[CT-e/Chave]")
+    @Column(name = "chave_cte")
     private String chaveCte;
 
-    @Column(name = "[CT-e/Data de emissão]")
+    @Column(name = "data_emissao_cte")
     private OffsetDateTime dataEmissaoCte;
 
-    @Column(name = "[Frete/Valor dos CT-es]")
+    @Column(name = "valor_frete")
     private BigDecimal valorFrete;
 
-    @Column(name = "[Terceiros/Valor CT-es]")
+    @Column(name = "third_party_ctes_value")
     private BigDecimal valorTerceiros;
 
-    @Column(name = "[CT-e/Status]")
+    @Column(name = "status_cte")
     private String statusCte;
 
-    @Column(name = "[CT-e/Resultado]")
+    @Column(name = "status_cte_result")
     private String resultadoCte;
 
-    @Column(name = "[Tipo]")
+    @Column(name = "tipo_frete")
     private String tipoFrete;
 
-    @Column(name = "[Classificação]")
+    @Column(name = "classificacao")
     private String classificacao;
 
-    @Column(name = "[Pagador do frete/Nome]")
+    @Column(name = "pagador_nome")
     private String pagadorNome;
 
-    @Column(name = "[Pagador do frete/Documento]")
+    @Column(name = "pagador_documento")
     private String pagadorDocumento;
 
-    @Column(name = "[Cliente/CNPJ]")
+    @Column(name = "cliente_cnpj")
     private String clienteCnpj;
 
-    @Column(name = "[Remetente/Nome]")
+    @Column(name = "remetente_nome")
     private String remetenteNome;
 
-    @Column(name = "[Remetente/Documento]")
+    @Column(name = "remetente_documento")
     private String remetenteDocumento;
 
-    @Column(name = "[Destinatário/Nome]")
+    @Column(name = "destinatario_nome")
     private String destinatarioNome;
 
-    @Column(name = "[Destinatário/Documento]")
+    @Column(name = "destinatario_documento")
     private String destinatarioDocumento;
 
-    @Column(name = "[Vendedor/Nome]")
+    @Column(name = "vendedor_nome")
     private String vendedorNome;
 
-    @Column(name = "[NFS-e/Número]")
+    @Column(name = "numero_nfse")
     private Long numeroNfse;
 
-    @Column(name = "[NFS-e/Série]")
+    @Column(name = "serie_nfse")
     private String serieNfse;
 
-    @Column(name = "[Fatura/N° Documento]")
+    @Column(name = "documento_fatura")
     private String documentoFatura;
 
-    @Column(name = "[Fatura/Emissão]")
+    @Column(name = "data_base_prazo")
     private String emissaoFatura;
 
-    @Column(name = "[Fatura/Valor]")
+    @Column(name = "valor_fit_ant")
     private BigDecimal valorFitAnt;
 
-    @Column(name = "[Fatura/Valor Total]")
+    @Column(name = "valor_fatura")
     private BigDecimal valorFatura;
 
-    @Column(name = "[Fatura/Número]")
+    @Column(name = "numero_fatura")
     private String numeroFatura;
 
-    @Column(name = "[Fatura/Emissão Fatura]")
+    @Column(name = "data_emissao_fatura")
     private String dataEmissaoFatura;
 
-    @Column(name = "[Parcelas/Vencimento]")
+    @Column(name = "data_vencimento_fatura")
     private String dataVencimentoFatura;
 
-    @Column(name = "[Fatura/Baixa]")
+    @Column(name = "data_baixa_fatura")
     private String dataBaixaFatura;
 
-    @Column(name = "[Fatura/Data Vencimento Original]")
+    @Column(name = "fit_ant_ils_original_due_date")
     private String dataVencimentoOriginal;
 
-    @Column(name = "[Notas Fiscais]")
+    @Column(name = "notas_fiscais")
     private String notasFiscais;
 
-    @Column(name = "[Pedidos/Cliente]")
+    @Column(name = "pedidos_cliente")
     private String pedidosCliente;
 
-    @Column(name = "[Data da Última Atualização]")
+    @Column(name = "snapshot_em")
     private String dataExtracao;
 
     protected VisaoFaturasClienteEntity() {

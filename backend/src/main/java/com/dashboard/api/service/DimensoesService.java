@@ -156,7 +156,7 @@ public class DimensoesService {
         try {
             listarClientesFaturas(escopo).forEach(clientes::add);
         } catch (DataAccessException ex) {
-            log.warn("Dimensão de clientes ignorou faturas_por_cliente temporariamente. Verifique a view vw_faturas_por_cliente_powerbi. Causa: {}",
+            log.warn("Dimensão de clientes ignorou faturas_por_cliente temporariamente. Verifique a fato_gestao_vista_faturas. Causa: {}",
                     ex.getMostSpecificCause().getMessage());
         }
 
@@ -211,7 +211,7 @@ public class DimensoesService {
             }
             return faturasClienteRepository.findDistinctClienteCnpjByFilialIn(filiais);
         } catch (DataAccessException ex) {
-            log.warn("Dimensão Cliente/CNPJ indisponível. Verifique se a view vw_faturas_por_cliente_powerbi expõe [Cliente/CNPJ]. Causa: {}",
+            log.warn("Dimensão Cliente/CNPJ indisponível. Verifique se a fato_gestao_vista_faturas expõe cliente_cnpj. Causa: {}",
                     ex.getMostSpecificCause().getMessage());
             return List.of();
         }

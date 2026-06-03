@@ -118,17 +118,17 @@ public enum DashboardExportDefinition {
     FATURAS_POR_CLIENTE(
             "faturas-por-cliente",
             "faturas-por-cliente",
-            "[vw_faturas_por_cliente_powerbi]",
+            "[ETL_SISTEMA].dbo.fato_gestao_vista_faturas",
             DateMode.OFFSET_DATE_TIME,
-            "[CT-e/Data de emissão]",
-            List.of("[Filial]"),
+            "data_emissao_cte",
+            List.of("filial"),
             Map.of(
-                    "filiais", List.of("[Filial]"),
-                    "pagadores", List.of("[Pagador do frete/Nome]"),
-                    "clientesCnpj", List.of("[Cliente/CNPJ]", "[Pagador do frete/Documento]")
+                    "filiais", List.of("filial"),
+                    "pagadores", List.of("pagador_nome"),
+                    "clientesCnpj", List.of("cliente_cnpj", "cliente_cnpj_key", "pagador_documento", "pagador_documento_key")
             ),
-            List.of("[CT-e/Data de emissão] DESC", "[ID Único] DESC"),
-            new DedupConfig("[ID Único]", List.of("[Data da Última Atualização] DESC", "[CT-e/Data de emissão] DESC", "[ID Único] ASC"))
+            List.of("data_emissao_cte DESC", "unique_id DESC"),
+            null
     ),
     ETL_SAUDE(
             "etl-saude",

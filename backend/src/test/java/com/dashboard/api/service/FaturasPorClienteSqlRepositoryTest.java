@@ -33,7 +33,7 @@ class FaturasPorClienteSqlRepositoryTest {
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
-    void buscarOverviewDeveDeduplicarEAgregarNoSqlComPeriodoSargable() {
+    void buscarOverviewDeveAgregarFatoNoSqlComPeriodoSargable() {
         when(jdbcTemplate.queryForObject(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(new FaturasPorClienteOverviewDTO(
                         "2026-03-23T09:00:00",
@@ -57,13 +57,14 @@ class FaturasPorClienteSqlRepositoryTest {
         verify(jdbcTemplate).queryForObject(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
 
         assertThat(sqlCaptor.getValue())
-                .contains("[CT-e/Data de emissão] >= :inicioOffset AND [CT-e/Data de emissão] < :fimOffset")
-                .contains("ROW_NUMBER() OVER")
-                .contains("PARTITION BY chave_normalizacao")
-                .contains("SUM(CASE WHEN documento_fatura IS NOT NULL THEN valor_operacional ELSE 0 END)")
+                .contains("[ETL_SISTEMA].dbo.fato_gestao_vista_faturas")
+                .contains("data_emissao_cte >= :inicioOffset AND data_emissao_cte < :fimOffset")
+                .contains("excluido_na_origem = 0")
+                .contains("SUM(CASE WHEN status_processo = N'Faturado' THEN valor_operacional ELSE 0 END)")
                 .contains("COUNT(DISTINCT cliente_chave) AS clientes_ativos")
+                .doesNotContain("ROW_NUMBER() OVER")
                 .doesNotContain("WHERE TRY_CONVERT")
-                .doesNotContain("TRY_CONVERT(datetimeoffset, [CT-e/Data de emissão])");
+                .doesNotContain("TRY_CONVERT(datetimeoffset, data_emissao_cte)");
     }
 
     @Test

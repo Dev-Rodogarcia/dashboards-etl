@@ -57,12 +57,12 @@ public class FaturasPorClienteSqlRepository {
 
         String sql = baseNormalizadaSql(source) + """
                 SELECT
-                    MAX(data_extracao) AS updated_at,
-                    CAST(COALESCE(SUM(CASE WHEN documento_fatura IS NOT NULL THEN valor_operacional ELSE 0 END), 0) AS DECIMAL(19,2)) AS valor_faturado,
-                    SUM(CASE WHEN documento_fatura IS NOT NULL THEN 1 ELSE 0 END) AS registros_faturados,
-                    SUM(CASE WHEN documento_fatura IS NULL THEN 1 ELSE 0 END) AS aguardando_faturamento,
+                    MAX(snapshot_em) AS updated_at,
+                    CAST(COALESCE(SUM(CASE WHEN status_processo = N'Faturado' THEN valor_operacional ELSE 0 END), 0) AS DECIMAL(19,2)) AS valor_faturado,
+                    SUM(CASE WHEN status_processo = N'Faturado' THEN 1 ELSE 0 END) AS registros_faturados,
+                    SUM(CASE WHEN status_processo = N'Aguardando Faturamento' THEN 1 ELSE 0 END) AS aguardando_faturamento,
                     SUM(CASE
-                        WHEN documento_fatura IS NOT NULL
+                        WHEN status_processo = N'Faturado'
                          AND data_vencimento_fatura IS NOT NULL
                          AND data_vencimento_fatura < :dataReferencia
                          AND data_baixa_fatura IS NULL
@@ -120,7 +120,8 @@ public class FaturasPorClienteSqlRepository {
                     SELECT
                         valor_operacional,
                         CASE
-                            WHEN data_vencimento_fatura IS NULL THEN N'Sem vencimento'
+                            WHEN status_pagamento = N'sem_vencimento' OR data_vencimento_fatura IS NULL THEN N'Sem vencimento'
+                            WHEN status_pagamento = N'a_vencer' THEN N'A vencer'
                             WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) < 0 THEN N'A vencer'
                             WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 15 THEN N'1-15 dias'
                             WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 30 THEN N'16-30 dias'
@@ -128,8 +129,8 @@ public class FaturasPorClienteSqlRepository {
                             ELSE N'61+ dias'
                         END AS faixa
                     FROM base_normalizada
-                    WHERE documento_fatura IS NOT NULL
-                      AND data_baixa_fatura IS NULL
+                    WHERE status_processo = N'Faturado'
+                      AND status_pagamento <> N'baixado'
                 )
                 SELECT
                     faixa,
@@ -168,7 +169,7 @@ public class FaturasPorClienteSqlRepository {
                         cliente_chave,
                         CAST(COALESCE(SUM(valor_operacional), 0) AS DECIMAL(19,2)) AS valor_faturado
                     FROM base_normalizada
-                    WHERE documento_fatura IS NOT NULL
+                    WHERE status_processo = N'Faturado'
                       AND cliente_chave IS NOT NULL
                     GROUP BY cliente_chave
                 ),
@@ -181,10 +182,10 @@ public class FaturasPorClienteSqlRepository {
                             cliente_cnpj,
                             ROW_NUMBER() OVER (
                                 PARTITION BY cliente_chave
-                                ORDER BY data_extracao DESC, data_emissao_cte DESC, unique_id ASC
+                                ORDER BY snapshot_em DESC, data_emissao_cte DESC, unique_id ASC
                             ) AS [__rn_cliente]
                         FROM base_normalizada
-                        WHERE documento_fatura IS NOT NULL
+                        WHERE status_processo = N'Faturado'
                           AND cliente_chave IS NOT NULL
                     ) ranked
                     WHERE [__rn_cliente] = 1
@@ -210,16 +211,10 @@ public class FaturasPorClienteSqlRepository {
         DashboardExportSqlBuilder.ExportSql source = source(filtro);
         String sql = baseNormalizadaSql(source) + """
                 SELECT
-                    CASE
-                        WHEN documento_fatura IS NOT NULL THEN N'Faturado'
-                        ELSE N'Aguardando Faturamento'
-                    END AS status_processo,
+                    status_processo,
                     COUNT(1) AS total
                 FROM base_normalizada
-                GROUP BY CASE
-                    WHEN documento_fatura IS NOT NULL THEN N'Faturado'
-                    ELSE N'Aguardando Faturamento'
-                END
+                GROUP BY status_processo
                 ORDER BY total DESC, status_processo
                 """;
 
@@ -230,182 +225,29 @@ public class FaturasPorClienteSqlRepository {
     }
 
     private String baseNormalizadaSql(DashboardExportSqlBuilder.ExportSql source) {
-        String documentoOperacionalSql = """
-                CASE
-                    WHEN deslocamento.deslocada = 1
-                    THEN NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/Emissão]))), N'')
-                    ELSE documento_raw.documento
-                END
-                """;
-        String emissaoFaturaSql = dateNullableSql("""
-                CASE
-                    WHEN deslocamento.deslocada = 1
-                    THEN COALESCE(CONVERT(NVARCHAR(64), [Fatura/Valor]), CONVERT(NVARCHAR(64), [CT-e/Data de emissão]))
-                    ELSE CONVERT(NVARCHAR(64), [Fatura/Emissão])
-                END
-                """);
-        String valorFitAntSql = decimalNullableSql("""
-                CASE
-                    WHEN deslocamento.deslocada = 1
-                    THEN CONVERT(NVARCHAR(100), [Fatura/Valor Total])
-                    ELSE CONVERT(NVARCHAR(100), [Fatura/Valor])
-                END
-                """);
-        String valorFaturaSql = decimalNullableSql("""
-                CASE
-                    WHEN deslocamento.deslocada = 1
-                    THEN CONVERT(NVARCHAR(100), [Fatura/Número])
-                    ELSE CONVERT(NVARCHAR(100), [Fatura/Valor Total])
-                END
-                """);
-        String dataEmissaoFaturaSql = dateNullableSql("""
-                CASE
-                    WHEN deslocamento.deslocada = 1
-                    THEN CONVERT(NVARCHAR(64), [Parcelas/Vencimento])
-                    ELSE CONVERT(NVARCHAR(64), [Fatura/Emissão Fatura])
-                END
-                """);
-        String dataVencimentoSql = dateNullableSql("""
-                CASE
-                    WHEN deslocamento.deslocada = 1
-                    THEN CONVERT(NVARCHAR(64), [Fatura/Baixa])
-                    ELSE CONVERT(NVARCHAR(64), [Parcelas/Vencimento])
-                END
-                """);
-        String dataBaixaSql = dateNullableSql("""
-                CASE
-                    WHEN deslocamento.deslocada = 1
-                    THEN CONVERT(NVARCHAR(64), [Fatura/Data Vencimento Original])
-                    ELSE CONVERT(NVARCHAR(64), [Fatura/Baixa])
-                END
-                """);
-
         return """
-                WITH base_filtrada AS (
-                    SELECT *
-                    %s
-                ),
-                base_operacional AS (
+                WITH base_normalizada AS (
                     SELECT
-                        id_unico.valor AS unique_id,
-                        [CT-e/Data de emissão] AS data_emissao_cte,
-                        data_extracao.valor AS data_extracao,
-                        documento.documento_fatura,
-                        datas.emissao_fatura,
-                        datas.data_emissao_fatura,
-                        datas.data_vencimento_fatura,
-                        datas.data_baixa_fatura,
-                        datas_calc.data_base_prazo,
-                        datas_calc.data_referencia_mensal,
-                        valores.valor_operacional,
-                        cliente.cliente_chave,
-                        cliente.cliente_nome,
-                        cliente.cliente_cnpj,
-                        chave.chave_normalizacao
-                    FROM base_filtrada
-                    CROSS APPLY (
-                        SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [ID Único]))), N'') AS valor
-                    ) id_unico
-                    CROSS APPLY (
-                        SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Fatura/N° Documento]))), N'') AS documento
-                    ) documento_raw
-                    CROSS APPLY (
-                        SELECT CASE
-                            WHEN LOWER(documento_raw.documento) IN (N'faturado', N'aguardando faturamento')
-                            THEN 1 ELSE 0
-                        END AS deslocada
-                    ) deslocamento
-                    CROSS APPLY (
-                        SELECT %s AS documento_fatura
-                    ) documento
-                    CROSS APPLY (
-                        SELECT
-                            %s AS emissao_fatura,
-                            %s AS data_emissao_fatura,
-                            %s AS data_vencimento_fatura,
-                            %s AS data_baixa_fatura
-                    ) datas
-                    CROSS APPLY (
-                        SELECT
-                            COALESCE(datas.emissao_fatura, datas.data_emissao_fatura) AS data_base_prazo,
-                            COALESCE(datas.emissao_fatura, datas.data_emissao_fatura, CAST([CT-e/Data de emissão] AS date)) AS data_referencia_mensal
-                    ) datas_calc
-                    CROSS APPLY (
-                        SELECT %s AS valor
-                    ) data_extracao
-                    CROSS APPLY (
-                        SELECT
-                            COALESCE(%s, %s, %s, 0) AS valor_operacional
-                    ) valores
-                    CROSS APPLY (
-                        SELECT
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Nome]))), N'') AS pagador_nome,
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Cliente/CNPJ]))), N'') AS cliente_cnpj_raw,
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador do frete/Documento]))), N'') AS pagador_documento
-                    ) cliente_raw
-                    CROSS APPLY (
-                        SELECT %s AS pagador_documento_digitos
-                    ) cliente_digitos
-                    CROSS APPLY (
-                        SELECT CASE
-                            WHEN cliente_raw.cliente_cnpj_raw IS NOT NULL THEN cliente_raw.cliente_cnpj_raw
-                            WHEN LEN(cliente_digitos.pagador_documento_digitos) = 14
-                             AND cliente_digitos.pagador_documento_digitos NOT LIKE N'%%[^0-9]%%'
-                            THEN cliente_digitos.pagador_documento_digitos
-                        END AS cliente_cnpj
-                    ) cliente_documento
-                    CROSS APPLY (
-                        SELECT %s AS cliente_cnpj_digitos
-                    ) cliente_documento_digitos
-                    CROSS APPLY (
-                        SELECT
-                            CASE
-                                WHEN cliente_documento.cliente_cnpj IS NOT NULL
-                                THEN N'cnpj:' + COALESCE(NULLIF(cliente_documento_digitos.cliente_cnpj_digitos, N''), LOWER(cliente_documento.cliente_cnpj))
-                                WHEN cliente_raw.pagador_nome IS NOT NULL
-                                THEN N'nome:' + LOWER(cliente_raw.pagador_nome)
-                            END AS cliente_chave,
-                            CASE
-                                WHEN cliente_documento.cliente_cnpj IS NOT NULL
-                                THEN COALESCE(cliente_raw.pagador_nome, cliente_documento.cliente_cnpj)
-                                ELSE cliente_raw.pagador_nome
-                            END AS cliente_nome,
-                            cliente_documento.cliente_cnpj AS cliente_cnpj
-                    ) cliente
-                    CROSS APPLY (
-                        SELECT CASE
-                            WHEN id_unico.valor IS NOT NULL THEN N'linha|' + id_unico.valor
-                            WHEN documento.documento_fatura IS NOT NULL THEN N'fatura|' + LOWER(documento.documento_fatura)
-                        END AS chave_normalizacao
-                    ) chave
-                    WHERE chave.chave_normalizacao IS NOT NULL
-                ),
-                base_normalizada AS (
-                    SELECT *
-                    FROM (
-                        SELECT
-                            base_operacional.*,
-                            ROW_NUMBER() OVER (
-                                PARTITION BY chave_normalizacao
-                                ORDER BY data_extracao DESC, data_emissao_cte DESC, unique_id ASC
-                            ) AS [__rn]
-                        FROM base_operacional
-                    ) dedup
-                    WHERE [__rn] = 1
+                        unique_id,
+                        chave_normalizacao,
+                        documento_fatura,
+                        data_emissao_cte,
+                        data_emissao_fatura,
+                        data_vencimento_fatura,
+                        data_baixa_fatura,
+                        data_base_prazo,
+                        data_referencia_mensal,
+                        valor_operacional,
+                        cliente_chave,
+                        cliente_nome,
+                        cliente_cnpj,
+                        status_processo,
+                        status_pagamento,
+                        snapshot_em
+                    %s
                 )
                 """.formatted(
-                source.sql(),
-                documentoOperacionalSql,
-                emissaoFaturaSql,
-                dataEmissaoFaturaSql,
-                dataVencimentoSql,
-                dataBaixaSql,
-                datetime2NullableSql("[Data da Última Atualização]"),
-                valorFitAntSql,
-                valorFaturaSql,
-                decimalNullableSql("[Frete/Valor dos CT-es]"),
-                digitsSql("cliente_raw.pagador_documento"),
-                digitsSql("cliente_documento.cliente_cnpj")
+                source.sql()
         );
     }
 
@@ -420,50 +262,6 @@ public class FaturasPorClienteSqlRepository {
 
     private MapSqlParameterSource copiarParams(DashboardExportSqlBuilder.ExportSql source) {
         return new MapSqlParameterSource(source.params().getValues());
-    }
-
-    private static String dateNullableSql(String expressao) {
-        String texto = "NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), " + expressao + "))), N'')";
-        return """
-                COALESCE(
-                    TRY_CONVERT(date, %1$s),
-                    TRY_CONVERT(date, %2$s, 23),
-                    TRY_CONVERT(date, %2$s, 103),
-                    TRY_CONVERT(date, %2$s, 112),
-                    TRY_CONVERT(date, %2$s, 126)
-                )
-                """.formatted(expressao, texto);
-    }
-
-    private static String datetime2NullableSql(String expressao) {
-        String texto = "NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), " + expressao + "))), N'')";
-        return """
-                COALESCE(
-                    TRY_CONVERT(datetime2, %1$s),
-                    TRY_CONVERT(datetime2, %2$s, 126),
-                    TRY_CONVERT(datetime2, %2$s, 120),
-                    TRY_CONVERT(datetime2, %2$s, 103)
-                )
-                """.formatted(expressao, texto);
-    }
-
-    private static String decimalNullableSql(String expressao) {
-        String texto = "REPLACE(REPLACE(CONVERT(NVARCHAR(100), " + expressao + "), NCHAR(160), N''), N' ', N'')";
-        return """
-                COALESCE(
-                    TRY_CONVERT(DECIMAL(19,4), %1$s),
-                    TRY_CONVERT(DECIMAL(19,4), %2$s),
-                    TRY_CONVERT(DECIMAL(19,4), REPLACE(REPLACE(%2$s, N'.', N''), N',', N'.'))
-                )
-                """.formatted(expressao, texto);
-    }
-
-    private static String digitsSql(String expressao) {
-        return """
-                REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
-                    LTRIM(RTRIM(CONVERT(NVARCHAR(100), %s))),
-                    N'.', N''), N'/', N''), N'-', N''), N' ', N''), NCHAR(160), N''), N'(', N''), N')', N'')
-                """.formatted(expressao);
     }
 
     private String updatedAt(Timestamp timestamp) {
