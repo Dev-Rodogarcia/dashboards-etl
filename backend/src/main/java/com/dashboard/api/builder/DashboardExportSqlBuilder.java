@@ -1,40 +1,23 @@
 package com.dashboard.api.builder;
 
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.definition.DashboardExportDefinition;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.FiltroConsultaDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.math.BigDecimal;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.time.DateTimeException;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.time.LocalDate;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.ArrayList;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.Collection;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.LinkedHashMap;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.List;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.Locale;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.Map;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.Objects;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.Set;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import org.springframework.lang.NonNull;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -112,7 +95,7 @@ public class DashboardExportSqlBuilder {
                 FROM %s base
                 WHERE %s
                   AND %s IS NOT NULL
-                  AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), %s))) <> ''
+                  AND %s <> ''
                 ORDER BY valor
                 """.formatted(coluna, parts.sourceSql(), parts.where(), coluna, coluna);
         return new ExportSql(Objects.requireNonNull(sql, "sql"), parts.params());
@@ -139,9 +122,9 @@ public class DashboardExportSqlBuilder {
                     WHERE %s
                 ) opcoes
                 WHERE value IS NOT NULL
-                  AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), value))) <> ''
+                  AND value <> ''
                   AND label IS NOT NULL
-                  AND LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), label))) <> ''
+                  AND label <> ''
                 GROUP BY value
                 ORDER BY label
                 """.formatted(
@@ -173,7 +156,7 @@ public class DashboardExportSqlBuilder {
         List<String> where = new ArrayList<>();
 
         adicionarPeriodo(where, params, definition, filtro.dataInicio(), filtro.dataFim());
-        adicionarFiltroAtivosFaturas(where, definition);
+        adicionarPredicadosObrigatorios(where, definition);
         adicionarEscopo(where, params, definition, escopo);
         adicionarFiltros(where, params, definition, filtro, filtrosIgnorados);
         adicionarStatusProcesso(where, filtro, definition, filtrosIgnorados);
@@ -304,10 +287,8 @@ public class DashboardExportSqlBuilder {
         params.addValue("fimOffset", janela.fimExclusivo());
     }
 
-    private void adicionarFiltroAtivosFaturas(List<String> where, DashboardExportDefinition definition) {
-        if (definition == DashboardExportDefinition.FATURAS_POR_CLIENTE) {
-            where.add("excluido_na_origem = 0");
-        }
+    private void adicionarPredicadosObrigatorios(List<String> where, DashboardExportDefinition definition) {
+        where.addAll(definition.requiredPredicates());
     }
 
     private void adicionarEscopo(
@@ -1162,11 +1143,11 @@ public class DashboardExportSqlBuilder {
     }
 
     private String normalizarSql(String coluna) {
-        return "LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), " + coluna + "))))";
+        return coluna;
     }
 
     private String codigoFilialSql(String coluna) {
-        return "LOWER(LEFT(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), " + coluna + "))), 3))";
+        return "LEFT(" + coluna + ", 3)";
     }
 
     private List<String> normalizar(Collection<String> valores) {

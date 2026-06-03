@@ -32,11 +32,13 @@ class DashboardExportSqlBuilderTest {
         );
 
         assertThat(query.sql()).contains("data_referencia_faturamento >= :inicioOffset AND data_referencia_faturamento < :fimOffset");
+        assertThat(query.sql()).contains("excluido_na_origem = 0 AND is_elegivel_faturamento = 1");
         assertThat(query.sql()).contains("ORDER BY data_referencia_faturamento DESC");
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), filial_nome)))) IN (:escopoFiliais)");
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), status_frete)))) IN (:filtro_status)");
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), pagador_nome)))) IN (:filtro_pagadores)");
+        assertThat(query.sql()).contains("filial_nome IN (:escopoFiliais)");
+        assertThat(query.sql()).contains("status_frete IN (:filtro_status)");
+        assertThat(query.sql()).contains("pagador_nome IN (:filtro_pagadores)");
         assertThat(query.sql()).contains("[ETL_SISTEMA].dbo.fato_fretes_faturamento");
+        assertThat(query.sql()).doesNotContain("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX)");
         assertThat(query.sql()).doesNotContainIgnoringCase("limit");
         assertThat(query.sql()).doesNotContainIgnoringCase("top ");
         assertThat(query.params().getValues()).containsKeys("inicioOffset", "fimOffset", "escopoFiliais", "filtro_status", "filtro_pagadores");
@@ -121,10 +123,10 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), cliente_cnpj)))) IN (:filtro_clientesCnpj)");
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), cliente_cnpj_key)))) IN (:filtro_clientesCnpj)");
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), pagador_documento)))) IN (:filtro_clientesCnpj)");
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), pagador_documento_key)))) IN (:filtro_clientesCnpj)");
+        assertThat(query.sql()).contains("cliente_cnpj IN (:filtro_clientesCnpj)");
+        assertThat(query.sql()).contains("cliente_cnpj_key IN (:filtro_clientesCnpj)");
+        assertThat(query.sql()).contains("pagador_documento IN (:filtro_clientesCnpj)");
+        assertThat(query.sql()).contains("pagador_documento_key IN (:filtro_clientesCnpj)");
         assertThat(query.sql()).doesNotContain("PARTITION BY");
         assertThat(query.params().getValues()).containsKey("filtro_clientesCnpj");
     }
@@ -138,8 +140,9 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Usuario Key])))) IN (:filtro_usuarios)");
-        assertThat(query.sql()).doesNotContain("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Solicitante])))) IN (:filtro_usuarios)");
+        assertThat(query.sql()).contains("[Usuario Key] IN (:filtro_usuarios)");
+        assertThat(query.sql()).doesNotContain("[Solicitante] IN (:filtro_usuarios)");
+        assertThat(query.sql()).doesNotContain("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX)");
         assertThat(query.sql()).doesNotContain("LIKE :filtro_usuarios");
         assertThat(query.params().getValues()).containsEntry("filtro_usuarios", List.of("maria silva"));
     }
@@ -245,7 +248,8 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), status_frete)))) IN (:filtro_tabelaColuna_status)");
+        assertThat(query.sql()).contains("status_frete IN (:filtro_tabelaColuna_status)");
+        assertThat(query.sql()).doesNotContain("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX)");
         assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_status", List.of("entregue", "pendente"));
     }
 

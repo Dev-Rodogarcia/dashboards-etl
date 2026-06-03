@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.Mock;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
@@ -88,6 +89,31 @@ class FaturasPorClienteSqlRepositoryTest {
                 .contains("CONVERT(CHAR(7), data_referencia_mensal, 23) AS mes")
                 .contains("SUM(valor_operacional)")
                 .contains("GROUP BY CONVERT(CHAR(7), data_referencia_mensal, 23)");
+    }
+
+    @Test
+    void buscarAgingDeveFiltrarTitulosAntesDoDatediff() {
+        FaturasPorClienteSqlRepository repository = new FaturasPorClienteSqlRepository(
+                jdbcTemplate,
+                new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao()),
+                escopoSemRestricao()
+        );
+
+        repository.buscarAging(filtroPadrao(), LocalDate.of(2026, 3, 23));
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowCallbackHandler.class));
+
+        assertThat(sqlCaptor.getValue())
+                .contains("data_emissao_cte >= :inicioOffset AND data_emissao_cte < :fimOffset")
+                .contains("titulos_aging AS")
+                .contains("FROM base_normalizada")
+                .contains("WHERE status_processo = N'Faturado'")
+                .contains("AND status_pagamento <> N'baixado'")
+                .contains("aging_calculado AS")
+                .contains("DATEDIFF(day, data_vencimento_fatura, :dataReferencia)")
+                .contains("FROM aging_calculado")
+                .doesNotContain("DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 15");
     }
 
     private static FiltroConsultaDTO filtroPadrao() {

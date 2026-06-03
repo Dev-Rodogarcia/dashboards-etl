@@ -40,7 +40,8 @@ public enum DashboardExportDefinition {
                     "modais", List.of("modal")
             ),
             List.of("data_referencia_faturamento DESC", "numero_minuta DESC", "frete_id DESC"),
-            null
+            null,
+            List.of("excluido_na_origem = 0 AND is_elegivel_faturamento = 1")
     ),
     TRACKING(
             "tracking",
@@ -128,7 +129,8 @@ public enum DashboardExportDefinition {
                     "clientesCnpj", List.of("cliente_cnpj", "cliente_cnpj_key", "pagador_documento", "pagador_documento_key")
             ),
             List.of("data_emissao_cte DESC", "unique_id DESC"),
-            null
+            null,
+            List.of("excluido_na_origem = 0")
     ),
     ETL_SAUDE(
             "etl-saude",
@@ -151,6 +153,7 @@ public enum DashboardExportDefinition {
     private final Map<String, List<String>> filtros;
     private final List<String> orderBy;
     private final DedupConfig dedupConfig;
+    private final List<String> requiredPredicates;
 
     DashboardExportDefinition(
             String dashboardId,
@@ -163,6 +166,21 @@ public enum DashboardExportDefinition {
             List<String> orderBy,
             DedupConfig dedupConfig
     ) {
+        this(dashboardId, nomeArquivo, viewName, dateMode, dateColumn, escopoColumns, filtros, orderBy, dedupConfig, List.of());
+    }
+
+    DashboardExportDefinition(
+            String dashboardId,
+            String nomeArquivo,
+            String viewName,
+            DateMode dateMode,
+            String dateColumn,
+            List<String> escopoColumns,
+            Map<String, List<String>> filtros,
+            List<String> orderBy,
+            DedupConfig dedupConfig,
+            List<String> requiredPredicates
+    ) {
         this.dashboardId = dashboardId;
         this.nomeArquivo = nomeArquivo;
         this.viewName = viewName;
@@ -172,6 +190,7 @@ public enum DashboardExportDefinition {
         this.filtros = Map.copyOf(filtros);
         this.orderBy = List.copyOf(orderBy);
         this.dedupConfig = dedupConfig;
+        this.requiredPredicates = List.copyOf(requiredPredicates);
     }
 
     String dashboardId() {
@@ -208,6 +227,10 @@ public enum DashboardExportDefinition {
 
     public DedupConfig dedupConfig() {
         return dedupConfig;
+    }
+
+    public List<String> requiredPredicates() {
+        return requiredPredicates;
     }
 
     public boolean temFiltroStatusProcesso() {

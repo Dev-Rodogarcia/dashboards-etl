@@ -116,21 +116,39 @@ public class FaturasPorClienteSqlRepository {
         params.addValue("dataReferencia", dataReferencia);
 
         String sql = baseNormalizadaSql(source) + """
-                , classificacao AS (
+                , titulos_aging AS (
+                    SELECT
+                        valor_operacional,
+                        data_vencimento_fatura,
+                        status_pagamento
+                    FROM base_normalizada
+                    WHERE status_processo = N'Faturado'
+                      AND status_pagamento <> N'baixado'
+                ),
+                aging_calculado AS (
+                    SELECT
+                        valor_operacional,
+                        data_vencimento_fatura,
+                        status_pagamento,
+                        CASE
+                            WHEN data_vencimento_fatura IS NULL THEN NULL
+                            ELSE DATEDIFF(day, data_vencimento_fatura, :dataReferencia)
+                        END AS dias_atraso
+                    FROM titulos_aging
+                ),
+                classificacao AS (
                     SELECT
                         valor_operacional,
                         CASE
                             WHEN status_pagamento = N'sem_vencimento' OR data_vencimento_fatura IS NULL THEN N'Sem vencimento'
                             WHEN status_pagamento = N'a_vencer' THEN N'A vencer'
-                            WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) < 0 THEN N'A vencer'
-                            WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 15 THEN N'1-15 dias'
-                            WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 30 THEN N'16-30 dias'
-                            WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 60 THEN N'31-60 dias'
+                            WHEN dias_atraso < 0 THEN N'A vencer'
+                            WHEN dias_atraso <= 15 THEN N'1-15 dias'
+                            WHEN dias_atraso <= 30 THEN N'16-30 dias'
+                            WHEN dias_atraso <= 60 THEN N'31-60 dias'
                             ELSE N'61+ dias'
                         END AS faixa
-                    FROM base_normalizada
-                    WHERE status_processo = N'Faturado'
-                      AND status_pagamento <> N'baixado'
+                    FROM aging_calculado
                 )
                 SELECT
                     faixa,
