@@ -199,28 +199,28 @@ public class DashboardTabelaPaginadaService {
 
     private FreteResumoDTO mapearFrete(Map<String, Object> row) {
         return new FreteResumoDTO(
-                longo(row, "ID"),
-                longo(row, "Nº Minuta", "N° Minuta"),
-                texto(row, "data_referencia_faturamento", "Data frete"),
+                longo(row, "frete_id", "ID"),
+                longo(row, "numero_minuta", "Nº Minuta", "N° Minuta"),
+                texto(row, "data_referencia_faturamento", "Data frete", "data_frete"),
                 origemDataFaturamento(row),
-                texto(row, "Status"),
-                texto(row, "Filial"),
-                texto(row, "Pagador"),
-                texto(row, "Remetente"),
-                texto(row, "Destinatario", "Destinatário"),
-                texto(row, "UF Origem"),
-                texto(row, "UF Destino"),
-                decimal(row, "Valor Total do Serviço", "Valor Total do Servico"),
-                decimal(row, "Valor Frete"),
-                decimal(row, "Peso Taxado", "Kg Taxado"),
-                inteiro(row, "Volumes"),
-                texto(row, "Previsão de Entrega", "Previsao de Entrega"),
+                texto(row, "status_frete", "Status"),
+                texto(row, "filial_nome", "Filial"),
+                texto(row, "pagador_nome", "Pagador"),
+                texto(row, "remetente_nome", "Remetente"),
+                texto(row, "destinatario_nome", "Destinatario", "Destinatário"),
+                texto(row, "origem_uf", "UF Origem"),
+                texto(row, "destino_uf", "UF Destino"),
+                decimal(row, "receita_bruta", "Valor Total do Serviço", "Valor Total do Servico"),
+                decimal(row, "valor_frete", "Valor Frete"),
+                decimal(row, "peso_taxado", "Peso Taxado", "Kg Taxado"),
+                inteiro(row, "volumes", "Volumes"),
+                texto(row, "previsao_entrega", "Previsão de Entrega", "Previsao de Entrega"),
                 documentoTipoFrete(row),
-                inteiro(row, "Nº CT-e", "N° CT-e"),
-                inteiro(row, "Nº NFS-e", "N° NFS-e"),
-                decimal(row, "Valor ICMS"),
-                decimal(row, "Valor PIS"),
-                decimal(row, "Valor COFINS")
+                inteiro(row, "numero_cte", "Nº CT-e", "N° CT-e"),
+                inteiro(row, "nfse_number", "Nº NFS-e", "N° NFS-e"),
+                decimal(row, "valor_icms", "Valor ICMS"),
+                decimal(row, "valor_pis", "Valor PIS"),
+                decimal(row, "valor_cofins", "Valor COFINS")
         );
     }
 
@@ -350,17 +350,17 @@ public class DashboardTabelaPaginadaService {
     }
 
     private String documentoTipoFrete(Map<String, Object> row) {
-        if (valor(row, "CT-e ID") != null) {
+        if (valor(row, "cte_id", "CT-e ID") != null) {
             return "CT-e";
         }
-        if (valor(row, "Nº NFS-e", "N° NFS-e") != null) {
+        if (valor(row, "nfse_number", "Nº NFS-e", "N° NFS-e") != null) {
             return "NFS-e";
         }
         return "Pendente";
     }
 
     private String origemDataFaturamento(Map<String, Object> row) {
-        String cteEmissao = texto(row, "CT-e Emissão", "CT-e Emissao");
+        String cteEmissao = texto(row, "data_emissao_cte", "CT-e Emissão", "CT-e Emissao");
         return cteEmissao != null && !cteEmissao.isBlank() ? "CT-e Emissão" : "Data do Frete";
     }
 

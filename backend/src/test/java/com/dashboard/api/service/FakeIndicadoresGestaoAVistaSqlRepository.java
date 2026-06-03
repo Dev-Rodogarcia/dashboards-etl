@@ -41,7 +41,7 @@ class FakeIndicadoresGestaoAVistaSqlRepository extends IndicadoresGestaoAVistaSq
     int indenizacaoOffset;
     int indenizacaoLimite;
 
-    UtilizacaoColetoresResumo coletoresResumo = new UtilizacaoColetoresResumo(null, 0, 0, 0, 0);
+    UtilizacaoColetoresResumo coletoresResumo = new UtilizacaoColetoresResumo(null, 0, 0, 0, 0, 0, 0);
     List<UtilizacaoColetoresSeriePointDTO> coletoresSerie = List.of();
     List<UtilizacaoColetoresRankingBase> coletoresRanking = List.of();
     List<UtilizacaoColetoresRowDTO> coletoresLinhas = List.of();

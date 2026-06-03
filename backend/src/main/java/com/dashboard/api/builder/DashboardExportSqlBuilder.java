@@ -931,13 +931,13 @@ public class DashboardExportSqlBuilder {
                     List.of()
             );
             case FRETES -> new TableFilterColumns(
-                    List.of("[Pagador]", "[Remetente]", "[Destinatario]", "[UF Origem]", "[UF Destino]", "[Status]"),
-                    List.of("[ID]", "[Nº Minuta]", "[Nº CT-e]", "[Nº NFS-e]"),
+                    List.of("pagador_nome", "remetente_nome", "destinatario_nome", "origem_uf", "destino_uf", "status_frete"),
+                    List.of("frete_id", "numero_minuta", "numero_cte", "nfse_number"),
                     List.of(),
-                    List.of("[Status]"),
-                    List.of("[Pagador]", "[Remetente]", "[Destinatario]"),
-                    List.of("[UF Origem]"),
-                    List.of("[UF Destino]")
+                    List.of("status_frete"),
+                    List.of("pagador_nome", "remetente_nome", "destinatario_nome"),
+                    List.of("origem_uf"),
+                    List.of("destino_uf")
             );
             case TRACKING -> new TableFilterColumns(
                     List.of("[Filial Origem]", "[Filial Destino]", "[Região Origem]", "[Região Destino]", "[Status Carga]"),
@@ -1006,20 +1006,20 @@ public class DashboardExportSqlBuilder {
                 put(colunas, "numeroTentativas", numero("[Nº Tentativas]"));
             }
             case FRETES -> {
-                put(colunas, "id", codigo("[ID]"));
-                put(colunas, "numeroMinuta", codigoNumericoDireto("[Nº Minuta]"));
-                put(colunas, "dataFrete", data("[data_referencia_faturamento]"));
-                put(colunas, "status", status("[Status]"));
-                put(colunas, "filial", texto("[Filial]"));
-                put(colunas, "pagador", texto("[Pagador]"));
+                put(colunas, "id", codigo("frete_id"));
+                put(colunas, "numeroMinuta", codigoNumericoDireto("numero_minuta"));
+                put(colunas, "dataFrete", data("data_referencia_faturamento"));
+                put(colunas, "status", status("status_frete"));
+                put(colunas, "filial", texto("filial_nome"));
+                put(colunas, "pagador", texto("pagador_nome"));
                 put(colunas, "documentoTipo", texto(documentoTipoFreteSql()));
-                put(colunas, "valorFrete", numero("[Valor Frete]"));
-                put(colunas, "valorTotalServico", numero("[Valor Total do Serviço]"));
-                put(colunas, "pesoTaxado", numero("[Kg Taxado]"));
-                put(colunas, "volumes", numero("[Volumes]"));
-                put(colunas, "origemUf", uf("[UF Origem]"));
-                put(colunas, "destinoUf", uf("[UF Destino]"));
-                put(colunas, "previsaoEntrega", data("[Previsão de Entrega]"));
+                put(colunas, "valorFrete", numero("valor_frete"));
+                put(colunas, "valorTotalServico", numero("receita_bruta"));
+                put(colunas, "pesoTaxado", numero("peso_taxado"));
+                put(colunas, "volumes", numero("volumes"));
+                put(colunas, "origemUf", uf("origem_uf"));
+                put(colunas, "destinoUf", uf("destino_uf"));
+                put(colunas, "previsaoEntrega", data("data_referencia_faturamento"));
             }
             case TRACKING -> {
                 put(colunas, "numeroMinuta", codigo("[N° Minuta]"));
@@ -1141,7 +1141,7 @@ public class DashboardExportSqlBuilder {
     }
 
     private String documentoTipoFreteSql() {
-        return "(CASE WHEN [CT-e ID] IS NOT NULL THEN 'ct-e' WHEN [Nº NFS-e] IS NOT NULL THEN 'nfs-e' ELSE 'pendente' END)";
+        return "(CASE WHEN cte_id IS NOT NULL THEN 'ct-e' WHEN nfse_number IS NOT NULL THEN 'nfs-e' ELSE 'pendente' END)";
     }
 
     private String trackingPesoTaxadoSql() {

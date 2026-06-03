@@ -108,8 +108,8 @@ public class FretesDashboardSqlRepository {
 
         List<String> nomes = jdbcTemplate.queryForList("""
                 SELECT c.name
-                FROM sys.columns c
-                WHERE c.object_id = OBJECT_ID(N'dbo.vw_fretes_powerbi')
+                FROM [ETL_SISTEMA].sys.columns c
+                WHERE c.object_id = OBJECT_ID(N'[ETL_SISTEMA].dbo.fato_fretes_faturamento')
                 """, new MapSqlParameterSource(), String.class);
 
         FretesViewColumns carregadas = new FretesViewColumns(nomes);
@@ -118,85 +118,46 @@ public class FretesDashboardSqlRepository {
     }
 
     private static String baseSql(FretesViewColumns colunas) {
-        String dataReferencia = dataHoraSql(colunas, "data_referencia_faturamento", "CT-e Emissão", "Data frete");
-        String dataFrete = dataHoraSql(colunas, "Data frete");
-        String cteEmissao = dataHoraSql(colunas, "CT-e Emissão");
-        String classificacao = textoNullableSql(colunas, "Classificação", "Classificacao");
-        String cortesia = boolSql(colunas, "Cortesia Flag");
-
         return """
                 WITH fretes AS (
                     SELECT
-                        %s AS id,
-                        %s AS data_frete,
-                        %s AS numero_minuta,
-                        %s AS valor_total,
-                        %s AS subtotal,
-                        %s AS volumes,
-                        %s AS peso_taxado,
-                        %s AS pagador_nome,
-                        %s AS remetente_nome,
-                        %s AS destinatario_nome,
-                        %s AS origem_uf,
-                        %s AS destino_uf,
-                        %s AS destino_cidade,
-                        %s AS filial_nome,
-                        %s AS filial_emissora,
-                        %s AS responsavel_regiao_destino,
-                        %s AS classificacao_nome,
-                        %s AS previsao_entrega,
-                        %s AS status,
-                        %s AS cortesia_flag,
-                        %s AS tipo_frete,
-                        %s AS modal,
-                        %s AS numero_cte,
-                        %s AS cte_emissao,
-                        %s AS data_referencia_faturamento,
-                        TRY_CONVERT(date, CONVERT(NVARCHAR(64), %s)) AS data_referencia_periodo,
-                        %s AS elegivel_faturamento,
-                        %s AS cte_id,
-                        %s AS nfse_numero,
-                        %s AS valor_icms,
-                        %s AS valor_pis,
-                        %s AS valor_cofins,
-                        %s AS data_extracao
-                    FROM dbo.vw_fretes_powerbi
+                        frete_id AS id,
+                        data_frete,
+                        numero_minuta,
+                        receita_bruta AS valor_total,
+                        valor_frete AS subtotal,
+                        volumes,
+                        peso_taxado,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '') AS pagador_nome,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), remetente_nome))), '') AS remetente_nome,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destinatario_nome))), '') AS destinatario_nome,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), origem_uf))), '') AS origem_uf,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), destino_uf))), '') AS destino_uf,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destino_cidade))), '') AS destino_cidade,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '') AS filial_nome,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '') AS filial_emissora,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), responsavel_regiao_destino))), '') AS responsavel_regiao_destino,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), classificacao_nome))), '') AS classificacao_nome,
+                        CAST(NULL AS date) AS previsao_entrega,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), status_frete))), '') AS status,
+                        CONVERT(INT, is_cortesia) AS cortesia_flag,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), tipo_frete))), '') AS tipo_frete,
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), modal))), '') AS modal,
+                        numero_cte,
+                        data_emissao_cte AS cte_emissao,
+                        data_referencia_faturamento,
+                        data_referencia_faturamento_date AS data_referencia_periodo,
+                        CONVERT(INT, is_elegivel_faturamento) AS elegivel_faturamento,
+                        cte_id,
+                        nfse_number AS nfse_numero,
+                        CAST(0 AS DECIMAL(18, 2)) AS valor_icms,
+                        CAST(0 AS DECIMAL(18, 2)) AS valor_pis,
+                        CAST(0 AS DECIMAL(18, 2)) AS valor_cofins,
+                        snapshot_em AS data_extracao
+                    FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                    WHERE excluido_na_origem = 0
                 )
-                """.formatted(
-                inteiroLongoSql(colunas, "ID"),
-                dataFrete,
-                inteiroLongoSql(colunas, "Nº Minuta", "N° Minuta"),
-                decimalSql(colunas, "Valor Total do Serviço", "Valor Total do Servico"),
-                decimalSql(colunas, "Valor Frete"),
-                inteiroSql(colunas, "Volumes"),
-                decimalSql(colunas, "Kg Taxado", "Peso Taxado"),
-                textoNullableSql(colunas, "Pagador"),
-                textoNullableSql(colunas, "Remetente"),
-                textoNullableSql(colunas, "Destinatario", "Destinatário"),
-                textoNullableSql(colunas, "UF Origem"),
-                textoNullableSql(colunas, "UF Destino"),
-                textoNullableSql(colunas, "Cidade Destino", "Destino"),
-                textoNullableSql(colunas, "Filial"),
-                textoNullableSql(colunas, "Filial Emissora", "Filial"),
-                textoNullableSql(colunas, "Responsável pela Região de Destino", "Filial Emissora", "Filial"),
-                classificacao,
-                dataSql(colunas, "Previsão de Entrega", "Previsao de Entrega"),
-                textoNullableSql(colunas, "Status"),
-                cortesia,
-                textoNullableSql(colunas, "Tipo Frete"),
-                textoNullableSql(colunas, "Modal"),
-                inteiroSql(colunas, "Nº CT-e", "N° CT-e"),
-                cteEmissao,
-                dataReferencia,
-                dataReferencia,
-                elegivelFaturamentoSql(colunas, cortesia, classificacao),
-                inteiroLongoSql(colunas, "CT-e ID"),
-                inteiroSql(colunas, "Nº NFS-e", "N° NFS-e"),
-                decimalSql(colunas, "Valor ICMS"),
-                decimalSql(colunas, "Valor PIS"),
-                decimalSql(colunas, "Valor COFINS"),
-                dataHoraSql(colunas, "Data de extracao", "Data de extração")
-        );
+                """;
     }
 
     private VisaoFretesEntity mapear(ResultSet rs, int rowNum) throws SQLException {

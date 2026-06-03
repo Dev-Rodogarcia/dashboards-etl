@@ -177,7 +177,7 @@ public class DimensoesService {
                     ? fretesRepository.findDistinctClientes()
                     : fretesRepository.findDistinctClientesByFilialIn(filiaisNormalizadas(escopo)));
         } catch (DataAccessException ex) {
-            log.warn("Dimensão de clientes ignorou fretes temporariamente. Verifique a view vw_fretes_powerbi. Causa: {}",
+            log.warn("Dimensão de clientes ignorou fretes temporariamente. Verifique a tabela fato_fretes_faturamento. Causa: {}",
                     ex.getMostSpecificCause().getMessage());
             return List.of();
         }

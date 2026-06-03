@@ -9,33 +9,18 @@ import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.repository.IndicadoresGestaoAVistaSqlRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.ConsultaLimiteUtils;
-import com.dashboard.api.util.IndicadoresGestaoMetricasUtils;
 import java.math.BigDecimal;
-import java.text.Normalizer;
-import java.time.format.DateTimeFormatter;
 import java.time.LocalDateTime;
-import java.util.Comparator;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UtilizacaoColetoresIndicadorService {
-
-    private static final String[] FILIAIS_PADRAO = {
-            "AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
-            "CAS - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
-            "CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
-            "CWB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
-            "NHB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
-            "REC - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
-            "RJR - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
-            "SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"
-    };
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final IndicadoresGestaoAVistaSqlRepository sqlRepository;
@@ -66,7 +51,7 @@ public class UtilizacaoColetoresIndicadorService {
                 inteiro(resumo.manifestosDescarregamento()),
                 inteiro(resumo.totalManifestos()),
                 inteiro(resumo.manifestosIncompletos()),
-                IndicadoresGestaoMetricasUtils.percentual(resumo.manifestosBipados(), resumo.totalManifestos())
+                resumo.pctUtilizacao()
         );
     }
 
@@ -78,24 +63,22 @@ public class UtilizacaoColetoresIndicadorService {
     public List<UtilizacaoColetoresRankingDTO> buscarRanking(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
-        List<IndicadoresGestaoAVistaSqlRepository.UtilizacaoColetoresRankingBase> rankingFiltrado =
-                sqlRepository.buscarUtilizacaoColetoresRanking(filtro, escopoFilialService.escopoAtual()).stream()
-                        .filter(this::deveExibirNoRankingColetores)
-                        .toList();
+        List<IndicadoresGestaoAVistaSqlRepository.UtilizacaoColetoresRankingBase> ranking =
+                sqlRepository.buscarUtilizacaoColetoresRanking(filtro, escopoFilialService.escopoAtual());
 
-        Set<String> filiaisRanking = rankingFiltrado.stream()
-                .map(IndicadoresGestaoAVistaSqlRepository.UtilizacaoColetoresRankingBase::filial)
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<String> filiaisRanking = new LinkedHashSet<>();
+        for (IndicadoresGestaoAVistaSqlRepository.UtilizacaoColetoresRankingBase item : ranking) {
+            filiaisRanking.add(item.filial());
+        }
         Map<String, BigDecimal> metas = kpiGoalService != null
                 ? kpiGoalService.buscarMetasEfetivasPorIndicador(KpiGoalService.COLLECTOR_USAGE, filiaisRanking)
                 : Map.of();
 
-        return rankingFiltrado.stream()
-                .map(item -> toRankingDto(item, metas.getOrDefault(item.filial(), BigDecimal.valueOf(90))))
-                .sorted(Comparator.comparingDouble(UtilizacaoColetoresRankingDTO::utilization)
-                        .thenComparing(UtilizacaoColetoresRankingDTO::manifestosBipaveis, Comparator.reverseOrder())
-                        .thenComparing(UtilizacaoColetoresRankingDTO::branchName, String.CASE_INSENSITIVE_ORDER))
-                .toList();
+        List<UtilizacaoColetoresRankingDTO> dtos = new ArrayList<>(ranking.size());
+        for (IndicadoresGestaoAVistaSqlRepository.UtilizacaoColetoresRankingBase item : ranking) {
+            dtos.add(toRankingDto(item, metas.getOrDefault(item.filial(), BigDecimal.valueOf(90))));
+        }
+        return dtos;
     }
 
     public List<UtilizacaoColetoresRowDTO> buscarTabela(FiltroConsultaDTO filtro, int limite) {
@@ -147,38 +130,13 @@ public class UtilizacaoColetoresIndicadorService {
         return new UtilizacaoColetoresRankingDTO(
                 item.filial(),
                 item.filial(),
-                IndicadoresGestaoMetricasUtils.percentual(item.manifestosBipados(), item.totalManifestos()),
+                item.pctUtilizacao(),
                 meta,
                 item.manifestosBipados(),
                 item.totalManifestos(),
                 item.manifestosDescarregamento(),
                 item.manifestosIncompletos()
         );
-    }
-
-    private boolean deveExibirNoRankingColetores(
-            IndicadoresGestaoAVistaSqlRepository.UtilizacaoColetoresRankingBase item
-    ) {
-        return item.manifestosBipados() > 0 || filialOperacional(item.filial());
-    }
-
-    private boolean filialOperacional(String filial) {
-        if (filial == null || filial.isBlank()) {
-            return false;
-        }
-        String normalizada = normalizarTexto(filial);
-        for (String filialPadrao : FILIAIS_PADRAO) {
-            if (normalizada.equals(normalizarTexto(filialPadrao))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private String normalizarTexto(String valor) {
-        String texto = Objects.toString(valor, "").trim().toLowerCase(Locale.ROOT);
-        String semAcento = Normalizer.normalize(texto, Normalizer.Form.NFD).replaceAll("\\p{M}+", "");
-        return semAcento.replaceAll("\\s+", " ");
     }
 
     private static String updatedAtOuAgora(String updatedAt) {

@@ -40,7 +40,9 @@ class UtilizacaoColetoresIndicadorServiceTest {
                 3,
                 2,
                 2,
-                1
+                4,
+                1,
+                75.0
         );
 
         UtilizacaoColetoresOverviewDTO overview = service.buscarOverview(filtro);
@@ -54,7 +56,7 @@ class UtilizacaoColetoresIndicadorServiceTest {
     }
 
     @Test
-    void buscarRankingDeveOcultarParceiroSemOrdensEAceitarFilialOperacionalZerada() {
+    void buscarRankingDeveUsarProjecaoOrdenadaDoSql() {
         FiltroConsultaDTO filtro = filtroPadrao();
         sqlRepository.coletoresRanking = List.of(
                 new IndicadoresGestaoAVistaSqlRepository.UtilizacaoColetoresRankingBase(
@@ -62,29 +64,27 @@ class UtilizacaoColetoresIndicadorServiceTest {
                         0,
                         1,
                         0,
-                        0
-                ),
-                new IndicadoresGestaoAVistaSqlRepository.UtilizacaoColetoresRankingBase(
-                        "PARCEIRO X",
-                        0,
                         1,
                         0,
-                        0
+                        0.0
                 ),
                 new IndicadoresGestaoAVistaSqlRepository.UtilizacaoColetoresRankingBase(
                         "PARCEIRO COM LEITOR",
                         1,
                         0,
                         1,
-                        0
+                        1,
+                        0,
+                        100.0
                 )
         );
 
         List<UtilizacaoColetoresRankingDTO> ranking = service.buscarRanking(filtro);
 
         assertThat(ranking).extracting(UtilizacaoColetoresRankingDTO::branchName)
-                .contains("SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA", "PARCEIRO COM LEITOR")
-                .doesNotContain("PARCEIRO X");
+                .containsExactly("SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA", "PARCEIRO COM LEITOR");
+        assertThat(ranking).extracting(UtilizacaoColetoresRankingDTO::utilization)
+                .containsExactly(0.0, 100.0);
     }
 
     @Test

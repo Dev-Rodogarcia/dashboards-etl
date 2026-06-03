@@ -25,21 +25,21 @@ public enum DashboardExportDefinition {
     FRETES(
             "fretes",
             "fretes",
-            "[vw_fretes_powerbi]",
+            "[ETL_SISTEMA].dbo.fato_fretes_faturamento",
             DateMode.OFFSET_DATE_TIME,
-            "[data_referencia_faturamento]",
-            List.of("[Filial]"),
+            "data_referencia_faturamento",
+            List.of("filial_nome"),
             Map.of(
-                    "filiais", List.of("[Filial]"),
-                    "status", List.of("[Status]"),
-                    "pagadores", List.of("[Pagador]"),
-                    "responsaveis", List.of("[Responsável Região Destino Key]"),
-                    "ufOrigem", List.of("[UF Origem]"),
-                    "ufDestino", List.of("[UF Destino]"),
-                    "tiposFrete", List.of("[Tipo Frete]"),
-                    "modais", List.of("[Modal]")
+                    "filiais", List.of("filial_nome"),
+                    "status", List.of("status_frete"),
+                    "pagadores", List.of("pagador_nome"),
+                    "responsaveis", List.of("responsavel_regiao_destino_key"),
+                    "ufOrigem", List.of("origem_uf"),
+                    "ufDestino", List.of("destino_uf"),
+                    "tiposFrete", List.of("tipo_frete"),
+                    "modais", List.of("modal")
             ),
-            List.of("[data_referencia_faturamento] DESC", "[Nº Minuta] DESC"),
+            List.of("data_referencia_faturamento DESC", "numero_minuta DESC", "frete_id DESC"),
             null
     ),
     TRACKING(

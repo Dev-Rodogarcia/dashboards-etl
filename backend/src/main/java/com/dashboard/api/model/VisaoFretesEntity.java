@@ -4,210 +4,194 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.Immutable;
 
 @Entity
 @Immutable
-@Table(name = "vw_fretes_powerbi")
+@Table(name = "fato_fretes_faturamento", schema = "dbo", catalog = "ETL_SISTEMA")
 public class VisaoFretesEntity {
 
     @Id
-    @Column(name = "[ID]")
+    @Column(name = "frete_id")
     private Long id;
 
-    @Column(name = "[Data frete]")
-    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Data frete]))")
+    @Column(name = "data_frete")
     private OffsetDateTime dataFrete;
 
-    @Column(name = "[Nº Minuta]")
-    @ColumnTransformer(read = "TRY_CONVERT(BIGINT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Nº Minuta]))), N''))")
+    @Column(name = "numero_minuta")
     private Long numeroMinuta;
 
-    @Column(name = "[Criado em]")
-    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Criado em]))")
+    @Column(name = "criado_em")
     private OffsetDateTime criadoEm;
 
-    @Column(name = "[Valor Total do Serviço]")
+    @Column(name = "receita_bruta")
     private BigDecimal valorTotal;
 
-    @Column(name = "[Valor NF]")
+    @Column(name = "valor_notas")
     private BigDecimal valorNotas;
 
-    @Column(name = "[Kg NF]")
+    @Column(name = "peso_notas")
     private BigDecimal pesoNotas;
 
-    @Column(name = "[Valor Frete]")
+    @Column(name = "valor_frete")
     private BigDecimal subtotal;
 
-    @Column(name = "[Volumes]")
-    @ColumnTransformer(read = "TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Volumes]))), N''))")
+    @Column(name = "volumes")
     private Integer volumes;
 
-    @Column(name = "[Kg Taxado]")
+    @Column(name = "peso_taxado")
     private BigDecimal pesoTaxado;
 
-    @Column(name = "[Kg Real]")
+    @Column(name = "peso_real")
     private BigDecimal pesoReal;
 
-    @Column(name = "[Kg Cubado]")
+    @Column(name = "peso_cubado")
     private BigDecimal pesoCubado;
 
-    @Column(name = "[M3]")
+    @Column(name = "total_m3")
     private BigDecimal m3Total;
 
-    @Column(name = "[Total M3]")
+    @Column(name = "total_m3", insertable = false, updatable = false)
     private BigDecimal totalM3;
 
-    @Column(name = "[Pagador]")
+    @Column(name = "pagador_nome")
     private String pagadorNome;
 
-    @Column(name = "[Pagador Doc]")
+    @Column(name = "pagador_documento")
     private String pagadorDocumento;
 
-    @Column(name = "[Remetente]")
+    @Column(name = "remetente_nome")
     private String remetenteNome;
 
-    @Column(name = "[Remetente Doc]")
+    @Column(name = "remetente_documento")
     private String remetenteDocumento;
 
-    @Column(name = "[Origem]")
+    @Column(name = "origem_cidade")
     private String origemCidade;
 
-    @Column(name = "[UF Origem]")
+    @Column(name = "origem_uf")
     private String origemUf;
 
-    @Column(name = "[Destinatario]")
+    @Column(name = "destinatario_nome")
     private String destinatarioNome;
 
-    @Column(name = "[Destinatario Doc]")
+    @Column(name = "destinatario_documento")
     private String destinatarioDocumento;
 
-    @Column(name = "[Destino]")
+    @Column(name = "destino_cidade")
     private String destinoCidade;
 
-    @Column(name = "[UF Destino]")
+    @Column(name = "destino_uf")
     private String destinoUf;
 
-    @Column(name = "[Filial]")
+    @Column(name = "filial_nome")
     private String filialNome;
 
-    @Column(name = "[Filial Emissora]")
+    @Column(name = "filial_nome", insertable = false, updatable = false)
     private String filialEmissora;
 
-    @Column(name = "[Responsável pela Região de Destino]")
+    @Column(name = "responsavel_regiao_destino")
     private String responsavelRegiaoDestino;
 
-    @Column(name = "[Filial Apelido]")
+    @Column(name = "filial_apelido")
     private String filialApelido;
 
-    @Column(name = "[Filial CNPJ]")
+    @Column(name = "filial_cnpj")
     private String filialCnpj;
 
-    @Column(name = "[Tabela de Preço]")
+    @Column(name = "tabela_preco_nome")
     private String tabelaPrecoNome;
 
-    @Column(name = "[Classificação]")
+    @Column(name = "classificacao_nome")
     private String classificacaoNome;
 
-    @Column(name = "[Centro de Custo]")
+    @Column(name = "centro_custo_nome")
     private String centroCustoNome;
 
-    @Column(name = "[Usuário]")
+    @Column(name = "usuario_nome")
     private String usuarioNome;
 
-    @Column(name = "[Previsão de Entrega]")
-    @ColumnTransformer(read = "TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Previsão de Entrega]))")
+    @Transient
     private LocalDate previsaoEntrega;
 
-    @Column(name = "[Data de Finalização]")
-    @ColumnTransformer(read = "TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Data de Finalização]))")
+    @Transient
     private LocalDate dataFinalizacao;
 
-    @Column(name = "[Finalização da Performance]")
-    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Finalização da Performance]))")
+    @Transient
     private OffsetDateTime finalizacaoPerformance;
 
-    @Column(name = "[Performance Diferença de Dias]")
-    @ColumnTransformer(read = "TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Performance Diferença de Dias]))), N''))")
+    @Transient
     private Integer performanceDiferencaDias;
 
-    @Column(name = "[Performance Status]")
+    @Transient
     private String performanceStatus;
 
-    @Column(name = "[Performance Status Dif de Dias]")
+    @Transient
     private String performanceStatusDifDias;
 
-    @Column(name = "[Performance Status Dif de Dias Oficial]")
+    @Transient
     private String performanceStatusDifDiasOficial;
 
-    @Column(name = "[Modal]")
+    @Column(name = "modal")
     private String modal;
 
-    @Column(name = "[Status]")
+    @Column(name = "status_frete")
     private String status;
 
-    @Column(name = "[Documento Oficial/Tipo]")
+    @Transient
     private String documentoOficialTipo;
 
-    @Column(name = "[Cortesia Flag]")
+    @Column(name = "is_cortesia")
     private Boolean cortesiaFlag;
 
-    @Column(name = "[Tipo Frete]")
+    @Column(name = "tipo_frete")
     private String tipoFrete;
 
-    @Column(name = "[Chave CT-e]")
+    @Column(name = "chave_cte")
     private String chaveCte;
 
-    @Column(name = "[Nº CT-e]")
-    @ColumnTransformer(read = "TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Nº CT-e]))), N''))")
+    @Column(name = "numero_cte")
     private Integer numeroCte;
 
-    @Column(name = "[Série]")
-    @ColumnTransformer(read = "TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Série]))), N''))")
+    @Column(name = "serie_cte")
     private Integer serieCte;
 
-    @Column(name = "[CT-e Emissão]")
-    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [CT-e Emissão]))")
+    @Column(name = "data_emissao_cte")
     private OffsetDateTime cteEmissao;
 
-    @Column(name = "[data_referencia_faturamento]")
-    @ColumnTransformer(read = "TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [data_referencia_faturamento]))")
+    @Column(name = "data_referencia_faturamento")
     private OffsetDateTime dataReferenciaFaturamento;
 
-    @Column(name = "[is_elegivel_faturamento]")
+    @Column(name = "is_elegivel_faturamento")
     private Boolean elegivelFaturamento;
 
-    @Column(name = "[CT-e ID]")
-    @ColumnTransformer(read = "TRY_CONVERT(BIGINT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [CT-e ID]))), N''))")
+    @Column(name = "cte_id")
     private Long cteId;
 
-    @Column(name = "[Nº NFS-e]")
-    @ColumnTransformer(read = "TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Nº NFS-e]))), N''))")
+    @Column(name = "nfse_number")
     private Integer nfseNumero;
 
-    @Column(name = "[NFS-e/Emissão]")
-    @ColumnTransformer(read = "TRY_CONVERT(date, CONVERT(NVARCHAR(64), [NFS-e/Emissão]))")
+    @Column(name = "nfse_issued_at")
     private LocalDate nfseEmissao;
 
-    @Column(name = "[KM]")
+    @Transient
     private BigDecimal km;
 
-    @Column(name = "[Valor ICMS]")
+    @Transient
     private BigDecimal valorIcms;
 
-    @Column(name = "[Valor PIS]")
+    @Transient
     private BigDecimal valorPis;
 
-    @Column(name = "[Valor COFINS]")
+    @Transient
     private BigDecimal valorCofins;
 
-    @Column(name = "[Data de extracao]")
-    @ColumnTransformer(read = "TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [Data de extracao]))")
+    @Column(name = "snapshot_em")
     private LocalDateTime dataExtracao;
 
     protected VisaoFretesEntity() {

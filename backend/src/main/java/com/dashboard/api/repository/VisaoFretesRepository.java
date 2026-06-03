@@ -17,53 +17,54 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
     String FRETES_FILTRADOS_SQL = """
             WITH fretes AS (
                 SELECT
-                    TRY_CONVERT(BIGINT, [ID]) AS id,
-                    TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Data frete])) AS data_frete,
-                    TRY_CONVERT(BIGINT, [Nº Minuta]) AS numero_minuta,
-                    TRY_CONVERT(DECIMAL(18, 2), [Valor Total do Serviço]) AS valor_total,
-                    TRY_CONVERT(DECIMAL(18, 2), [Valor Frete]) AS subtotal,
-                    TRY_CONVERT(INT, [Volumes]) AS volumes,
-                    TRY_CONVERT(DECIMAL(18, 2), [Kg Taxado]) AS peso_taxado,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '') AS pagador_nome,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Remetente]))), '') AS remetente_nome,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Destinatario]))), '') AS destinatario_nome,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), [UF Origem]))), '') AS origem_uf,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), [UF Destino]))), '') AS destino_uf,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Destino]))), '') AS destino_cidade,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '') AS filial_nome,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial_nome_normalizada,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), '') AS filial_emissora,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Responsável pela Região de Destino]))), '') AS responsavel_regiao_destino,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Responsável Região Destino Key]))), '') AS responsavel_destino_key,
+                    frete_id AS id,
+                    data_frete,
+                    numero_minuta,
+                    receita_bruta AS valor_total,
+                    valor_frete AS subtotal,
+                    volumes,
+                    peso_taxado,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '') AS pagador_nome,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), remetente_nome))), '') AS remetente_nome,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destinatario_nome))), '') AS destinatario_nome,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), origem_uf))), '') AS origem_uf,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), destino_uf))), '') AS destino_uf,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destino_cidade))), '') AS destino_cidade,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '') AS filial_nome,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '')) AS filial_nome_normalizada,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '') AS filial_emissora,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), responsavel_regiao_destino))), '') AS responsavel_regiao_destino,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), responsavel_regiao_destino_key))), '') AS responsavel_destino_key,
                     COALESCE(
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Responsável pela Região de Destino]))), ''),
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), ''),
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), ''),
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), responsavel_regiao_destino))), ''),
+                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), ''),
                         N'Responsável não informado'
                     ) AS responsavel_destino,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Classificação]))), '') AS classificacao_nome,
-                    TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Previsão de Entrega])) AS previsao_entrega,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status]))), '') AS status,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status]))), '')) AS status_normalizado,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Tipo Frete]))), '') AS tipo_frete,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Tipo Frete]))), '')) AS tipo_frete_normalizado,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Modal]))), '') AS modal,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Modal]))), '')) AS modal_normalizado,
-                    TRY_CONVERT(INT, [Nº CT-e]) AS numero_cte,
-                    TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [CT-e Emissão])) AS cte_emissao,
-                    TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [data_referencia_faturamento])) AS data_referencia_faturamento,
-                    TRY_CONVERT(date, CONVERT(NVARCHAR(64), [data_referencia_faturamento])) AS data_referencia_periodo,
-                    CASE WHEN TRY_CONVERT(bit, [is_elegivel_faturamento]) = 1 THEN 1 ELSE 0 END AS elegivel_faturamento,
-                    TRY_CONVERT(BIGINT, [CT-e ID]) AS cte_id,
-                    TRY_CONVERT(INT, [Nº NFS-e]) AS nfse_numero,
-                    TRY_CONVERT(DECIMAL(18, 2), [Valor ICMS]) AS valor_icms,
-                    TRY_CONVERT(DECIMAL(18, 2), [Valor PIS]) AS valor_pis,
-                    TRY_CONVERT(DECIMAL(18, 2), [Valor COFINS]) AS valor_cofins,
-                    TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [Data de extracao])) AS data_extracao,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '')) AS pagador_normalizado,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), [UF Origem]))), '')) AS origem_uf_normalizada,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), [UF Destino]))), '')) AS destino_uf_normalizada
-                FROM dbo.vw_fretes_powerbi
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), classificacao_nome))), '') AS classificacao_nome,
+                    CAST(NULL AS date) AS previsao_entrega,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), status_frete))), '') AS status,
+                    LOWER(COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), status_frete_norm))), ''),
+                                   NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), status_frete))), ''))) AS status_normalizado,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), tipo_frete))), '') AS tipo_frete,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), tipo_frete))), '')) AS tipo_frete_normalizado,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), modal))), '') AS modal,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), modal))), '')) AS modal_normalizado,
+                    numero_cte,
+                    data_emissao_cte AS cte_emissao,
+                    data_referencia_faturamento,
+                    data_referencia_faturamento_date AS data_referencia_periodo,
+                    CONVERT(INT, is_elegivel_faturamento) AS elegivel_faturamento,
+                    cte_id,
+                    nfse_number AS nfse_numero,
+                    CAST(0 AS DECIMAL(18, 2)) AS valor_icms,
+                    CAST(0 AS DECIMAL(18, 2)) AS valor_pis,
+                    CAST(0 AS DECIMAL(18, 2)) AS valor_cofins,
+                    snapshot_em AS data_extracao,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '')) AS pagador_normalizado,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), origem_uf))), '')) AS origem_uf_normalizada,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), destino_uf))), '')) AS destino_uf_normalizada
+                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                WHERE excluido_na_origem = 0
             ),
             filtrados AS (
                 SELECT *
@@ -88,9 +89,9 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
             SELECT
                 MAX(data_extracao) AS updatedAt,
                 CAST(COUNT_BIG(1) AS INT) AS totalFretes,
-                COALESCE(SUM(CASE WHEN elegivel_faturamento = 1 THEN valor_total ELSE 0 END), 0) AS receitaBruta,
-                COALESCE(SUM(CASE WHEN elegivel_faturamento = 1 THEN subtotal ELSE 0 END), 0) AS valorFrete,
-                CAST(SUM(CASE WHEN elegivel_faturamento = 1 THEN 1 ELSE 0 END) AS INT) AS fretesFaturamento,
+                COALESCE(SUM(valor_total), 0) AS receitaBruta,
+                COALESCE(SUM(subtotal), 0) AS valorFrete,
+                CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretesFaturamento,
                 COALESCE(SUM(peso_taxado), 0) AS pesoTaxadoTotal,
                 COALESCE(SUM(volumes), 0) AS volumesTotais,
                 CAST(SUM(CASE WHEN cte_id IS NOT NULL THEN 1 ELSE 0 END) AS INT) AS cteEmitidos,
@@ -130,11 +131,12 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
                 CONVERT(VARCHAR(10), data_referencia_periodo, 23) AS date,
                 COALESCE(SUM(valor_total), 0) AS receitaBruta,
                 COALESCE(SUM(subtotal), 0) AS valorFrete,
-                CAST(COUNT_BIG(1) AS INT) AS fretes
+                CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretes
             FROM filtrados
-            WHERE elegivel_faturamento = 1
-              AND data_referencia_periodo IS NOT NULL
+            WHERE data_referencia_periodo IS NOT NULL
             GROUP BY data_referencia_periodo
+            HAVING COALESCE(SUM(valor_total), 0) <> 0
+                OR COALESCE(SUM(subtotal), 0) <> 0
             ORDER BY data_referencia_periodo
             """, nativeQuery = true)
     List<FretesTrendProjection> buscarSerieTemporalAgregada(
@@ -164,12 +166,13 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
             SELECT
                 pagador_nome AS cliente,
                 COALESCE(SUM(valor_total), 0) AS receita,
-                CAST(COUNT_BIG(1) AS INT) AS fretes,
-                COALESCE(SUM(valor_total) / NULLIF(COUNT_BIG(1), 0), 0) AS ticketMedio
+                CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretes,
+                COALESCE(SUM(valor_total) / NULLIF(SUM(elegivel_faturamento), 0), 0) AS ticketMedio
             FROM filtrados
-            WHERE elegivel_faturamento = 1
-              AND pagador_nome IS NOT NULL
+            WHERE pagador_nome IS NOT NULL
             GROUP BY pagador_nome
+            HAVING COALESCE(SUM(valor_total), 0) <> 0
+                OR COALESCE(SUM(subtotal), 0) <> 0
             ORDER BY receita DESC, pagador_nome
             OFFSET 0 ROWS FETCH NEXT :limite ROWS ONLY
             """, nativeQuery = true)
@@ -341,10 +344,11 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
                 COALESCE(origem_uf, N'N/A') AS origemUf,
                 COALESCE(destino_uf, N'N/A') AS destinoUf,
                 COALESCE(SUM(valor_total), 0) AS receita,
-                CAST(COUNT_BIG(1) AS INT) AS fretes
+                CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretes
             FROM filtrados
-            WHERE elegivel_faturamento = 1
             GROUP BY COALESCE(origem_uf, N'N/A'), COALESCE(destino_uf, N'N/A')
+            HAVING COALESCE(SUM(valor_total), 0) <> 0
+                OR COALESCE(SUM(subtotal), 0) <> 0
             ORDER BY receita DESC, origemUf, destinoUf
             OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
             """, nativeQuery = true)
@@ -380,15 +384,16 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
                     ELSE COALESCE(classificacao_nome, N'Sem classificação')
                 END AS nome,
                 COALESCE(SUM(valor_total), 0) AS receita,
-                CAST(COUNT_BIG(1) AS INT) AS fretes
+                CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretes
             FROM filtrados
-            WHERE elegivel_faturamento = 1
             GROUP BY CASE
                     WHEN UPPER(COALESCE(classificacao_nome, N'')) LIKE N'%FTL%' THEN N'FTL'
                     WHEN UPPER(COALESCE(classificacao_nome, N'')) LIKE N'%LTL%' THEN N'LTL'
                     WHEN UPPER(COALESCE(classificacao_nome, N'')) LIKE N'%PTL%' THEN N'PTL'
                     ELSE COALESCE(classificacao_nome, N'Sem classificação')
                 END
+            HAVING COALESCE(SUM(valor_total), 0) <> 0
+                OR COALESCE(SUM(subtotal), 0) <> 0
             ORDER BY receita DESC, nome
             OFFSET 0 ROWS FETCH NEXT 8 ROWS ONLY
             """, nativeQuery = true)
@@ -419,10 +424,11 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
             SELECT
                 COALESCE(responsavel_regiao_destino, filial_emissora, filial_nome, N'Responsável não informado') AS nome,
                 COALESCE(SUM(valor_total), 0) AS receita,
-                CAST(COUNT_BIG(1) AS INT) AS fretes
+                CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretes
             FROM filtrados
-            WHERE elegivel_faturamento = 1
             GROUP BY COALESCE(responsavel_regiao_destino, filial_emissora, filial_nome, N'Responsável não informado')
+            HAVING COALESCE(SUM(valor_total), 0) <> 0
+                OR COALESCE(SUM(subtotal), 0) <> 0
             ORDER BY receita DESC, nome
             OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
             """, nativeQuery = true)
@@ -453,10 +459,11 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
             SELECT
                 COALESCE(origem_uf, N'UF não informada') AS nome,
                 COALESCE(SUM(valor_total), 0) AS receita,
-                CAST(COUNT_BIG(1) AS INT) AS fretes
+                CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretes
             FROM filtrados
-            WHERE elegivel_faturamento = 1
             GROUP BY COALESCE(origem_uf, N'UF não informada')
+            HAVING COALESCE(SUM(valor_total), 0) <> 0
+                OR COALESCE(SUM(subtotal), 0) <> 0
             ORDER BY receita DESC, nome
             OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
             """, nativeQuery = true)
@@ -487,10 +494,11 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
             SELECT
                 COALESCE(destino_uf, N'UF não informada') AS nome,
                 COALESCE(SUM(valor_total), 0) AS receita,
-                CAST(COUNT_BIG(1) AS INT) AS fretes
+                CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretes
             FROM filtrados
-            WHERE elegivel_faturamento = 1
             GROUP BY COALESCE(destino_uf, N'UF não informada')
+            HAVING COALESCE(SUM(valor_total), 0) <> 0
+                OR COALESCE(SUM(subtotal), 0) <> 0
             ORDER BY receita DESC, nome
             OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
             """, nativeQuery = true)
@@ -521,10 +529,11 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
             SELECT
                 COALESCE(destino_cidade, N'Cidade não informada') AS nome,
                 COALESCE(SUM(valor_total), 0) AS receita,
-                CAST(COUNT_BIG(1) AS INT) AS fretes
+                CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretes
             FROM filtrados
-            WHERE elegivel_faturamento = 1
             GROUP BY COALESCE(destino_cidade, N'Cidade não informada')
+            HAVING COALESCE(SUM(valor_total), 0) <> 0
+                OR COALESCE(SUM(subtotal), 0) <> 0
             ORDER BY receita DESC, nome
             OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
             """, nativeQuery = true)
@@ -556,8 +565,9 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
                 COALESCE(filial_nome, N'Filial não informada') AS filial,
                 COALESCE(SUM(valor_total), 0) AS realizadoFaturamento
             FROM filtrados
-            WHERE elegivel_faturamento = 1
             GROUP BY COALESCE(filial_nome, N'Filial não informada')
+            HAVING COALESCE(SUM(valor_total), 0) <> 0
+                OR COALESCE(SUM(subtotal), 0) <> 0
             ORDER BY filial
             """, nativeQuery = true)
     List<FretesRealizadoFilialProjection> buscarRealizadoFaturamentoPorFilial(
@@ -589,12 +599,13 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
             SELECT nome, MIN(documento) AS documento
             FROM (
                 SELECT
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '') AS nome,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador Doc]))), '') AS documento,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '')) AS nome_normalizado,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador Doc]))), '')) AS documento_normalizado,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial
-                FROM dbo.vw_fretes_powerbi
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '') AS nome,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_documento))), '') AS documento,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '')) AS nome_normalizado,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_documento))), '')) AS documento_normalizado,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '')) AS filial
+                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                WHERE excluido_na_origem = 0
             ) pagadores
             WHERE nome IS NOT NULL
               AND (:escopoFiliaisVazio = 1 OR filial IN (:escopoFiliais))
@@ -614,14 +625,17 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
     @Query(value = """
             SELECT DISTINCT cliente
             FROM (
-                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '') AS cliente
-                FROM dbo.vw_fretes_powerbi
+                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '') AS cliente
+                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                WHERE excluido_na_origem = 0
                 UNION ALL
-                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Remetente]))), '') AS cliente
-                FROM dbo.vw_fretes_powerbi
+                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), remetente_nome))), '') AS cliente
+                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                WHERE excluido_na_origem = 0
                 UNION ALL
-                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Destinatario]))), '') AS cliente
-                FROM dbo.vw_fretes_powerbi
+                SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destinatario_nome))), '') AS cliente
+                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                WHERE excluido_na_origem = 0
             ) clientes
             WHERE cliente IS NOT NULL
             ORDER BY cliente
@@ -632,19 +646,22 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
             SELECT DISTINCT cliente
             FROM (
                 SELECT
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '') AS cliente,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial
-                FROM dbo.vw_fretes_powerbi
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '') AS cliente,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '')) AS filial
+                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Remetente]))), '') AS cliente,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial
-                FROM dbo.vw_fretes_powerbi
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), remetente_nome))), '') AS cliente,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '')) AS filial
+                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Destinatario]))), '') AS cliente,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial
-                FROM dbo.vw_fretes_powerbi
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destinatario_nome))), '') AS cliente,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '')) AS filial
+                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                WHERE excluido_na_origem = 0
             ) clientes
             WHERE cliente IS NOT NULL
               AND filial IN (:filiais)

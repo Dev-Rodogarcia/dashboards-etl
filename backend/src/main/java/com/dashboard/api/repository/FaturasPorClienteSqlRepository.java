@@ -116,28 +116,27 @@ public class FaturasPorClienteSqlRepository {
         params.addValue("dataReferencia", dataReferencia);
 
         String sql = baseNormalizadaSql(source) + """
+                , classificacao AS (
+                    SELECT
+                        valor_operacional,
+                        CASE
+                            WHEN data_vencimento_fatura IS NULL THEN N'Sem vencimento'
+                            WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) < 0 THEN N'A vencer'
+                            WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 15 THEN N'1-15 dias'
+                            WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 30 THEN N'16-30 dias'
+                            WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 60 THEN N'31-60 dias'
+                            ELSE N'61+ dias'
+                        END AS faixa
+                    FROM base_normalizada
+                    WHERE documento_fatura IS NOT NULL
+                      AND data_baixa_fatura IS NULL
+                )
                 SELECT
-                    CASE
-                        WHEN data_vencimento_fatura IS NULL THEN N'Sem vencimento'
-                        WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) < 0 THEN N'A vencer'
-                        WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 15 THEN N'1-15 dias'
-                        WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 30 THEN N'16-30 dias'
-                        WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 60 THEN N'31-60 dias'
-                        ELSE N'61+ dias'
-                    END AS faixa,
+                    faixa,
                     CAST(COALESCE(SUM(valor_operacional), 0) AS DECIMAL(19,2)) AS valor,
                     COUNT(1) AS titulos
-                FROM base_normalizada
-                WHERE documento_fatura IS NOT NULL
-                  AND data_baixa_fatura IS NULL
-                GROUP BY CASE
-                    WHEN data_vencimento_fatura IS NULL THEN N'Sem vencimento'
-                    WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) < 0 THEN N'A vencer'
-                    WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 15 THEN N'1-15 dias'
-                    WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 30 THEN N'16-30 dias'
-                    WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 60 THEN N'31-60 dias'
-                    ELSE N'61+ dias'
-                END
+                FROM classificacao
+                GROUP BY faixa
                 """;
 
         Map<String, FaturasPorClienteAgingBucketDTO> porFaixa = new LinkedHashMap<>();

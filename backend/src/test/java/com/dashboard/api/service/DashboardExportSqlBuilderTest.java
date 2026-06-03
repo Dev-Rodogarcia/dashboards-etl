@@ -31,11 +31,12 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("[data_referencia_faturamento] >= :inicioOffset AND [data_referencia_faturamento] < :fimOffset");
-        assertThat(query.sql()).contains("ORDER BY [data_referencia_faturamento] DESC");
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Filial])))) IN (:escopoFiliais)");
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Status])))) IN (:filtro_status)");
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Pagador])))) IN (:filtro_pagadores)");
+        assertThat(query.sql()).contains("data_referencia_faturamento >= :inicioOffset AND data_referencia_faturamento < :fimOffset");
+        assertThat(query.sql()).contains("ORDER BY data_referencia_faturamento DESC");
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), filial_nome)))) IN (:escopoFiliais)");
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), status_frete)))) IN (:filtro_status)");
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), pagador_nome)))) IN (:filtro_pagadores)");
+        assertThat(query.sql()).contains("[ETL_SISTEMA].dbo.fato_fretes_faturamento");
         assertThat(query.sql()).doesNotContainIgnoringCase("limit");
         assertThat(query.sql()).doesNotContainIgnoringCase("top ");
         assertThat(query.params().getValues()).containsKeys("inicioOffset", "fimOffset", "escopoFiliais", "filtro_status", "filtro_pagadores");
@@ -87,7 +88,7 @@ class DashboardExportSqlBuilderTest {
     void buildDistinctDeveIgnorarProprioFiltroDeStatusFretes() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildDistinct(
                 DashboardExportDefinition.FRETES,
-                "[Status]",
+                "status_frete",
                 filtro(Map.of("status", List.of("Entregue"), "pagadores", List.of("ACME"))),
                 EscopoFilialService.EscopoFilial.comAcessoTotal(),
                 Set.of("status")
@@ -150,8 +151,8 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("TRY_CONVERT(BIGINT, [ID]) = :filtro_tabelaCodigoNumero");
-        assertThat(query.sql()).contains("TRY_CONVERT(BIGINT, [Nº Minuta]) = :filtro_tabelaCodigoNumero");
+        assertThat(query.sql()).contains("TRY_CONVERT(BIGINT, frete_id) = :filtro_tabelaCodigoNumero");
+        assertThat(query.sql()).contains("TRY_CONVERT(BIGINT, numero_minuta) = :filtro_tabelaCodigoNumero");
         assertThat(query.sql()).doesNotContain(":filtro_tabelaCodigoPrefixo");
         assertThat(query.params().getValues()).containsEntry("filtro_tabelaCodigoNumero", 12345L);
     }
@@ -190,7 +191,7 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("TRY_CONVERT(BIGINT, [ID]) = :filtro_tabelaColuna_id");
+        assertThat(query.sql()).contains("TRY_CONVERT(BIGINT, frete_id) = :filtro_tabelaColuna_id");
         assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_id", 12345L);
     }
 
@@ -203,8 +204,8 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("[Nº Minuta] = :filtro_tabelaColuna_numeroMinuta");
-        assertThat(query.sql()).doesNotContain("TRY_CONVERT(BIGINT, [Nº Minuta])");
+        assertThat(query.sql()).contains("numero_minuta = :filtro_tabelaColuna_numeroMinuta");
+        assertThat(query.sql()).doesNotContain("TRY_CONVERT(BIGINT, numero_minuta)");
         assertThat(query.sql()).doesNotContain("[N° Minuta] = :filtro_tabelaColuna_numeroMinuta");
         assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_numeroMinuta", 381633L);
     }
@@ -230,7 +231,7 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("TRY_CONVERT(DECIMAL(19,4), [Valor Frete]) = :filtro_tabelaColuna_valorFrete");
+        assertThat(query.sql()).contains("TRY_CONVERT(DECIMAL(19,4), valor_frete) = :filtro_tabelaColuna_valorFrete");
         assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_valorFrete", new BigDecimal("123.45"));
     }
 
@@ -243,7 +244,7 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Status])))) IN (:filtro_tabelaColuna_status)");
+        assertThat(query.sql()).contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), status_frete)))) IN (:filtro_tabelaColuna_status)");
         assertThat(query.params().getValues()).containsEntry("filtro_tabelaColuna_status", List.of("entregue", "pendente"));
     }
 
@@ -257,8 +258,8 @@ class DashboardExportSqlBuilderTest {
         );
 
         assertThat(query.sql())
-                .contains("[Previsão de Entrega] >= :filtro_tabelaColuna_previsaoEntrega_inicio")
-                .contains("[Previsão de Entrega] < :filtro_tabelaColuna_previsaoEntrega_fim")
+                .contains("data_referencia_faturamento >= :filtro_tabelaColuna_previsaoEntrega_inicio")
+                .contains("data_referencia_faturamento < :filtro_tabelaColuna_previsaoEntrega_fim")
                 .doesNotContain("CONVERT(VARCHAR(10)")
                 .doesNotContain("TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Previsão de Entrega]))");
         assertThat(query.params().getValues())
@@ -275,7 +276,7 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("CASE WHEN [CT-e ID] IS NOT NULL THEN 'ct-e'");
+        assertThat(query.sql()).contains("CASE WHEN cte_id IS NOT NULL THEN 'ct-e'");
         assertThat(query.sql()).contains(":filtro_tabelaColuna_documentoTipo");
     }
 

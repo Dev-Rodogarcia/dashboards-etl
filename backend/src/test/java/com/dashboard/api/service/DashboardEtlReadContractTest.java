@@ -22,7 +22,7 @@ class DashboardEtlReadContractTest {
             entry("VisaoContasAPagarEntity.java", "vw_contas_a_pagar_powerbi"),
             entry("VisaoCotacoesEntity.java", "vw_cotacoes_powerbi"),
             entry("VisaoFaturasClienteEntity.java", "vw_faturas_por_cliente_powerbi"),
-            entry("VisaoFretesEntity.java", "vw_fretes_powerbi"),
+            entry("VisaoFretesEntity.java", "fato_fretes_faturamento"),
             entry("VisaoInventarioEntity.java", "vw_inventario_powerbi"),
             entry("VisaoLocalizacaoCargasEntity.java", "vw_localizacao_cargas_powerbi"),
             entry("VisaoManifestosEntity.java", "vw_manifestos_powerbi"),
@@ -58,7 +58,7 @@ class DashboardEtlReadContractTest {
     );
 
     @Test
-    void entidadesAnaliticasDoEtlDevemConsumirViewsOperacionais() throws IOException {
+    void entidadesAnaliticasDoEtlDevemConsumirObjetosAnaliticosPermitidos() throws IOException {
         for (Map.Entry<String, String> entidade : VIEW_ENTITIES.entrySet()) {
             Path path = MAIN_JAVA.resolve(Path.of("model", entidade.getKey()));
             String source = ler(path);
@@ -67,8 +67,8 @@ class DashboardEtlReadContractTest {
                     .as(entidade.getKey() + " deve ser read-only")
                     .contains("@Immutable");
             assertThat(source)
-                    .as(entidade.getKey() + " deve mapear a view operacional do ETL")
-                    .contains("@Table(name = \"" + entidade.getValue() + "\")");
+                    .as(entidade.getKey() + " deve mapear o objeto analitico permitido do ETL")
+                    .contains("name = \"" + entidade.getValue() + "\"");
         }
     }
 

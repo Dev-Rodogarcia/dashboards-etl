@@ -69,13 +69,6 @@ public class IndicadoresGestaoAVistaSqlRepository {
             "60960473001304",
             "60960473001568"
     );
-    private static final List<String> TIPOS_ORDEM_CONFERENCIA = List.of(
-            "picking",
-            "retorno",
-            "recebimento",
-            "carregamento",
-            "descarregamento"
-    );
     private static final String[] FILIAIS_COLETORES_PADRAO = {
             "AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
             "CAS - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
@@ -379,14 +372,34 @@ public class IndicadoresGestaoAVistaSqlRepository {
             EscopoFilialService.EscopoFilial escopo
     ) {
         QueryContext ctx = contextoColetores(filtro, escopo);
-        String sql = coletoresPontosCte() + """
+        String sql = coletoresFatoCte() + """
+                , totais AS (
+                    SELECT
+                        MAX(updated_at) AS updated_at,
+                        COALESCE(SUM(manifestos_bipados), 0) AS manifestos_bipados,
+                        COALESCE(SUM(manifestos_emitidos), 0) AS manifestos_emitidos,
+                        COALESCE(SUM(manifestos_descarregamento), 0) AS manifestos_descarregamento,
+                        COALESCE(SUM(total_manifestos), 0) AS total_manifestos,
+                        COALESCE(SUM(manifestos_incompletos), 0) AS manifestos_incompletos
+                    FROM coletores_base
+                )
                 SELECT
-                    CONVERT(NVARCHAR(30), MAX(updated_at), 126) AS updated_at,
-                    COALESCE(SUM(manifestos_bipados), 0) AS manifestos_bipados,
-                    COALESCE(SUM(manifestos_emitidos), 0) AS manifestos_emitidos,
-                    COALESCE(SUM(manifestos_descarregamento), 0) AS manifestos_descarregamento,
-                    COALESCE(SUM(manifestos_incompletos), 0) AS manifestos_incompletos
-                FROM pontos_agregados
+                    CONVERT(NVARCHAR(30), updated_at, 126) AS updated_at,
+                    manifestos_bipados,
+                    manifestos_emitidos,
+                    manifestos_descarregamento,
+                    total_manifestos,
+                    manifestos_incompletos,
+                    CAST(CASE
+                        WHEN total_manifestos > 0
+                            THEN ROUND(
+                                (CONVERT(DECIMAL(19, 4), manifestos_bipados) * CONVERT(DECIMAL(19, 4), 100.0))
+                                / CONVERT(DECIMAL(19, 4), total_manifestos),
+                                1
+                            )
+                        ELSE 0
+                    END AS DECIMAL(9, 1)) AS pct_utilizacao
+                FROM totais
                 """;
 
         return resumoColetores(jdbcTemplate.queryForMap(sql, ctx.params()));
@@ -397,36 +410,32 @@ public class IndicadoresGestaoAVistaSqlRepository {
             EscopoFilialService.EscopoFilial escopo
     ) {
         QueryContext ctx = contextoColetores(filtro, escopo);
-        String sql = coletoresPontosCte() + """
+        String sql = coletoresAgregadosCte() + """
                 SELECT
-                    CONVERT(char(10), data, 23) AS date,
+                    CONVERT(char(10), data_referencia, 23) AS date,
                     filial,
                     classificacao,
                     manifestos_bipados,
                     manifestos_emitidos,
                     manifestos_descarregamento,
-                    manifestos_incompletos
-                FROM pontos_agregados
-                ORDER BY data, filial, classificacao
+                    total_manifestos,
+                    manifestos_incompletos,
+                    pct_utilizacao
+                FROM coletores_agregados
+                ORDER BY data_referencia, filial, classificacao
                 """;
 
-        return jdbcTemplate.query(sql, ctx.params(), (rs, rowNum) -> {
-            long bipados = rs.getLong("manifestos_bipados");
-            long emitidos = rs.getLong("manifestos_emitidos");
-            long descarga = rs.getLong("manifestos_descarregamento");
-            long total = emitidos + descarga;
-            return new UtilizacaoColetoresSeriePointDTO(
+        return jdbcTemplate.query(sql, ctx.params(), (rs, rowNum) -> new UtilizacaoColetoresSeriePointDTO(
                     rs.getString("date"),
                     rs.getString("filial"),
                     rs.getString("classificacao"),
-                    inteiro(bipados),
-                    inteiro(emitidos),
-                    inteiro(descarga),
-                    inteiro(total),
+                    inteiro(rs.getLong("manifestos_bipados")),
+                    inteiro(rs.getLong("manifestos_emitidos")),
+                    inteiro(rs.getLong("manifestos_descarregamento")),
+                    inteiro(rs.getLong("total_manifestos")),
                     inteiro(rs.getLong("manifestos_incompletos")),
-                    percentual(bipados, total)
-            );
-        });
+                    rs.getDouble("pct_utilizacao")
+        ));
     }
 
     public List<UtilizacaoColetoresRankingBase> buscarUtilizacaoColetoresRanking(
@@ -434,16 +443,28 @@ public class IndicadoresGestaoAVistaSqlRepository {
             EscopoFilialService.EscopoFilial escopo
     ) {
         QueryContext ctx = contextoColetores(filtro, escopo);
-        String sql = coletoresPontosCte() + """
+        String sql = coletoresFatoCte() + """
                 SELECT
                     filial,
                     COALESCE(SUM(manifestos_bipados), 0) AS manifestos_bipados,
                     COALESCE(SUM(manifestos_emitidos), 0) AS manifestos_emitidos,
                     COALESCE(SUM(manifestos_descarregamento), 0) AS manifestos_descarregamento,
-                    COALESCE(SUM(manifestos_incompletos), 0) AS manifestos_incompletos
-                FROM pontos_agregados
+                    COALESCE(SUM(total_manifestos), 0) AS total_manifestos,
+                    COALESCE(SUM(manifestos_incompletos), 0) AS manifestos_incompletos,
+                    CAST(CASE
+                        WHEN COALESCE(SUM(total_manifestos), 0) > 0
+                            THEN ROUND(
+                                (CONVERT(DECIMAL(19, 4), COALESCE(SUM(manifestos_bipados), 0)) * CONVERT(DECIMAL(19, 4), 100.0))
+                                / CONVERT(DECIMAL(19, 4), COALESCE(SUM(total_manifestos), 0)),
+                                1
+                            )
+                        ELSE 0
+                    END AS DECIMAL(9, 1)) AS pct_utilizacao
+                FROM coletores_base
                 GROUP BY filial
-                ORDER BY filial
+                HAVING COALESCE(SUM(manifestos_bipados), 0) > 0
+                    OR MAX(CAST(is_filial_operacional AS INT)) = 1
+                ORDER BY pct_utilizacao, total_manifestos DESC, filial
                 """;
 
         return jdbcTemplate.query(sql, ctx.params(), (rs, rowNum) -> new UtilizacaoColetoresRankingBase(
@@ -451,7 +472,9 @@ public class IndicadoresGestaoAVistaSqlRepository {
                 inteiro(rs.getLong("manifestos_bipados")),
                 inteiro(rs.getLong("manifestos_emitidos")),
                 inteiro(rs.getLong("manifestos_descarregamento")),
-                inteiro(rs.getLong("manifestos_incompletos"))
+                inteiro(rs.getLong("total_manifestos")),
+                inteiro(rs.getLong("manifestos_incompletos")),
+                rs.getDouble("pct_utilizacao")
         ));
     }
 
@@ -485,7 +508,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
             EscopoFilialService.EscopoFilial escopo
     ) {
         QueryContext ctx = contextoColetores(filtro, escopo);
-        return count(coletoresPontosCte() + "SELECT COUNT_BIG(1) FROM pontos_agregados", ctx.params());
+        return count(coletoresAgregadosCte() + "SELECT COUNT_BIG(1) FROM coletores_agregados", ctx.params());
     }
 
     private String performanceEntregaLinhasSql(String paginacao) {
@@ -546,18 +569,20 @@ public class IndicadoresGestaoAVistaSqlRepository {
     }
 
     private String coletoresLinhasSql(String paginacao) {
-        return coletoresPontosCte() + """
+        return coletoresAgregadosCte() + """
                 SELECT
-                    CONVERT(char(10), data, 23) + '|' + filial + '|' + LOWER(classificacao) AS chave,
-                    CONVERT(char(10), data, 23) AS date,
+                    CONVERT(char(10), data_referencia, 23) + '|' + filial + '|' + LOWER(classificacao) AS chave,
+                    CONVERT(char(10), data_referencia, 23) AS date,
                     filial,
                     classificacao,
                     manifestos_bipados,
                     manifestos_emitidos,
                     manifestos_descarregamento,
-                    manifestos_incompletos
-                FROM pontos_agregados
-                ORDER BY data DESC, filial, classificacao
+                    total_manifestos,
+                    manifestos_incompletos,
+                    pct_utilizacao
+                FROM coletores_agregados
+                ORDER BY data_referencia DESC, filial, classificacao
                 """ + paginacao;
     }
 
@@ -622,28 +647,29 @@ public class IndicadoresGestaoAVistaSqlRepository {
     }
 
     private static String indenizacaoCte() {
-        return fretesOperacionaisCte("""
-                  AND [Data frete] >= :inicioOffset
-                  AND [Data frete] < :fimOffset
-                """) + """
-                , fretes_faturamento AS (
+        return """
+                WITH fretes_faturamento AS (
                     SELECT
-                        filial,
-                        filial_key,
-                        DATEFROMPARTS(YEAR(data_frete_date), MONTH(data_frete_date), 1) AS mes_ref,
-                        valor_total,
-                        data_extracao
-                    FROM fretes_fonte
-                    WHERE data_frete_date IS NOT NULL
-                      AND filial_key IS NOT NULL
-                      AND elegivel_operacional_com_valor = 1
-                      AND (:escopoFiliaisVazio = 1 OR filial_key IN (:escopoFiliais))
-                      AND (:filiaisVazio = 1 OR filial_key IN (:filiais))
+                        COALESCE(filial_nome, N'Filial nao informada') AS filial,
+                        LOWER(COALESCE(filial_nome, N'Filial nao informada')) AS filial_key,
+                        DATEFROMPARTS(
+                            YEAR(data_referencia_faturamento_date),
+                            MONTH(data_referencia_faturamento_date),
+                            1
+                        ) AS mes_ref,
+                        receita_bruta AS faturamento,
+                        snapshot_em AS data_extracao
+                    FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                    WHERE data_referencia_faturamento_date >= :dataInicio
+                      AND data_referencia_faturamento_date < :dataFimExclusivo
+                      AND excluido_na_origem = 0
+                      AND (:escopoFiliaisVazio = 1 OR LOWER(COALESCE(filial_nome, N'Filial nao informada')) IN (:escopoFiliais))
+                      AND (:filiaisVazio = 1 OR LOWER(COALESCE(filial_nome, N'Filial nao informada')) IN (:filiais))
                 ),
                 faturamento_periodo AS (
                     SELECT
                         filial,
-                        SUM(COALESCE(valor_total, 0)) AS faturamento,
+                        SUM(COALESCE(faturamento, 0)) AS faturamento,
                         MAX(data_extracao) AS updated_at
                     FROM fretes_faturamento
                     GROUP BY filial
@@ -652,7 +678,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
                     SELECT
                         mes_ref,
                         filial,
-                        SUM(COALESCE(valor_total, 0)) AS faturamento
+                        SUM(COALESCE(faturamento, 0)) AS faturamento
                     FROM fretes_faturamento
                     GROUP BY mes_ref, filial
                 ),
@@ -691,338 +717,54 @@ public class IndicadoresGestaoAVistaSqlRepository {
                 """;
     }
 
-    private static String fretesOperacionaisCte(String whereDataSargavel) {
-        return """
-                WITH fretes_fonte AS (
+    private static String coletoresAgregadosCte() {
+        return coletoresFatoCte() + """
+                , coletores_agregados AS (
                     SELECT
-                        TRY_CONVERT(BIGINT, [ID]) AS id,
-                        TRY_CONVERT(BIGINT, [Nº Minuta]) AS numero_minuta,
-                        TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Data frete])) AS data_frete,
-                        TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Data frete])) AS data_frete_date,
-                        TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Previsão de Entrega])) AS previsao_entrega,
-                        TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Data de Finalização])) AS data_finalizacao,
-                        COALESCE(
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Responsável pela Região de Destino]))), ''),
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), ''),
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')
-                        ) AS filial_performance,
-                        COALESCE(
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), ''),
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), ''),
-                            N'Não informado'
-                        ) AS filial,
-                        LOWER(COALESCE(
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Responsável pela Região de Destino]))), ''),
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), ''),
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')
-                        )) AS filial_performance_key,
-                        LOWER(COALESCE(
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), ''),
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')
-                        )) AS filial_key,
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), '') AS filial_emissora,
-                        LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status]))), '')) AS status_norm,
-                        TRY_CONVERT(INT, NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(64), [Performance Diferença de Dias]))), N'')) AS performance_diferenca_dias,
-                        UPPER(COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Performance Status]))), ''), N'EM ABERTO')) AS performance_status,
-                        TRY_CONVERT(DECIMAL(18, 2), [Valor Total do Serviço]) AS valor_total,
-                        TRY_CONVERT(DECIMAL(18, 3), [Kg Taxado]) AS peso_taxado,
-                        TRY_CONVERT(DECIMAL(18, 3), [Kg Real]) AS peso_real,
-                        TRY_CONVERT(DECIMAL(18, 6), [Kg Cubado]) AS peso_cubado,
-                        TRY_CONVERT(DECIMAL(18, 6), [Total M3]) AS total_m3,
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Pagador]))), '') AS pagador,
-                        %s AS pagador_documento,
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Destino]))), '') AS destino,
-                        TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [Data de extracao])) AS data_extracao,
-                        CASE
-                            WHEN UPPER(LTRIM(RTRIM(CONVERT(NVARCHAR(20), [Cortesia Flag])))) IN (N'1', N'TRUE', N'SIM') THEN 1
+                        data_referencia,
+                        filial,
+                        classificacao,
+                        COALESCE(SUM(manifestos_bipados), 0) AS manifestos_bipados,
+                        COALESCE(SUM(manifestos_emitidos), 0) AS manifestos_emitidos,
+                        COALESCE(SUM(manifestos_descarregamento), 0) AS manifestos_descarregamento,
+                        COALESCE(SUM(total_manifestos), 0) AS total_manifestos,
+                        COALESCE(SUM(manifestos_incompletos), 0) AS manifestos_incompletos,
+                        CAST(CASE
+                            WHEN COALESCE(SUM(total_manifestos), 0) > 0
+                                THEN ROUND(
+                                    (CONVERT(DECIMAL(19, 4), COALESCE(SUM(manifestos_bipados), 0)) * CONVERT(DECIMAL(19, 4), 100.0))
+                                    / CONVERT(DECIMAL(19, 4), COALESCE(SUM(total_manifestos), 0)),
+                                    1
+                                )
                             ELSE 0
-                        END AS cortesia_flag,
-                        UPPER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Documento Oficial/Tipo]))), '')) AS documento_oficial_tipo,
-                        UPPER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Tipo Frete]))), '')) AS tipo_frete
-                    FROM dbo.vw_fretes_powerbi
-                    WHERE 1 = 1
-                """.formatted(documentoNormalizadoSql("[Pagador Doc]"))
-                + whereDataSargavel
-                + """
-                ),
-                fretes_regras AS (
-                    SELECT *,
-                        CASE
-                            WHEN documento_oficial_tipo IN (N'CT-E', N'NFS-E') THEN 1
-                            ELSE 0
-                        END AS documento_emitido,
-                        CASE
-                            WHEN cortesia_flag = 1 THEN 0
-                            WHEN COALESCE(documento_oficial_tipo, N'') NOT IN (N'CT-E', N'NFS-E')
-                             AND pagador_documento IN (:documentosFiliaisOperacionais) THEN 0
-                            WHEN COALESCE(documento_oficial_tipo, N'') NOT IN (N'CT-E', N'NFS-E')
-                             AND COALESCE(valor_total, 0) <= :valorMinimoOperacional THEN 0
-                            WHEN COALESCE(documento_oficial_tipo, N'') NOT IN (N'CT-E', N'NFS-E')
-                             AND tipo_frete LIKE N'%SUBSTITUTE%'
-                             AND status_norm LIKE N'%pendente%' THEN 0
-                            ELSE 1
-                        END AS elegivel_operacional,
-                        CASE
-                            WHEN cortesia_flag = 1 THEN 0
-                            WHEN COALESCE(documento_oficial_tipo, N'') NOT IN (N'CT-E', N'NFS-E')
-                             AND pagador_documento IN (:documentosFiliaisOperacionais) THEN 0
-                            WHEN COALESCE(documento_oficial_tipo, N'') NOT IN (N'CT-E', N'NFS-E')
-                             AND COALESCE(valor_total, 0) <= :valorMinimoOperacional THEN 0
-                            WHEN COALESCE(documento_oficial_tipo, N'') NOT IN (N'CT-E', N'NFS-E')
-                             AND tipo_frete LIKE N'%SUBSTITUTE%'
-                             AND status_norm LIKE N'%pendente%' THEN 0
-                            WHEN COALESCE(valor_total, 0) <= :valorMinimoOperacional THEN 0
-                            ELSE 1
-                        END AS elegivel_operacional_com_valor
-                    FROM fretes_fonte
-                ),
-                fretes_deduplicados AS (
-                    SELECT *,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY numero_minuta
-                            ORDER BY
-                                CASE WHEN data_finalizacao IS NOT NULL THEN 4 ELSE 0 END
-                              + CASE WHEN performance_status IS NOT NULL THEN 3 ELSE 0 END
-                              + CASE WHEN filial_performance IS NOT NULL THEN 2 ELSE 0 END
-                              + CASE WHEN data_extracao IS NOT NULL THEN 1 ELSE 0 END DESC,
-                                data_extracao DESC,
-                                id DESC
-                        ) AS rn
-                    FROM fretes_regras
+                        END AS DECIMAL(9, 1)) AS pct_utilizacao
+                    FROM coletores_base
+                    GROUP BY data_referencia, filial, classificacao
                 )
                 """;
     }
 
-    private static String coletoresPontosCte() {
-        return filiaisAliasCte() + """
-                , manifestos_fonte AS (
+    private static String coletoresFatoCte() {
+        return """
+                WITH coletores_base AS (
                     SELECT
-                        COALESCE(
-                            CONVERT(NVARCHAR(64), TRY_CONVERT(BIGINT, [Número])),
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Identificador Único]))), '')
-                        ) AS chave_manifesto,
-                        TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Data criação])) AS data,
-                        NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), [Local de Descarregamento]))), '') AS local_descarregamento,
-                        COALESCE(alias_emitida.filial, filial_raw.valor, N'Filial nao informada') AS filial_emitida,
-                        LOWER(COALESCE(alias_emitida.filial, filial_raw.valor, N'Filial nao informada')) COLLATE Latin1_General_CI_AI AS filial_emitida_key,
-                        LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Classificação]))), '')) COLLATE Latin1_General_CI_AI AS classificacao_key,
-                        TRY_CONVERT(datetime2, [Data de extracao]) AS data_extracao
-                    FROM dbo.vw_manifestos_powerbi
-                    CROSS APPLY (
-                        SELECT COALESCE(
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora]))), ''),
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')
-                        ) AS valor
-                    ) filial_raw
-                    OUTER APPLY (
-                        SELECT TOP (1) a.filial
-                        FROM filiais_alias a
-                        WHERE LOWER(filial_raw.valor) COLLATE Latin1_General_CI_AI = a.alias_key COLLATE Latin1_General_CI_AI
-                    ) alias_emitida
-                    WHERE [Data criação] >= :inicioOffset
-                      AND [Data criação] < :fimOffset
-                ),
-                manifestos_deduplicados AS (
-                    SELECT *,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY chave_manifesto
-                            ORDER BY data_extracao DESC, chave_manifesto
-                        ) AS rn
-                    FROM manifestos_fonte
-                    WHERE chave_manifesto IS NOT NULL
-                      AND data IS NOT NULL
-                      AND (
-                            classificacao_key IS NULL
-                         OR classificacao_key NOT LIKE N'carga fechada%'
-                        )
-                      AND (
-                            classificacao_key IS NULL
-                         OR classificacao_key NOT LIKE N'acerto de motorista%'
-                        )
-                      AND (
-                            classificacao_key IS NULL
-                         OR classificacao_key NOT LIKE N'frete retorno%'
-                        )
-                      AND (
-                            classificacao_key IS NULL
-                         OR classificacao_key NOT LIKE N'viagem vazia%'
-                        )
-                ),
-                manifestos AS (
-                    SELECT *
-                    FROM manifestos_deduplicados
-                    WHERE rn = 1
-                ),
-                manifestos_emitidos AS (
-                    SELECT
-                        data,
-                        filial_emitida AS filial,
-                        COUNT_BIG(1) AS manifestos_emitidos,
-                        MAX(data_extracao) AS updated_at
-                    FROM manifestos
-                    WHERE (:escopoFiliaisVazio = 1 OR filial_emitida_key IN (:escopoFiliais))
-                      AND (:filiaisVazio = 1 OR filial_emitida_key IN (:filiais))
-                    GROUP BY data, filial_emitida
-                ),
-                descarregamento_partes AS (
-                    SELECT
-                        m.chave_manifesto,
-                        m.data,
-                        COALESCE(alias_descarga.filial, parte.valor) AS filial,
-                        LOWER(COALESCE(alias_descarga.filial, parte.valor)) COLLATE Latin1_General_CI_AI AS filial_key,
-                        m.data_extracao
-                    FROM manifestos m
-                    CROSS APPLY STRING_SPLIT(
-                        REPLACE(REPLACE(REPLACE(COALESCE(m.local_descarregamento, N''), CHAR(13), N';'), CHAR(10), N';'), N',', N';'),
-                        N';'
-                    ) split
-                    CROSS APPLY (
-                        SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), split.value))), '') AS valor
-                    ) parte
-                    OUTER APPLY (
-                        SELECT TOP (1) a.filial
-                        FROM filiais_alias a
-                        WHERE LOWER(parte.valor) COLLATE Latin1_General_CI_AI = a.alias_key COLLATE Latin1_General_CI_AI
-                    ) alias_descarga
-                    WHERE parte.valor IS NOT NULL
-                      AND LOWER(parte.valor) COLLATE Latin1_General_CI_AI <> N'null'
-                ),
-                descarregamento_elegivel AS (
-                    SELECT *,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY chave_manifesto
-                            ORDER BY filial
-                        ) AS rn
-                    FROM descarregamento_partes
-                    WHERE (:escopoFiliaisVazio = 1 OR filial_key IN (:escopoFiliais))
-                      AND (:filiaisVazio = 1 OR filial_key IN (:filiais))
-                ),
-                manifestos_descarregamento AS (
-                    SELECT
-                        data,
-                        filial,
-                        COUNT_BIG(1) AS manifestos_descarregamento,
-                        MAX(data_extracao) AS updated_at
-                    FROM descarregamento_elegivel
-                    WHERE rn = 1
-                    GROUP BY data, filial
-                ),
-                ordens_fonte AS (
-                    SELECT
-                        TRY_CONVERT(BIGINT, [N° Ordem]) AS numero_ordem,
-                        TRY_CONVERT(date, CONVERT(NVARCHAR(64), [Data/Hora início])) AS data,
-                        CASE WHEN [Data/Hora fim] IS NULL THEN 1 ELSE 0 END AS incompleta,
-                        COALESCE(alias_ordem.filial, filial_raw.valor, N'Filial nao informada') AS filial,
-                        LOWER(COALESCE(alias_ordem.filial, filial_raw.valor, N'Filial nao informada')) COLLATE Latin1_General_CI_AI AS filial_key,
-                        TRY_CONVERT(datetime2, [Data de extracao]) AS data_extracao
-                    FROM dbo.vw_inventario_powerbi
-                    CROSS APPLY (
-                        SELECT COALESCE(
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial da Ordem de Conferência]))), ''),
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), ''),
-                            NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial Emissora do Frete]))), '')
-                        ) AS valor
-                    ) filial_raw
-                    OUTER APPLY (
-                        SELECT TOP (1) a.filial
-                        FROM filiais_alias a
-                        WHERE LOWER(filial_raw.valor) COLLATE Latin1_General_CI_AI = a.alias_key COLLATE Latin1_General_CI_AI
-                    ) alias_ordem
-                    WHERE [Data/Hora início] >= :inicioOffset
-                      AND [Data/Hora início] < :fimOffset
-                      AND LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Tipo])))) COLLATE Latin1_General_CI_AI IN (:tiposOrdemConferencia)
-                ),
-                ordens_deduplicadas AS (
-                    SELECT *,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY numero_ordem
-                            ORDER BY data_extracao DESC, numero_ordem DESC
-                        ) AS rn
-                    FROM ordens_fonte
-                    WHERE numero_ordem IS NOT NULL
-                      AND data IS NOT NULL
-                ),
-                ordens AS (
-                    SELECT *
-                    FROM ordens_deduplicadas
-                    WHERE rn = 1
+                        data_referencia,
+                        COALESCE(filial, N'Filial nao informada') AS filial,
+                        COALESCE(classificacao, N'Geral') AS classificacao,
+                        manifestos_bipados,
+                        manifestos_emitidos,
+                        manifestos_descarregamento,
+                        total_manifestos,
+                        manifestos_incompletos,
+                        is_filial_operacional,
+                        updated_at
+                    FROM [ETL_SISTEMA].dbo.fato_gestao_vista_coletores
+                    WHERE data_referencia >= :dataInicio
+                      AND data_referencia < :dataFimExclusivo
+                      AND is_linha_valida_indicador = 1
+                      AND excluido_na_origem = 0
                       AND (:escopoFiliaisVazio = 1 OR filial_key IN (:escopoFiliais))
                       AND (:filiaisVazio = 1 OR filial_key IN (:filiais))
-                ),
-                ordens_agrupadas AS (
-                    SELECT
-                        data,
-                        filial,
-                        COUNT_BIG(1) AS manifestos_bipados,
-                        SUM(incompleta) AS manifestos_incompletos,
-                        MAX(data_extracao) AS updated_at
-                    FROM ordens
-                    GROUP BY data, filial
-                ),
-                pontos_union AS (
-                    SELECT data, filial, 0 AS manifestos_bipados, manifestos_emitidos, 0 AS manifestos_descarregamento, 0 AS manifestos_incompletos, updated_at
-                    FROM manifestos_emitidos
-                    UNION ALL
-                    SELECT data, filial, 0, 0, manifestos_descarregamento, 0, updated_at
-                    FROM manifestos_descarregamento
-                    UNION ALL
-                    SELECT data, filial, manifestos_bipados, 0, 0, manifestos_incompletos, updated_at
-                    FROM ordens_agrupadas
-                ),
-                pontos_agregados AS (
-                    SELECT
-                        data,
-                        COALESCE(filial, N'Filial nao informada') AS filial,
-                        N'Geral' AS classificacao,
-                        SUM(manifestos_bipados) AS manifestos_bipados,
-                        SUM(manifestos_emitidos) AS manifestos_emitidos,
-                        SUM(manifestos_descarregamento) AS manifestos_descarregamento,
-                        SUM(manifestos_incompletos) AS manifestos_incompletos,
-                        MAX(updated_at) AS updated_at
-                    FROM pontos_union
-                    GROUP BY data, COALESCE(filial, N'Filial nao informada')
-                    HAVING SUM(manifestos_bipados) > 0
-                        OR SUM(manifestos_emitidos) > 0
-                        OR SUM(manifestos_descarregamento) > 0
-                )
-                """;
-    }
-
-    private static String filiaisAliasCte() {
-        return """
-                WITH filiais_alias(alias_key, filial) AS (
-                    SELECT N'agu', N'AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'agu - rodogarcia transportes rodoviarios ltda', N'AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'tr rodogarcia | agu', N'AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rodogarcia filial agu', N'AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'cas', N'CAS - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'cas - rodogarcia transportes rodoviarios ltda', N'CAS - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'tr rodogarcia | cas', N'CAS - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rodogarcia filial cas', N'CAS - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'cpq', N'CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'cpq - rodogarcia transportes rodoviarios ltda', N'CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'tr rodogarcia | cpq', N'CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rodogarcia filial cpq', N'CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'cwb', N'CWB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'cwb - rodogarcia transportes rodoviarios ltda', N'CWB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'tr rodogarcia | cwb', N'CWB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rodogarcia filial cwb', N'CWB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'nhb', N'NHB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'nhb - rodogarcia transportes rodoviarios ltda', N'NHB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'tr rodogarcia | nhb', N'NHB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rodogarcia filial nhb', N'NHB - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rec', N'REC - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rec - rodogarcia transportes rodoviarios ltda', N'REC - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'tr rodogarcia | rec', N'REC - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rodogarcia filial rec', N'REC - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rjr', N'RJR - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rjr - rodogarcia transportes rodoviarios ltda', N'RJR - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'tr rodogarcia | rjr', N'RJR - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rodogarcia filial rjr', N'RJR - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'spo', N'SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'spo - rodogarcia transportes rodoviarios ltda', N'SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'tr rodogarcia | spo', N'SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA' UNION ALL
-                    SELECT N'rodogarcia filial spo', N'SPO - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA'
                 )
                 """;
     }
@@ -1067,9 +809,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
             FiltroConsultaDTO filtro,
             EscopoFilialService.EscopoFilial escopo
     ) {
-        QueryContext ctx = contextoOffset(filtro, escopo, true);
-        ctx.params().addValue("tiposOrdemConferencia", TIPOS_ORDEM_CONFERENCIA);
-        return ctx;
+        return contextoLocalDate(filtro, escopo, true);
     }
 
     private MapSqlParameterSource paramsComuns(
@@ -1155,21 +895,17 @@ public class IndicadoresGestaoAVistaSqlRepository {
     }
 
     private UtilizacaoColetoresRowDTO mapearColetoresLinha(ResultSet rs, int rowNum) throws SQLException {
-        long bipados = rs.getLong("manifestos_bipados");
-        long emitidos = rs.getLong("manifestos_emitidos");
-        long descarga = rs.getLong("manifestos_descarregamento");
-        long total = emitidos + descarga;
         return new UtilizacaoColetoresRowDTO(
                 rs.getString("chave"),
                 rs.getString("date"),
                 rs.getString("filial"),
                 rs.getString("classificacao"),
-                inteiro(bipados),
-                inteiro(emitidos),
-                inteiro(descarga),
-                inteiro(total),
+                inteiro(rs.getLong("manifestos_bipados")),
+                inteiro(rs.getLong("manifestos_emitidos")),
+                inteiro(rs.getLong("manifestos_descarregamento")),
+                inteiro(rs.getLong("total_manifestos")),
                 inteiro(rs.getLong("manifestos_incompletos")),
-                percentual(bipados, total)
+                rs.getDouble("pct_utilizacao")
         );
     }
 
@@ -1207,7 +943,9 @@ public class IndicadoresGestaoAVistaSqlRepository {
                 longo(row, "manifestos_bipados"),
                 longo(row, "manifestos_emitidos"),
                 longo(row, "manifestos_descarregamento"),
-                longo(row, "manifestos_incompletos")
+                longo(row, "total_manifestos"),
+                longo(row, "manifestos_incompletos"),
+                decimal(row, "pct_utilizacao").doubleValue()
         );
     }
 
@@ -1365,11 +1103,10 @@ public class IndicadoresGestaoAVistaSqlRepository {
             long manifestosBipados,
             long manifestosEmitidos,
             long manifestosDescarregamento,
-            long manifestosIncompletos
+            long totalManifestos,
+            long manifestosIncompletos,
+            double pctUtilizacao
     ) {
-        public long totalManifestos() {
-            return manifestosEmitidos + manifestosDescarregamento;
-        }
     }
 
     public record UtilizacaoColetoresRankingBase(
@@ -1377,10 +1114,9 @@ public class IndicadoresGestaoAVistaSqlRepository {
             int manifestosBipados,
             int manifestosEmitidos,
             int manifestosDescarregamento,
-            int manifestosIncompletos
+            int totalManifestos,
+            int manifestosIncompletos,
+            double pctUtilizacao
     ) {
-        public int totalManifestos() {
-            return manifestosEmitidos + manifestosDescarregamento;
-        }
     }
 }

@@ -41,7 +41,8 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
 
         String performanceSql = jdbcTemplate.sqls.get(0);
         String cubagemSql = jdbcTemplate.sqls.get(1);
-        String demaisSql = String.join("\n", jdbcTemplate.sqls.subList(2, jdbcTemplate.sqls.size()));
+        String indenizacaoSql = jdbcTemplate.sqls.get(2);
+        String coletoresSql = jdbcTemplate.sqls.get(3);
 
         assertThat(performanceSql)
                 .contains("FROM [ETL_SISTEMA].dbo.fato_gestao_vista_fretes")
@@ -68,13 +69,33 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
                 .doesNotContain("[Data frete]")
                 .doesNotContain("docsExcluidos");
 
-        assertThat(demaisSql)
+        assertThat(indenizacaoSql)
                 .contains("WHERE [Data abertura] >= :dataInicio")
                 .contains("AND [Data abertura] < :dataFimExclusivo")
-                .contains("WHERE [Data criação] >= :inicioOffset")
-                .contains("AND [Data criação] < :fimOffset")
-                .contains("WHERE [Data/Hora início] >= :inicioOffset")
-                .contains("AND [Data/Hora início] < :fimOffset");
+                .contains("FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento")
+                .contains("data_referencia_faturamento_date >= :dataInicio")
+                .contains("data_referencia_faturamento_date < :dataFimExclusivo")
+                .contains("faturamento_mensal AS")
+                .contains("SUM(ABS(valor_a_pagar_cliente))")
+                .contains("SUM(COALESCE(faturamento, 0))")
+                .contains("receita_bruta AS faturamento")
+                .doesNotContain("vw_fretes_powerbi")
+                .doesNotContain("elegivel_operacional_com_valor");
+
+        assertThat(coletoresSql)
+                .contains("FROM [ETL_SISTEMA].dbo.fato_gestao_vista_coletores")
+                .contains("WHERE data_referencia >= :dataInicio")
+                .contains("AND data_referencia < :dataFimExclusivo")
+                .contains("AND is_linha_valida_indicador = 1")
+                .contains("AND excluido_na_origem = 0")
+                .contains("SUM(manifestos_bipados)")
+                .contains("SUM(manifestos_emitidos)")
+                .contains("SUM(manifestos_descarregamento)")
+                .contains("SUM(total_manifestos)")
+                .doesNotContain("vw_manifestos_powerbi")
+                .doesNotContain("vw_inventario_powerbi")
+                .doesNotContain("ROW_NUMBER()")
+                .doesNotContain("STRING_SPLIT");
 
         assertThat(String.join("\n", jdbcTemplate.sqls))
                 .doesNotContain("WHERE TRY_CONVERT")
@@ -83,12 +104,6 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
                 .doesNotContain("AND YEAR(")
                 .doesNotContain("WHERE MONTH(")
                 .doesNotContain("AND MONTH(");
-
-        assertThat(demaisSql)
-                .contains("faturamento_mensal AS")
-                .contains("SUM(ABS(valor_a_pagar_cliente))")
-                .contains("COUNT_BIG(1) AS manifestos_emitidos")
-                .contains("COUNT_BIG(1) AS manifestos_bipados");
     }
 
     private static final class CapturandoNamedParameterJdbcTemplate extends NamedParameterJdbcTemplate {
@@ -116,7 +131,9 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
                     Map.entry("manifestos_bipados", 0L),
                     Map.entry("manifestos_emitidos", 0L),
                     Map.entry("manifestos_descarregamento", 0L),
-                    Map.entry("manifestos_incompletos", 0L)
+                    Map.entry("total_manifestos", 0L),
+                    Map.entry("manifestos_incompletos", 0L),
+                    Map.entry("pct_utilizacao", BigDecimal.ZERO)
             );
         }
 
