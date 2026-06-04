@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../../charts/ChartWrapper';
 import type { ColetasTrendPoint } from '../../../types/coletas';
 import { CORES } from '../../../utils/chartColors';
@@ -9,7 +11,7 @@ interface ColetasTrendProps {
 }
 
 export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
-  const option = {
+  const option: EChartsOption = useMemo(() => ({
     xAxis: {
       type: 'category' as const,
       data: dados.map((d) => formatarDataCurta(d.date)),
@@ -65,7 +67,7 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
         smooth: true,
       },
     ],
-  };
+  }), [dados]);
 
   return (
     <ChartWrapper

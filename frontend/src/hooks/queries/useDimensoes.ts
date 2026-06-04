@@ -22,12 +22,14 @@ import type { FretesFiltro } from '../../types/fretes';
 import type { PerformanceFiltro } from '../../types/performance';
 
 const STALE_TIME = 30 * 60 * 1000; // 30 minutos
+const GC_TIME = 24 * 60 * 60 * 1000; // 24 horas
 
 export function useFiliais() {
   return useQuery({
     queryKey: ['dim', 'filiais'],
     queryFn: buscarFiliais,
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -37,6 +39,7 @@ export function useClientes() {
     queryKey: ['dim', 'clientes'],
     queryFn: buscarClientes,
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -49,6 +52,7 @@ export function usePagadores(busca: string) {
     queryFn: () => buscarPagadores(buscaNormalizada),
     placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -58,6 +62,7 @@ export function useFaturasPorClienteClientesCnpj() {
     queryKey: ['dim', 'faturas-por-cliente', 'clientes-cnpj'],
     queryFn: buscarFaturasPorClienteClientesCnpj,
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -67,6 +72,7 @@ export function useMotoristas() {
     queryKey: ['dim', 'motoristas'],
     queryFn: buscarMotoristas,
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -76,6 +82,7 @@ export function useVeiculos() {
     queryKey: ['dim', 'veiculos'],
     queryFn: buscarVeiculos,
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -85,6 +92,7 @@ export function usePlanoContas() {
     queryKey: ['dim', 'planocontas'],
     queryFn: buscarPlanoContas,
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -94,6 +102,7 @@ export function useUsuarios() {
     queryKey: ['dim', 'usuarios'],
     queryFn: buscarUsuarios,
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -103,6 +112,7 @@ export function useFretesStatus(filtro: FretesFiltro) {
     queryKey: ['dim', 'fretes', 'status', filtro],
     queryFn: () => buscarFretesStatus(filtro),
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -112,6 +122,7 @@ export function useFaturamentoStatus(filtro: FaturamentoFiltro) {
     queryKey: ['dim', 'faturamento', 'status', filtro],
     queryFn: () => buscarFaturamentoStatus(filtro),
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -121,6 +132,7 @@ export function usePerformanceResponsaveis(filtro: PerformanceFiltro) {
     queryKey: ['dim', 'performance', 'responsaveis', filtro],
     queryFn: () => buscarPerformanceResponsaveis(filtro),
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -130,6 +142,7 @@ export function usePerformanceRegioesDestino(filtro: PerformanceFiltro) {
     queryKey: ['dim', 'performance', 'regioes-destino', filtro],
     queryFn: () => buscarPerformanceRegioesDestino(filtro),
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -139,6 +152,7 @@ export function usePerformanceCidadesDestino(filtro: PerformanceFiltro) {
     queryKey: ['dim', 'performance', 'cidades-destino', filtro],
     queryFn: () => buscarPerformanceCidadesDestino(filtro),
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -148,6 +162,7 @@ export function useFaturamentoResponsaveis(filtro: FaturamentoFiltro) {
     queryKey: ['dim', 'faturamento', 'responsaveis', filtro],
     queryFn: () => buscarFaturamentoResponsaveis(filtro),
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }
@@ -157,6 +172,7 @@ export function useCotacoesUsuarios(filtro: CotacoesFiltro) {
     queryKey: ['dim', 'cotacoes', 'usuarios', filtro],
     queryFn: () => buscarCotacoesUsuarios(filtro),
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
     retry: 1,
   });
 }

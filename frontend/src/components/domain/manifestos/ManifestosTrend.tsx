@@ -1,3 +1,5 @@
+import { useCallback, useMemo } from 'react';
+import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../../charts/ChartWrapper';
 import type { ManifestosTempoNivel, ManifestosTrendPoint } from '../../../types/manifestos';
 import { CORES_STATUS } from '../../../utils/chartColors';
@@ -24,7 +26,7 @@ function formatarLabelTemporal(data: string, nivel: ManifestosTempoNivel): strin
 }
 
 export default function ManifestosTrend({ dados, nivel, onNivelChange, onPointClick, isLoading }: ManifestosTrendProps) {
-  const option = {
+  const option: EChartsOption = useMemo(() => ({
     tooltip: {
       trigger: 'axis' as const,
     },
@@ -79,36 +81,42 @@ export default function ManifestosTrend({ dados, nivel, onNivelChange, onPointCl
         smooth: true,
       },
     ],
-  };
+  }), [dados, nivel]);
+
+  const handlePointClick = useCallback((params: unknown) => {
+    const item = params as { name?: string };
+    if (item.name) onPointClick(item.name);
+  }, [onPointClick]);
+
+  const chartEvents = useMemo(() => ({
+    click: handlePointClick,
+  }), [handlePointClick]);
+
+  const nivelActions = useMemo(() => (
+    <div className="flex rounded-md border p-0.5" style={{ borderColor: 'var(--color-border)' }}>
+      {niveis.map((item) => (
+        <button
+          key={item.valor}
+          type="button"
+          className="rounded px-2 py-1 text-xs font-semibold transition"
+          style={{
+            backgroundColor: nivel === item.valor ? 'var(--color-primary)' : 'transparent',
+            color: nivel === item.valor ? '#fff' : 'var(--color-text-muted)',
+          }}
+          onClick={() => onNivelChange(item.valor)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  ), [nivel, onNivelChange]);
 
   return (
     <ChartWrapper
       titulo="Status de Manifestos por dia, mês e ano"
       option={option}
-      actions={
-        <div className="flex rounded-md border p-0.5" style={{ borderColor: 'var(--color-border)' }}>
-          {niveis.map((item) => (
-            <button
-              key={item.valor}
-              type="button"
-              className="rounded px-2 py-1 text-xs font-semibold transition"
-              style={{
-                backgroundColor: nivel === item.valor ? 'var(--color-primary)' : 'transparent',
-                color: nivel === item.valor ? '#fff' : 'var(--color-text-muted)',
-              }}
-              onClick={() => onNivelChange(item.valor)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      }
-      onEvents={{
-        click: (params: unknown) => {
-          const item = params as { name?: string };
-          if (item.name) onPointClick(item.name);
-        },
-      }}
+      actions={nivelActions}
+      onEvents={chartEvents}
       isLoading={isLoading}
       isEmpty={dados.length === 0}
     />

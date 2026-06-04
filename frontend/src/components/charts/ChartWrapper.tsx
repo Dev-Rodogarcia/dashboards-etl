@@ -1,9 +1,48 @@
-import { memo } from 'react';
-import type { ReactNode } from 'react';
+import { memo, useMemo } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import ChartCard from '../shared/ChartCard';
 import { useEchartsTheme } from './useEchartsTheme';
+
+const ECHARTS_CANVAS_OPTS = { renderer: 'canvas' as const };
+
+function mergePlainObject(base: unknown, override: unknown) {
+  return { ...(base as object), ...(override as object) };
+}
+
+function mergeAxis(baseAxis: unknown, optionAxis: unknown) {
+  const mergeSingleAxis = (axis: unknown) => {
+    const base = baseAxis as Record<string, unknown>;
+    const current = (axis ?? {}) as Record<string, unknown>;
+    const baseAxisLine = base.axisLine as Record<string, unknown> | undefined;
+    const currentAxisLine = current.axisLine as Record<string, unknown> | undefined;
+    const baseSplitLine = base.splitLine as Record<string, unknown> | undefined;
+    const currentSplitLine = current.splitLine as Record<string, unknown> | undefined;
+
+    return {
+      ...base,
+      ...current,
+      axisLabel: mergePlainObject(base.axisLabel, current.axisLabel),
+      axisLine: {
+        ...baseAxisLine,
+        ...currentAxisLine,
+        lineStyle: mergePlainObject(baseAxisLine?.lineStyle, currentAxisLine?.lineStyle),
+      },
+      splitLine: {
+        ...baseSplitLine,
+        ...currentSplitLine,
+        lineStyle: mergePlainObject(baseSplitLine?.lineStyle, currentSplitLine?.lineStyle),
+      },
+      nameTextStyle: mergePlainObject(base.nameTextStyle, current.nameTextStyle),
+    };
+  };
+
+  if (Array.isArray(optionAxis)) {
+    return optionAxis.map(mergeSingleAxis);
+  }
+  return mergeSingleAxis(optionAxis);
+}
 
 interface ChartWrapperProps {
   titulo: string;
@@ -32,44 +71,7 @@ function ChartWrapperInner({
 }: ChartWrapperProps) {
   const { baseOption } = useEchartsTheme();
 
-  function mergePlainObject(base: unknown, override: unknown) {
-    return { ...(base as object), ...(override as object) };
-  }
-
-  const mergeAxis = (baseAxis: unknown, optionAxis: unknown) => {
-    const mergeSingleAxis = (axis: unknown) => {
-      const base = baseAxis as Record<string, unknown>;
-      const current = (axis ?? {}) as Record<string, unknown>;
-      const baseAxisLine = base.axisLine as Record<string, unknown> | undefined;
-      const currentAxisLine = current.axisLine as Record<string, unknown> | undefined;
-      const baseSplitLine = base.splitLine as Record<string, unknown> | undefined;
-      const currentSplitLine = current.splitLine as Record<string, unknown> | undefined;
-
-      return {
-        ...base,
-        ...current,
-        axisLabel: mergePlainObject(base.axisLabel, current.axisLabel),
-        axisLine: {
-          ...baseAxisLine,
-          ...currentAxisLine,
-          lineStyle: mergePlainObject(baseAxisLine?.lineStyle, currentAxisLine?.lineStyle),
-        },
-        splitLine: {
-          ...baseSplitLine,
-          ...currentSplitLine,
-          lineStyle: mergePlainObject(baseSplitLine?.lineStyle, currentSplitLine?.lineStyle),
-        },
-        nameTextStyle: mergePlainObject(base.nameTextStyle, current.nameTextStyle),
-      };
-    };
-
-    if (Array.isArray(optionAxis)) {
-      return optionAxis.map(mergeSingleAxis);
-    }
-    return mergeSingleAxis(optionAxis);
-  };
-
-  const mergedOption: EChartsOption = {
+  const mergedOption: EChartsOption = useMemo(() => ({
     ...baseOption,
     ...option,
     tooltip: { ...baseOption.tooltip, ...(option.tooltip as object) },
@@ -77,16 +79,20 @@ function ChartWrapperInner({
     grid: { ...baseOption.grid, ...(option.grid as object) },
     xAxis: mergeAxis(baseOption.xAxis, option.xAxis),
     yAxis: mergeAxis(baseOption.yAxis, option.yAxis),
-  };
-  const chartHeight = typeof altura === 'number' ? altura : altura;
+  }), [baseOption, option]);
+  const chartStyle: CSSProperties = useMemo(() => ({
+    height: altura,
+    minHeight: typeof altura === 'number' ? altura : 300,
+    width: '100%',
+  }), [altura]);
 
   return (
     <ChartCard titulo={titulo} actions={actions} isLoading={isLoading} isEmpty={isEmpty} emptyMessage={emptyMessage} erro={erro} className={className}>
-      <div className="h-full min-h-0">
+      <div className="h-full min-h-0" style={chartStyle}>
         <ReactECharts
           option={mergedOption}
-          style={{ height: chartHeight }}
-          opts={{ renderer: 'canvas' }}
+          style={chartStyle}
+          opts={ECHARTS_CANVAS_OPTS}
           onEvents={onEvents}
           notMerge
         />

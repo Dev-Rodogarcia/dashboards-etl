@@ -33,6 +33,7 @@ const CORES_GAUGE_MANIFESTOS = {
   aproveitamento: '#059669',
   efetividade: '#ea580c',
 } as const;
+const EMPTY_ARRAY: never[] = [];
 
 function normalizarNivel(valor: string | null): ManifestosTempoNivel {
   return valor === 'ano' || valor === 'mes' || valor === 'dia' ? valor : 'dia';
@@ -54,7 +55,7 @@ export default function ManifestosPage() {
   const anoTemporal = numeroParam(searchParams.get(ANO_PARAM));
   const mesTemporal = numeroParam(searchParams.get(MES_PARAM));
 
-  const filtro: ManifestosFiltro = {
+  const filtro: ManifestosFiltro = useMemo(() => ({
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
@@ -64,17 +65,28 @@ export default function ManifestosPage() {
     tiposCarga: filtros.tiposCarga,
     tiposContrato: filtros.tiposContrato,
     tipoMotorista: filtros.tipoMotorista,
-  };
+  }), [
+    dataFim,
+    dataInicio,
+    filtros.filiais,
+    filtros.motoristas,
+    filtros.status,
+    filtros.tipoMotorista,
+    filtros.tiposCarga,
+    filtros.tiposContrato,
+    filtros.veiculos,
+  ]);
 
-  const activeFilters: ActiveFilter[] = [
+  const activeFilters: ActiveFilter[] = useMemo(() => [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
     { label: 'Motoristas', count: filtros.motoristas?.length ?? 0, onRemove: () => setFiltro('motoristas', []) },
     { label: 'Veículos', count: filtros.veiculos?.length ?? 0, onRemove: () => setFiltro('veiculos', []) },
-  ];
+  ], [filtros.filiais, filtros.motoristas, filtros.veiculos, setFiltro]);
 
   const performance = useManifestosPerformance(filtro, nivelTemporal, anoTemporal, mesTemporal);
   const filtrosTabela = useAnalyticalTableFilters();
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const paginacaoResetKey = useMemo(() => JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }), [filtro, filtrosTabela.resetKey]);
+  const paginacaoTabela = useTabelaPaginadaState(paginacaoResetKey);
   const tabela = useManifestosTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
   usePageHeader({
@@ -84,14 +96,16 @@ export default function ManifestosPage() {
   });
 
   const dadosPerformance = performance.data;
-  const statusSazonal = useMemo(() => dadosPerformance?.statusSazonal ?? [], [dadosPerformance?.statusSazonal]);
-  const custosMotorista = useMemo(() => dadosPerformance?.custosMotorista ?? [], [dadosPerformance?.custosMotorista]);
-  const tiposVeiculo = useMemo(() => dadosPerformance?.tiposVeiculo ?? [], [dadosPerformance?.tiposVeiculo]);
-  const statusTabelaOptions = combinarStatusOptions(
+  const statusSazonal = useMemo(() => dadosPerformance?.statusSazonal ?? EMPTY_ARRAY, [dadosPerformance?.statusSazonal]);
+  const custosMotorista = useMemo(() => dadosPerformance?.custosMotorista ?? EMPTY_ARRAY, [dadosPerformance?.custosMotorista]);
+  const tiposVeiculo = useMemo(() => dadosPerformance?.tiposVeiculo ?? EMPTY_ARRAY, [dadosPerformance?.tiposVeiculo]);
+  const tabelaConteudo = tabela.data?.conteudo ?? EMPTY_ARRAY;
+  const veiculoPlacas = useMemo(() => (veiculos.data ?? EMPTY_ARRAY).map((item) => item.placa), [veiculos.data]);
+  const statusTabelaOptions = useMemo(() => combinarStatusOptions(
     ['encerrado', 'em trânsito', 'pendente'],
-    (tabela.data?.conteudo ?? []).map((item) => item.status),
+    tabelaConteudo.map((item) => item.status),
     filtros.status,
-  );
+  ), [filtros.status, tabelaConteudo]);
 
   const alterarNivelTemporal = useCallback((nivel: ManifestosTempoNivel) => {
     const next = new URLSearchParams(searchParams);
@@ -168,7 +182,7 @@ export default function ManifestosPage() {
     ],
   }), [tiposVeiculo]);
 
-  const colunas: ColunaTabelaAnalitica<ManifestoResumoRow>[] = [
+  const colunas: ColunaTabelaAnalitica<ManifestoResumoRow>[] = useMemo(() => [
     { chave: 'numero', label: 'Manifesto', fixo: true, filtroTabela: 'codigo' },
     { chave: 'status', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
     { chave: 'filial', label: 'Filial' },
@@ -180,7 +194,7 @@ export default function ManifestosPage() {
     { chave: 'custoTotal', label: 'Custo', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'valorFrete', label: 'Valor Frete', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'kmTotal', label: 'KM', formato: (valor) => formatarNumero(Number(valor ?? 0), 0) },
-  ];
+  ], []);
 
   return (
     <div className="w-full">
@@ -194,21 +208,21 @@ export default function ManifestosPage() {
         />
         <AsyncMultiSelect
           label="Filiais"
-          opcoes={filiais.data ?? []}
+          opcoes={filiais.data ?? EMPTY_ARRAY}
           selecionados={filtros.filiais ?? []}
           onChange={(valores) => setFiltro('filiais', valores)}
           isLoading={filiais.isLoading}
         />
         <AsyncMultiSelect
           label="Motoristas"
-          opcoes={motoristas.data ?? []}
+          opcoes={motoristas.data ?? EMPTY_ARRAY}
           selecionados={filtros.motoristas ?? []}
           onChange={(valores) => setFiltro('motoristas', valores)}
           isLoading={motoristas.isLoading}
         />
         <AsyncMultiSelect
           label="Veículos"
-          opcoes={(veiculos.data ?? []).map((item) => item.placa)}
+          opcoes={veiculoPlacas}
           selecionados={filtros.veiculos ?? []}
           onChange={(valores) => setFiltro('veiculos', valores)}
           isLoading={veiculos.isLoading}
@@ -266,7 +280,7 @@ export default function ManifestosPage() {
       </div>
       <AnalyticalDataTable
         titulo="Manifestos Analíticos"
-        dados={tabela.data?.conteudo ?? []}
+        dados={tabelaConteudo}
         colunas={colunas}
         chaveLinha="identificadorUnico"
         filtros={filtrosTabela.filters}

@@ -12,7 +12,16 @@ import { PageHeaderProvider } from './contexts/PageHeaderContext.tsx'
 const dashboardBuildId = import.meta.env.VITE_DASHBOARD_BUILD_ID ?? 'dev';
 document.documentElement.dataset.dashboardBuildId = dashboardBuildId;
 
-const queryClient = new QueryClient();
+const BASE_QUERY_STALE_TIME = 5 * 60 * 1000;
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: BASE_QUERY_STALE_TIME,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

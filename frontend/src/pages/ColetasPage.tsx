@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
 import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
 import ColetasKpiGrid from '../components/domain/coletas/ColetasKpiGrid';
@@ -26,6 +26,7 @@ import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 const AGING_BUCKETS = ['0-2 dias', '3-5 dias', '6-10 dias', '11+ dias'] as const;
 const ORIGEM_LIMITES = [5, 10, 15] as const;
+const EMPTY_ARRAY: never[] = [];
 
 export default function ColetasPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
@@ -36,7 +37,7 @@ export default function ColetasPage() {
   const clientes = useClientes();
   const usuarios = useUsuarios();
 
-  const filtro: ColetasFiltro = {
+  const filtro: ColetasFiltro = useMemo(() => ({
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
@@ -44,20 +45,21 @@ export default function ColetasPage() {
     status: filtros.status,
     regioes: filtros.regioes,
     usuarios: filtros.usuarios,
-  };
+  }), [dataFim, dataInicio, filtros.clientes, filtros.filiais, filtros.regioes, filtros.status, filtros.usuarios]);
 
-  const activeFilters: ActiveFilter[] = [
+  const activeFilters: ActiveFilter[] = useMemo(() => [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
     { label: 'Clientes', count: filtros.clientes?.length ?? 0, onRemove: () => setFiltro('clientes', []) },
     { label: 'Usuários', count: filtros.usuarios?.length ?? 0, onRemove: () => setFiltro('usuarios', []) },
-  ];
+  ], [filtros.clientes, filtros.filiais, filtros.usuarios, setFiltro]);
 
   const overview = useColetasOverview(filtro);
   const serie = useColetasSerie(filtro);
   const graficos = useColetasGraficos(filtro);
   const cidadesOrigem = useColetasCidadesOrigem(filtro, regiaoSelecionada);
   const filtrosTabela = useAnalyticalTableFilters();
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const paginacaoResetKey = useMemo(() => JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }), [filtro, filtrosTabela.resetKey]);
+  const paginacaoTabela = useTabelaPaginadaState(paginacaoResetKey);
   const tabela = useColetasTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
 
   usePageHeader({
@@ -66,30 +68,37 @@ export default function ColetasPage() {
     updatedAt: overview.data?.updatedAt ?? null,
   });
 
-  const statusData = graficos.data?.statusDistribuicao ?? [];
-  const slaPorFilial = graficos.data?.slaPorFilial ?? [];
-  const regioesOrigem = graficos.data?.regioesOrigem ?? [];
-  const cidadesOrigemData = cidadesOrigem.data ?? [];
-  const regioesOrigemOrdenadas = regioesOrigem
+  const statusData = graficos.data?.statusDistribuicao ?? EMPTY_ARRAY;
+  const slaPorFilial = graficos.data?.slaPorFilial ?? EMPTY_ARRAY;
+  const regioesOrigem = graficos.data?.regioesOrigem ?? EMPTY_ARRAY;
+  const cidadesOrigemData = cidadesOrigem.data ?? EMPTY_ARRAY;
+  const serieData = serie.data ?? EMPTY_ARRAY;
+  const tabelaConteudo = tabela.data?.conteudo ?? EMPTY_ARRAY;
+  const usuariosNomes = useMemo(() => (usuarios.data ?? EMPTY_ARRAY).map((item) => item.nome), [usuarios.data]);
+  const regioesOrigemOrdenadas = useMemo(() => regioesOrigem
     .map((item) => ({ nome: item.regiao, totalColetas: item.totalColetas, pesoTaxado: item.pesoTaxado }))
-    .sort((a, b) => b.totalColetas - a.totalColetas);
-  const cidadesOrigemOrdenadas = cidadesOrigemData
+    .sort((a, b) => b.totalColetas - a.totalColetas), [regioesOrigem]);
+  const cidadesOrigemOrdenadas = useMemo(() => cidadesOrigemData
     .map((item) => ({ nome: item.cidade, totalColetas: item.totalColetas, pesoTaxado: item.pesoTaxado }))
-    .sort((a, b) => b.totalColetas - a.totalColetas);
-  const origemDataCompleta = regiaoSelecionada ? cidadesOrigemOrdenadas : regioesOrigemOrdenadas;
-  const origemData = origemDataCompleta.slice(0, origemLimite);
-  const regiaoEmFocoValida = regiaoEmFoco && regioesOrigemOrdenadas.some((item) => item.nome === regiaoEmFoco);
-  const regiaoDestinoDrilldown = regiaoSelecionada ?? (regiaoEmFocoValida ? regiaoEmFoco : regioesOrigemOrdenadas[0]?.nome ?? null);
+    .sort((a, b) => b.totalColetas - a.totalColetas), [cidadesOrigemData]);
+  const origemData = useMemo(() => {
+    const origemDataCompleta = regiaoSelecionada ? cidadesOrigemOrdenadas : regioesOrigemOrdenadas;
+    return origemDataCompleta.slice(0, origemLimite);
+  }, [cidadesOrigemOrdenadas, origemLimite, regiaoSelecionada, regioesOrigemOrdenadas]);
+  const regiaoDestinoDrilldown = useMemo(() => {
+    const regiaoEmFocoValida = regiaoEmFoco && regioesOrigemOrdenadas.some((item) => item.nome === regiaoEmFoco);
+    return regiaoSelecionada ?? (regiaoEmFocoValida ? regiaoEmFoco : regioesOrigemOrdenadas[0]?.nome ?? null);
+  }, [regiaoEmFoco, regiaoSelecionada, regioesOrigemOrdenadas]);
   const podeDrillDownOrigem = !regiaoSelecionada && Boolean(regiaoDestinoDrilldown);
-  const agingMap = new Map((graficos.data?.agingAbertas ?? []).map((item) => [item.faixa, item.total]));
-  const aging = AGING_BUCKETS.map((faixa) => ({ faixa, total: agingMap.get(faixa) ?? 0 }));
-  const statusTabelaOptions = combinarStatusOptions(
+  const agingMap = useMemo(() => new Map((graficos.data?.agingAbertas ?? EMPTY_ARRAY).map((item) => [item.faixa, item.total])), [graficos.data?.agingAbertas]);
+  const aging = useMemo(() => AGING_BUCKETS.map((faixa) => ({ faixa, total: agingMap.get(faixa) ?? 0 })), [agingMap]);
+  const statusTabelaOptions = useMemo(() => combinarStatusOptions(
     statusData.map((item) => item.status),
-    (tabela.data?.conteudo ?? []).map((item) => item.status),
+    tabelaConteudo.map((item) => item.status),
     filtros.status,
-  );
+  ), [filtros.status, statusData, tabelaConteudo]);
 
-  const statusOption: EChartsOption = {
+  const statusOption: EChartsOption = useMemo(() => ({
     grid: { top: 24, right: 18, bottom: 18, left: 34, containLabel: true },
     xAxis: {
       type: 'category',
@@ -106,9 +115,9 @@ export default function ColetasPage() {
       barMaxWidth: 42,
       itemStyle: { color: CORES.primaria, borderRadius: [4, 4, 0, 0] },
     }],
-  };
+  }), [statusData]);
 
-  const slaOption: EChartsOption = {
+  const slaOption: EChartsOption = useMemo(() => ({
     grid: { top: 20, right: 18, bottom: 24, left: 10, containLabel: true },
     xAxis: { type: 'value', max: 100 },
     yAxis: {
@@ -132,9 +141,9 @@ export default function ColetasPage() {
       barMaxWidth: 16,
       itemStyle: { color: CORES.sucesso, borderRadius: [0, 4, 4, 0] },
     }],
-  };
+  }), [slaPorFilial]);
 
-  const origemOption: EChartsOption = {
+  const origemOption: EChartsOption = useMemo(() => ({
     legend: { show: false },
     grid: { top: 28, right: 54, bottom: 34, left: 42, containLabel: true },
     tooltip: {
@@ -202,47 +211,51 @@ export default function ColetasPage() {
         lineStyle: { color: CORES.secundaria, width: 2 },
       },
     ],
-  };
+  }), [origemData, regiaoSelecionada]);
 
-  const origemEvents = {
-    click: (params: unknown) => {
-      if (regiaoSelecionada) {
-        return;
-      }
-      const nome = (params as { name?: string }).name;
-      if (nome) {
-        setRegiaoEmFoco(nome);
-        setRegiaoSelecionada(nome);
-      }
-    },
-    mouseover: (params: unknown) => {
-      if (regiaoSelecionada) {
-        return;
-      }
-      const nome = (params as { name?: string }).name;
-      if (nome) {
-        setRegiaoEmFoco(nome);
-      }
-    },
-  };
+  const handleOrigemClick = useCallback((params: unknown) => {
+    if (regiaoSelecionada) {
+      return;
+    }
+    const nome = (params as { name?: string }).name;
+    if (nome) {
+      setRegiaoEmFoco(nome);
+      setRegiaoSelecionada(nome);
+    }
+  }, [regiaoSelecionada]);
 
-  const fazerDrillUpOrigem = () => {
+  const handleOrigemMouseOver = useCallback((params: unknown) => {
+    if (regiaoSelecionada) {
+      return;
+    }
+    const nome = (params as { name?: string }).name;
+    if (nome) {
+      setRegiaoEmFoco(nome);
+    }
+  }, [regiaoSelecionada]);
+
+  const origemEvents = useMemo(() => ({
+    click: handleOrigemClick,
+    mouseover: handleOrigemMouseOver,
+  }), [handleOrigemClick, handleOrigemMouseOver]);
+
+  const fazerDrillUpOrigem = useCallback(() => {
     if (!regiaoSelecionada) {
       return;
     }
     setRegiaoEmFoco(regiaoSelecionada);
     setRegiaoSelecionada(null);
-  };
+  }, [regiaoSelecionada]);
 
-  const fazerDrillDownOrigem = () => {
+  const fazerDrillDownOrigem = useCallback(() => {
     if (!podeDrillDownOrigem || !regiaoDestinoDrilldown) {
       return;
     }
     setRegiaoEmFoco(regiaoDestinoDrilldown);
     setRegiaoSelecionada(regiaoDestinoDrilldown);
-  };
+  }, [podeDrillDownOrigem, regiaoDestinoDrilldown]);
 
-  const origemActions = (
+  const origemActions = useMemo(() => (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <select
         aria-label="Quantidade exibida"
@@ -311,9 +324,9 @@ export default function ColetasPage() {
         </button>
       </div>
     </div>
-  );
+  ), [fazerDrillDownOrigem, fazerDrillUpOrigem, origemLimite, podeDrillDownOrigem, regiaoDestinoDrilldown, regiaoSelecionada]);
 
-  const agingOption: EChartsOption = {
+  const agingOption: EChartsOption = useMemo(() => ({
     grid: { top: 22, right: 18, bottom: 32, left: 34, containLabel: true },
     xAxis: { type: 'category', data: aging.map((item) => item.faixa) },
     yAxis: { type: 'value' },
@@ -323,9 +336,9 @@ export default function ColetasPage() {
       barMaxWidth: 72,
       itemStyle: { color: CORES.aviso, borderRadius: [4, 4, 0, 0] },
     }],
-  };
+  }), [aging]);
 
-  const colunas: ColunaTabelaAnalitica<ColetaResumoRow>[] = [
+  const colunas: ColunaTabelaAnalitica<ColetaResumoRow>[] = useMemo(() => [
     { chave: 'id', label: 'ID', fixo: true, filtroTabela: 'codigo' },
     { chave: 'coleta', label: 'Coleta' },
     { chave: 'solicitacao', label: 'Solicitação' },
@@ -337,7 +350,7 @@ export default function ColetasPage() {
     { chave: 'pesoTaxado', label: 'Peso', formato: (valor) => formatarPeso(Number(valor ?? 0)) },
     { chave: 'valorNf', label: 'Valor NF', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'numeroTentativas', label: 'Tentativas' },
-  ];
+  ], []);
 
   return (
     <div className="w-full">
@@ -351,21 +364,21 @@ export default function ColetasPage() {
         />
         <AsyncMultiSelect
           label="Filiais"
-          opcoes={filiais.data ?? []}
+          opcoes={filiais.data ?? EMPTY_ARRAY}
           selecionados={filtros.filiais ?? []}
           onChange={(valores) => setFiltro('filiais', valores)}
           isLoading={filiais.isLoading}
         />
         <AsyncMultiSelect
           label="Clientes"
-          opcoes={clientes.data ?? []}
+          opcoes={clientes.data ?? EMPTY_ARRAY}
           selecionados={filtros.clientes ?? []}
           onChange={(valores) => setFiltro('clientes', valores)}
           isLoading={clientes.isLoading}
         />
         <AsyncMultiSelect
           label="Usuários"
-          opcoes={(usuarios.data ?? []).map((item) => item.nome)}
+          opcoes={usuariosNomes}
           selecionados={filtros.usuarios ?? []}
           onChange={(valores) => setFiltro('usuarios', valores)}
           isLoading={usuarios.isLoading}
@@ -376,7 +389,7 @@ export default function ColetasPage() {
       {overview.data && <ColetasKpiGrid overview={overview.data} />}
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <ColetasTrend dados={serie.data ?? []} isLoading={serie.isLoading} />
+        <ColetasTrend dados={serieData} isLoading={serie.isLoading} />
         <ChartWrapper titulo="Distribuição por Status" option={statusOption} isLoading={graficos.isLoading} isEmpty={statusData.length === 0} />
         <ChartWrapper titulo="SLA por Filial" option={slaOption} isLoading={graficos.isLoading} isEmpty={slaPorFilial.length === 0} />
       </div>
@@ -399,7 +412,7 @@ export default function ColetasPage() {
       </div>
       <AnalyticalDataTable
         titulo="Coletas Analíticas"
-        dados={tabela.data?.conteudo ?? []}
+        dados={tabelaConteudo}
         colunas={colunas}
         chaveLinha="id"
         filtros={filtrosTabela.filters}
