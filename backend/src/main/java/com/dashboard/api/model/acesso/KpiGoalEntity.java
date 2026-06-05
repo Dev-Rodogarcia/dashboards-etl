@@ -14,12 +14,16 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(
         name = "kpi_goals",
         schema = "acesso",
-        uniqueConstraints = @UniqueConstraint(name = "UQ_kpi_goals_branch_indicator", columnNames = {"branch_id", "indicator_key"})
+        uniqueConstraints = @UniqueConstraint(
+                name = "UQ_kpi_goals_branch_indicator_competencia",
+                columnNames = {"branch_id", "indicator_key", "competencia"}
+        )
 )
 public class KpiGoalEntity {
 
@@ -35,6 +39,9 @@ public class KpiGoalEntity {
 
     @Column(name = "goal_value", nullable = false, precision = 9, scale = 3)
     private BigDecimal goalValue;
+
+    @Column(name = "competencia", nullable = false)
+    private LocalDate competencia;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "updated_by_user_id")
@@ -65,6 +72,8 @@ public class KpiGoalEntity {
     public void setIndicatorKey(String indicatorKey) { this.indicatorKey = indicatorKey; }
     public BigDecimal getGoalValue() { return goalValue; }
     public void setGoalValue(BigDecimal goalValue) { this.goalValue = goalValue; }
+    public LocalDate getCompetencia() { return competencia; }
+    public void setCompetencia(LocalDate competencia) { this.competencia = competencia; }
     public UsuarioEntity getUpdatedByUser() { return updatedByUser; }
     public void setUpdatedByUser(UsuarioEntity updatedByUser) { this.updatedByUser = updatedByUser; }
     public Instant getCreatedAt() { return createdAt; }

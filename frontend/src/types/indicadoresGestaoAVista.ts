@@ -25,12 +25,14 @@ export interface KpiGoalUser {
 
 export interface KpiGoalBranchOverride {
   branchId: string;
+  competencia: string;
   goals: KpiGoalsMap;
   updatedAt: string | null;
   updatedBy: KpiGoalUser | null;
 }
 
 export interface KpiGoalsFullResponse {
+  competencia: string;
   global: KpiGoalsMap;
   branches: KpiGoalBranchOverride[];
 }
@@ -38,16 +40,20 @@ export interface KpiGoalsFullResponse {
 export interface KpiGoalEffectiveResponse {
   branchId: string;
   source: KpiGoalSource;
+  competencia: string;
   goals: KpiGoalsMap;
 }
 
 export interface KpiGoalsUpdatePayload {
   goals: KpiGoalsMap;
+  forceOverride?: boolean | null;
+  competencia?: string;
 }
 
 export interface KpiGoalHistoryItem {
   branchId: string | null;
   indicatorKey: KpiGoalIndicatorKey;
+  competencia: string;
   oldValue: number | null;
   newValue: number | null;
   updatedBy: KpiGoalUser | null;
@@ -63,6 +69,7 @@ export interface KpiGoalConflictResponse {
 export interface KpiGoalIndicatorOverride {
   branchId: string;
   branchName: string;
+  competencia: string;
   goalValue: number;
   updatedAt: string | null;
   updatedBy: KpiGoalUser | null;
@@ -70,6 +77,7 @@ export interface KpiGoalIndicatorOverride {
 
 export interface KpiGoalOverridesResponse {
   indicatorKey: KpiGoalIndicatorKey;
+  competencia: string;
   globalGoal: number;
   overrides: KpiGoalIndicatorOverride[];
 }

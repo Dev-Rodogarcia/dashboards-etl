@@ -71,6 +71,7 @@ import {
   type GoalMode,
 } from '../utils/indicadoresGestaoVistaUi';
 import { buildMetaComparisonOption, buildRankingOption } from '../utils/indicadoresGestaoVistaCharts';
+import { normalizarCompetenciaApi } from '../utils/competencia';
 
 type SectionId = 'performance' | 'coletores' | 'cubagem' | 'indenizacao' | 'horarios';
 
@@ -183,9 +184,11 @@ export default function IndicadoresGestaoAVistaPage() {
   const [expandedSection, setExpandedSection] = useState<SectionId | null>(null);
   const [goalsPanelOpen, setGoalsPanelOpen] = useState(false);
   const [goalsPanelBranchId, setGoalsPanelBranchId] = useState('');
+  const [goalsPanelCompetencia, setGoalsPanelCompetencia] = useState(() => normalizarCompetenciaApi(dataInicio));
   const [goalsHistoryPage, setGoalsHistoryPage] = useState(1);
   const dataInicioIndicadores = dataInicio;
   const dataFimIndicadores = dataFim;
+  const competenciaFiltroGlobal = useMemo(() => normalizarCompetenciaApi(dataInicioIndicadores), [dataInicioIndicadores]);
   const filtroBase: IndicadoresGestaoVistaFiltro = { dataInicio: dataInicioIndicadores, dataFim: dataFimIndicadores, filiais: filtros.filiais };
   const filtroColetores: IndicadoresGestaoVistaFiltro = filtroBase;
   const filiaisSelecionadas = filtros.filiais ?? [];
@@ -247,14 +250,14 @@ export default function IndicadoresGestaoAVistaPage() {
     horariosPaginacao.tamanhoPagina,
     expandedSection === 'horarios' && horariosSecondaryEnabled,
   );
-  const kpiGoals = useKpiGoalsEffective(goalBranchId);
+  const kpiGoals = useKpiGoalsEffective(goalBranchId, competenciaFiltroGlobal);
   const canFetchGoalOverrides = kpiGoals.isSuccess;
-  const performanceOverrides = useKpiGoalOverrides('delivery_performance', canFetchGoalOverrides);
-  const coletoresOverrides = useKpiGoalOverrides('collector_usage', canFetchGoalOverrides);
-  const cubagemOverrides = useKpiGoalOverrides('cargo_cubage', canFetchGoalOverrides);
-  const indenizacaoOverrides = useKpiGoalOverrides('cargo_indemnity', canFetchGoalOverrides);
-  const horariosOverrides = useKpiGoalOverrides('cutoff_time', canFetchGoalOverrides);
-  const managerKpiGoals = useKpiGoalsFull(canManageKpiGoals && goalsPanelOpen);
+  const performanceOverrides = useKpiGoalOverrides('delivery_performance', competenciaFiltroGlobal, canFetchGoalOverrides);
+  const coletoresOverrides = useKpiGoalOverrides('collector_usage', competenciaFiltroGlobal, canFetchGoalOverrides);
+  const cubagemOverrides = useKpiGoalOverrides('cargo_cubage', competenciaFiltroGlobal, canFetchGoalOverrides);
+  const indenizacaoOverrides = useKpiGoalOverrides('cargo_indemnity', competenciaFiltroGlobal, canFetchGoalOverrides);
+  const horariosOverrides = useKpiGoalOverrides('cutoff_time', competenciaFiltroGlobal, canFetchGoalOverrides);
+  const managerKpiGoals = useKpiGoalsFull(goalsPanelCompetencia, canManageKpiGoals && goalsPanelOpen);
   const managerHistory = useKpiGoalHistory(
     goalsPanelBranchId,
     goalsHistoryPage,
@@ -291,6 +294,9 @@ export default function IndicadoresGestaoAVistaPage() {
     atualizarGlobais.reset();
     atualizarFilial.reset();
     removerOverride.reset();
+    if (!goalsPanelOpen) {
+      setGoalsPanelCompetencia(competenciaFiltroGlobal);
+    }
     setGoalsPanelBranchId(goalBranchId === GLOBAL_KPI_GOAL_BRANCH_ID ? (filiais.data?.[0] ?? '') : goalBranchId);
     setGoalsHistoryPage(1);
     setGoalsPanelOpen((current) => !current);
@@ -299,26 +305,31 @@ export default function IndicadoresGestaoAVistaPage() {
   async function aplicarMetasGlobais(kpiGoalValues: KpiGoalsMap) {
     atualizarFilial.reset();
     removerOverride.reset();
-    await atualizarGlobais.mutateAsync({ goals: kpiGoalValues });
+    await atualizarGlobais.mutateAsync({ goals: kpiGoalValues, competencia: goalsPanelCompetencia });
     setGoalsHistoryPage(1);
   }
 
   async function salvarMetasFilial(branchId: string, kpiGoalValues: KpiGoalsMap) {
     atualizarGlobais.reset();
     removerOverride.reset();
-    await atualizarFilial.mutateAsync({ branchId, payload: { goals: kpiGoalValues } });
+    await atualizarFilial.mutateAsync({ branchId, payload: { goals: kpiGoalValues, competencia: goalsPanelCompetencia } });
     setGoalsHistoryPage(1);
   }
 
   async function removerOverrideFilial(branchId: string) {
     atualizarGlobais.reset();
     atualizarFilial.reset();
-    await removerOverride.mutateAsync(branchId);
+    await removerOverride.mutateAsync({ branchId, competencia: goalsPanelCompetencia });
     setGoalsHistoryPage(1);
   }
 
   function alterarFilialPainelMetas(branchId: string) {
     setGoalsPanelBranchId(branchId);
+    setGoalsHistoryPage(1);
+  }
+
+  function alterarCompetenciaPainelMetas(competencia: string) {
+    setGoalsPanelCompetencia(normalizarCompetenciaApi(competencia));
     setGoalsHistoryPage(1);
   }
 
@@ -802,6 +813,7 @@ export default function IndicadoresGestaoAVistaPage() {
         <KpiGoalsManagerPanel
           open={goalsPanelOpen}
           branchId={goalsPanelBranchId}
+          competencia={goalsPanelCompetencia}
           branchOptions={goalBranchOptions}
           data={managerKpiGoals.data}
           history={managerHistory.data}
@@ -812,6 +824,7 @@ export default function IndicadoresGestaoAVistaPage() {
           error={managerKpiGoals.error}
           saveError={managerSaveError}
           onBranchChange={alterarFilialPainelMetas}
+          onCompetenciaChange={alterarCompetenciaPainelMetas}
           onApplyGlobal={aplicarMetasGlobais}
           onSaveBranch={salvarMetasFilial}
           onRemoveOverride={removerOverrideFilial}

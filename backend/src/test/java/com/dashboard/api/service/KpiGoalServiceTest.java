@@ -10,6 +10,7 @@ import com.dashboard.api.repository.acesso.KpiGoalHistoryRepository;
 import com.dashboard.api.repository.acesso.KpiGoalRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -34,6 +35,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KpiGoalServiceTest {
 
+    private static final LocalDate COMPETENCIA = LocalDate.of(2026, 6, 1);
+
     @Mock
     private KpiGoalRepository repository;
     @Mock
@@ -50,12 +53,14 @@ class KpiGoalServiceTest {
 
     @Test
     void buscarMetaEfetivaDeveUsarOverrideDepoisGlobalDepoisDefault() {
-        when(repository.findGlobalGoals()).thenReturn(List.of(goal(null, "collector_usage", "91")));
-        when(repository.findAllByBranchId("OSASCO")).thenReturn(List.of(goal("OSASCO", "delivery_performance", "92")));
+        when(repository.findGlobalGoalsByCompetencia(COMPETENCIA)).thenReturn(List.of(goal(null, "collector_usage", "91")));
+        when(repository.findAllByBranchIdAndCompetencia("OSASCO", COMPETENCIA))
+                .thenReturn(List.of(goal("OSASCO", "delivery_performance", "92")));
 
-        KpiGoalEffectiveDTO dto = service.buscarMetaEfetiva("OSASCO");
+        KpiGoalEffectiveDTO dto = service.buscarMetaEfetiva("OSASCO", "2026-06");
 
         assertThat(dto.source()).isEqualTo(KpiGoalService.SOURCE_BRANCH_OVERRIDE);
+        assertThat(dto.competencia()).isEqualTo(COMPETENCIA);
         assertThat(dto.goals())
                 .containsEntry("delivery_performance", new BigDecimal("92"))
                 .containsEntry("collector_usage", new BigDecimal("91"))
@@ -66,30 +71,32 @@ class KpiGoalServiceTest {
 
     @Test
     void buscarMetaEfetivaGlobalDeveAceitarBranchIdGlobal() {
-        when(repository.findGlobalGoals()).thenReturn(List.of(goal(null, "delivery_performance", "94")));
+        when(repository.findGlobalGoalsByCompetencia(COMPETENCIA)).thenReturn(List.of(goal(null, "delivery_performance", "94")));
 
-        KpiGoalEffectiveDTO dto = service.buscarMetaEfetiva("GLOBAL");
+        KpiGoalEffectiveDTO dto = service.buscarMetaEfetiva("GLOBAL", "2026-06");
 
         assertThat(dto.branchId()).isEqualTo("GLOBAL");
         assertThat(dto.source()).isEqualTo(KpiGoalService.SOURCE_GLOBAL);
+        assertThat(dto.competencia()).isEqualTo(COMPETENCIA);
         assertThat(dto.goals()).containsEntry("delivery_performance", new BigDecimal("94"));
     }
 
     @Test
     void buscarMetaEfetivaDevePropagarFalhaQuandoTabelaIndisponivel() {
-        when(repository.findGlobalGoals()).thenThrow(new DataAccessResourceFailureException("schema ausente"));
+        when(repository.findGlobalGoalsByCompetencia(any())).thenThrow(new DataAccessResourceFailureException("schema ausente"));
 
-        assertThatThrownBy(() -> service.buscarMetaEfetiva("GLOBAL"))
+        assertThatThrownBy(() -> service.buscarMetaEfetiva("GLOBAL", "2026-06"))
                 .isInstanceOf(DataAccessResourceFailureException.class);
     }
 
     @Test
     void atualizarGlobalDeveRetornarConflitoQuandoHaMetaEspecifica() {
-        when(repository.findAllBranchOverrides())
+        when(repository.findAllBranchOverridesByCompetencia(COMPETENCIA))
                 .thenReturn(List.of(goal("SPO", "delivery_performance", "95")));
-        when(repository.findGlobalGoals()).thenReturn(List.of());
+        when(repository.findGlobalGoalsByCompetencia(COMPETENCIA)).thenReturn(List.of());
 
         assertThatThrownBy(() -> service.atualizarMetasGlobais(
+                "2026-06",
                 new KpiGoalsUpdateRequestDTO(defaultGoals(), false),
                 "admin@empresa.com"
         )).isInstanceOf(KpiGoalOverrideConflictException.class)
@@ -103,10 +110,11 @@ class KpiGoalServiceTest {
     @Test
     void atualizarGlobalComForceTambemDeveBloquearQuandoHaMetaEspecifica() {
         KpiGoalEntity override = goal("SPO", "delivery_performance", "92");
-        when(repository.findAllBranchOverrides()).thenReturn(List.of(override));
-        when(repository.findGlobalGoals()).thenReturn(List.of());
+        when(repository.findAllBranchOverridesByCompetencia(COMPETENCIA)).thenReturn(List.of(override));
+        when(repository.findGlobalGoalsByCompetencia(COMPETENCIA)).thenReturn(List.of());
 
         assertThatThrownBy(() -> service.atualizarMetasGlobais(
+                "2026-06",
                 new KpiGoalsUpdateRequestDTO(defaultGoals(), true),
                 "admin@empresa.com"
         )).isInstanceOf(KpiGoalOverrideConflictException.class);
@@ -120,12 +128,13 @@ class KpiGoalServiceTest {
         Map<String, BigDecimal> goals = defaultGoals();
         goals.put("delivery_performance", BigDecimal.valueOf(92));
         when(usuarioRepository.findByEmailIgnoreCase("admin@empresa.com")).thenReturn(Optional.of(usuario));
-        when(repository.findGlobalGoals()).thenReturn(List.of());
-        when(repository.findAllByBranchId("OSASCO")).thenReturn(List.of());
+        when(repository.findGlobalGoalsByCompetencia(COMPETENCIA)).thenReturn(List.of());
+        when(repository.findAllByBranchIdAndCompetencia("OSASCO", COMPETENCIA)).thenReturn(List.of());
         when(repository.save(any(KpiGoalEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.atualizarMetasFilial(
                 "OSASCO",
+                "2026-06",
                 new KpiGoalsUpdateRequestDTO(goals, null),
                 "admin@empresa.com"
         );
@@ -135,6 +144,7 @@ class KpiGoalServiceTest {
         KpiGoalEntity salvo = captor.getValue();
         assertThat(salvo.getBranchId()).isEqualTo("OSASCO");
         assertThat(salvo.getIndicatorKey()).isEqualTo("delivery_performance");
+        assertThat(salvo.getCompetencia()).isEqualTo(COMPETENCIA);
         assertThat(salvo.getGoalValue()).isEqualByComparingTo("92.000");
         assertThat(salvo.getUpdatedByUser()).isSameAs(usuario);
     }
@@ -168,15 +178,16 @@ class KpiGoalServiceTest {
     @Test
     void buscarOverridesPorIndicadorDeveRetornarMetasEspecificasDoIndicador() {
         UsuarioEntity usuario = usuario("Admin");
-        when(repository.findGlobalGoals()).thenReturn(List.of(goal(null, "collector_usage", "90")));
+        when(repository.findGlobalGoalsByCompetencia(COMPETENCIA)).thenReturn(List.of(goal(null, "collector_usage", "90")));
         KpiGoalEntity divergente = goal("SPO", "collector_usage", "85");
         divergente.setUpdatedByUser(usuario);
         KpiGoalEntity igualGlobalAtual = goal("REC", "collector_usage", "90");
-        when(repository.findAllBranchOverridesByIndicatorKey("collector_usage"))
+        when(repository.findAllBranchOverridesByIndicatorKeyAndCompetencia("collector_usage", COMPETENCIA))
                 .thenReturn(List.of(divergente, igualGlobalAtual));
 
-        var response = service.buscarOverridesPorIndicador("collector_usage");
+        var response = service.buscarOverridesPorIndicador("collector_usage", "2026-06");
 
+        assertThat(response.competencia()).isEqualTo(COMPETENCIA);
         assertThat(response.globalGoal()).isEqualByComparingTo("90");
         assertThat(response.overrides()).hasSize(2);
         assertThat(response.overrides()).first().satisfies(override -> {
@@ -193,9 +204,9 @@ class KpiGoalServiceTest {
 
     @Test
     void buscarOverridesPorIndicadorDevePropagarFalhaQuandoTabelaIndisponivel() {
-        when(repository.findGlobalGoals()).thenThrow(new DataAccessResourceFailureException("schema ausente"));
+        when(repository.findGlobalGoalsByCompetencia(any())).thenThrow(new DataAccessResourceFailureException("schema ausente"));
 
-        assertThatThrownBy(() -> service.buscarOverridesPorIndicador("collector_usage"))
+        assertThatThrownBy(() -> service.buscarOverridesPorIndicador("collector_usage", "2026-06"))
                 .isInstanceOf(DataAccessResourceFailureException.class);
     }
 
@@ -224,8 +235,8 @@ class KpiGoalServiceTest {
         KpiGoalHistoryEntity antigo = history("OSASCO", "delivery_performance", "95", "94", usuario);
 
         when(usuarioRepository.findByEmailIgnoreCase("admin@empresa.com")).thenReturn(Optional.of(usuario));
-        when(repository.findGlobalGoals()).thenReturn(List.of());
-        when(repository.findAllByBranchId("OSASCO")).thenReturn(List.of());
+        when(repository.findGlobalGoalsByCompetencia(COMPETENCIA)).thenReturn(List.of());
+        when(repository.findAllByBranchIdAndCompetencia("OSASCO", COMPETENCIA)).thenReturn(List.of());
         when(repository.save(any(KpiGoalEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(historyRepository.countByBranchId("OSASCO")).thenReturn(201L);
         when(historyRepository.findByBranchIdOrderByUpdatedAtAsc(eq("OSASCO"), any(Pageable.class)))
@@ -233,6 +244,7 @@ class KpiGoalServiceTest {
 
         service.atualizarMetasFilial(
                 "OSASCO",
+                "2026-06",
                 new KpiGoalsUpdateRequestDTO(goals, null),
                 "admin@empresa.com"
         );
@@ -242,11 +254,12 @@ class KpiGoalServiceTest {
 
     @Test
     void buscarMetasEfetivasPorIndicadorDevePropagarFalhaQuandoTabelaIndisponivel() {
-        when(repository.findGlobalGoals()).thenThrow(new DataAccessResourceFailureException("schema ausente"));
+        when(repository.findGlobalGoalsByCompetencia(any())).thenThrow(new DataAccessResourceFailureException("schema ausente"));
 
         assertThatThrownBy(() -> service.buscarMetasEfetivasPorIndicador(
                 "collector_usage",
-                List.of("SPO", "GLOBAL", "REC")
+                List.of("SPO", "GLOBAL", "REC"),
+                COMPETENCIA
         )).isInstanceOf(DataAccessResourceFailureException.class);
     }
 
@@ -272,6 +285,7 @@ class KpiGoalServiceTest {
         KpiGoalEntity goal = new KpiGoalEntity();
         goal.setBranchId(branchId);
         goal.setIndicatorKey(indicatorKey);
+        goal.setCompetencia(COMPETENCIA);
         goal.setGoalValue(new BigDecimal(value));
         return goal;
     }
@@ -286,6 +300,7 @@ class KpiGoalServiceTest {
         KpiGoalHistoryEntity history = new KpiGoalHistoryEntity();
         history.setBranchId(branchId);
         history.setIndicatorKey(indicatorKey);
+        history.setCompetencia(COMPETENCIA);
         history.setOldValue(new BigDecimal(oldValue));
         history.setNewValue(new BigDecimal(newValue));
         history.setUpdatedByUser(usuario);

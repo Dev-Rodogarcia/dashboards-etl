@@ -3,6 +3,8 @@ BEGIN
     IF SCHEMA_ID(N'acesso') IS NOT NULL
        AND OBJECT_ID(N'acesso.kpi_goals', N'U') IS NOT NULL
     BEGIN
+        DECLARE @competencia_kpi_goals DATE = DATEFROMPARTS(YEAR(SYSUTCDATETIME()), MONTH(SYSUTCDATETIME()), 1)
+
         DECLARE @kpi_goals_seed TABLE (
             indicator_key VARCHAR(60) NOT NULL PRIMARY KEY,
             goal_value DECIMAL(9, 3) NOT NULL
@@ -19,6 +21,7 @@ BEGIN
         INSERT INTO acesso.kpi_goals (
             branch_id,
             indicator_key,
+            competencia,
             goal_value,
             created_at,
             updated_at,
@@ -27,6 +30,7 @@ BEGIN
         SELECT
             NULL,
             seed.indicator_key,
+            @competencia_kpi_goals,
             seed.goal_value,
             SYSUTCDATETIME(),
             SYSUTCDATETIME(),
@@ -37,6 +41,7 @@ BEGIN
             FROM acesso.kpi_goals existing
             WHERE existing.branch_id IS NULL
               AND existing.indicator_key = seed.indicator_key
+              AND existing.competencia = @competencia_kpi_goals
         )
     END
 

@@ -30,13 +30,15 @@ import {
   buscarUtilizacaoColetoresTabelaPaginada,
 } from '../../api/endpoints/indicadoresGestaoAVistaServico';
 import type { IndicadoresGestaoVistaFiltro, KpiGoalIndicatorKey, KpiGoalsUpdatePayload } from '../../types/indicadoresGestaoAVista';
+import { normalizarCompetenciaApiOpcional } from '../../utils/competencia';
 
 const STALE_TIME = 5 * 60 * 1000;
 
-export function useKpiGoalsEffective(branchId: string, enabled = true) {
+export function useKpiGoalsEffective(branchId: string, competencia?: string, enabled = true) {
+  const competenciaApi = normalizarCompetenciaApiOpcional(competencia);
   return useQuery({
-    queryKey: ['kpi-goals', 'effective', branchId],
-    queryFn: () => buscarKpiGoalsEfetivos(branchId),
+    queryKey: ['kpi-goals', 'effective', branchId, competenciaApi],
+    queryFn: () => buscarKpiGoalsEfetivos(branchId, competenciaApi),
     staleTime: STALE_TIME,
     retry: false,
     refetchOnWindowFocus: false,
@@ -44,10 +46,11 @@ export function useKpiGoalsEffective(branchId: string, enabled = true) {
   });
 }
 
-export function useKpiGoalsFull(enabled = true) {
+export function useKpiGoalsFull(competencia?: string, enabled = true) {
+  const competenciaApi = normalizarCompetenciaApiOpcional(competencia);
   return useQuery({
-    queryKey: ['kpi-goals', 'full'],
-    queryFn: buscarKpiGoalsCompleto,
+    queryKey: ['kpi-goals', 'full', competenciaApi],
+    queryFn: () => buscarKpiGoalsCompleto(competenciaApi),
     staleTime: STALE_TIME,
     retry: false,
     refetchOnWindowFocus: false,
@@ -66,10 +69,11 @@ export function useKpiGoalHistory(branchId: string, pagina = 1, tamanhoPagina = 
   });
 }
 
-export function useKpiGoalOverrides(indicatorKey: KpiGoalIndicatorKey, enabled = true) {
+export function useKpiGoalOverrides(indicatorKey: KpiGoalIndicatorKey, competencia?: string, enabled = true) {
+  const competenciaApi = normalizarCompetenciaApiOpcional(competencia);
   return useQuery({
-    queryKey: ['kpi-goals', 'overrides', indicatorKey],
-    queryFn: () => buscarKpiGoalOverrides(indicatorKey),
+    queryKey: ['kpi-goals', 'overrides', indicatorKey, competenciaApi],
+    queryFn: () => buscarKpiGoalOverrides(indicatorKey, competenciaApi),
     staleTime: STALE_TIME,
     retry: false,
     refetchOnWindowFocus: false,
@@ -100,7 +104,7 @@ export function useAtualizarKpiGoalsFilial() {
 export function useRemoverKpiGoalsOverride() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (branchId: string) => removerKpiGoalsOverride(branchId),
+    mutationFn: ({ branchId, competencia }: { branchId: string; competencia?: string }) => removerKpiGoalsOverride(branchId, competencia),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kpi-goals'] });
     },

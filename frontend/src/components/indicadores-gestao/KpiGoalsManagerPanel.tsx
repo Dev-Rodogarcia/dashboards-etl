@@ -14,11 +14,13 @@ import {
 import type { PaginacaoResponse } from '../../types/common';
 import { GLOBAL_KPI_GOAL_BRANCH_ID } from '../../api/endpoints/indicadoresGestaoAVistaServico';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { competenciaParaMonthInput, formatarCompetenciaMeta, normalizarCompetenciaApi } from '../../utils/competencia';
 import { formatarDataHora } from '../../utils/formatadores';
 
 interface KpiGoalsManagerPanelProps {
   open: boolean;
   branchId: string;
+  competencia: string;
   branchOptions: string[];
   data?: KpiGoalsFullResponse;
   history?: PaginacaoResponse<KpiGoalHistoryItem>;
@@ -29,6 +31,7 @@ interface KpiGoalsManagerPanelProps {
   error: unknown;
   saveError: unknown;
   onBranchChange: (branchId: string) => void;
+  onCompetenciaChange: (competencia: string) => void;
   onApplyGlobal: (goals: KpiGoalsMap) => Promise<void>;
   onSaveBranch: (branchId: string, goals: KpiGoalsMap) => Promise<void>;
   onRemoveOverride: (branchId: string) => Promise<void>;
@@ -168,6 +171,7 @@ function GoalInputs({
 export default function KpiGoalsManagerPanel({
   open,
   branchId,
+  competencia,
   branchOptions,
   data,
   history,
@@ -178,6 +182,7 @@ export default function KpiGoalsManagerPanel({
   error,
   saveError,
   onBranchChange,
+  onCompetenciaChange,
   onApplyGlobal,
   onSaveBranch,
   onRemoveOverride,
@@ -216,6 +221,7 @@ export default function KpiGoalsManagerPanel({
   const historyCurrentPage = history?.paginaAtual ?? historyPage;
   const historyTotalPages = history?.totalPaginas ?? 0;
   const historyTotalElements = history?.totalElementos ?? 0;
+  const competenciaLabel = formatarCompetenciaMeta(competencia);
 
   useEffect(() => {
     if (!open) return;
@@ -280,7 +286,7 @@ export default function KpiGoalsManagerPanel({
             Gerenciar Metas
           </h2>
           <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
-            Metas globais, overrides por filial e histórico de alterações.
+            Metas por competência, overrides por filial e histórico de alterações.
           </p>
         </div>
         {isLoading ? (
@@ -305,9 +311,14 @@ export default function KpiGoalsManagerPanel({
       <div className="space-y-5">
         <form onSubmit={handleGlobalSubmit} className="rounded-2xl border p-4" style={{ borderColor: 'var(--color-border)' }}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-              Meta Global (aplica em todas as filiais)
-            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                Meta Global (aplica em todas as filiais)
+              </h3>
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ backgroundColor: 'rgba(33, 71, 138, 0.12)', color: 'var(--color-primary)' }}>
+                {competenciaLabel}
+              </span>
+            </div>
             <button
               type="submit"
               disabled={isLoading || isSaving || branchSpecificBranches.length > 0}
@@ -344,6 +355,9 @@ export default function KpiGoalsManagerPanel({
               <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
                 Meta Específica por Filial
               </h3>
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ backgroundColor: 'rgba(33, 71, 138, 0.12)', color: 'var(--color-primary)' }}>
+                {competenciaLabel}
+              </span>
               <span
                 className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
                 style={{
@@ -379,7 +393,7 @@ export default function KpiGoalsManagerPanel({
             </div>
           </div>
 
-          <div className="mb-4 max-w-md">
+          <div className="mb-4 grid max-w-2xl grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_12rem]">
             <label className="block space-y-1">
               <span className="text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
                 Filial
@@ -400,6 +414,19 @@ export default function KpiGoalsManagerPanel({
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
+                Competência
+              </span>
+              <input
+                type="month"
+                value={competenciaParaMonthInput(competencia)}
+                onChange={(event) => onCompetenciaChange(normalizarCompetenciaApi(event.target.value))}
+                className={`h-11 w-full rounded-xl border px-3 text-sm ${FOCUS_RING_CLASS}`}
+                style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                disabled={isSaving}
+              />
             </label>
           </div>
 
@@ -428,14 +455,17 @@ export default function KpiGoalsManagerPanel({
               ) : (
                 historyItems.map((item, index) => (
                   <div
-                    key={`${item.updatedAt}-${item.indicatorKey}-${index}`}
-                    className="flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs"
+                    key={`${item.updatedAt}-${item.indicatorKey}-${item.competencia}-${index}`}
+                    className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-xs"
                     style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-subtle)' }}
                   >
                     <span className="shrink-0 font-semibold" style={{ color: 'var(--color-text)' }}>
                       {item.updatedAt ? formatarDataHora(item.updatedAt) : '—'}
                     </span>
-                    <span className="min-w-0 flex-1 truncate" title={`${item.updatedBy?.name ?? 'Usuário não identificado'} · ${GOAL_LABELS[item.indicatorKey]}`}>
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: 'rgba(33, 71, 138, 0.10)', color: 'var(--color-primary)' }}>
+                      {formatarCompetenciaMeta(item.competencia)}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate" title={`${item.updatedBy?.name ?? 'Usuário não identificado'} · ${GOAL_LABELS[item.indicatorKey]} · ${formatarCompetenciaMeta(item.competencia)}`}>
                       {item.updatedBy?.name ?? 'Usuário não identificado'} · {GOAL_LABELS[item.indicatorKey]}
                     </span>
                     <span className="shrink-0 font-semibold" style={{ color: 'var(--color-text)' }}>
@@ -481,9 +511,14 @@ export default function KpiGoalsManagerPanel({
         </form>
 
         <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--color-border)' }}>
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-            Filiais com Meta Específica
-          </h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+              Filiais com Meta Específica
+            </h3>
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ backgroundColor: 'rgba(33, 71, 138, 0.12)', color: 'var(--color-primary)' }}>
+              {competenciaLabel}
+            </span>
+          </div>
           <div className="mt-3 space-y-2">
             {branchSpecificBranches.length === 0 ? (
               <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
@@ -526,7 +561,7 @@ export default function KpiGoalsManagerPanel({
                       ))}
                     </div>
                     <p className="mt-1 text-xs" style={{ color: 'var(--color-text-subtle)' }}>
-                      Última atualização: {branch.updatedAt ? formatarDataHora(branch.updatedAt) : '—'} · {branch.updatedBy?.name ?? 'Usuário não identificado'}
+                      {formatarCompetenciaMeta(branch.competencia)} · Última atualização: {branch.updatedAt ? formatarDataHora(branch.updatedAt) : '—'} · {branch.updatedBy?.name ?? 'Usuário não identificado'}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">

@@ -33,6 +33,7 @@ const goals: KpiGoalsMap = {
   cargo_indemnity: 2,
   cutoff_time: 98,
 };
+const competencia = '2026-05-01';
 
 describe('indicadoresGestaoAVistaServico kpi goals', () => {
   beforeEach(() => {
@@ -43,29 +44,35 @@ describe('indicadoresGestaoAVistaServico kpi goals', () => {
   });
 
   it('busca metas efetivas pelo endpoint /effective', async () => {
-    await buscarKpiGoalsEfetivos('GLOBAL');
+    await buscarKpiGoalsEfetivos('GLOBAL', competencia);
 
     expect(clienteMock.get).toHaveBeenCalledWith('/api/kpi-goals/effective', {
-      params: { branchId: 'GLOBAL' },
+      params: { branchId: 'GLOBAL', competencia },
     });
   });
 
   it('envia update global sem sobrescrever metas especificas', async () => {
-    await atualizarKpiGoalsGlobais({ goals });
+    await atualizarKpiGoalsGlobais({ goals, competencia });
 
-    expect(clienteMock.put).toHaveBeenCalledWith('/api/kpi-goals/global', { goals });
+    expect(clienteMock.put).toHaveBeenCalledWith('/api/kpi-goals/global', { goals, competencia }, {
+      params: { competencia },
+    });
   });
 
   it('envia update de filial por path', async () => {
-    await atualizarKpiGoalsFilial('SPO', { goals });
+    await atualizarKpiGoalsFilial('SPO', { goals, competencia });
 
-    expect(clienteMock.put).toHaveBeenCalledWith('/api/kpi-goals/branch/SPO', { goals });
+    expect(clienteMock.put).toHaveBeenCalledWith('/api/kpi-goals/branch/SPO', { goals, competencia }, {
+      params: { competencia },
+    });
   });
 
   it('remove override de filial por DELETE', async () => {
-    await removerKpiGoalsOverride('SPO');
+    await removerKpiGoalsOverride('SPO', competencia);
 
-    expect(clienteMock.delete).toHaveBeenCalledWith('/api/kpi-goals/branch/SPO');
+    expect(clienteMock.delete).toHaveBeenCalledWith('/api/kpi-goals/branch/SPO', {
+      params: { competencia },
+    });
   });
 
   it('busca historico limitado por filial', async () => {
@@ -85,10 +92,10 @@ describe('indicadoresGestaoAVistaServico kpi goals', () => {
   });
 
   it('busca overrides por indicador', async () => {
-    await buscarKpiGoalOverrides('collector_usage');
+    await buscarKpiGoalOverrides('collector_usage', competencia);
 
     expect(clienteMock.get).toHaveBeenCalledWith('/api/kpi-goals/overrides', {
-      params: { indicatorKey: 'collector_usage' },
+      params: { indicatorKey: 'collector_usage', competencia },
     });
   });
 

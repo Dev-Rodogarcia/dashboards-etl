@@ -71,7 +71,11 @@ public class UtilizacaoColetoresIndicadorService {
             filiaisRanking.add(item.filial());
         }
         Map<String, BigDecimal> metas = kpiGoalService != null
-                ? kpiGoalService.buscarMetasEfetivasPorIndicador(KpiGoalService.COLLECTOR_USAGE, filiaisRanking)
+                ? kpiGoalService.buscarMetasEfetivasPorIndicador(
+                        KpiGoalService.COLLECTOR_USAGE,
+                        filiaisRanking,
+                        filtro.dataInicio()
+                )
                 : Map.of();
 
         List<UtilizacaoColetoresRankingDTO> dtos = new ArrayList<>(ranking.size());

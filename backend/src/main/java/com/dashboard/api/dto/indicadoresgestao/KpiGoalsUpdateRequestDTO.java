@@ -6,6 +6,10 @@ import java.util.Map;
 
 public record KpiGoalsUpdateRequestDTO(
         @NotNull Map<String, BigDecimal> goals,
-        Boolean forceOverride
+        Boolean forceOverride,
+        String competencia
 ) {
+    public KpiGoalsUpdateRequestDTO(Map<String, BigDecimal> goals, Boolean forceOverride) {
+        this(goals, forceOverride, null);
+    }
 }

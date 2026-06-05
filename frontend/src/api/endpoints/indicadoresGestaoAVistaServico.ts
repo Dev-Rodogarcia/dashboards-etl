@@ -28,11 +28,25 @@ import type {
   UtilizacaoColetoresRow,
   UtilizacaoColetoresSeriePoint,
 } from '../../types/indicadoresGestaoAVista';
+import { normalizarCompetenciaApiOpcional } from '../../utils/competencia';
 
 const BASE = '/api/painel/indicadores-gestao-a-vista';
 const KPI_GOALS_BASE = '/api/kpi-goals';
 
 export const GLOBAL_KPI_GOAL_BRANCH_ID = 'GLOBAL';
+
+function withCompetenciaParam<TParams extends Record<string, string | number>>(
+  params: TParams,
+  competencia?: string,
+): TParams | (TParams & { competencia: string }) {
+  const competenciaApi = normalizarCompetenciaApiOpcional(competencia);
+  return competenciaApi ? { ...params, competencia: competenciaApi } : params;
+}
+
+function normalizePayloadCompetencia(payload: KpiGoalsUpdatePayload): KpiGoalsUpdatePayload {
+  const competencia = normalizarCompetenciaApiOpcional(payload.competencia);
+  return competencia ? { ...payload, competencia } : payload;
+}
 
 function withLimit(filtro: IndicadoresGestaoVistaFiltro, limite: number) {
   const params = montarQueryParams(filtro);
@@ -249,30 +263,44 @@ export async function exportarHorariosCorteCsv(filtro: IndicadoresGestaoVistaFil
   await baixarCsv(`${BASE}/horarios-corte/exportacao`, filtro, 'indicadores-horarios-corte');
 }
 
-export async function buscarKpiGoalsCompleto(): Promise<KpiGoalsFullResponse> {
-  const { data } = await clienteAxios.get<KpiGoalsFullResponse>(KPI_GOALS_BASE);
+export async function buscarKpiGoalsCompleto(competencia?: string): Promise<KpiGoalsFullResponse> {
+  const params = withCompetenciaParam({}, competencia);
+  const { data } = Object.keys(params).length > 0
+    ? await clienteAxios.get<KpiGoalsFullResponse>(KPI_GOALS_BASE, { params })
+    : await clienteAxios.get<KpiGoalsFullResponse>(KPI_GOALS_BASE);
   return data;
 }
 
-export async function buscarKpiGoalsEfetivos(branchId: string): Promise<KpiGoalEffectiveResponse> {
+export async function buscarKpiGoalsEfetivos(branchId: string, competencia?: string): Promise<KpiGoalEffectiveResponse> {
   const { data } = await clienteAxios.get<KpiGoalEffectiveResponse>(`${KPI_GOALS_BASE}/effective`, {
-    params: { branchId },
+    params: withCompetenciaParam({ branchId }, competencia),
   });
   return data;
 }
 
 export async function atualizarKpiGoalsGlobais(payload: KpiGoalsUpdatePayload): Promise<KpiGoalsFullResponse> {
-  const { data } = await clienteAxios.put<KpiGoalsFullResponse>(`${KPI_GOALS_BASE}/global`, payload);
+  const payloadNormalizado = normalizePayloadCompetencia(payload);
+  const competencia = normalizarCompetenciaApiOpcional(payloadNormalizado.competencia);
+  const { data } = competencia
+    ? await clienteAxios.put<KpiGoalsFullResponse>(`${KPI_GOALS_BASE}/global`, payloadNormalizado, { params: { competencia } })
+    : await clienteAxios.put<KpiGoalsFullResponse>(`${KPI_GOALS_BASE}/global`, payloadNormalizado);
   return data;
 }
 
 export async function atualizarKpiGoalsFilial(branchId: string, payload: KpiGoalsUpdatePayload): Promise<KpiGoalEffectiveResponse> {
-  const { data } = await clienteAxios.put<KpiGoalEffectiveResponse>(`${KPI_GOALS_BASE}/branch/${encodeURIComponent(branchId)}`, payload);
+  const payloadNormalizado = normalizePayloadCompetencia(payload);
+  const competencia = normalizarCompetenciaApiOpcional(payloadNormalizado.competencia);
+  const { data } = competencia
+    ? await clienteAxios.put<KpiGoalEffectiveResponse>(`${KPI_GOALS_BASE}/branch/${encodeURIComponent(branchId)}`, payloadNormalizado, { params: { competencia } })
+    : await clienteAxios.put<KpiGoalEffectiveResponse>(`${KPI_GOALS_BASE}/branch/${encodeURIComponent(branchId)}`, payloadNormalizado);
   return data;
 }
 
-export async function removerKpiGoalsOverride(branchId: string): Promise<KpiGoalEffectiveResponse> {
-  const { data } = await clienteAxios.delete<KpiGoalEffectiveResponse>(`${KPI_GOALS_BASE}/branch/${encodeURIComponent(branchId)}`);
+export async function removerKpiGoalsOverride(branchId: string, competencia?: string): Promise<KpiGoalEffectiveResponse> {
+  const params = withCompetenciaParam({}, competencia);
+  const { data } = Object.keys(params).length > 0
+    ? await clienteAxios.delete<KpiGoalEffectiveResponse>(`${KPI_GOALS_BASE}/branch/${encodeURIComponent(branchId)}`, { params })
+    : await clienteAxios.delete<KpiGoalEffectiveResponse>(`${KPI_GOALS_BASE}/branch/${encodeURIComponent(branchId)}`);
   return data;
 }
 
@@ -294,9 +322,9 @@ export async function buscarKpiGoalsHistoricoPaginado(
   return data;
 }
 
-export async function buscarKpiGoalOverrides(indicatorKey: KpiGoalIndicatorKey): Promise<KpiGoalOverridesResponse> {
+export async function buscarKpiGoalOverrides(indicatorKey: KpiGoalIndicatorKey, competencia?: string): Promise<KpiGoalOverridesResponse> {
   const { data } = await clienteAxios.get<KpiGoalOverridesResponse>(`${KPI_GOALS_BASE}/overrides`, {
-    params: { indicatorKey },
+    params: withCompetenciaParam({ indicatorKey }, competencia),
   });
   return data;
 }

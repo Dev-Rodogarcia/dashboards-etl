@@ -18,6 +18,9 @@ import com.dashboard.api.repository.acesso.KpiGoalRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -49,6 +52,8 @@ public class KpiGoalService {
     private static final String ACTION_BRANCH_OVERRIDE_REMOVED = "BRANCH_OVERRIDE_REMOVED";
     private static final int MAX_HISTORY_PAGE_SIZE = 50;
     private static final int MAX_HISTORY_ROWS_PER_SCOPE = 200;
+    private static final int MIN_COMPETENCIA_YEAR = 2000;
+    private static final int MAX_COMPETENCIA_YEAR = 2100;
 
     private static final List<String> INDICATOR_ORDER = List.of(
             DELIVERY_PERFORMANCE,
@@ -82,38 +87,70 @@ public class KpiGoalService {
 
     @Transactional(readOnly = true)
     public KpiGoalsFullDTO buscarMetasCompletas() {
-        Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas();
-        List<KpiGoalBranchDTO> branches = branchesFromOverrides(repository.findAllBranchOverrides(), globalGoals);
-        return new KpiGoalsFullDTO(globalGoals, branches);
+        return buscarMetasCompletas((String) null);
+    }
+
+    @Transactional(readOnly = true)
+    public KpiGoalsFullDTO buscarMetasCompletas(String competenciaParam) {
+        return buscarMetasCompletas(normalizarCompetencia(competenciaParam));
+    }
+
+    @Transactional(readOnly = true)
+    public KpiGoalsFullDTO buscarMetasCompletas(LocalDate competencia) {
+        LocalDate competenciaNormalizada = normalizarCompetencia(competencia);
+        Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas(competenciaNormalizada);
+        List<KpiGoalBranchDTO> branches = branchesFromOverrides(
+                repository.findAllBranchOverridesByCompetencia(competenciaNormalizada),
+                globalGoals,
+                competenciaNormalizada
+        );
+        return new KpiGoalsFullDTO(competenciaNormalizada, globalGoals, branches);
     }
 
     @Transactional(readOnly = true)
     public KpiGoalEffectiveDTO buscarMetaEfetiva(String branchId) {
+        return buscarMetaEfetiva(branchId, (String) null);
+    }
+
+    @Transactional(readOnly = true)
+    public KpiGoalEffectiveDTO buscarMetaEfetiva(String branchId, String competenciaParam) {
+        return buscarMetaEfetiva(branchId, normalizarCompetencia(competenciaParam));
+    }
+
+    @Transactional(readOnly = true)
+    public KpiGoalEffectiveDTO buscarMetaEfetiva(String branchId, LocalDate competencia) {
+        LocalDate competenciaNormalizada = normalizarCompetencia(competencia);
         String normalizedBranchId = normalizarBranchId(branchId);
-        Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas();
+        Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas(competenciaNormalizada);
         if (normalizedBranchId == null) {
-            return new KpiGoalEffectiveDTO(GLOBAL_BRANCH_ID, SOURCE_GLOBAL, globalGoals);
+            return new KpiGoalEffectiveDTO(GLOBAL_BRANCH_ID, SOURCE_GLOBAL, competenciaNormalizada, globalGoals);
         }
 
-        List<KpiGoalEntity> branchOverrides = repository.findAllByBranchId(normalizedBranchId);
+        List<KpiGoalEntity> branchOverrides = repository.findAllByBranchIdAndCompetencia(normalizedBranchId, competenciaNormalizada);
         Map<String, BigDecimal> effectiveGoals = mergeGoals(globalGoals, branchOverrides);
         String source = branchOverrides.isEmpty() ? SOURCE_GLOBAL : SOURCE_BRANCH_OVERRIDE;
-        return new KpiGoalEffectiveDTO(normalizedBranchId, source, effectiveGoals);
+        return new KpiGoalEffectiveDTO(normalizedBranchId, source, competenciaNormalizada, effectiveGoals);
     }
 
     @Transactional
     public KpiGoalsFullDTO atualizarMetasGlobais(KpiGoalsUpdateRequestDTO request, String usuarioEmail) {
+        return atualizarMetasGlobais(null, request, usuarioEmail);
+    }
+
+    @Transactional
+    public KpiGoalsFullDTO atualizarMetasGlobais(String competenciaParam, KpiGoalsUpdateRequestDTO request, String usuarioEmail) {
+        LocalDate competencia = normalizarCompetencia(competenciaParam, request);
         Map<String, BigDecimal> newGoals = normalizarGoals(request.goals());
-        List<KpiGoalEntity> branchOverrides = repository.findAllBranchOverrides();
-        Map<String, BigDecimal> currentGlobalGoals = buscarMetasGlobaisEfetivas();
-        List<KpiGoalBranchDTO> branchSpecificGoals = branchesFromOverrides(branchOverrides, currentGlobalGoals);
+        List<KpiGoalEntity> branchOverrides = repository.findAllBranchOverridesByCompetencia(competencia);
+        Map<String, BigDecimal> currentGlobalGoals = buscarMetasGlobaisEfetivas(competencia);
+        List<KpiGoalBranchDTO> branchSpecificGoals = branchesFromOverrides(branchOverrides, currentGlobalGoals, competencia);
 
         if (!branchSpecificGoals.isEmpty()) {
             throw new KpiGoalOverrideConflictException(branchSpecificGoals);
         }
 
         UsuarioEntity usuario = usuarioAutenticado(usuarioEmail);
-        Map<String, KpiGoalEntity> globalEntities = entitiesByIndicator(repository.findGlobalGoals());
+        Map<String, KpiGoalEntity> globalEntities = entitiesByIndicator(repository.findGlobalGoalsByCompetencia(competencia));
 
         for (String indicatorKey : INDICATOR_ORDER) {
             BigDecimal oldValue = currentGlobalGoals.get(indicatorKey);
@@ -121,25 +158,37 @@ public class KpiGoalService {
             KpiGoalEntity entity = globalEntities.getOrDefault(indicatorKey, new KpiGoalEntity());
             entity.setBranchId(null);
             entity.setIndicatorKey(indicatorKey);
+            entity.setCompetencia(competencia);
             entity.setGoalValue(newValue);
             entity.setUpdatedByUser(usuario);
             repository.save(entity);
 
             if (!mesmoValor(oldValue, newValue)) {
-                registrarHistorico(null, indicatorKey, oldValue, newValue, usuario, ACTION_GLOBAL_UPDATE);
+                registrarHistorico(null, indicatorKey, competencia, oldValue, newValue, usuario, ACTION_GLOBAL_UPDATE);
             }
         }
 
-        return buscarMetasCompletas();
+        return buscarMetasCompletas(competencia);
     }
 
     @Transactional
     public KpiGoalEffectiveDTO atualizarMetasFilial(String branchId, KpiGoalsUpdateRequestDTO request, String usuarioEmail) {
+        return atualizarMetasFilial(branchId, null, request, usuarioEmail);
+    }
+
+    @Transactional
+    public KpiGoalEffectiveDTO atualizarMetasFilial(
+            String branchId,
+            String competenciaParam,
+            KpiGoalsUpdateRequestDTO request,
+            String usuarioEmail
+    ) {
+        LocalDate competencia = normalizarCompetencia(competenciaParam, request);
         String normalizedBranchId = normalizarBranchOverrideId(branchId);
         Map<String, BigDecimal> newGoals = normalizarGoals(request.goals());
         UsuarioEntity usuario = usuarioAutenticado(usuarioEmail);
-        Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas();
-        List<KpiGoalEntity> currentOverrides = repository.findAllByBranchId(normalizedBranchId);
+        Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas(competencia);
+        List<KpiGoalEntity> currentOverrides = repository.findAllByBranchIdAndCompetencia(normalizedBranchId, competencia);
         Map<String, KpiGoalEntity> currentByIndicator = entitiesByIndicator(currentOverrides);
 
         for (String indicatorKey : INDICATOR_ORDER) {
@@ -152,6 +201,7 @@ public class KpiGoalService {
                     registrarHistorico(
                             normalizedBranchId,
                             indicatorKey,
+                            competencia,
                             current.getGoalValue(),
                             globalValue,
                             usuario,
@@ -167,30 +217,38 @@ public class KpiGoalService {
                 current = new KpiGoalEntity();
                 current.setBranchId(normalizedBranchId);
                 current.setIndicatorKey(indicatorKey);
+                current.setCompetencia(competencia);
             }
             current.setGoalValue(newValue);
             current.setUpdatedByUser(usuario);
             repository.save(current);
 
             if (!mesmoValor(oldValue, newValue)) {
-                registrarHistorico(normalizedBranchId, indicatorKey, oldValue, newValue, usuario, ACTION_BRANCH_UPDATE);
+                registrarHistorico(normalizedBranchId, indicatorKey, competencia, oldValue, newValue, usuario, ACTION_BRANCH_UPDATE);
             }
         }
 
-        return buscarMetaEfetiva(normalizedBranchId);
+        return buscarMetaEfetiva(normalizedBranchId, competencia);
     }
 
     @Transactional
     public KpiGoalEffectiveDTO removerOverrideFilial(String branchId, String usuarioEmail) {
+        return removerOverrideFilial(branchId, null, usuarioEmail);
+    }
+
+    @Transactional
+    public KpiGoalEffectiveDTO removerOverrideFilial(String branchId, String competenciaParam, String usuarioEmail) {
+        LocalDate competencia = normalizarCompetencia(competenciaParam);
         String normalizedBranchId = normalizarBranchOverrideId(branchId);
         UsuarioEntity usuario = usuarioAutenticado(usuarioEmail);
-        Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas();
-        List<KpiGoalEntity> overrides = repository.findAllByBranchId(normalizedBranchId);
+        Map<String, BigDecimal> globalGoals = buscarMetasGlobaisEfetivas(competencia);
+        List<KpiGoalEntity> overrides = repository.findAllByBranchIdAndCompetencia(normalizedBranchId, competencia);
 
         for (KpiGoalEntity override : overrides) {
             registrarHistorico(
                     normalizedBranchId,
                     override.getIndicatorKey(),
+                    competencia,
                     override.getGoalValue(),
                     globalGoals.get(override.getIndicatorKey()),
                     usuario,
@@ -199,7 +257,7 @@ public class KpiGoalService {
         }
         repository.deleteAll(overrides);
 
-        return new KpiGoalEffectiveDTO(normalizedBranchId, SOURCE_GLOBAL, globalGoals);
+        return new KpiGoalEffectiveDTO(normalizedBranchId, SOURCE_GLOBAL, competencia, globalGoals);
     }
 
     @Transactional(readOnly = true)
@@ -233,13 +291,20 @@ public class KpiGoalService {
 
     @Transactional(readOnly = true)
     public KpiGoalOverridesByIndicatorDTO buscarOverridesPorIndicador(String indicatorKey) {
+        return buscarOverridesPorIndicador(indicatorKey, (String) null);
+    }
+
+    @Transactional(readOnly = true)
+    public KpiGoalOverridesByIndicatorDTO buscarOverridesPorIndicador(String indicatorKey, String competenciaParam) {
+        LocalDate competencia = normalizarCompetencia(competenciaParam);
         String normalizedIndicator = normalizarIndicatorKey(indicatorKey);
-        BigDecimal globalGoal = buscarMetasGlobaisEfetivas().get(normalizedIndicator);
-        List<KpiGoalOverrideDTO> overrides = repository.findAllBranchOverridesByIndicatorKey(normalizedIndicator)
+        BigDecimal globalGoal = buscarMetasGlobaisEfetivas(competencia).get(normalizedIndicator);
+        List<KpiGoalOverrideDTO> overrides = repository.findAllBranchOverridesByIndicatorKeyAndCompetencia(normalizedIndicator, competencia)
                 .stream()
                 .map(goal -> new KpiGoalOverrideDTO(
                         goal.getBranchId(),
                         goal.getBranchId(),
+                        goal.getCompetencia(),
                         goal.getGoalValue(),
                         goal.getUpdatedAt(),
                         toUserDto(goal.getUpdatedByUser())
@@ -247,12 +312,21 @@ public class KpiGoalService {
                 .sorted(Comparator.comparing(KpiGoalOverrideDTO::branchName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
 
-        return new KpiGoalOverridesByIndicatorDTO(normalizedIndicator, globalGoal, overrides);
+        return new KpiGoalOverridesByIndicatorDTO(normalizedIndicator, competencia, globalGoal, overrides);
     }
 
     public Map<String, BigDecimal> buscarMetasEfetivasPorIndicador(String indicatorKey, Collection<String> branchIds) {
+        return buscarMetasEfetivasPorIndicador(indicatorKey, branchIds, (LocalDate) null);
+    }
+
+    public Map<String, BigDecimal> buscarMetasEfetivasPorIndicador(
+            String indicatorKey,
+            Collection<String> branchIds,
+            LocalDate competencia
+    ) {
+        LocalDate competenciaNormalizada = normalizarCompetencia(competencia);
         String normalizedIndicator = normalizarIndicatorKey(indicatorKey);
-        BigDecimal globalGoal = buscarMetasGlobaisEfetivas().get(normalizedIndicator);
+        BigDecimal globalGoal = buscarMetasGlobaisEfetivas(competenciaNormalizada).get(normalizedIndicator);
         Map<String, BigDecimal> result = new LinkedHashMap<>();
         for (String branchId : branchIds) {
             String normalizedBranch = normalizarBranchId(branchId);
@@ -264,7 +338,7 @@ public class KpiGoalService {
             return result;
         }
 
-        repository.findAllByBranchIdIn(result.keySet()).stream()
+        repository.findAllByBranchIdInAndCompetencia(result.keySet(), competenciaNormalizada).stream()
                 .filter(goal -> normalizedIndicator.equals(goal.getIndicatorKey()))
                 .forEach(goal -> result.put(goal.getBranchId(), goal.getGoalValue()));
 
@@ -276,8 +350,13 @@ public class KpiGoalService {
     }
 
     private Map<String, BigDecimal> buscarMetasGlobaisEfetivas() {
+        return buscarMetasGlobaisEfetivas(normalizarCompetencia((LocalDate) null));
+    }
+
+    private Map<String, BigDecimal> buscarMetasGlobaisEfetivas(LocalDate competencia) {
+        LocalDate competenciaNormalizada = normalizarCompetencia(competencia);
         Map<String, BigDecimal> result = defaultGoals();
-        repository.findGlobalGoals().forEach(goal -> {
+        repository.findGlobalGoalsByCompetencia(competenciaNormalizada).forEach(goal -> {
             if (VALID_INDICATORS.contains(goal.getIndicatorKey())) {
                 result.put(goal.getIndicatorKey(), goal.getGoalValue());
             }
@@ -293,7 +372,8 @@ public class KpiGoalService {
 
     private List<KpiGoalBranchDTO> branchesFromOverrides(
             List<KpiGoalEntity> overrides,
-            Map<String, BigDecimal> baseGoals
+            Map<String, BigDecimal> baseGoals,
+            LocalDate competencia
     ) {
         return overrides.stream()
                 .filter(goal -> goal.getBranchId() != null && !goal.getBranchId().isBlank())
@@ -304,12 +384,17 @@ public class KpiGoalService {
                 ))
                 .entrySet()
                 .stream()
-                .map(entry -> toBranchDto(entry.getKey(), entry.getValue(), baseGoals))
+                .map(entry -> toBranchDto(entry.getKey(), entry.getValue(), baseGoals, competencia))
                 .sorted(Comparator.comparing(KpiGoalBranchDTO::branchId, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
 
-    private KpiGoalBranchDTO toBranchDto(String branchId, List<KpiGoalEntity> overrides, Map<String, BigDecimal> baseGoals) {
+    private KpiGoalBranchDTO toBranchDto(
+            String branchId,
+            List<KpiGoalEntity> overrides,
+            Map<String, BigDecimal> baseGoals,
+            LocalDate competencia
+    ) {
         KpiGoalEntity lastUpdate = overrides.stream()
                 .max(Comparator.comparing(
                         KpiGoalEntity::getUpdatedAt,
@@ -319,6 +404,7 @@ public class KpiGoalService {
 
         return new KpiGoalBranchDTO(
                 branchId,
+                competencia,
                 mergeGoals(baseGoals, overrides),
                 lastUpdate != null ? lastUpdate.getUpdatedAt() : null,
                 lastUpdate != null ? toUserDto(lastUpdate.getUpdatedByUser()) : null
@@ -362,6 +448,41 @@ public class KpiGoalService {
             throw new IllegalArgumentException("Use o endpoint de meta global para alterar GLOBAL.");
         }
         return normalized;
+    }
+
+    private LocalDate normalizarCompetencia(String competenciaParam, KpiGoalsUpdateRequestDTO request) {
+        if (competenciaParam != null && !competenciaParam.isBlank()) {
+            return normalizarCompetencia(competenciaParam);
+        }
+        return normalizarCompetencia(request != null ? request.competencia() : null);
+    }
+
+    private LocalDate normalizarCompetencia(String competenciaParam) {
+        if (competenciaParam == null || competenciaParam.isBlank()) {
+            return normalizarCompetencia((LocalDate) null);
+        }
+
+        String valor = competenciaParam.trim();
+        try {
+            if (valor.matches("\\d{4}-\\d{2}")) {
+                return validarCompetencia(YearMonth.parse(valor).atDay(1));
+            }
+            return normalizarCompetencia(LocalDate.parse(valor));
+        } catch (DateTimeParseException ex) {
+            throw new IllegalArgumentException("Competência da meta deve estar no formato YYYY-MM ou YYYY-MM-DD.", ex);
+        }
+    }
+
+    private LocalDate normalizarCompetencia(LocalDate competencia) {
+        LocalDate base = competencia != null ? competencia : LocalDate.now();
+        return validarCompetencia(base.withDayOfMonth(1));
+    }
+
+    private LocalDate validarCompetencia(LocalDate competencia) {
+        if (competencia.getYear() < MIN_COMPETENCIA_YEAR || competencia.getYear() > MAX_COMPETENCIA_YEAR) {
+            throw new IllegalArgumentException("Ano da competência da meta deve estar entre 2000 e 2100.");
+        }
+        return competencia;
     }
 
     private Map<String, BigDecimal> normalizarGoals(Map<String, BigDecimal> goals) {
@@ -410,6 +531,7 @@ public class KpiGoalService {
     private void registrarHistorico(
             String branchId,
             String indicatorKey,
+            LocalDate competencia,
             BigDecimal oldValue,
             BigDecimal newValue,
             UsuarioEntity usuario,
@@ -418,6 +540,7 @@ public class KpiGoalService {
         KpiGoalHistoryEntity history = new KpiGoalHistoryEntity();
         history.setBranchId(branchId);
         history.setIndicatorKey(indicatorKey);
+        history.setCompetencia(competencia);
         history.setOldValue(oldValue);
         history.setNewValue(newValue);
         history.setUpdatedByUser(usuario);
@@ -451,6 +574,7 @@ public class KpiGoalService {
         return new KpiGoalHistoryDTO(
                 history.getBranchId() == null ? GLOBAL_BRANCH_ID : history.getBranchId(),
                 history.getIndicatorKey(),
+                history.getCompetencia(),
                 history.getOldValue(),
                 history.getNewValue(),
                 toUserDto(history.getUpdatedByUser()),

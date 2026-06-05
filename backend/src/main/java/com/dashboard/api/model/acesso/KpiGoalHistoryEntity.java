@@ -12,6 +12,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "kpi_goals_history", schema = "acesso")
@@ -32,6 +33,9 @@ public class KpiGoalHistoryEntity {
 
     @Column(name = "new_value", precision = 9, scale = 3)
     private BigDecimal newValue;
+
+    @Column(name = "competencia", nullable = false)
+    private LocalDate competencia;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "updated_by_user_id")
@@ -57,6 +61,8 @@ public class KpiGoalHistoryEntity {
     public void setOldValue(BigDecimal oldValue) { this.oldValue = oldValue; }
     public BigDecimal getNewValue() { return newValue; }
     public void setNewValue(BigDecimal newValue) { this.newValue = newValue; }
+    public LocalDate getCompetencia() { return competencia; }
+    public void setCompetencia(LocalDate competencia) { this.competencia = competencia; }
     public UsuarioEntity getUpdatedByUser() { return updatedByUser; }
     public void setUpdatedByUser(UsuarioEntity updatedByUser) { this.updatedByUser = updatedByUser; }
     public Instant getUpdatedAt() { return updatedAt; }

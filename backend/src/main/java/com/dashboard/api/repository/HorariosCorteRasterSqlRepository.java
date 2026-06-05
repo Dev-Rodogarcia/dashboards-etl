@@ -26,6 +26,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterDataSource {
 
+    private static final int TOLERANCIA_HORARIO_CORTE_MINUTOS = 10;
+    private static final String PARAM_TOLERANCIA_HORARIO_CORTE_MINUTOS = "toleranciaHorarioCorteMinutos";
+
     private static final List<String> FILIAIS_RASTER_PADRAO = List.of(
             "AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
             "CAS - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA",
@@ -241,12 +244,13 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                 corte_at AS horario_corte,
                 CASE
                     WHEN data_hora_real_ini_at IS NULL OR corte_at IS NULL THEN NULL
-                    WHEN data_hora_real_ini_at <= corte_at THEN CAST(1 AS BIT)
+                    WHEN data_hora_real_ini_at <= DATEADD(MINUTE, :toleranciaHorarioCorteMinutos, corte_at) THEN CAST(1 AS BIT)
                     ELSE CAST(0 AS BIT)
                 END AS saiu_no_horario,
                 CASE
                     WHEN data_hora_real_ini_at IS NULL OR corte_at IS NULL THEN NULL
-                    ELSE DATEDIFF(MINUTE, corte_at, data_hora_real_ini_at)
+                    WHEN data_hora_real_ini_at <= DATEADD(MINUTE, :toleranciaHorarioCorteMinutos, corte_at) THEN 0
+                    ELSE DATEDIFF(MINUTE, DATEADD(MINUTE, :toleranciaHorarioCorteMinutos, corte_at), data_hora_real_ini_at)
                 END AS atraso_minutos,
                 CONCAT(
                     N'Raster API | SM ',
@@ -273,7 +277,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                     data_extracao_at,
                     N'Raster API - SQL Server' AS nome_arquivo,
                     CASE
-                        WHEN data_hora_real_ini_at <= corte_at THEN 1
+                        WHEN data_hora_real_ini_at <= DATEADD(MINUTE, :toleranciaHorarioCorteMinutos, corte_at) THEN 1
                         ELSE 0
                     END AS saiu_no_horario
                 FROM calculado
@@ -427,6 +431,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
         return new MapSqlParameterSource()
                 .addValue("dataInicio", dataInicio)
                 .addValue("dataFimExclusivo", dataFim.plusDays(1))
+                .addValue(PARAM_TOLERANCIA_HORARIO_CORTE_MINUTOS, TOLERANCIA_HORARIO_CORTE_MINUTOS)
                 .addValue("escopoFiliais", escopoFiliais)
                 .addValue("escopoFiliaisVazio", escopo.acessoTotal() ? 1 : 0)
                 .addValue("filiais", filiais)

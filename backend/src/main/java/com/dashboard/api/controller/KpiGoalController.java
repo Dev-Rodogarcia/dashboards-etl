@@ -37,42 +37,48 @@ public class KpiGoalController {
 
     @GetMapping
     @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
-    public KpiGoalsFullDTO buscarCompletas() {
-        return service.buscarMetasCompletas();
+    public KpiGoalsFullDTO buscarCompletas(@RequestParam(required = false) String competencia) {
+        return service.buscarMetasCompletas(competencia);
     }
 
     @GetMapping("/effective")
     @PreAuthorize("@acessoSeguranca.podeAcessar('indicadoresGestaoAVista')")
-    public KpiGoalEffectiveDTO buscarEfetiva(@RequestParam(required = false) String branchId) {
-        return service.buscarMetaEfetiva(branchId);
+    public KpiGoalEffectiveDTO buscarEfetiva(
+            @RequestParam(required = false) String branchId,
+            @RequestParam(required = false) String competencia
+    ) {
+        return service.buscarMetaEfetiva(branchId, competencia);
     }
 
     @PutMapping("/global")
     @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
     public KpiGoalsFullDTO atualizarGlobal(
+            @RequestParam(required = false) String competencia,
             @Valid @RequestBody KpiGoalsUpdateRequestDTO request,
             Authentication authentication
     ) {
-        return service.atualizarMetasGlobais(request, usuarioLogin(authentication));
+        return service.atualizarMetasGlobais(competencia, request, usuarioLogin(authentication));
     }
 
     @PutMapping("/branch/{branchId}")
     @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
     public KpiGoalEffectiveDTO atualizarFilial(
             @PathVariable String branchId,
+            @RequestParam(required = false) String competencia,
             @Valid @RequestBody KpiGoalsUpdateRequestDTO request,
             Authentication authentication
     ) {
-        return service.atualizarMetasFilial(branchId, request, usuarioLogin(authentication));
+        return service.atualizarMetasFilial(branchId, competencia, request, usuarioLogin(authentication));
     }
 
     @DeleteMapping("/branch/{branchId}")
     @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
     public KpiGoalEffectiveDTO removerOverrideFilial(
             @PathVariable String branchId,
+            @RequestParam(required = false) String competencia,
             Authentication authentication
     ) {
-        return service.removerOverrideFilial(branchId, usuarioLogin(authentication));
+        return service.removerOverrideFilial(branchId, competencia, usuarioLogin(authentication));
     }
 
     @GetMapping("/history")
@@ -96,8 +102,11 @@ public class KpiGoalController {
 
     @GetMapping("/overrides")
     @PreAuthorize("@acessoSeguranca.podeAcessar('indicadoresGestaoAVista')")
-    public KpiGoalOverridesByIndicatorDTO overrides(@RequestParam String indicatorKey) {
-        return service.buscarOverridesPorIndicador(indicatorKey);
+    public KpiGoalOverridesByIndicatorDTO overrides(
+            @RequestParam String indicatorKey,
+            @RequestParam(required = false) String competencia
+    ) {
+        return service.buscarOverridesPorIndicador(indicatorKey, competencia);
     }
 
     @ExceptionHandler(KpiGoalOverrideConflictException.class)
