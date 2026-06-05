@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, BarChart3, Boxes, Clock3, Gauge, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import type { ColunaTabela } from '../components/shared/DataTable';
@@ -179,14 +178,12 @@ function formatarDiferencaMeta(value: number, goal: number): string {
 
 export default function IndicadoresGestaoAVistaPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
-  const [searchParams] = useSearchParams();
   const { canAccess } = usePermissions();
   const filiais = useFiliais();
   const [expandedSection, setExpandedSection] = useState<SectionId | null>(null);
   const [goalsPanelOpen, setGoalsPanelOpen] = useState(false);
   const [goalsPanelBranchId, setGoalsPanelBranchId] = useState('');
   const [goalsHistoryPage, setGoalsHistoryPage] = useState(1);
-  const filtrosIniciaisResetadosRef = useRef(false);
   const dataInicioIndicadores = dataInicio;
   const dataFimIndicadores = dataFim;
   const filtroBase: IndicadoresGestaoVistaFiltro = { dataInicio: dataInicioIndicadores, dataFim: dataFimIndicadores, filiais: filtros.filiais };
@@ -349,17 +346,6 @@ export default function IndicadoresGestaoAVistaPage() {
   }, [goalBranchOptions, goalsPanelBranchId, goalsPanelOpen]);
   const managerSaveError = atualizarGlobais.error ?? atualizarFilial.error ?? removerOverride.error;
   const managerIsSaving = atualizarGlobais.isPending || atualizarFilial.isPending || removerOverride.isPending;
-
-  useEffect(() => {
-    if (filtrosIniciaisResetadosRef.current) return;
-    filtrosIniciaisResetadosRef.current = true;
-
-    const temFiltroNaUrl = Array.from(searchParams.keys())
-      .some((key) => key === 'dataInicio' || key === 'dataFim' || key.startsWith('f.'));
-    if (temFiltroNaUrl) {
-      limparFiltros();
-    }
-  }, [limparFiltros, searchParams]);
 
   const updatedAt = latestUpdatedAt([
     performanceOverview.data?.updatedAt,

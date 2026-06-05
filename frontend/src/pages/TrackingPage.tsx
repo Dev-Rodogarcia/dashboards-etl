@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
 import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import TrackingKpiGrid from '../components/domain/tracking/TrackingKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
@@ -12,7 +11,6 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
 import { exportarTrackingCsv } from '../api/endpoints/trackingServico';
-import { useAutenticacao } from '../contexts/AutenticacaoContext';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useFiliais } from '../hooks/queries/useDimensoes';
@@ -22,7 +20,6 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { TrackingFiltro, TrackingMatrizRegiao, TrackingRawRow } from '../types/tracking';
 import { CORES, PALETA_SERIES } from '../utils/chartColors';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
-import { dataHojeLocal, dataNDiasAtrasLocal } from '../utils/dateUtils';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
@@ -275,32 +272,12 @@ function MetricCell({ label, value, danger = false }: { label: string; value: st
 }
 
 export default function TrackingPage() {
-  const { usuario } = useAutenticacao();
-  const [searchParams] = useSearchParams();
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const filiais = useFiliais();
 
-  const filiaisUsuario = useMemo(() => usuario?.filiaisPermitidasEfetivas ?? [], [usuario?.filiaisPermitidasEfetivas]);
   const filiaisDisponiveis = useMemo(() => filiais.data ?? [], [filiais.data]);
   const filialAtualSelecionada = filtros.filialAtual?.[0] ?? '';
   const dashboardHabilitado = filialAtualSelecionada.trim().length > 0 && (filtros.filialAtual?.length ?? 0) === 1;
-
-  useEffect(() => {
-    if ((filtros.filialAtual?.length ?? 0) > 0) {
-      return;
-    }
-
-    const filialPadrao = filiaisUsuario[0] ?? filiaisDisponiveis[0];
-    if (filialPadrao) {
-      setFiltro('filialAtual', [filialPadrao]);
-    }
-  }, [filiaisDisponiveis, filiaisUsuario, filtros.filialAtual?.length, setFiltro]);
-
-  useEffect(() => {
-    if (!searchParams.has('dataInicio') && !searchParams.has('dataFim')) {
-      setDataRange(dataNDiasAtrasLocal(90), dataHojeLocal());
-    }
-  }, [searchParams, setDataRange]);
 
   const filtro: TrackingFiltro = {
     dataInicio,
