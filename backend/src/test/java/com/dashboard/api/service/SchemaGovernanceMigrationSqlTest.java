@@ -38,6 +38,24 @@ class SchemaGovernanceMigrationSqlTest {
     }
 
     @Test
+    void migrationV026DeveSepararBatchAntesDeUsarColunaCompetencia() throws IOException {
+        String sql = lerMigration("V026__adicionar_competencia_kpi_goals.sql")
+                .replace("\r\n", "\n");
+
+        assertThat(sql).contains(
+                "ADD competencia DATE NULL;\nEND;\nGO\n\nDECLARE @competenciaAtual DATE = DATEFROMPARTS"
+        );
+        assertThat(sql).contains("""
+                    ADD competencia DATE NULL;
+                    END;
+                END;
+                GO
+
+                IF OBJECT_ID(N'acesso.kpi_goals_history', N'U') IS NOT NULL
+                """);
+    }
+
+    @Test
     void inicializadoresDeSchemaDevemPermanecerForaDoRuntime() {
         List<Path> arquivos = List.of(
                 Path.of("src", "main", "java", "com", "dashboard", "api", "config", "acesso", "KpiGoalsSchemaInitializer.java"),

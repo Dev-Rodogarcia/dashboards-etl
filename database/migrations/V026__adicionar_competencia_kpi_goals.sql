@@ -8,13 +8,14 @@ BEGIN
 END;
 GO
 
-DECLARE @competenciaAtual DATE = DATEFROMPARTS(YEAR(SYSUTCDATETIME()), MONTH(SYSUTCDATETIME()), 1);
-
 IF COL_LENGTH(N'acesso.kpi_goals', N'competencia') IS NULL
 BEGIN
     ALTER TABLE acesso.kpi_goals
     ADD competencia DATE NULL;
 END;
+GO
+
+DECLARE @competenciaAtual DATE = DATEFROMPARTS(YEAR(SYSUTCDATETIME()), MONTH(SYSUTCDATETIME()), 1);
 
 UPDATE acesso.kpi_goals
 SET competencia = @competenciaAtual
@@ -102,13 +103,17 @@ GO
 
 IF OBJECT_ID(N'acesso.kpi_goals_history', N'U') IS NOT NULL
 BEGIN
-    DECLARE @competenciaAtualHistorico DATE = DATEFROMPARTS(YEAR(SYSUTCDATETIME()), MONTH(SYSUTCDATETIME()), 1);
-
     IF COL_LENGTH(N'acesso.kpi_goals_history', N'competencia') IS NULL
     BEGIN
         ALTER TABLE acesso.kpi_goals_history
         ADD competencia DATE NULL;
     END;
+END;
+GO
+
+IF OBJECT_ID(N'acesso.kpi_goals_history', N'U') IS NOT NULL
+BEGIN
+    DECLARE @competenciaAtualHistorico DATE = DATEFROMPARTS(YEAR(SYSUTCDATETIME()), MONTH(SYSUTCDATETIME()), 1);
 
     UPDATE acesso.kpi_goals_history
     SET competencia = @competenciaAtualHistorico
