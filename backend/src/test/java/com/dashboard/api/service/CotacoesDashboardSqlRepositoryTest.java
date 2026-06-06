@@ -8,6 +8,7 @@ import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.Test;
@@ -68,6 +69,80 @@ class CotacoesDashboardSqlRepositoryTest {
                 .contains("SUM(CASE WHEN status_normalizado IN (N'reprovada', N'reprovado', N'perdida', N'perdido') THEN 1 ELSE 0 END) AS reprovadas")
                 .contains("CAST(COALESCE(CAST(reprovadas AS FLOAT) * 100.0 / NULLIF(total_cotacoes, 0), 0) AS DECIMAL(19,2)) AS reprovacao_percentual")
                 .doesNotContain("aprovacao");
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void buscarResumoPorClienteDeveGerarGroupByComTop40OrdenadoPorVolumeEAplicarFiltros() {
+        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(List.of());
+
+        CotacoesDashboardSqlRepository repository = new CotacoesDashboardSqlRepository(
+                jdbcTemplate,
+                new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao()),
+                escopoSemRestricao()
+        );
+
+        repository.buscarResumoPorCliente(new FiltroConsultaDTO(
+                LocalDate.of(2026, 3, 1),
+                LocalDate.of(2026, 3, 31),
+                Map.of(
+                        "filiais", List.of("SPO"),
+                        "usuarios", List.of("Maria Silva"),
+                        "clientes", List.of("ACME")
+                )
+        ));
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), paramsCaptor.capture(), any(RowMapper.class));
+
+        assertThat(sqlCaptor.getValue())
+                .contains("SELECT TOP (40)")
+                .contains("ROW_NUMBER() OVER")
+                .contains("GROUP BY agrupador_id")
+                .contains("ORDER BY volume_m3 DESC, total_cotacoes DESC, entidade")
+                .contains("COUNT(1) AS total_cotacoes")
+                .contains("SUM(CASE WHEN status_normalizado IN (N'convertida', N'convertido') THEN 1 ELSE 0 END) AS ganhas")
+                .contains("SUM(CASE WHEN (status_normalizado IS NULL OR status_normalizado NOT IN (N'convertida', N'convertido', N'reprovada', N'reprovado', N'perdida', N'perdido')) THEN 1 ELSE 0 END) AS em_aberto")
+                .contains("CAST(COALESCE(CAST(SUM(CASE WHEN status_normalizado IN (N'convertida', N'convertido') THEN 1 ELSE 0 END) AS FLOAT) * 100.0 / NULLIF(COUNT(1), 0), 0) AS DECIMAL(19,2)) AS taxa_conversao")
+                .contains("CAST(COALESCE(SUM(valor_frete), 0) AS DECIMAL(19,2)) AS frete_cotado")
+                .contains("CAST(COALESCE(SUM(CASE WHEN status_normalizado IN (N'convertida', N'convertido') THEN valor_frete ELSE 0 END), 0) AS DECIMAL(19,2)) AS frete_ganho")
+                .contains("CAST(COALESCE(SUM(volume_m3), 0) AS DECIMAL(19,2)) AS volume_m3")
+                .contains("[Filial] IN (:filtro_filiais)")
+                .contains("[Usuario Key] IN (:filtro_usuarios)")
+                .contains("[Cliente Pagador] IN (:filtro_clientes)");
+        assertThat(paramsCaptor.getValue().getValues())
+                .containsEntry("filtro_filiais", List.of("spo"))
+                .containsEntry("filtro_usuarios", List.of("maria silva"))
+                .containsEntry("filtro_clientes", List.of("acme"));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void buscarResumoPorUsuarioDeveAgruparPorChavePublicadaERotuloLegivel() {
+        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(List.of());
+
+        CotacoesDashboardSqlRepository repository = new CotacoesDashboardSqlRepository(
+                jdbcTemplate,
+                new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao()),
+                escopoSemRestricao()
+        );
+
+        repository.buscarResumoPorUsuario(new FiltroConsultaDTO(
+                LocalDate.of(2026, 3, 1),
+                LocalDate.of(2026, 3, 31),
+                Map.of()
+        ));
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
+
+        assertThat(sqlCaptor.getValue())
+                .contains("COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Usuario Key]))), N''), NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Usuário]))), N''), NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Solicitante]))), N''), N'Sem usuario') AS agrupador_id")
+                .contains("COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Usuário]))), N''), NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Solicitante]))), N''), NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Usuario Key]))), N''), N'Sem usuario') AS entidade")
+                .doesNotContain("SELECT TOP (40)");
     }
 
     private static EscopoFilialService escopoSemRestricao() {

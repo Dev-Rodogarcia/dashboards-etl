@@ -2,6 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import {
   buscarCotacoesGraficos,
   buscarCotacoesOverview,
+  buscarCotacoesResumoCliente,
+  buscarCotacoesResumoFilial,
+  buscarCotacoesResumoUsuario,
   buscarCotacoesSerie,
   buscarCotacoesTabela,
   buscarCotacoesTabelaPaginada,
@@ -11,6 +14,10 @@ import type { CotacoesFiltro } from '../../types/cotacoes';
 import type { TableApiFilters } from '../../types/tableFilters';
 
 const STALE_TIME = 5 * 60 * 1000;
+
+function hasPeriodoValido(filtro: CotacoesFiltro) {
+  return Boolean(filtro.dataInicio && filtro.dataFim);
+}
 
 export function useCotacoesOverview(filtro: CotacoesFiltro) {
   return useQuery({
@@ -48,6 +55,36 @@ export function useCotacoesTabela(filtro: CotacoesFiltro, limite = 100, enabled 
     staleTime: STALE_TIME,
     retry: 1,
     enabled,
+  });
+}
+
+export function useCotacoesResumoUsuario(filtro: CotacoesFiltro, isActive: boolean) {
+  return useQuery({
+    queryKey: ['cotacoes', 'resumo', 'usuario', filtro],
+    queryFn: () => buscarCotacoesResumoUsuario(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+    enabled: isActive && hasPeriodoValido(filtro),
+  });
+}
+
+export function useCotacoesResumoFilial(filtro: CotacoesFiltro, isActive: boolean) {
+  return useQuery({
+    queryKey: ['cotacoes', 'resumo', 'filial', filtro],
+    queryFn: () => buscarCotacoesResumoFilial(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+    enabled: isActive && hasPeriodoValido(filtro),
+  });
+}
+
+export function useCotacoesResumoCliente(filtro: CotacoesFiltro, isActive: boolean) {
+  return useQuery({
+    queryKey: ['cotacoes', 'resumo', 'cliente', filtro],
+    queryFn: () => buscarCotacoesResumoCliente(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+    enabled: isActive && hasPeriodoValido(filtro),
   });
 }
 

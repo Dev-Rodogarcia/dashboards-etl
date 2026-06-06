@@ -25,6 +25,18 @@ export interface CotacaoResumoRow {
 
 export type CotacaoRow = CotacaoResumoRow;
 
+export interface CotacoesResumoAgregado {
+  id: string;
+  entidade: string;
+  totalCotacoes: number;
+  ganhas: number;
+  emAberto: number;
+  taxaConversao: number;
+  freteCotado: number;
+  freteGanho: number;
+  volumeM3: number;
+}
+
 export interface CotacoesOverview {
   updatedAt: string;
   totalCotacoes: number;

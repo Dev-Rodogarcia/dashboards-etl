@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Building2, ChevronDown, ChevronUp, Table2, UserRound, UsersRound } from 'lucide-react';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import CotacoesKpiGrid from '../components/domain/cotacoes/CotacoesKpiGrid';
+import CotacoesResumoVisualTable, { type CotacoesResumoVisualView } from '../components/domain/cotacoes/CotacoesResumoVisualTable';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import ChartCard from '../components/shared/ChartCard';
@@ -18,7 +19,15 @@ import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useClientes, useCotacoesUsuarios, useFiliais } from '../hooks/queries/useDimensoes';
-import { useCotacoesGraficos, useCotacoesOverview, useCotacoesSerie, useCotacoesTabelaPaginada } from '../hooks/queries/useCotacoes';
+import {
+  useCotacoesGraficos,
+  useCotacoesOverview,
+  useCotacoesResumoCliente,
+  useCotacoesResumoFilial,
+  useCotacoesResumoUsuario,
+  useCotacoesSerie,
+  useCotacoesTabelaPaginada,
+} from '../hooks/queries/useCotacoes';
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useStaggeredQueryEnabled } from '../hooks/useStaggeredQueryEnabled';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
@@ -43,6 +52,7 @@ type ConversionViewMode = 'completo' | 'valor' | 'quantidade';
 type ConversionMetric = Exclude<ConversionViewMode, 'completo'>;
 type ConversionPeriodoMeses = 3 | 6 | 12;
 type TrechoMetric = 'potencial' | 'convertido';
+type CotacoesViewTab = CotacoesResumoVisualView | 'analitica';
 
 interface TrendBucket {
   key: string;
@@ -55,6 +65,12 @@ interface TrendBucket {
 }
 
 const KPI_CARD_HEIGHT_CLASS = 'h-full min-h-0';
+const COTACOES_VIEW_TABS: Array<{ value: CotacoesViewTab; label: string; icon: typeof UserRound }> = [
+  { value: 'usuario', label: 'Por Usuário', icon: UserRound },
+  { value: 'filial', label: 'Por Filial', icon: Building2 },
+  { value: 'clientes', label: 'Top 40 Clientes', icon: UsersRound },
+  { value: 'analitica', label: 'Visão Analítica', icon: Table2 },
+];
 const PERIOD_LEVELS: PeriodDrillLevel[] = ['ano', 'mes', 'dia'];
 const CONVERSION_LEVELS: ConversionDrillLevel[] = ['ano', 'mes'];
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -334,6 +350,47 @@ function SegmentedControl<T extends string>({
               color: active ? color : 'var(--color-text-muted)',
             }}
           >
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CotacoesViewTabs({
+  activeView,
+  onChange,
+}: {
+  activeView: CotacoesViewTab;
+  onChange: (view: CotacoesViewTab) => void;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Visões de cotações"
+      className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto rounded-lg border p-0.5"
+      style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
+    >
+      {COTACOES_VIEW_TABS.map((item) => {
+        const Icon = item.icon;
+        const active = item.value === activeView;
+
+        return (
+          <button
+            key={item.value}
+            type="button"
+            role="tab"
+            data-state={active ? 'active' : 'inactive'}
+            aria-selected={active}
+            onClick={() => onChange(item.value)}
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors hover:bg-[var(--color-card)] data-[state=active]:shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            style={{
+              backgroundColor: active ? 'var(--color-card)' : 'transparent',
+              color: active ? 'var(--color-text)' : 'var(--color-text-muted)',
+            }}
+          >
+            <Icon size={14} aria-hidden="true" />
             {item.label}
           </button>
         );
@@ -946,6 +1003,7 @@ function TaxasConversaoCard({
 
 export default function CotacoesPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const [activeView, setActiveView] = useState<CotacoesViewTab>('usuario');
   const [serieDrillLevel, setSerieDrillLevel] = useState<PeriodDrillLevel>('dia');
   const [funilMetric, setFunilMetric] = useState<FunnelMetric>('quantidade');
   const [funilDrillLevel, setFunilDrillLevel] = useState<PeriodDrillLevel>('dia');
@@ -989,10 +1047,12 @@ export default function CotacoesPage() {
 
   const overview = useCotacoesOverview(filtro);
   const overviewReady = overview.isSuccess && Boolean(overview.data);
-  const serieEnabled = useStaggeredQueryEnabled(overviewReady, 150);
-  const graficosEnabled = useStaggeredQueryEnabled(overviewReady, 320);
-  const conversionSerieEnabled = useStaggeredQueryEnabled(overviewReady, 520);
-  const tabelaEnabled = useStaggeredQueryEnabled(overviewReady, 850);
+  const abaAtiva = activeView;
+  const analyticalViewReady = overviewReady && abaAtiva === 'analitica';
+  const serieEnabled = useStaggeredQueryEnabled(analyticalViewReady, 150);
+  const graficosEnabled = useStaggeredQueryEnabled(analyticalViewReady, 320);
+  const conversionSerieEnabled = useStaggeredQueryEnabled(analyticalViewReady, 520);
+  const tabelaEnabled = useStaggeredQueryEnabled(analyticalViewReady, 850);
   const serie = useCotacoesSerie(filtro, serieEnabled);
   const conversionSerie = useCotacoesSerie(conversionFiltro, conversionSerieEnabled);
   const graficos = useCotacoesGraficos(filtro, graficosEnabled);
@@ -1005,6 +1065,17 @@ export default function CotacoesPage() {
     filtrosTabela.apiFilters,
     tabelaEnabled,
   );
+  const resumoUsuario = useCotacoesResumoUsuario(filtro, abaAtiva === 'usuario');
+  const resumoFilial = useCotacoesResumoFilial(filtro, abaAtiva === 'filial');
+  const resumoCliente = useCotacoesResumoCliente(filtro, abaAtiva === 'clientes');
+  const resumoVisual = abaAtiva === 'usuario'
+    ? resumoUsuario
+    : abaAtiva === 'filial'
+      ? resumoFilial
+      : resumoCliente;
+  const resumoVisualErrorMessage = resumoVisual.isError
+    ? getApiErrorMessage(resumoVisual.error, 'Erro ao carregar resumo de cotações.')
+    : null;
 
   usePageHeader({
     title: 'Cotações',
@@ -1068,7 +1139,13 @@ export default function CotacoesPage() {
 
   return (
     <div className="w-full">
-      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
+      <FilterBar
+        onClear={limparFiltros}
+        activeFilters={activeFilters}
+        dataInicio={dataInicio}
+        dataFim={dataFim}
+        actions={<CotacoesViewTabs activeView={activeView} onChange={setActiveView} />}
+      >
         <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
         <AsyncMultiSelect label="Filiais" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />
         <AsyncMultiSelect label="Clientes" opcoes={clientes.data ?? []} selecionados={filtros.clientes ?? []} onChange={(valores) => setFiltro('clientes', valores)} isLoading={clientes.isLoading} />
@@ -1079,121 +1156,132 @@ export default function CotacoesPage() {
       {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de cotações.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <CotacoesKpiGrid overview={overview.data} />}
 
-      <div className="mb-4 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-12">
-        <div className="min-h-0 xl:col-span-6">
-          <ChartWrapper
-            titulo="Cotações por Dia, Mês e Ano"
-            option={serieOption}
-            actions={<PeriodControls level={serieDrillLevel} onChange={setSerieDrillLevel as (level: never) => void} />}
-            isLoading={serie.isLoading}
-            isEmpty={(serie.data ?? []).length === 0}
-            className={KPI_CARD_HEIGHT_CLASS}
-            altura="100%"
-          />
-        </div>
-        <div className="min-h-0 xl:col-span-6">
-          <FunilComercialCard
-            funil={funil}
-            metric={funilMetric}
-            periodLevel={funilDrillLevel}
-            isLoading={graficos.isLoading}
-            onMetricChange={setFunilMetric}
-            onPeriodChange={setFunilDrillLevel}
-          />
-        </div>
-      </div>
+      {activeView === 'analitica' ? (
+        <>
+          <div className="mb-4 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-12">
+            <div className="min-h-0 xl:col-span-6">
+              <ChartWrapper
+                titulo="Cotações por Dia, Mês e Ano"
+                option={serieOption}
+                actions={<PeriodControls level={serieDrillLevel} onChange={setSerieDrillLevel as (level: never) => void} />}
+                isLoading={serie.isLoading}
+                isEmpty={(serie.data ?? []).length === 0}
+                className={KPI_CARD_HEIGHT_CLASS}
+                altura="100%"
+              />
+            </div>
+            <div className="min-h-0 xl:col-span-6">
+              <FunilComercialCard
+                funil={funil}
+                metric={funilMetric}
+                periodLevel={funilDrillLevel}
+                isLoading={graficos.isLoading}
+                onMetricChange={setFunilMetric}
+                onPeriodChange={setFunilDrillLevel}
+              />
+            </div>
+          </div>
 
-      <div className="mb-6 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2 xl:grid-cols-12">
-        <div className="h-[25rem] min-h-0 lg:col-span-2 xl:col-span-5">
-          <TaxasConversaoCard
-            buckets={conversionBuckets}
-            tipos={graficos.data?.conversaoPorTipoOperacao ?? []}
-            level={conversionLevel}
-            viewMode={conversionViewMode}
-            periodoMeses={conversionPeriodoMeses}
-            isLoading={conversionSerie.isLoading || graficos.isLoading}
-            erro={conversionSerie.isError ? getApiErrorMessage(conversionSerie.error, 'Erro ao carregar evolução das taxas de conversão.') : null}
-            onLevelChange={setConversionLevel}
-            onViewModeChange={setConversionViewMode}
-            onPeriodoChange={setConversionPeriodoMeses}
-          />
-        </div>
-        <div className="min-h-0 xl:col-span-4">
-          <ChartWrapper
-            titulo="Trechos Mais Valiosos"
-            option={trechosOption}
-            actions={(
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <SegmentedControl
-                  value={trechoMetric}
-                  options={TRECHO_METRIC_OPTIONS}
-                  onChange={setTrechoMetric}
-                  color={CORES.secundaria}
-                  ariaLabel="Métrica dos trechos mais valiosos"
-                />
-                <DrillBreadcrumb levels={TRECHO_LEVELS} level={trechoDrillLevel} color={CORES.secundaria} onChange={setTrechoDrillLevel} />
-              </div>
-            )}
-            onEvents={{
-              click: (params) => {
-                setSelectedTrecho(chartClickName(params));
-                if (trechoDrillLevel === 'trecho') setTrechoDrillLevel('origem');
-                else if (trechoDrillLevel === 'origem') setTrechoDrillLevel('destino');
-              },
-            }}
-            isLoading={graficos.isLoading}
-            isEmpty={trechosEntries.length === 0}
-            className={KPI_CARD_HEIGHT_CLASS}
-            altura="100%"
-          />
-        </div>
-        <div className="min-h-0 xl:col-span-3">
-          <ChartWrapper
-            titulo="Motivos de Perda"
-            option={motivosOption}
-            actions={<DrillBreadcrumb levels={PERDA_LEVELS} level={perdaDrillLevel} color={CORES.aviso} onChange={setPerdaDrillLevel} />}
-            onEvents={{
-              click: (params) => {
-                setSelectedPerda(chartClickName(params));
-                if (perdaDrillLevel === 'motivo') setPerdaDrillLevel('cliente');
-                else if (perdaDrillLevel === 'cliente') setPerdaDrillLevel('trecho');
-              },
-            }}
-            isLoading={graficos.isLoading}
-            isEmpty={perdasEntries.length === 0}
-            emptyMessage="Sem perdas/reprovações no período selecionado."
-            className={KPI_CARD_HEIGHT_CLASS}
-            altura="100%"
-          />
-        </div>
-      </div>
+          <div className="mb-6 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2 xl:grid-cols-12">
+            <div className="h-[25rem] min-h-0 lg:col-span-2 xl:col-span-5">
+              <TaxasConversaoCard
+                buckets={conversionBuckets}
+                tipos={graficos.data?.conversaoPorTipoOperacao ?? []}
+                level={conversionLevel}
+                viewMode={conversionViewMode}
+                periodoMeses={conversionPeriodoMeses}
+                isLoading={conversionSerie.isLoading || graficos.isLoading}
+                erro={conversionSerie.isError ? getApiErrorMessage(conversionSerie.error, 'Erro ao carregar evolução das taxas de conversão.') : null}
+                onLevelChange={setConversionLevel}
+                onViewModeChange={setConversionViewMode}
+                onPeriodoChange={setConversionPeriodoMeses}
+              />
+            </div>
+            <div className="min-h-0 xl:col-span-4">
+              <ChartWrapper
+                titulo="Trechos Mais Valiosos"
+                option={trechosOption}
+                actions={(
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <SegmentedControl
+                      value={trechoMetric}
+                      options={TRECHO_METRIC_OPTIONS}
+                      onChange={setTrechoMetric}
+                      color={CORES.secundaria}
+                      ariaLabel="Métrica dos trechos mais valiosos"
+                    />
+                    <DrillBreadcrumb levels={TRECHO_LEVELS} level={trechoDrillLevel} color={CORES.secundaria} onChange={setTrechoDrillLevel} />
+                  </div>
+                )}
+                onEvents={{
+                  click: (params) => {
+                    setSelectedTrecho(chartClickName(params));
+                    if (trechoDrillLevel === 'trecho') setTrechoDrillLevel('origem');
+                    else if (trechoDrillLevel === 'origem') setTrechoDrillLevel('destino');
+                  },
+                }}
+                isLoading={graficos.isLoading}
+                isEmpty={trechosEntries.length === 0}
+                className={KPI_CARD_HEIGHT_CLASS}
+                altura="100%"
+              />
+            </div>
+            <div className="min-h-0 xl:col-span-3">
+              <ChartWrapper
+                titulo="Motivos de Perda"
+                option={motivosOption}
+                actions={<DrillBreadcrumb levels={PERDA_LEVELS} level={perdaDrillLevel} color={CORES.aviso} onChange={setPerdaDrillLevel} />}
+                onEvents={{
+                  click: (params) => {
+                    setSelectedPerda(chartClickName(params));
+                    if (perdaDrillLevel === 'motivo') setPerdaDrillLevel('cliente');
+                    else if (perdaDrillLevel === 'cliente') setPerdaDrillLevel('trecho');
+                  },
+                }}
+                isLoading={graficos.isLoading}
+                isEmpty={perdasEntries.length === 0}
+                emptyMessage="Sem perdas/reprovações no período selecionado."
+                className={KPI_CARD_HEIGHT_CLASS}
+                altura="100%"
+              />
+            </div>
+          </div>
 
-      <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="cotacoes" onExport={() => exportarCotacoesCsv(filtro, filtrosTabela.apiFilters)} />
-      </div>
-      <AnalyticalDataTable
-        titulo="Cotações Analíticas"
-        dados={tabela.data?.conteudo ?? []}
-        colunas={colunas}
-        chaveLinha="numeroCotacao"
-        filtros={filtrosTabela.filters}
-        hiddenActiveCount={filtrosTabela.hiddenActiveCount}
-        hasAnyFilter={filtrosTabela.hasAnyFilter}
-        onTextFilterChange={filtrosTabela.setTextFilter}
-        onMultiFilterChange={filtrosTabela.setMultiFilter}
-        onColumnFilterChange={filtrosTabela.setColumnFilter}
-        onClearFilters={filtrosTabela.clearTableFilters}
-        statusOptions={statusTabelaOptions}
-        statusOptionsLoading={graficos.isLoading}
-        isLoading={tabela.isLoading}
-        error={tabela.error}
-        errorFallbackMessage="Erro ao carregar cotações analíticas."
-        totalRegistros={tabela.data?.totalElementos}
-        paginaAtual={paginacaoTabela.pagina}
-        tamanhoPagina={paginacaoTabela.tamanhoPagina}
-        onPaginaChange={paginacaoTabela.setPagina}
-        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
-      />
+          <div className="mb-3 flex justify-end">
+            <ExportButton nomeArquivo="cotacoes" onExport={() => exportarCotacoesCsv(filtro, filtrosTabela.apiFilters)} />
+          </div>
+          <AnalyticalDataTable
+            titulo="Cotações Analíticas"
+            dados={tabela.data?.conteudo ?? []}
+            colunas={colunas}
+            chaveLinha="numeroCotacao"
+            filtros={filtrosTabela.filters}
+            hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+            hasAnyFilter={filtrosTabela.hasAnyFilter}
+            onTextFilterChange={filtrosTabela.setTextFilter}
+            onMultiFilterChange={filtrosTabela.setMultiFilter}
+            onColumnFilterChange={filtrosTabela.setColumnFilter}
+            onClearFilters={filtrosTabela.clearTableFilters}
+            statusOptions={statusTabelaOptions}
+            statusOptionsLoading={graficos.isLoading}
+            isLoading={tabela.isLoading}
+            error={tabela.error}
+            errorFallbackMessage="Erro ao carregar cotações analíticas."
+            totalRegistros={tabela.data?.totalElementos}
+            paginaAtual={paginacaoTabela.pagina}
+            tamanhoPagina={paginacaoTabela.tamanhoPagina}
+            onPaginaChange={paginacaoTabela.setPagina}
+            onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+          />
+        </>
+      ) : (
+        <CotacoesResumoVisualTable
+          view={activeView}
+          rows={resumoVisual.data ?? []}
+          isLoading={resumoVisual.isLoading || resumoVisual.isFetching}
+          errorMessage={resumoVisualErrorMessage}
+        />
+      )}
     </div>
   );
 }

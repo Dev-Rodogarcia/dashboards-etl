@@ -4,6 +4,7 @@ import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.cotacoes.CotacaoResumoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesChartsDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesOverviewDTO;
+import com.dashboard.api.dto.cotacoes.CotacoesResumoAgregadoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesTrendPointDTO;
 import com.dashboard.api.repository.CotacoesDashboardSqlRepository;
 import com.dashboard.api.util.ConsultaLimiteUtils;
@@ -61,5 +62,20 @@ public class CotacoesService {
         int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 100, 200);
 
         return dashboardSqlRepository.buscarTabela(filtro, limiteAplicado);
+    }
+
+    public List<CotacoesResumoAgregadoDTO> buscarResumoPorUsuario(FiltroConsultaDTO filtro) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        return dashboardSqlRepository.buscarResumoPorUsuario(filtro);
+    }
+
+    public List<CotacoesResumoAgregadoDTO> buscarResumoPorFilial(FiltroConsultaDTO filtro) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        return dashboardSqlRepository.buscarResumoPorFilial(filtro);
+    }
+
+    public List<CotacoesResumoAgregadoDTO> buscarResumoPorCliente(FiltroConsultaDTO filtro) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        return dashboardSqlRepository.buscarResumoPorCliente(filtro);
     }
 }

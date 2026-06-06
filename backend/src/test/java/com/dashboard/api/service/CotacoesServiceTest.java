@@ -4,6 +4,7 @@ import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.cotacoes.CotacaoResumoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesChartsDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesOverviewDTO;
+import com.dashboard.api.dto.cotacoes.CotacoesResumoAgregadoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesTrendPointDTO;
 import com.dashboard.api.repository.CotacoesDashboardSqlRepository;
 import java.math.BigDecimal;
@@ -117,8 +118,40 @@ class CotacoesServiceTest {
         assertThat(dashboardSqlRepository.tabelaLimite).isEqualTo(200);
     }
 
+    @Test
+    void buscarResumosDeveDelegarParaRepositorioSql() {
+        FiltroConsultaDTO filtro = filtroPadrao();
+        List<CotacoesResumoAgregadoDTO> esperadoUsuario = List.of(resumo("maria", "Maria"));
+        List<CotacoesResumoAgregadoDTO> esperadoFilial = List.of(resumo("SPO", "SPO"));
+        List<CotacoesResumoAgregadoDTO> esperadoCliente = List.of(resumo("123", "Cliente"));
+        dashboardSqlRepository.resumoUsuarioResponse = esperadoUsuario;
+        dashboardSqlRepository.resumoFilialResponse = esperadoFilial;
+        dashboardSqlRepository.resumoClienteResponse = esperadoCliente;
+
+        assertThat(service.buscarResumoPorUsuario(filtro)).isSameAs(esperadoUsuario);
+        assertThat(service.buscarResumoPorFilial(filtro)).isSameAs(esperadoFilial);
+        assertThat(service.buscarResumoPorCliente(filtro)).isSameAs(esperadoCliente);
+        assertThat(dashboardSqlRepository.resumoUsuarioFiltro).isSameAs(filtro);
+        assertThat(dashboardSqlRepository.resumoFilialFiltro).isSameAs(filtro);
+        assertThat(dashboardSqlRepository.resumoClienteFiltro).isSameAs(filtro);
+    }
+
     private static FiltroConsultaDTO filtroPadrao() {
         return new FiltroConsultaDTO(LocalDate.of(2026, 2, 21), LocalDate.of(2026, 3, 23), Map.of());
+    }
+
+    private static CotacoesResumoAgregadoDTO resumo(String id, String entidade) {
+        return new CotacoesResumoAgregadoDTO(
+                id,
+                entidade,
+                10,
+                4,
+                6,
+                40.0,
+                new BigDecimal("1000.00"),
+                new BigDecimal("400.00"),
+                new BigDecimal("12.00")
+        );
     }
 
     private static class FakeCotacoesDashboardSqlRepository extends CotacoesDashboardSqlRepository {
@@ -132,6 +165,12 @@ class CotacoesServiceTest {
         private FiltroConsultaDTO tabelaFiltro;
         private int tabelaLimite;
         private List<CotacaoResumoDTO> tabelaResponse = List.of();
+        private FiltroConsultaDTO resumoUsuarioFiltro;
+        private List<CotacoesResumoAgregadoDTO> resumoUsuarioResponse = List.of();
+        private FiltroConsultaDTO resumoFilialFiltro;
+        private List<CotacoesResumoAgregadoDTO> resumoFilialResponse = List.of();
+        private FiltroConsultaDTO resumoClienteFiltro;
+        private List<CotacoesResumoAgregadoDTO> resumoClienteResponse = List.of();
 
         FakeCotacoesDashboardSqlRepository() {
             super(null, null, null);
@@ -163,6 +202,24 @@ class CotacoesServiceTest {
             tabelaFiltro = filtro;
             tabelaLimite = limite;
             return tabelaResponse;
+        }
+
+        @Override
+        public List<CotacoesResumoAgregadoDTO> buscarResumoPorUsuario(FiltroConsultaDTO filtro) {
+            resumoUsuarioFiltro = filtro;
+            return resumoUsuarioResponse;
+        }
+
+        @Override
+        public List<CotacoesResumoAgregadoDTO> buscarResumoPorFilial(FiltroConsultaDTO filtro) {
+            resumoFilialFiltro = filtro;
+            return resumoFilialResponse;
+        }
+
+        @Override
+        public List<CotacoesResumoAgregadoDTO> buscarResumoPorCliente(FiltroConsultaDTO filtro) {
+            resumoClienteFiltro = filtro;
+            return resumoClienteResponse;
         }
     }
 }

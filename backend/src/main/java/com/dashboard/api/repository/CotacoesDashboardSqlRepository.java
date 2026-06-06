@@ -9,6 +9,7 @@ import com.dashboard.api.dto.cotacoes.CotacoesCorredorValiosoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesFunilDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesMotivoPerdaDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesOverviewDTO;
+import com.dashboard.api.dto.cotacoes.CotacoesResumoAgregadoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesTrendPointDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
@@ -18,6 +19,7 @@ import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.Arrays;
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,6 +39,8 @@ public class CotacoesDashboardSqlRepository {
             "status_normalizado IN (N'convertida', N'convertido')";
     private static final String STATUS_REPROVADA_SQL =
             "status_normalizado IN (N'reprovada', N'reprovado', N'perdida', N'perdido')";
+    private static final String STATUS_EM_ABERTO_SQL =
+            "(status_normalizado IS NULL OR status_normalizado NOT IN (N'convertida', N'convertido', N'reprovada', N'reprovado', N'perdida', N'perdido'))";
 
     private final NamedParameterJdbcOperations jdbcTemplate;
     private final DashboardExportSqlBuilder sqlBuilder;
@@ -361,6 +365,135 @@ public class CotacoesDashboardSqlRepository {
         ));
     }
 
+    public List<CotacoesResumoAgregadoDTO> buscarResumoPorUsuario(FiltroConsultaDTO filtro) {
+        return buscarResumoAgrupado(
+                filtro,
+                coalesceTextoSql("N'Sem usuario'", "[Usuario Key]", "[Usuário]", "[Solicitante]"),
+                coalesceTextoSql("N'Sem usuario'", "[Usuário]", "[Solicitante]", "[Usuario Key]"),
+                null,
+                "total_cotacoes DESC, entidade"
+        );
+    }
+
+    public List<CotacoesResumoAgregadoDTO> buscarResumoPorFilial(FiltroConsultaDTO filtro) {
+        return buscarResumoAgrupado(
+                filtro,
+                coalesceTextoSql("N'Sem filial'", "[Filial]"),
+                coalesceTextoSql("N'Sem filial'", "[Filial]"),
+                null,
+                "total_cotacoes DESC, entidade"
+        );
+    }
+
+    public List<CotacoesResumoAgregadoDTO> buscarResumoPorCliente(FiltroConsultaDTO filtro) {
+        return buscarResumoAgrupado(
+                filtro,
+                coalesceTextoSql("N'Sem cliente'", "[CNPJ/CPF Cliente]", "[Cliente Pagador]", "[Cliente]"),
+                coalesceTextoSql("N'Sem cliente'", "[Cliente Pagador]", "[Cliente]", "[CNPJ/CPF Cliente]"),
+                40,
+                "volume_m3 DESC, total_cotacoes DESC, entidade"
+        );
+    }
+
+    private List<CotacoesResumoAgregadoDTO> buscarResumoAgrupado(
+            FiltroConsultaDTO filtro,
+            String agrupadorIdSql,
+            String entidadeSql,
+            Integer limite,
+            String orderBy
+    ) {
+        DashboardExportSqlBuilder.ExportSql source = sqlBuilder.buildFilteredSource(
+                DashboardExportDefinition.COTACOES,
+                filtro,
+                escopoFilialService.escopoAtual(),
+                Set.of()
+        );
+
+        String topSql = limite == null ? "" : "TOP (%d) ".formatted(limite);
+        String sql = """
+                WITH base_filtrada AS (
+                    SELECT *
+                    %s
+                ),
+                base_deduplicada AS (
+                    SELECT *
+                    FROM (
+                        SELECT
+                            base_filtrada.*,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY [N° Cotação]
+                                ORDER BY
+                                    TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [Data de extracao])) DESC,
+                                    TRY_CONVERT(datetimeoffset, CONVERT(NVARCHAR(64), [Data Cotação])) DESC,
+                                    [N° Cotação] DESC
+                            ) AS [__rn]
+                        FROM base_filtrada
+                    ) dedup
+                    WHERE [__rn] = 1
+                ),
+                base_metricas AS (
+                    SELECT
+                        %s AS agrupador_id,
+                        %s AS entidade,
+                        %s AS status_normalizado,
+                        %s AS valor_frete,
+                        %s AS volume_m3
+                    FROM base_deduplicada
+                ),
+                agregado AS (
+                    SELECT
+                        agrupador_id,
+                        MIN(entidade) AS entidade,
+                        COUNT(1) AS total_cotacoes,
+                        SUM(CASE WHEN %s THEN 1 ELSE 0 END) AS ganhas,
+                        SUM(CASE WHEN %s THEN 1 ELSE 0 END) AS em_aberto,
+                        CAST(COALESCE(CAST(SUM(CASE WHEN %s THEN 1 ELSE 0 END) AS FLOAT) * 100.0 / NULLIF(COUNT(1), 0), 0) AS DECIMAL(19,2)) AS taxa_conversao,
+                        CAST(COALESCE(SUM(valor_frete), 0) AS DECIMAL(19,2)) AS frete_cotado,
+                        CAST(COALESCE(SUM(CASE WHEN %s THEN valor_frete ELSE 0 END), 0) AS DECIMAL(19,2)) AS frete_ganho,
+                        CAST(COALESCE(SUM(volume_m3), 0) AS DECIMAL(19,2)) AS volume_m3
+                    FROM base_metricas
+                    GROUP BY agrupador_id
+                )
+                SELECT %s
+                    agrupador_id,
+                    entidade,
+                    total_cotacoes,
+                    ganhas,
+                    em_aberto,
+                    taxa_conversao,
+                    frete_cotado,
+                    frete_ganho,
+                    volume_m3
+                FROM agregado
+                ORDER BY %s
+                """.formatted(
+                source.sql(),
+                agrupadorIdSql,
+                entidadeSql,
+                STATUS_NORMALIZADO_SQL,
+                decimalSql("[Valor frete]"),
+                decimalSql("[Volume]"),
+                STATUS_CONVERTIDA_SQL,
+                STATUS_EM_ABERTO_SQL,
+                STATUS_CONVERTIDA_SQL,
+                STATUS_CONVERTIDA_SQL,
+                topSql,
+                orderBy
+        );
+
+        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new CotacoesResumoAgregadoDTO(
+                rs.getString("agrupador_id"),
+                rs.getString("entidade"),
+                rs.getInt("total_cotacoes"),
+                rs.getInt("ganhas"),
+                rs.getInt("em_aberto"),
+                percentual(rs.getBigDecimal("taxa_conversao")),
+                decimal(rs.getBigDecimal("frete_cotado")),
+                decimal(rs.getBigDecimal("frete_ganho")),
+                decimal(rs.getBigDecimal("volume_m3"))
+        ));
+    }
+
     private List<CotacoesFunilDTO> buscarFunil(DashboardExportSqlBuilder.ExportSql source) {
         String sql = baseMetricasSql(source) + """
                 SELECT
@@ -511,6 +644,12 @@ public class CotacoesDashboardSqlRepository {
 
     private static String textoSql(String coluna) {
         return "NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), " + coluna + "))), N'')";
+    }
+
+    private static String coalesceTextoSql(String fallback, String... colunas) {
+        return "COALESCE(" + String.join(", ", Arrays.stream(colunas)
+                .map(CotacoesDashboardSqlRepository::textoSql)
+                .toList()) + ", " + fallback + ")";
     }
 
     private static String tipoOperacaoNormalizadoSql() {

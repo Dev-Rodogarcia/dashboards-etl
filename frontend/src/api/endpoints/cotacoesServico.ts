@@ -3,7 +3,14 @@ import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
-import type { CotacaoResumoRow, CotacoesCharts, CotacoesFiltro, CotacoesOverview, CotacoesTrendPoint } from '../../types/cotacoes';
+import type {
+  CotacaoResumoRow,
+  CotacoesCharts,
+  CotacoesFiltro,
+  CotacoesOverview,
+  CotacoesResumoAgregado,
+  CotacoesTrendPoint,
+} from '../../types/cotacoes';
 import type { TableApiFilters } from '../../types/tableFilters';
 
 export async function buscarCotacoesOverview(filtro: CotacoesFiltro): Promise<CotacoesOverview> {
@@ -34,6 +41,27 @@ export async function buscarCotacoesTabela(
   const params = montarQueryParams(filtro);
   params.set('limite', String(limite));
   const { data } = await clienteAxios.get<CotacaoResumoRow[]>('/api/painel/cotacoes/tabela', { params });
+  return data;
+}
+
+export async function buscarCotacoesResumoUsuario(filtro: CotacoesFiltro): Promise<CotacoesResumoAgregado[]> {
+  const { data } = await clienteAxios.get<CotacoesResumoAgregado[]>('/api/painel/cotacoes/resumo/usuario', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarCotacoesResumoFilial(filtro: CotacoesFiltro): Promise<CotacoesResumoAgregado[]> {
+  const { data } = await clienteAxios.get<CotacoesResumoAgregado[]>('/api/painel/cotacoes/resumo/filial', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarCotacoesResumoCliente(filtro: CotacoesFiltro): Promise<CotacoesResumoAgregado[]> {
+  const { data } = await clienteAxios.get<CotacoesResumoAgregado[]>('/api/painel/cotacoes/resumo/cliente', {
+    params: montarQueryParams(filtro),
+  });
   return data;
 }
 

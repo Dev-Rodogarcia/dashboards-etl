@@ -3,6 +3,7 @@ package com.dashboard.api.controller;
 import com.dashboard.api.dto.cotacoes.CotacaoResumoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesChartsDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesOverviewDTO;
+import com.dashboard.api.dto.cotacoes.CotacoesResumoAgregadoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesTrendPointDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.CotacoesService;
@@ -63,5 +64,29 @@ public class CotacoesController {
             @RequestParam(defaultValue = "100") int limite,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(cotacoesService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
+    }
+
+    @GetMapping("/resumo/usuario")
+    public ResponseEntity<List<CotacoesResumoAgregadoDTO>> resumoUsuario(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(cotacoesService.buscarResumoPorUsuario(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
+    @GetMapping("/resumo/filial")
+    public ResponseEntity<List<CotacoesResumoAgregadoDTO>> resumoFilial(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(cotacoesService.buscarResumoPorFilial(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
+    @GetMapping("/resumo/cliente")
+    public ResponseEntity<List<CotacoesResumoAgregadoDTO>> resumoCliente(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(cotacoesService.buscarResumoPorCliente(FiltroRequestMapper.from(dataInicio, dataFim, params)));
     }
 }
