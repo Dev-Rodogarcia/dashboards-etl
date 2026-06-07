@@ -41,7 +41,8 @@ import type {
   FaturamentoTrendPoint,
 } from '../types/faturamento';
 import { CORES, PALETA_SERIES } from '../utils/chartColors';
-import { formatarMoeda, formatarNumero, formatarPeso, formatarPorcentagem } from '../utils/formatadores';
+import { formatarDataHoraMinuto, formatarMoeda, formatarNumero, formatarPeso, formatarPorcentagem } from '../utils/formatadores';
+import { formatarStatusOperacional } from '../utils/statusLabels';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 type PeriodDrillLevel = 'ano' | 'mes' | 'dia';
@@ -1058,7 +1059,7 @@ export default function FaturamentoPage() {
   }
 
   function renderDataFaturamentoTabela(valor: unknown, row: FaturamentoResumoRow) {
-    const texto = valor ? String(valor) : '—';
+    const texto = valor ? formatarDataHoraMinuto(String(valor)) : '—';
     const origem = row.dataFaturamentoOrigem ?? 'Origem não informada';
     return (
       <span className="inline-flex items-center gap-1" title={`Origem desta data: ${origem}`}>
@@ -1068,10 +1069,15 @@ export default function FaturamentoPage() {
     );
   }
 
+  function renderStatusFaturamentoTabela(valor: unknown) {
+    const status = formatarStatusOperacional(valor);
+    return status ? <StatusBadge status={status} /> : '—';
+  }
+
   const colunas: ColunaTabelaAnalitica<FaturamentoResumoRow>[] = [
     { chave: 'numeroMinuta', label: 'Nº Minuta', fixo: true, filtroTabela: 'codigo' },
     { chave: 'dataFrete', label: 'Data Faturamento', largura: '170px', tooltip: FATURAMENTO_DATE_HELP, formato: renderDataFaturamentoTabela },
-    { chave: 'status', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
+    { chave: 'status', label: 'Status', filtroTabela: 'status', formato: renderStatusFaturamentoTabela },
     { chave: 'filial', label: 'Filial' },
     { chave: 'pagador', label: 'Pagador', largura: '220px', filtroTabela: 'razaoSocial' },
     { chave: 'documentoTipo', label: 'Documento' },

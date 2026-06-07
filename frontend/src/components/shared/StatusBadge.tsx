@@ -1,4 +1,5 @@
 import { CORES_STATUS } from '../../utils/chartColors';
+import { formatarStatusOperacional } from '../../utils/statusLabels';
 
 interface StatusBadgeProps {
   status: string;
@@ -32,7 +33,8 @@ function hexToRgba(hex: string, alpha: number) {
 }
 
 export default function StatusBadge({ status }: StatusBadgeProps) {
-  const statusNormalizado = status.trim().toLowerCase();
+  const statusLabel = formatarStatusOperacional(status) || 'Sem status';
+  const statusNormalizado = statusLabel.trim().toLowerCase();
   const statusComUnderscore = statusNormalizado.replace(/\s+/g, '_');
   const cor = CORES_STATUS[statusNormalizado] ?? CORES_STATUS[statusComUnderscore] ?? '#6b7280';
   const textColor = TEXT_COLORS_BY_HEX[cor] ?? cor;
@@ -42,7 +44,7 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
       className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
       style={{ backgroundColor: hexToRgba(textColor, 0.14), color: textColor }}
     >
-      {status}
+      {statusLabel}
     </span>
   );
 }
