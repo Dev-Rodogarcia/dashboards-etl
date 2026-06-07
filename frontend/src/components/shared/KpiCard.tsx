@@ -46,10 +46,13 @@ export default function KpiCard({
   const secondaryColor = tone === 'neutral' ? 'var(--color-text-subtle)' : style.text;
   const iconNode = icone ?? createElement(resolveKpiIcon(label), { size: 16, 'aria-hidden': 'true' });
   const widthPct = Math.max(0, Math.min(progressPct ?? 0, 100));
+  const cardClassName = 'flex min-w-0 flex-col gap-1 rounded-[20px] border p-3 transition-all duration-150 hover:shadow-lg hover:-translate-y-[2px] cursor-default';
+  const labelClassName = 'text-[11px] font-medium uppercase tracking-wide truncate';
+  const defaultValueClassName = 'text-2xl font-bold truncate';
 
   return (
     <div
-      className="flex flex-col gap-1 rounded-[20px] border p-3 transition-all duration-150 hover:shadow-lg hover:-translate-y-[2px] cursor-default"
+      className={cardClassName}
       style={{
         backgroundColor: 'var(--color-card)',
         borderColor: tone === 'neutral' ? 'var(--color-border)' : style.border,
@@ -60,7 +63,7 @@ export default function KpiCard({
     >
       <div className="flex items-center justify-between gap-1">
         <span
-          className="text-[11px] font-medium uppercase tracking-wide truncate"
+          className={labelClassName}
           style={{ color: secondaryColor }}
         >
           {label}
@@ -71,7 +74,7 @@ export default function KpiCard({
       </div>
 
       <span
-        className={valorClassName ?? 'text-2xl font-bold truncate'}
+        className={valorClassName ?? defaultValueClassName}
         style={valorStyle ?? (valorClassName ? undefined : { color: 'var(--color-text)' })}
       >
         {valor}

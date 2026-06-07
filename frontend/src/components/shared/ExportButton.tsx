@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FileSpreadsheet } from 'lucide-react';
 
 interface ExportButtonProps {
   dados?: Record<string, unknown>[];
@@ -35,8 +36,14 @@ export default function ExportButton({ onExport, label = 'Exportar CSV' }: Expor
         type="button"
         onClick={exportarCsv}
         disabled={!podeExportar || exportando}
-        className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50"
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+        style={{
+          backgroundColor: 'var(--color-bg)',
+          borderColor: 'var(--color-border)',
+          color: 'var(--color-text)',
+        }}
       >
+        <FileSpreadsheet size={14} aria-hidden="true" />
         {exportando ? 'Exportando...' : label}
       </button>
       {erro && (

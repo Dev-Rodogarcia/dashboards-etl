@@ -10,6 +10,18 @@ export interface EtlExecucaoRow {
   mensagemErro: string | null;
 }
 
+export interface EtlLogExtracaoAuditoriaRow {
+  id: number;
+  entidade: string | null;
+  timestampInicio: string | null;
+  timestampFim: string | null;
+  statusFinal: string | null;
+  registrosExtraidos: number | null;
+  paginasProcessadas: number | null;
+  noopCount: number | null;
+  mensagem: string | null;
+}
+
 export interface EtlSaudeOverview {
   updatedAt: string;
   tempoMedioExecucaoSegundos: number;

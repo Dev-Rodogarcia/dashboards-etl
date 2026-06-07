@@ -4,6 +4,7 @@ import com.dashboard.api.dto.coletas.ColetasTrendPointDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarMensalTrendDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarOverviewDTO;
 import com.dashboard.api.dto.executivo.ExecutivoOverviewDTO;
+import com.dashboard.api.dto.executivo.ExecutivoResumoFinanceiroDTO;
 import com.dashboard.api.dto.executivo.ExecutivoTrendPointDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteMensalDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteOverviewDTO;
@@ -12,6 +13,7 @@ import com.dashboard.api.dto.fretes.FretesOverviewDTO;
 import com.dashboard.api.dto.fretes.FretesTrendPointDTO;
 import com.dashboard.api.dto.manifestos.ManifestosOverviewDTO;
 import com.dashboard.api.dto.tracking.TrackingOverviewDTO;
+import com.dashboard.api.repository.ExecutivoFinanceiroSqlRepository;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
@@ -36,6 +38,8 @@ public class ExecutivoService {
     private final ColetasService coletasService;
     private final TrackingService trackingService;
     private final ManifestosService manifestosService;
+    private final ValidadorPeriodoService validadorPeriodo;
+    private final ExecutivoFinanceiroSqlRepository financeiroSqlRepository;
 
     public ExecutivoService(
             FretesService fretesService,
@@ -43,13 +47,17 @@ public class ExecutivoService {
             ContasAPagarService contasAPagarService,
             ColetasService coletasService,
             TrackingService trackingService,
-            ManifestosService manifestosService) {
+            ManifestosService manifestosService,
+            ValidadorPeriodoService validadorPeriodo,
+            ExecutivoFinanceiroSqlRepository financeiroSqlRepository) {
         this.fretesService = fretesService;
         this.faturasPorClienteService = faturasPorClienteService;
         this.contasAPagarService = contasAPagarService;
         this.coletasService = coletasService;
         this.trackingService = trackingService;
         this.manifestosService = manifestosService;
+        this.validadorPeriodo = validadorPeriodo;
+        this.financeiroSqlRepository = financeiroSqlRepository;
     }
 
     public ExecutivoOverviewDTO buscarOverview(LocalDate dataInicio, LocalDate dataFim) {
@@ -116,6 +124,11 @@ public class ExecutivoService {
                         entry.getValue().backlogColetas
                 ))
                 .toList();
+    }
+
+    public List<ExecutivoResumoFinanceiroDTO> buscarResumoFinanceiro(FiltroConsultaDTO filtro) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        return financeiroSqlRepository.buscarResumoFinanceiro(filtro);
     }
 
     private static final class ExecutivoTrendAccumulator {

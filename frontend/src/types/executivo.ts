@@ -17,3 +17,11 @@ export interface ExecutivoTrendPoint {
   saldoAPagar: number;
   backlogColetas: number;
 }
+
+export interface ExecutivoResumoFinanceiro {
+  filial: string;
+  totalFaturado: number;
+  fretePeso: number;
+  freteValor: number;
+  ticketMedio: number;
+}

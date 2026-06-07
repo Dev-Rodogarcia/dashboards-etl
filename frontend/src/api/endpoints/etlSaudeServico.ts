@@ -2,7 +2,7 @@ import clienteAxios from '../clienteAxios';
 import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
-import type { EtlExecucaoRow, EtlExecucaoTrendPoint, EtlSaudeCharts, EtlSaudeOverview } from '../../types/etlSaude';
+import type { EtlExecucaoRow, EtlExecucaoTrendPoint, EtlLogExtracaoAuditoriaRow, EtlSaudeCharts, EtlSaudeOverview } from '../../types/etlSaude';
 import type { FiltroQuery, PaginacaoResponse } from '../../types/common';
 
 export async function buscarEtlSaudeOverview(filtro: FiltroQuery): Promise<EtlSaudeOverview> {
@@ -26,13 +26,9 @@ export async function buscarEtlSaudeGraficos(filtro: FiltroQuery): Promise<EtlSa
   return data;
 }
 
-export async function buscarEtlSaudeTabela(
-  filtro: FiltroQuery,
-  limite = 100
-): Promise<EtlExecucaoRow[]> {
+export async function buscarEtlSaudeTabela(filtro: FiltroQuery): Promise<EtlLogExtracaoAuditoriaRow[]> {
   const params = montarQueryParams(filtro);
-  params.set('limite', String(limite));
-  const { data } = await clienteAxios.get<EtlExecucaoRow[]>('/api/painel/etl-saude/tabela', { params });
+  const { data } = await clienteAxios.get<EtlLogExtracaoAuditoriaRow[]>('/api/painel/etl-saude/tabela', { params });
   return data;
 }
 

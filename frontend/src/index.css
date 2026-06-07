@@ -3,6 +3,20 @@
 /* Tailwind v4: enable class-based dark mode */
 @variant dark (&:where(.dark, .dark *));
 
+@layer utilities {
+  .text-positive {
+    color: var(--color-positive-text);
+  }
+
+  .text-warning {
+    color: var(--color-warning-text);
+  }
+
+  .text-negative {
+    color: var(--color-negative-text);
+  }
+}
+
 :root {
   --color-primary: #21478A;
   --color-bg: #F3F7FB;

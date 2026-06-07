@@ -5,6 +5,7 @@ import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.TotalRegistrosDTO;
 import com.dashboard.api.service.CubagemMercadoriasIndicadorService;
 import com.dashboard.api.service.DashboardExportService;
+import com.dashboard.api.service.EtlSaudeService;
 import com.dashboard.api.service.IndenizacaoMercadoriasIndicadorService;
 import com.dashboard.api.service.IndicadoresGestaoAVistaService;
 import com.dashboard.api.service.PerformanceEntregaIndicadorService;
@@ -31,6 +32,7 @@ public class PainelExportacaoController {
     private final IndenizacaoMercadoriasIndicadorService indenizacaoMercadoriasService;
     private final IndicadoresGestaoAVistaService horariosCorteService;
     private final TrackingService trackingService;
+    private final EtlSaudeService etlSaudeService;
 
     public PainelExportacaoController(
             DashboardExportService dashboardExportService,
@@ -39,7 +41,8 @@ public class PainelExportacaoController {
             CubagemMercadoriasIndicadorService cubagemMercadoriasService,
             IndenizacaoMercadoriasIndicadorService indenizacaoMercadoriasService,
             IndicadoresGestaoAVistaService horariosCorteService,
-            TrackingService trackingService
+            TrackingService trackingService,
+            EtlSaudeService etlSaudeService
     ) {
         this.dashboardExportService = dashboardExportService;
         this.performanceEntregaService = performanceEntregaService;
@@ -48,6 +51,7 @@ public class PainelExportacaoController {
         this.indenizacaoMercadoriasService = indenizacaoMercadoriasService;
         this.horariosCorteService = horariosCorteService;
         this.trackingService = trackingService;
+        this.etlSaudeService = etlSaudeService;
     }
 
     @GetMapping("/coletas/exportacao")
@@ -199,7 +203,12 @@ public class PainelExportacaoController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
     ) {
-        return exportar(DashboardExportDefinition.ETL_SAUDE, dataInicio, dataFim, params);
+        FiltroConsultaDTO filtro = filtro(dataInicio, dataFim, params);
+        return dashboardExportService.exportarBeans(
+                "etl-saude-log-extracoes",
+                filtro,
+                etlSaudeService.buscarTabela(filtro)
+        );
     }
 
     @GetMapping("/etl-saude/tabela/total")
@@ -209,7 +218,9 @@ public class PainelExportacaoController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
     ) {
-        return total(DashboardExportDefinition.ETL_SAUDE, dataInicio, dataFim, params);
+        return ResponseEntity.ok(new TotalRegistrosDTO(
+                etlSaudeService.totalTabela(filtro(dataInicio, dataFim, params))
+        ));
     }
 
     @GetMapping("/indicadores-gestao-a-vista/performance-entrega/exportacao")

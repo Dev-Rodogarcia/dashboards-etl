@@ -11,6 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -28,6 +30,10 @@ public class CsvExportWriter {
     private static final char SEPARADOR = ';';
     private static final String QUEBRA_LINHA = "\r\n";
     private static final char UTF8_BOM = '\ufeff';
+    private static final DateTimeFormatter DATA_BR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter DATA_HORA_BR = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+    private static final DateTimeFormatter DATA_HORA_OFFSET_BR = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss XXX");
+    private static final DateTimeFormatter HORA_BR = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     public void escreverResultSet(OutputStream outputStream, ResultSet resultSet) throws SQLException, IOException {
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
@@ -96,30 +102,59 @@ public class CsvExportWriter {
         writer.write(QUEBRA_LINHA);
     }
 
-    private String formatarValor(Object valor) {
+    private ValorCsv formatarValor(Object valor) {
         if (valor == null) {
-            return "";
+            return new ValorCsv("", false);
         }
         if (valor instanceof BigDecimal bigDecimal) {
-            return bigDecimal.toPlainString();
+            return new ValorCsv(formatarBigDecimal(bigDecimal), false);
+        }
+        if (valor instanceof Number numero) {
+            return new ValorCsv(formatarNumero(numero), false);
+        }
+        if (valor instanceof java.sql.Date dataSql) {
+            return new ValorCsv(dataSql.toLocalDate().format(DATA_BR), false);
+        }
+        if (valor instanceof Timestamp dataHoraSql) {
+            return new ValorCsv(dataHoraSql.toLocalDateTime().format(DATA_HORA_BR), false);
+        }
+        if (valor instanceof Time horaSql) {
+            return new ValorCsv(horaSql.toLocalTime().format(HORA_BR), false);
         }
         if (valor instanceof LocalDate data) {
-            return data.format(DateTimeFormatter.ISO_LOCAL_DATE);
+            return new ValorCsv(data.format(DATA_BR), false);
         }
         if (valor instanceof LocalDateTime dataHora) {
-            return dataHora.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            return new ValorCsv(dataHora.format(DATA_HORA_BR), false);
         }
         if (valor instanceof OffsetDateTime dataHoraOffset) {
-            return dataHoraOffset.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            return new ValorCsv(dataHoraOffset.format(DATA_HORA_OFFSET_BR), false);
         }
         if (valor instanceof LocalTime hora) {
-            return hora.format(DateTimeFormatter.ISO_LOCAL_TIME);
+            return new ValorCsv(hora.format(HORA_BR), false);
         }
-        return String.valueOf(valor);
+        return new ValorCsv(String.valueOf(valor), true);
     }
 
-    private String escapar(String valorOriginal) {
-        String valor = protegerFormula(valorOriginal);
+    private String formatarBigDecimal(BigDecimal valor) {
+        return valor.toPlainString().replace('.', ',');
+    }
+
+    private String formatarNumero(Number valor) {
+        try {
+            return new BigDecimal(valor.toString())
+                    .stripTrailingZeros()
+                    .toPlainString()
+                    .replace('.', ',');
+        } catch (NumberFormatException ex) {
+            return valor.toString();
+        }
+    }
+
+    private String escapar(ValorCsv valorOriginal) {
+        String valor = valorOriginal.protegerFormula()
+                ? protegerFormula(valorOriginal.texto())
+                : valorOriginal.texto();
         boolean precisaAspas = valor.indexOf(SEPARADOR) >= 0
                 || valor.indexOf('"') >= 0
                 || valor.indexOf('\r') >= 0
@@ -167,5 +202,8 @@ public class CsvExportWriter {
             headers.add(metaData.getColumnLabel(coluna));
         }
         return headers;
+    }
+
+    private record ValorCsv(String texto, boolean protegerFormula) {
     }
 }

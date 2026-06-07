@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import EtlSaudeKpiGrid from '../components/domain/etlSaude/EtlSaudeKpiGrid';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
+import { DATE_RANGE_PRESETS } from '../components/shared/dateRangePresets';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -11,106 +13,226 @@ import { exportarEtlSaudeCsv } from '../api/endpoints/etlSaudeServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
-import { useEtlSaudeGraficos, useEtlSaudeOverview, useEtlSaudeSerie, useEtlSaudeTabelaPaginada } from '../hooks/queries/useEtlSaude';
-import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
-import type { EtlExecucaoRow } from '../types/etlSaude';
+import { useEtlSaudeOverview, useEtlSaudeSerie, useEtlSaudeTabela } from '../hooks/queries/useEtlSaude';
+import { normalizarPeriodo } from '../utils/dateUtils';
+import { CORES } from '../utils/chartColors';
+import { formatarDataHora, formatarNumero, formatarPorcentagem } from '../utils/formatadores';
+import type { EtlLogExtracaoAuditoriaRow } from '../types/etlSaude';
+
+type TooltipParam = {
+  axisValue?: string | number;
+  axisValueLabel?: string;
+  marker?: string;
+  seriesName?: string;
+  value?: number | string | Array<number | string | null> | null;
+};
+
+function formatarDuracao(valor: unknown) {
+  if (typeof valor !== 'number' || !Number.isFinite(valor)) {
+    return '—';
+  }
+
+  const totalSegundos = Math.round(valor);
+  const horas = Math.floor(totalSegundos / 3600);
+  const minutos = Math.floor((totalSegundos % 3600) / 60);
+  const segundos = totalSegundos % 60;
+
+  if (horas > 0) {
+    return `${horas}h ${minutos}min ${segundos}s`;
+  }
+  if (minutos > 0) {
+    return `${minutos}min ${segundos}s`;
+  }
+  return `${segundos}s`;
+}
+
+function formatarInteiro(valor: unknown) {
+  return typeof valor === 'number' && Number.isFinite(valor) ? formatarNumero(valor) : '—';
+}
+
+function normalizarTooltipParams(params: unknown): TooltipParam[] {
+  return Array.isArray(params) ? params as TooltipParam[] : [params as TooltipParam];
+}
+
+function valorTooltip(param: TooltipParam): number {
+  const valor = Array.isArray(param.value) ? param.value[param.value.length - 1] : param.value;
+  const numero = Number(valor ?? 0);
+  return Number.isFinite(numero) ? numero : 0;
+}
+
+function formatarTooltipVolume(params: unknown) {
+  const itens = normalizarTooltipParams(params);
+  const titulo = itens[0]?.axisValueLabel ?? itens[0]?.axisValue ?? '';
+  const linhas = itens.map((item) => {
+    const nomeSerie = item.seriesName ?? '';
+    const valor = valorTooltip(item);
+    const valorFormatado = nomeSerie === 'Duração Média'
+      ? formatarDuracao(valor)
+      : formatarNumero(valor);
+
+    return `${item.marker ?? ''}${nomeSerie}: ${valorFormatado}`;
+  });
+
+  return [titulo, ...linhas].filter(Boolean).join('<br/>');
+}
 
 export default function EtlSaudePage() {
   const { dataInicio, dataFim, setDataInicio, setDataFim, setDataRange, limparFiltros } = useFiltro();
   const filtro = { dataInicio, dataFim };
 
+  useEffect(() => {
+    const preset180d = DATE_RANGE_PRESETS.find((preset) => preset.label === '180d');
+    if (!preset180d) return;
+
+    const range = preset180d.getRange();
+    const periodo = normalizarPeriodo(range.dataInicio, range.dataFim);
+    setDataRange(periodo.dataInicio, periodo.dataFim);
+    // Esta excecao de periodo inicial deve rodar somente na montagem da pagina.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const overview = useEtlSaudeOverview(filtro);
   const serie = useEtlSaudeSerie(filtro);
-  const graficos = useEtlSaudeGraficos(filtro);
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify(filtro));
-  const tabela = useEtlSaudeTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina);
+  const tabela = useEtlSaudeTabela(filtro);
 
   usePageHeader({
     title: 'Saúde do ETL',
-    description: 'Execuções, volume processado e distribuição de erros.',
+    description: 'Taxas de sucesso/falha, volume diário e auditoria crua das extrações.',
     updatedAt: overview.data?.updatedAt ?? null,
   });
 
   const serieDados = serie.data ?? [];
-  const categorias = (graficos.data?.categoriasErro ?? []).slice(0, 10).reverse();
   const erroSerie = serie.isError ? getApiErrorMessage(serie.error, 'Erro ao carregar série do ETL.') : null;
-  const erroGraficos = graficos.isError ? getApiErrorMessage(graficos.error, 'Erro ao carregar categorias de erro.') : null;
+  const auditoriaDados = tabela.data ?? [];
+  const taxasDiarias = serieDados.map((item) => {
+    const totalExecucoes = Math.max(item.execucoes, 0);
+    const falhas = Math.max(item.erros, 0);
+    const sucessos = Math.max(totalExecucoes - falhas, 0);
 
-  const execucoesOption: EChartsOption = {
+    return {
+      date: item.date,
+      taxaSucesso: totalExecucoes > 0 ? (sucessos * 100) / totalExecucoes : 0,
+      taxaFalha: totalExecucoes > 0 ? (falhas * 100) / totalExecucoes : 0,
+    };
+  });
+
+  const taxasOption: EChartsOption = {
     legend: { bottom: 0 },
-    tooltip: { trigger: 'axis' },
-    grid: { top: 34, right: 18, bottom: 46, left: 42 },
-    xAxis: { type: 'category', data: serieDados.map((item) => item.date) },
-    yAxis: { type: 'value' },
+    tooltip: {
+      trigger: 'axis',
+      valueFormatter: (value) => formatarPorcentagem(Number(value ?? 0), 1),
+    },
+    grid: { top: 34, right: 18, bottom: 46, left: 42, containLabel: true },
+    xAxis: { type: 'category', data: taxasDiarias.map((item) => item.date) },
+    yAxis: {
+      type: 'value',
+      max: 100,
+      axisLabel: { formatter: (value: number | string) => formatarPorcentagem(Number(value), 0) },
+    },
     series: [
       {
-        name: 'Execuções',
-        type: 'bar',
-        barMaxWidth: 28,
-        data: serieDados.map((item) => item.execucoes),
-      },
-      {
-        name: 'Erros',
+        name: 'Sucesso',
         type: 'line',
         smooth: true,
         symbolSize: 7,
-        data: serieDados.map((item) => item.erros),
+        data: taxasDiarias.map((item) => Number(item.taxaSucesso.toFixed(1))),
+        itemStyle: { color: CORES.sucesso },
+        lineStyle: { color: CORES.sucesso, width: 2 },
+      },
+      {
+        name: 'Falha',
+        type: 'line',
+        smooth: true,
+        symbolSize: 7,
+        data: taxasDiarias.map((item) => Number(item.taxaFalha.toFixed(1))),
+        itemStyle: { color: CORES.perigo },
+        lineStyle: { color: CORES.perigo, width: 2 },
       },
     ],
   };
 
-  const duracaoVolumeOption: EChartsOption = {
-    legend: { bottom: 0 },
-    tooltip: { trigger: 'axis' },
-    grid: { top: 42, right: 54, bottom: 46, left: 48 },
+  const volumeOption: EChartsOption = {
+    legend: { top: 0 },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross' },
+      formatter: formatarTooltipVolume,
+    },
+    grid: { top: 54, right: 62, bottom: 46, left: 42, containLabel: true },
     xAxis: { type: 'category', data: serieDados.map((item) => item.date) },
     yAxis: [
-      { type: 'value', name: 'Duração (s)' },
-      { type: 'value', name: 'Volume' },
+      { type: 'value', name: 'Registros' },
+      {
+        type: 'value',
+        name: 'Duração',
+        alignTicks: true,
+        splitLine: { show: false },
+        axisLabel: { formatter: (value: number | string) => formatarDuracao(Number(value)) },
+      },
     ],
     series: [
       {
-        name: 'Duração média',
+        name: 'Registros',
+        type: 'bar',
+        yAxisIndex: 0,
+        barMaxWidth: 32,
+        data: serieDados.map((item) => item.volumeProcessado),
+        itemStyle: { color: CORES.primaria, borderRadius: [4, 4, 0, 0] },
+      },
+      {
+        name: 'Duração Média',
         type: 'line',
+        yAxisIndex: 1,
         smooth: true,
         symbolSize: 7,
-        yAxisIndex: 0,
         data: serieDados.map((item) => item.duracaoMedia),
-      },
-      {
-        name: 'Volume processado',
-        type: 'bar',
-        barMaxWidth: 28,
-        yAxisIndex: 1,
-        data: serieDados.map((item) => item.volumeProcessado),
+        itemStyle: { color: CORES.aviso },
+        lineStyle: { color: CORES.aviso, width: 2.5 },
+        emphasis: { focus: 'series' },
       },
     ],
   };
 
-  const categoriasOption: EChartsOption = {
-    tooltip: { trigger: 'axis' },
-    grid: { top: 18, right: 24, bottom: 24, left: 160 },
-    xAxis: { type: 'value' },
-    yAxis: { type: 'category', data: categorias.map((item) => item.categoria) },
-    series: [
-      {
-        name: 'Erros',
-        type: 'bar',
-        barMaxWidth: 22,
-        data: categorias.map((item) => item.total),
-      },
-    ],
-  };
-
-  const colunas: ColunaTabela<EtlExecucaoRow>[] = [
-    { chave: 'id', label: 'Execucao', fixo: true },
-    { chave: 'data', label: 'Data' },
-    { chave: 'inicio', label: 'Inicio' },
-    { chave: 'fim', label: 'Fim' },
-    { chave: 'duracaoSegundos', label: 'Duracao (s)' },
-    { chave: 'totalRegistros', label: 'Volume' },
-    { chave: 'status', label: 'Status', formato: (valor) => <StatusBadge status={String(valor)} /> },
-    { chave: 'categoriaErro', label: 'Categoria Erro' },
+  const colunas: ColunaTabela<EtlLogExtracaoAuditoriaRow>[] = [
+    {
+      chave: 'id',
+      label: 'ID',
+      fixo: true,
+      largura: '96px',
+      formato: formatarInteiro,
+    },
+    { chave: 'entidade', label: 'Entidade', largura: '180px' },
+    {
+      chave: 'timestampInicio',
+      label: 'Início',
+      largura: '180px',
+      formato: (valor) => (typeof valor === 'string' ? formatarDataHora(valor) : '—'),
+    },
+    {
+      chave: 'timestampFim',
+      label: 'Fim',
+      largura: '180px',
+      formato: (valor) => (typeof valor === 'string' ? formatarDataHora(valor) : '—'),
+    },
+    {
+      chave: 'statusFinal',
+      label: 'Status Final',
+      largura: '150px',
+      formato: (valor) => <StatusBadge status={typeof valor === 'string' ? valor : 'Sem status'} />,
+    },
+    { chave: 'registrosExtraidos', label: 'Registros Extraídos', largura: '170px', formato: formatarInteiro },
+    { chave: 'paginasProcessadas', label: 'Páginas Processadas', largura: '170px', formato: formatarInteiro },
+    { chave: 'noopCount', label: 'No-op', largura: '110px', formato: formatarInteiro },
+    {
+      chave: 'mensagem',
+      label: 'Mensagem',
+      largura: '520px',
+      formato: (valor) => (
+        <span className="block max-w-[520px] whitespace-normal leading-relaxed">
+          {typeof valor === 'string' && valor.trim() ? valor : '—'}
+        </span>
+      ),
+    },
   ];
 
   return (
@@ -124,48 +246,37 @@ export default function EtlSaudePage() {
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ChartWrapper
-          titulo="Execuções x Erros por Dia"
-          option={execucoesOption}
+          titulo="Taxas de Sucesso/Falha por Dia"
+          option={taxasOption}
           isLoading={serie.isLoading}
           isEmpty={serieDados.length === 0}
           erro={erroSerie}
           altura={320}
         />
         <ChartWrapper
-          titulo="Duração Média x Volume"
-          option={duracaoVolumeOption}
+          titulo="Volumetria de Registros por Dia"
+          option={volumeOption}
           isLoading={serie.isLoading}
           isEmpty={serieDados.length === 0}
           erro={erroSerie}
           altura={320}
-        />
-        <ChartWrapper
-          titulo="Categorias de Erro"
-          option={categoriasOption}
-          isLoading={graficos.isLoading}
-          isEmpty={categorias.length === 0}
-          erro={erroGraficos}
-          altura={320}
-          className="xl:col-span-2"
         />
       </div>
 
-      <div className="mb-3 flex justify-end">
-        <ExportButton nomeArquivo="etl-saude" onExport={() => exportarEtlSaudeCsv(filtro)} />
-      </div>
       <DataTable
-        titulo="Execucoes do ETL"
-        dados={tabela.data?.conteudo ?? []}
+        titulo="Auditoria crua de extrações"
+        dados={auditoriaDados}
         colunas={colunas}
         chaveLinha="id"
         isLoading={tabela.isLoading}
         error={tabela.error}
-        errorFallbackMessage="Erro ao carregar execuções do ETL."
-        totalRegistros={tabela.data?.totalElementos}
-        paginaAtual={paginacaoTabela.pagina}
-        tamanhoPagina={paginacaoTabela.tamanhoPagina}
-        onPaginaChange={paginacaoTabela.setPagina}
-        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+        errorFallbackMessage="Erro ao carregar auditoria crua do ETL."
+        acoesCabecalho={(
+          <ExportButton
+            nomeArquivo="etl-saude"
+            onExport={!tabela.isLoading && !tabela.error ? () => exportarEtlSaudeCsv(filtro) : undefined}
+          />
+        )}
       />
     </div>
   );

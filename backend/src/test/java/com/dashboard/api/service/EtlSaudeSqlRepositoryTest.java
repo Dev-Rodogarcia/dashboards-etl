@@ -87,6 +87,51 @@ class EtlSaudeSqlRepositoryTest {
                 .contains("ORDER BY total DESC, categoria");
     }
 
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void buscarTabelaDeveAplicarTravaSqlEmLogExtracoes() {
+        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(List.of());
+
+        repository().buscarTabela(filtroPadrao());
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
+
+        assertThat(sqlCaptor.getValue())
+                .contains("SELECT TOP (5000)")
+                .contains("log.timestamp_inicio")
+                .contains("log.timestamp_fim")
+                .contains("log.status_final")
+                .contains("log.registros_extraidos")
+                .contains("log.paginas_processadas")
+                .contains("log.noop_count")
+                .contains("log.mensagem")
+                .contains("FROM [ETL_SISTEMA].dbo.log_extracoes log")
+                .contains("log.timestamp_fim >= :dataInicio")
+                .contains("log.timestamp_fim < :dataFimExclusivo")
+                .contains("ORDER BY log.timestamp_fim DESC, log.id DESC");
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void totalTabelaDeveContarLogExtracoes() {
+        when(jdbcTemplate.queryForObject(anyString(), any(MapSqlParameterSource.class), any(Class.class)))
+                .thenReturn(123L);
+
+        long total = repository().totalTabela(filtroPadrao());
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).queryForObject(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(Class.class));
+
+        assertThat(total).isEqualTo(123L);
+        assertThat(sqlCaptor.getValue())
+                .contains("SELECT COUNT(1)")
+                .contains("FROM [ETL_SISTEMA].dbo.log_extracoes log")
+                .contains("log.timestamp_fim >= :dataInicio")
+                .contains("log.timestamp_fim < :dataFimExclusivo");
+    }
+
     private EtlSaudeSqlRepository repository() {
         return new EtlSaudeSqlRepository(
                 jdbcTemplate,

@@ -4,8 +4,8 @@ import com.dashboard.api.builder.DashboardExportSqlBuilder;
 import com.dashboard.api.definition.DashboardExportDefinition;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.etl.EtlCategoriaErroDTO;
-import com.dashboard.api.dto.etl.EtlExecucaoResumoDTO;
 import com.dashboard.api.dto.etl.EtlExecucaoTrendPointDTO;
+import com.dashboard.api.dto.etl.EtlLogExtracaoAuditoriaDTO;
 import com.dashboard.api.dto.etl.EtlSaudeChartsDTO;
 import com.dashboard.api.dto.etl.EtlSaudeOverviewDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
@@ -129,37 +129,53 @@ public class EtlSaudeSqlRepository {
         ));
     }
 
-    public List<EtlExecucaoResumoDTO> buscarTabela(FiltroConsultaDTO filtro, int limite) {
-        DashboardExportSqlBuilder.ExportSql source = source(filtro);
+    public List<EtlLogExtracaoAuditoriaDTO> buscarTabela(FiltroConsultaDTO filtro) {
         String sql = """
-                SELECT
-                    TRY_CONVERT(BIGINT, base.[Id]) AS id,
-                    TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), base.[Inicio])) AS inicio,
-                    TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), base.[Fim])) AS fim,
-                    TRY_CONVERT(INT, base.[Duracao (s)]) AS duracao_segundos,
-                    TRY_CONVERT(date, base.[Data]) AS data_execucao,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), base.[Status]))), N'') AS status,
-                    TRY_CONVERT(INT, base.[Total Registros]) AS total_registros,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), base.[Categoria Erro]))), N'') AS categoria_erro,
-                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), base.[Mensagem Erro]))), N'') AS mensagem_erro
-                %s
-                ORDER BY base.[Data] DESC, base.[Inicio] DESC
-                OFFSET 0 ROWS FETCH NEXT :limite ROWS ONLY
-                """.formatted(source.sql());
+                SELECT TOP (5000)
+                    log.id,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), log.entidade))), N'') AS entidade,
+                    log.timestamp_inicio,
+                    log.timestamp_fim,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(40), log.status_final))), N'') AS status_final,
+                    log.registros_extraidos,
+                    log.paginas_processadas,
+                    log.noop_count,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), log.mensagem))), N'') AS mensagem
+                FROM [ETL_SISTEMA].dbo.log_extracoes log
+                WHERE log.timestamp_fim >= :dataInicio
+                  AND log.timestamp_fim < :dataFimExclusivo
+                ORDER BY log.timestamp_fim DESC, log.id DESC
+                """;
 
-        MapSqlParameterSource params = copiarParams(source);
-        params.addValue("limite", limite);
-        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new EtlExecucaoResumoDTO(
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("dataInicio", filtro.dataInicio())
+                .addValue("dataFimExclusivo", filtro.dataFim().plusDays(1));
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new EtlLogExtracaoAuditoriaDTO(
                 rs.getLong("id"),
-                timestamp(rs.getTimestamp("inicio")),
-                timestamp(rs.getTimestamp("fim")),
-                inteiro(rs, "duracao_segundos"),
-                data(rs.getDate("data_execucao")),
-                rs.getString("status"),
-                inteiro(rs, "total_registros"),
-                rs.getString("categoria_erro"),
-                rs.getString("mensagem_erro")
+                rs.getString("entidade"),
+                localDateTime(rs.getTimestamp("timestamp_inicio")),
+                localDateTime(rs.getTimestamp("timestamp_fim")),
+                rs.getString("status_final"),
+                inteiro(rs, "registros_extraidos"),
+                inteiro(rs, "paginas_processadas"),
+                inteiro(rs, "noop_count"),
+                rs.getString("mensagem")
         ));
+    }
+
+    public long totalTabela(FiltroConsultaDTO filtro) {
+        String sql = """
+                SELECT COUNT(1)
+                FROM [ETL_SISTEMA].dbo.log_extracoes log
+                WHERE log.timestamp_fim >= :dataInicio
+                  AND log.timestamp_fim < :dataFimExclusivo
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("dataInicio", filtro.dataInicio())
+                .addValue("dataFimExclusivo", filtro.dataFim().plusDays(1));
+        Long total = jdbcTemplate.queryForObject(sql, params, Long.class);
+        return total == null ? 0 : total;
     }
 
     public EtlSaudeChartsDTO buscarGraficos(FiltroConsultaDTO filtro) {
@@ -218,6 +234,10 @@ public class EtlSaudeSqlRepository {
 
     private String timestamp(Timestamp timestamp) {
         return timestamp != null ? timestamp.toLocalDateTime().toString() : null;
+    }
+
+    private LocalDateTime localDateTime(Timestamp timestamp) {
+        return timestamp != null ? timestamp.toLocalDateTime() : null;
     }
 
     private Integer inteiro(ResultSet rs, String coluna) throws SQLException {

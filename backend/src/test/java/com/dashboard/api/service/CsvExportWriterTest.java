@@ -33,7 +33,7 @@ class CsvExportWriterTest {
         assertThat(outputStream.toByteArray()).startsWith((byte) 0xEF, (byte) 0xBB, (byte) 0xBF);
         assertThat(csv).isEqualTo(
                 "\ufeffcidade;descricao;observacao;vazio;valor;data\r\n"
-                        + "São Paulo;\"texto; com \"\"aspas\"\"\";\"primeira\nsegunda\";;1234.50;2026-05-07\r\n"
+                        + "São Paulo;\"texto; com \"\"aspas\"\"\";\"primeira\nsegunda\";;1234,50;07/05/2026\r\n"
         );
     }
 

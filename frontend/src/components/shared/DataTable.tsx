@@ -26,6 +26,7 @@ interface DataTableProps<T> {
   chaveLinha: keyof T & string;
   isLoading?: boolean;
   titulo?: string;
+  acoesCabecalho?: ReactNode;
   mostrarCabecalho?: boolean;
   paginaInicial?: number;
   tamanhoPaginaInicial?: number;
@@ -36,6 +37,7 @@ interface DataTableProps<T> {
   onTamanhoPaginaChange?: (tamanhoPagina: number) => void;
   error?: unknown;
   errorFallbackMessage?: string;
+  semPaginacao?: boolean;
 }
 
 export default function DataTable<T>({
@@ -44,6 +46,7 @@ export default function DataTable<T>({
   chaveLinha,
   isLoading,
   titulo,
+  acoesCabecalho,
   mostrarCabecalho = true,
   paginaInicial = 1,
   tamanhoPaginaInicial = 10,
@@ -54,15 +57,17 @@ export default function DataTable<T>({
   onTamanhoPaginaChange,
   error,
   errorFallbackMessage = 'Erro ao carregar registros.',
+  semPaginacao = false,
 }: DataTableProps<T>) {
   const [ordenarPor, setOrdenarPor] = useState<string | null>(null);
   const [direcao, setDirecao] = useState<'asc' | 'desc'>('asc');
   const [paginaAtualInterna, setPaginaAtualInterna] = useState(paginaInicial);
   const [tamanhoPaginaInterno, setTamanhoPaginaInterno] = useState(tamanhoPaginaInicial);
   const colunaOrdenada = colunas.find((coluna) => coluna.chave === ordenarPor);
+  const paginacaoAtiva = !semPaginacao;
   const paginaAtual = paginaAtualControlada ?? paginaAtualInterna;
   const tamanhoPagina = tamanhoPaginaControlado ?? tamanhoPaginaInterno;
-  const paginacaoRemota = Boolean(onPaginaChange || onTamanhoPaginaChange);
+  const paginacaoRemota = paginacaoAtiva && Boolean(onPaginaChange || onTamanhoPaginaChange);
 
   function alterarPagina(proximaPagina: number) {
     if (onPaginaChange) {
@@ -126,14 +131,18 @@ export default function DataTable<T>({
 
   const totalReal = totalRegistros ?? dados.length;
   const hasError = Boolean(error);
-  const totalBasePaginacao = paginacaoRemota ? totalReal : dadosOrdenados.length;
-  const totalPaginas = Math.max(1, Math.ceil(totalBasePaginacao / tamanhoPagina));
-  const paginaSegura = Math.min(paginaAtual, totalPaginas);
-  const inicio = (paginaSegura - 1) * tamanhoPagina;
-  const dadosPaginados = paginacaoRemota ? dadosOrdenados : dadosOrdenados.slice(inicio, inicio + tamanhoPagina);
-  const fimExibido = paginacaoRemota
-    ? Math.min(inicio + dadosPaginados.length, totalReal)
-    : Math.min(inicio + dadosPaginados.length, dados.length);
+  const totalBasePaginacao = paginacaoAtiva ? (paginacaoRemota ? totalReal : dadosOrdenados.length) : dadosOrdenados.length;
+  const totalPaginas = paginacaoAtiva ? Math.max(1, Math.ceil(totalBasePaginacao / tamanhoPagina)) : 1;
+  const paginaSegura = paginacaoAtiva ? Math.min(paginaAtual, totalPaginas) : 1;
+  const inicio = paginacaoAtiva ? (paginaSegura - 1) * tamanhoPagina : 0;
+  const dadosPaginados = paginacaoAtiva
+    ? (paginacaoRemota ? dadosOrdenados : dadosOrdenados.slice(inicio, inicio + tamanhoPagina))
+    : dadosOrdenados;
+  const fimExibido = paginacaoAtiva
+    ? paginacaoRemota
+      ? Math.min(inicio + dadosPaginados.length, totalReal)
+      : Math.min(inicio + dadosPaginados.length, dados.length)
+    : dadosOrdenados.length;
   const resumoRegistros = hasError
     ? 'Falha ao carregar registros'
     : paginacaoRemota
@@ -179,7 +188,7 @@ export default function DataTable<T>({
     >
       {mostrarCabecalho && (
         <div
-          className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
+          className="flex min-h-[68px] flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
           style={{ borderColor: 'var(--color-border)' }}
         >
           <div>
@@ -190,25 +199,32 @@ export default function DataTable<T>({
               {resumoRegistros}
             </p>
           </div>
-          <label className="flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            Linhas
-            <select
-              value={tamanhoPagina}
-              onChange={(event) => alterarTamanhoPagina(Number(event.target.value))}
-              className="rounded-lg border px-2 py-1 text-xs"
-              style={{
-                backgroundColor: 'var(--color-bg)',
-                borderColor: 'var(--color-border)',
-                color: 'var(--color-text)',
-              }}
-            >
-              {[10, 20, 50, 100].map((valor) => (
-                <option key={valor} value={valor}>
-                  {valor}
-                </option>
-              ))}
-            </select>
-          </label>
+          {(acoesCabecalho || paginacaoAtiva) && (
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {acoesCabecalho}
+              {paginacaoAtiva && (
+                <label className="flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                  Linhas
+                  <select
+                    value={tamanhoPagina}
+                    onChange={(event) => alterarTamanhoPagina(Number(event.target.value))}
+                    className="rounded-lg border px-2 py-1 text-xs"
+                    style={{
+                      backgroundColor: 'var(--color-bg)',
+                      borderColor: 'var(--color-border)',
+                      color: 'var(--color-text)',
+                    }}
+                  >
+                    {[10, 20, 50, 100].map((valor) => (
+                      <option key={valor} value={valor}>
+                        {valor}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -296,7 +312,7 @@ export default function DataTable<T>({
         </table>
       </div>
 
-      {!hasError && (
+      {!hasError && paginacaoAtiva && (
         <div
           className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-xs"
           style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}

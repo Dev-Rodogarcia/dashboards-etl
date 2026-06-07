@@ -32,8 +32,9 @@ function hexToRgba(hex: string, alpha: number) {
 }
 
 export default function StatusBadge({ status }: StatusBadgeProps) {
-  const statusNormalizado = status.toLowerCase();
-  const cor = CORES_STATUS[statusNormalizado] ?? '#6b7280';
+  const statusNormalizado = status.trim().toLowerCase();
+  const statusComUnderscore = statusNormalizado.replace(/\s+/g, '_');
+  const cor = CORES_STATUS[statusNormalizado] ?? CORES_STATUS[statusComUnderscore] ?? '#6b7280';
   const textColor = TEXT_COLORS_BY_HEX[cor] ?? cor;
 
   return (

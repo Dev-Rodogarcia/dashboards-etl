@@ -1,6 +1,7 @@
 package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.executivo.ExecutivoOverviewDTO;
+import com.dashboard.api.dto.executivo.ExecutivoResumoFinanceiroDTO;
 import com.dashboard.api.dto.executivo.ExecutivoTrendPointDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.ExecutivoService;
@@ -44,5 +45,15 @@ public class ExecutivoController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(executivoService.buscarSerie(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
+    @GetMapping("/resumo-financeiro")
+    public ResponseEntity<List<ExecutivoResumoFinanceiroDTO>> resumoFinanceiro(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params) {
+        FiltroConsultaDTO filtro = FiltroRequestMapper.from(dataInicio, dataFim, params);
+        log.info("GET /api/painel/executivo/resumo-financeiro - periodo: {} a {}", dataInicio, dataFim);
+        return ResponseEntity.ok(executivoService.buscarResumoFinanceiro(filtro));
     }
 }

@@ -1,12 +1,11 @@
 package com.dashboard.api.service;
 
-import com.dashboard.api.dto.etl.EtlExecucaoResumoDTO;
 import com.dashboard.api.dto.etl.EtlExecucaoTrendPointDTO;
+import com.dashboard.api.dto.etl.EtlLogExtracaoAuditoriaDTO;
 import com.dashboard.api.dto.etl.EtlSaudeChartsDTO;
 import com.dashboard.api.dto.etl.EtlSaudeOverviewDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.repository.EtlSaudeSqlRepository;
-import com.dashboard.api.util.ConsultaLimiteUtils;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -49,11 +48,15 @@ public class EtlSaudeService {
         return sqlRepository.buscarSerie(filtro);
     }
 
-    public List<EtlExecucaoResumoDTO> buscarTabela(FiltroConsultaDTO filtro, int limite) {
+    public List<EtlLogExtracaoAuditoriaDTO> buscarTabela(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
-        int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 100, 200);
 
-        return sqlRepository.buscarTabela(filtro, limiteAplicado);
+        return sqlRepository.buscarTabela(filtro);
+    }
+
+    public long totalTabela(FiltroConsultaDTO filtro) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        return sqlRepository.totalTabela(filtro);
     }
 
     public EtlSaudeChartsDTO buscarGraficos(FiltroConsultaDTO filtro) {

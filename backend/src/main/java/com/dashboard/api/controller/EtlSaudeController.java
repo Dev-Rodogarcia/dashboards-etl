@@ -1,7 +1,7 @@
 package com.dashboard.api.controller;
 
-import com.dashboard.api.dto.etl.EtlExecucaoResumoDTO;
 import com.dashboard.api.dto.etl.EtlExecucaoTrendPointDTO;
+import com.dashboard.api.dto.etl.EtlLogExtracaoAuditoriaDTO;
 import com.dashboard.api.dto.etl.EtlSaudeChartsDTO;
 import com.dashboard.api.dto.etl.EtlSaudeOverviewDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
@@ -57,11 +57,10 @@ public class EtlSaudeController {
     }
 
     @GetMapping("/tabela")
-    public ResponseEntity<List<EtlExecucaoResumoDTO>> tabela(
+    public ResponseEntity<List<EtlLogExtracaoAuditoriaDTO>> tabela(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
-            @RequestParam(defaultValue = "100") int limite,
             @RequestParam MultiValueMap<String, String> params) {
-        return ResponseEntity.ok(etlSaudeService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
+        return ResponseEntity.ok(etlSaudeService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params)));
     }
 }

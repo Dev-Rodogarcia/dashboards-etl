@@ -38,10 +38,10 @@ export function useEtlSaudeGraficos(filtro: FiltroQuery) {
   });
 }
 
-export function useEtlSaudeTabela(filtro: FiltroQuery, limite = 100) {
+export function useEtlSaudeTabela(filtro: FiltroQuery) {
   return useQuery({
-    queryKey: ['etl-saude', 'tabela', filtro, limite],
-    queryFn: () => buscarEtlSaudeTabela(filtro, limite),
+    queryKey: ['etl-saude', 'tabela', filtro],
+    queryFn: () => buscarEtlSaudeTabela(filtro),
     staleTime: STALE_TIME,
     retry: 1,
   });
