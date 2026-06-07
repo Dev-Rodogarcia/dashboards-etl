@@ -12,6 +12,14 @@ interface ColetasTrendProps {
 
 export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
   const option: EChartsOption = useMemo(() => ({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        crossStyle: { color: '#999', type: 'dashed' },
+        label: { show: true, backgroundColor: '#536298', color: '#fff' },
+      },
+    },
     xAxis: {
       type: 'category' as const,
       data: dados.map((d) => formatarDataCurta(d.date)),

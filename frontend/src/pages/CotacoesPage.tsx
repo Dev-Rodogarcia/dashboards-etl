@@ -566,6 +566,11 @@ function buildSerieOption(buckets: TrendBucket[]): EChartsOption {
     legend: { bottom: 0 },
     tooltip: {
       trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        crossStyle: { color: '#999', type: 'dashed' },
+        label: { show: true, backgroundColor: '#536298', color: '#fff' },
+      },
       formatter: (params: unknown) => {
         const item = Array.isArray(params) ? params[0] as { dataIndex?: number } : null;
         const bucket = typeof item?.dataIndex === 'number' ? buckets[item.dataIndex] : null;

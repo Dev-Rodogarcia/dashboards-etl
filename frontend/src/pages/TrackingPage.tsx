@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
-import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import TrackingKpiGrid from '../components/domain/tracking/TrackingKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
@@ -25,6 +25,7 @@ import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 const STATUS_RAPIDOS = ['NO ARMAZÉM', 'Em transferência', 'Em entrega'] as const;
 const STATUS_BASE = ['NO ARMAZÉM', 'Manifestado', 'Em transferência', 'Em entrega', 'Entregue', 'Cancelado'];
+const FILIAL_ATUAL_PADRAO = 'AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA';
 const REGIOES_POR_PAGINA = 9;
 const STATUS_ROSCA_CORES: Record<string, string> = {
   'no armazém': CORES.aviso,
@@ -95,6 +96,10 @@ function codigoFilialAtual(valor: string): string {
   const texto = valor.trim();
   const prefixo = texto.split(/\s*[-–—]\s*/)[0]?.trim() || texto;
   return prefixo.slice(0, 3).toUpperCase();
+}
+
+function normalizarTexto(valor: string): string {
+  return valor.trim().toLowerCase();
 }
 
 function MatrizRegiaoDestino({
@@ -276,27 +281,44 @@ export default function TrackingPage() {
   const filiais = useFiliais();
 
   const filiaisDisponiveis = useMemo(() => filiais.data ?? [], [filiais.data]);
-  const filialAtualSelecionada = filtros.filialAtual?.[0] ?? '';
-  const dashboardHabilitado = filialAtualSelecionada.trim().length > 0 && (filtros.filialAtual?.length ?? 0) === 1;
+  const filiaisAtuaisSelecionadas = filtros.filialAtual ?? [];
+  const filialAtualContexto = filiaisAtuaisSelecionadas.at(-1)?.trim() ?? '';
+  const filialAtualPadrao = useMemo(
+    () => filiaisDisponiveis.find((filial) => filial.toUpperCase().startsWith('AGU -')) ?? filiaisDisponiveis[0] ?? FILIAL_ATUAL_PADRAO,
+    [filiaisDisponiveis],
+  );
+  const filiaisCarregadas = filiaisDisponiveis.length > 0;
+  const filialAtualExiste = filiaisCarregadas
+    ? filiaisDisponiveis.some((filial) => normalizarTexto(filial) === normalizarTexto(filialAtualContexto))
+    : filialAtualContexto.includes(' - ');
+  const deveInjetarFilialPadrao = !filialAtualExiste;
+  const filialAtualFiltro = deveInjetarFilialPadrao ? [filialAtualPadrao] : [filialAtualContexto];
+  const filialAtualSelecionada = filialAtualFiltro[0] ?? FILIAL_ATUAL_PADRAO;
+
+  useEffect(() => {
+    if (deveInjetarFilialPadrao) {
+      setFiltro('filialAtual', [filialAtualPadrao]);
+    }
+  }, [deveInjetarFilialPadrao, filialAtualPadrao, setFiltro]);
 
   const filtro: TrackingFiltro = {
     dataInicio,
     dataFim,
-    filialAtual: filtros.filialAtual,
+    filialAtual: filialAtualFiltro,
     statusCarga: filtros.statusCarga,
   };
 
   const activeFilters: ActiveFilter[] = [
     {
       label: 'Filial Atual',
-      count: filtros.filialAtual?.length ?? 0,
+      count: filialAtualFiltro.length,
       valueLabel: codigoFilialAtual(filialAtualSelecionada),
       onRemove: () => setFiltro('filialAtual', []),
     },
     { label: 'Status', count: filtros.statusCarga?.length ?? 0, onRemove: () => setFiltro('statusCarga', []) },
   ];
 
-  const dashboard = useTrackingDashboard(filtro, dashboardHabilitado);
+  const dashboard = useTrackingDashboard(filtro);
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
   const tabela = useTrackingDetalhesPaginada(
@@ -304,7 +326,6 @@ export default function TrackingPage() {
     paginacaoTabela.pagina,
     paginacaoTabela.tamanhoPagina,
     filtrosTabela.apiFilters,
-    dashboardHabilitado,
   );
 
   usePageHeader({
@@ -439,7 +460,7 @@ export default function TrackingPage() {
         <AsyncMultiSelect
           label="Filial Atual"
           opcoes={filiaisDisponiveis}
-          selecionados={filtros.filialAtual ?? []}
+          selecionados={filialAtualFiltro}
           onChange={(valores) => setFiltro('filialAtual', valores.slice(-1))}
           placeholder="Selecione"
           isLoading={filiais.isLoading}
@@ -452,56 +473,43 @@ export default function TrackingPage() {
         />
       </FilterBar>
 
-      {!dashboardHabilitado && (
-        <section className="mb-6 flex min-h-64 flex-col items-center justify-center rounded-lg border px-6 text-center" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
-          <MapPin size={34} style={{ color: 'var(--color-primary)' }} />
-          <h2 className="mt-3 text-lg font-bold" style={{ color: 'var(--color-text)' }}>Selecione a Filial Atual</h2>
-        </section>
-      )}
+      {dashboard.isError && <MensagemErro mensagem={getApiErrorMessage(dashboard.error, 'Erro ao carregar localização de cargas.')} tipo={getTipoErro(dashboard.error)} />}
+      {dashboard.data && <TrackingKpiGrid overview={dashboard.data.overview} />}
 
-      {dashboardHabilitado && dashboard.isError && <MensagemErro mensagem={getApiErrorMessage(dashboard.error, 'Erro ao carregar localização de cargas.')} tipo={getTipoErro(dashboard.error)} />}
-      {dashboardHabilitado && dashboard.data && <TrackingKpiGrid overview={dashboard.data.overview} />}
-
-      {dashboardHabilitado && (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.18fr)_minmax(360px,0.82fr)]">
-          <MatrizRegiaoDestino linhas={matriz} statusSelecionados={filtros.statusCarga ?? []} onToggleStatus={alternarStatus} />
-          <div className="grid grid-cols-1 gap-6">
-            <ChartWrapper titulo="Distribuição de Status" option={statusOption} isLoading={dashboard.isLoading} isEmpty={statusData.length === 0} altura={290} />
-            <ChartWrapper titulo="Valor por Região de Destino" option={valorRegiaoOption} isLoading={dashboard.isLoading} isEmpty={valorRegiao.length === 0} altura={290} />
-          </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.18fr)_minmax(360px,0.82fr)]">
+        <MatrizRegiaoDestino linhas={matriz} statusSelecionados={filtros.statusCarga ?? []} onToggleStatus={alternarStatus} />
+        <div className="grid grid-cols-1 gap-6">
+          <ChartWrapper titulo="Distribuição de Status" option={statusOption} isLoading={dashboard.isLoading} isEmpty={statusData.length === 0} altura={290} />
+          <ChartWrapper titulo="Valor por Região de Destino" option={valorRegiaoOption} isLoading={dashboard.isLoading} isEmpty={valorRegiao.length === 0} altura={290} />
         </div>
-      )}
+      </div>
 
-      {dashboardHabilitado && (
-        <>
-          <div className="mt-6 mb-3 flex justify-end">
-            <ExportButton nomeArquivo="localizacao-cargas" onExport={() => exportarTrackingCsv(filtro, filtrosTabela.apiFilters)} />
-          </div>
-          <AnalyticalDataTable
-            titulo="Detalhamento de Cargas"
-            dados={tabela.data?.conteudo ?? []}
-            colunas={colunas}
-            chaveLinha="numeroMinuta"
-            filtros={filtrosTabela.filters}
-            hiddenActiveCount={filtrosTabela.hiddenActiveCount}
-            hasAnyFilter={filtrosTabela.hasAnyFilter}
-            onTextFilterChange={filtrosTabela.setTextFilter}
-            onMultiFilterChange={filtrosTabela.setMultiFilter}
-            onColumnFilterChange={filtrosTabela.setColumnFilter}
-            onClearFilters={filtrosTabela.clearTableFilters}
-            statusOptions={statusTabelaOptions}
-            statusOptionsLoading={dashboard.isLoading}
-            isLoading={tabela.isLoading}
-            error={tabela.error}
-            errorFallbackMessage="Erro ao carregar detalhamento de cargas."
-            totalRegistros={tabela.data?.totalElementos}
-            paginaAtual={paginacaoTabela.pagina}
-            tamanhoPagina={paginacaoTabela.tamanhoPagina}
-            onPaginaChange={paginacaoTabela.setPagina}
-            onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
-          />
-        </>
-      )}
+      <div className="mt-6 mb-3 flex justify-end">
+        <ExportButton nomeArquivo="localizacao-cargas" onExport={() => exportarTrackingCsv(filtro, filtrosTabela.apiFilters)} />
+      </div>
+      <AnalyticalDataTable
+        titulo="Detalhamento de Cargas"
+        dados={tabela.data?.conteudo ?? []}
+        colunas={colunas}
+        chaveLinha="numeroMinuta"
+        filtros={filtrosTabela.filters}
+        hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+        hasAnyFilter={filtrosTabela.hasAnyFilter}
+        onTextFilterChange={filtrosTabela.setTextFilter}
+        onMultiFilterChange={filtrosTabela.setMultiFilter}
+        onColumnFilterChange={filtrosTabela.setColumnFilter}
+        onClearFilters={filtrosTabela.clearTableFilters}
+        statusOptions={statusTabelaOptions}
+        statusOptionsLoading={dashboard.isLoading}
+        isLoading={tabela.isLoading}
+        error={tabela.error}
+        errorFallbackMessage="Erro ao carregar detalhamento de cargas."
+        totalRegistros={tabela.data?.totalElementos}
+        paginaAtual={paginacaoTabela.pagina}
+        tamanhoPagina={paginacaoTabela.tamanhoPagina}
+        onPaginaChange={paginacaoTabela.setPagina}
+        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+      />
     </div>
   );
 }

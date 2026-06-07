@@ -129,7 +129,14 @@ function buildSerieTemporalOption(dados: PerformanceSerieTemporalPoint[], nivel:
   return {
     legend: { top: 0 },
     grid: { top: 42, left: 10, right: 10, bottom: 10, containLabel: true },
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        crossStyle: { color: '#999', type: 'dashed' },
+        label: { show: true, backgroundColor: '#536298', color: '#fff' },
+      },
+    },
     xAxis: {
       type: 'category',
       boundaryGap: false,
@@ -237,6 +244,11 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[]): EChartsOption
     grid: { top: 38, right: 24, bottom: 34, left: 14, containLabel: true },
     tooltip: {
       trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        crossStyle: { color: '#999', type: 'dashed' },
+        label: { show: true, backgroundColor: '#536298', color: '#fff' },
+      },
       formatter: (params: unknown) => {
         const entries = params as { marker?: string; seriesName: string; value: number; name: string }[];
         const name = entries[0]?.name ?? '';

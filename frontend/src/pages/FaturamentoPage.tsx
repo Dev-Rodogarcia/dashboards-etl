@@ -630,6 +630,11 @@ function buildEvolutionOption(
     ],
     tooltip: {
       trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        crossStyle: { color: '#999', type: 'dashed' },
+        label: { show: true, backgroundColor: '#536298', color: '#fff' },
+      },
       formatter: (params: unknown) => {
         const items = Array.isArray(params) ? params as Array<{ marker?: string; seriesName?: string; value?: number | { value?: number } }> : [];
         return items

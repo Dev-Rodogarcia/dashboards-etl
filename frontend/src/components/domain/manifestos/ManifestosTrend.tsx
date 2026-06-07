@@ -29,6 +29,11 @@ export default function ManifestosTrend({ dados, nivel, onNivelChange, onPointCl
   const option: EChartsOption = useMemo(() => ({
     tooltip: {
       trigger: 'axis' as const,
+      axisPointer: {
+        type: 'cross',
+        crossStyle: { color: '#999', type: 'dashed' },
+        label: { show: true, backgroundColor: '#536298', color: '#fff' },
+      },
     },
     legend: {
       top: 0,

@@ -148,7 +148,11 @@ export default function ColetasPage() {
     grid: { top: 28, right: 54, bottom: 34, left: 42, containLabel: true },
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'shadow' },
+      axisPointer: {
+        type: 'cross',
+        crossStyle: { color: '#999', type: 'dashed' },
+        label: { show: true, backgroundColor: '#536298', color: '#fff' },
+      },
       formatter: (params: unknown) => {
         const entries = params as { marker?: string; seriesName: string; name: string; value: number }[];
         const primeira = entries[0];

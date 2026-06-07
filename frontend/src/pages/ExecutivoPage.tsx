@@ -273,7 +273,15 @@ export default function ExecutivoPage() {
   const financeiroOption: EChartsOption = {
     color: Object.values(chartColors),
     legend: { top: 0 },
-    tooltip: { trigger: 'axis', formatter: formatarTooltipFinanceiro },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        crossStyle: { color: '#999', type: 'dashed' },
+        label: { show: true, backgroundColor: '#536298', color: '#fff' },
+      },
+      formatter: formatarTooltipFinanceiro,
+    },
     grid: { top: 54, right: 20, bottom: 30, left: 68 },
     xAxis: { type: 'category', boundaryGap: false, data: serieDados.map((item) => item.month) },
     yAxis: { type: 'value', axisLabel: { formatter: formatarMoedaEixo } },
