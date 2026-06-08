@@ -29,7 +29,7 @@ import { usePageHeader } from '../../contexts/PageHeaderContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { ADMIN_NAV_ITEMS, DASHBOARD_NAV_ITEMS } from '../../utils/accessControl';
 import type { NavItem } from '../../utils/accessControl';
-import { formatarDataHora } from '../../utils/formatadores';
+import { formatarDataHoraMinuto } from '../../utils/formatadores';
 
 const focusRingClass = 'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
 
@@ -179,7 +179,7 @@ export default function TopNav() {
   const isDarkTheme = theme === 'dark';
   const themeToggleLabel = isDarkTheme ? 'Alternar para modo claro' : 'Alternar para modo escuro';
   const hamburgerLabel = isMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação';
-  const updatedAtLabel = pageHeader.updatedAt ? `Atualizado em ${formatarDataHora(pageHeader.updatedAt)}` : null;
+  const updatedAtLabel = pageHeader.updatedAt ? `Atualizado em ${formatarDataHoraMinuto(pageHeader.updatedAt)}` : null;
 
   const updateDrawerScrollState = useCallback(() => {
     const element = drawerNavRef.current;
