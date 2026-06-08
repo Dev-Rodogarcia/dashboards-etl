@@ -88,7 +88,7 @@ public class FretesService {
 
         if (totalFretes == 0) {
             return new FretesOverviewDTO(
-                    TemporalJsonUtils.formatarUtc(null),
+                    TemporalJsonUtils.formatarIsoComOffset(null),
                     0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
                     BigDecimal.ZERO, 0, 0.0, 0.0, 0,
                     metas.metaFaturamento(),
@@ -358,7 +358,7 @@ public class FretesService {
     }
 
     private String formatarAtualizacao(LocalDateTime updatedAt) {
-        return TemporalJsonUtils.formatarUtc(updatedAt);
+        return TemporalJsonUtils.formatarIsoComOffset(updatedAt);
     }
 
     private List<FretesFaturamentoGrupoDTO> mapearGrupos(

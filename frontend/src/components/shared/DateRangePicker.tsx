@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Info } from 'lucide-react';
 import { normalizarPeriodo } from '../../utils/dateUtils';
-import { DATE_RANGE_PRESETS, type DatePreset } from './dateRangePresets';
+import { DATE_RANGE_PRESETS, resolverPresetAtivo, type DatePreset } from './dateRangePresets';
 
 interface DateRangePickerProps {
   dataInicio: string;
@@ -27,18 +27,19 @@ export default function DateRangePicker({
   label,
   helpText,
 }: DateRangePickerProps) {
-  // Detecta qual preset está ativo comparando datas com timezone local
+  const [presetPreferido, setPresetPreferido] = useState<string | null>(null);
+  const [datasEditadasManualmente, setDatasEditadasManualmente] = useState(false);
+
   const presetAtivo = useMemo(() => {
-    for (const { label, getRange } of DATE_RANGE_PRESETS) {
-      const range = getRange();
-      if (dataFim === range.dataFim && dataInicio === range.dataInicio) return label;
-    }
-    return null;
-  }, [dataInicio, dataFim]);
+    if (datasEditadasManualmente) return null;
+    return resolverPresetAtivo(dataInicio, dataFim, presetPreferido);
+  }, [dataInicio, dataFim, datasEditadasManualmente, presetPreferido]);
 
   function aplicarPreset(preset: DatePreset) {
     const range = preset.getRange();
     const p = normalizarPeriodo(range.dataInicio, range.dataFim);
+    setDatasEditadasManualmente(false);
+    setPresetPreferido(preset.label);
     if (onRangeChange) {
       onRangeChange(p.dataInicio, p.dataFim);
     } else {
@@ -48,6 +49,8 @@ export default function DateRangePicker({
   }
 
   function atualizarInicio(valor: string) {
+    setDatasEditadasManualmente(true);
+    setPresetPreferido(null);
     if (onRangeChange) {
       onRangeChange(valor, dataFim);
     } else {
@@ -56,6 +59,8 @@ export default function DateRangePicker({
   }
 
   function atualizarFim(valor: string) {
+    setDatasEditadasManualmente(true);
+    setPresetPreferido(null);
     if (onRangeChange) {
       onRangeChange(dataInicio, valor);
     } else {

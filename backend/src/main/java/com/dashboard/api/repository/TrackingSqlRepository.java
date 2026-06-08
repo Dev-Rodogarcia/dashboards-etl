@@ -528,7 +528,7 @@ public class TrackingSqlRepository {
 
     private String updatedAt(Timestamp timestamp) {
         LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : null;
-        return TemporalJsonUtils.formatarUtc(valor);
+        return TemporalJsonUtils.formatarIsoComOffset(valor);
     }
 
     private BigDecimal decimal(BigDecimal valor) {

@@ -912,7 +912,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     private static PerformanceEntregaResumo resumoPerformance(java.util.Map<String, Object> row) {
         return new PerformanceEntregaResumo(
-                TemporalJsonUtils.garantirUtc(texto(row, "updated_at")),
+                TemporalJsonUtils.garantirIsoComOffset(texto(row, "updated_at")),
                 longo(row, "total_entregas"),
                 longo(row, "entregas_no_prazo"),
                 longo(row, "entregas_fora_do_prazo")
@@ -921,7 +921,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     private static CubagemResumo resumoCubagem(java.util.Map<String, Object> row) {
         return new CubagemResumo(
-                TemporalJsonUtils.garantirUtc(texto(row, "updated_at")),
+                TemporalJsonUtils.garantirIsoComOffset(texto(row, "updated_at")),
                 longo(row, "total_fretes"),
                 longo(row, "fretes_cubados"),
                 longo(row, "fretes_com_peso_real")
@@ -930,7 +930,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     private static IndenizacaoResumo resumoIndenizacao(java.util.Map<String, Object> row) {
         return new IndenizacaoResumo(
-                TemporalJsonUtils.garantirUtc(texto(row, "updated_at")),
+                TemporalJsonUtils.garantirIsoComOffset(texto(row, "updated_at")),
                 longo(row, "total_sinistros"),
                 escala(decimal(row, "valor_indenizado_abs"), 2),
                 escala(decimal(row, "valor_indenizado_original"), 2),
@@ -940,7 +940,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     private static UtilizacaoColetoresResumo resumoColetores(java.util.Map<String, Object> row) {
         return new UtilizacaoColetoresResumo(
-                TemporalJsonUtils.garantirUtc(texto(row, "updated_at")),
+                TemporalJsonUtils.garantirIsoComOffset(texto(row, "updated_at")),
                 longo(row, "manifestos_bipados"),
                 longo(row, "manifestos_emitidos"),
                 longo(row, "manifestos_descarregamento"),

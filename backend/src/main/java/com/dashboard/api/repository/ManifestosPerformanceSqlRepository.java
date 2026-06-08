@@ -93,7 +93,7 @@ public class ManifestosPerformanceSqlRepository {
         );
 
         return new ManifestosPerformanceDTO(
-                TemporalJsonUtils.garantirUtc(texto(overview, "updated_at")),
+                TemporalJsonUtils.garantirIsoComOffset(texto(overview, "updated_at")),
                 kpis,
                 buscarGauge(ctx, "remuneracao"),
               buscarGauge(ctx, "aproveitamento"),

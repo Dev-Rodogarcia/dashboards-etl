@@ -64,7 +64,7 @@ public class ManifestosService {
 
         if (totalManifestos == 0) {
             return new ManifestosOverviewDTO(
-                    TemporalJsonUtils.formatarUtc(null),
+                    TemporalJsonUtils.formatarIsoComOffset(null),
                     0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0.0, 0.0
             );
         }
@@ -180,7 +180,7 @@ public class ManifestosService {
     }
 
     private String formatarAtualizacao(LocalDateTime updatedAt) {
-        return TemporalJsonUtils.formatarUtc(updatedAt);
+        return TemporalJsonUtils.formatarIsoComOffset(updatedAt);
     }
 
     private ManifestosConsulta consulta(FiltroConsultaDTO filtro) {

@@ -41,7 +41,7 @@ class PerformanceEntregaIndicadorServiceTest {
 
         PerformanceEntregaOverviewDTO overview = service.buscarOverview(filtro);
 
-        assertThat(overview.updatedAt()).isEqualTo("2026-04-03T09:00:00");
+        assertThat(overview.updatedAt()).isEqualTo("2026-04-03T09:00:00-03:00");
         assertThat(overview.totalEntregas()).isEqualTo(4);
         assertThat(overview.entregasNoPrazo()).isEqualTo(2);
         assertThat(overview.entregasForaDoPrazo()).isEqualTo(1);

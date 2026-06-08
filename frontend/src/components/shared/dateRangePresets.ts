@@ -22,3 +22,24 @@ export const DATE_RANGE_PRESETS: DatePreset[] = [
   { label: 'Este mês', getRange: () => ({ dataInicio: primeiroDiaMesAtualLocal(), dataFim: dataHojeLocal() }) },
   { label: 'Mês passado', getRange: () => ({ dataInicio: primeiroDiaMesPassadoLocal(), dataFim: ultimoDiaMesPassadoLocal() }) },
 ];
+
+const PRESETS_MENSAIS = new Set(['Este mês', 'Mês passado']);
+
+export function resolverPresetAtivo(
+  dataInicio: string,
+  dataFim: string,
+  presetPreferido?: string | null,
+): string | null {
+  const correspondentes = DATE_RANGE_PRESETS.filter((preset) => {
+    const range = preset.getRange();
+    return range.dataInicio === dataInicio && range.dataFim === dataFim;
+  });
+
+  if (presetPreferido && correspondentes.some((preset) => preset.label === presetPreferido)) {
+    return presetPreferido;
+  }
+
+  return correspondentes.find((preset) => PRESETS_MENSAIS.has(preset.label))?.label
+    ?? correspondentes[0]?.label
+    ?? null;
+}

@@ -3,7 +3,7 @@ import type { InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL, API_REQUEST_TIMEOUT_MS, AUTH_REQUEST_TIMEOUT_MS } from '../config/api';
 import type { LoginResponse } from '../types/auth';
 import { limparSessao, obterAccessToken, salvarSessaoDoLogin } from '../utils/gerenciadorSessao';
-import { ehSessaoExpiradaError, normalizarErroSessao } from '../utils/authSession';
+import { SessaoExpiradaError, normalizarErroSessao } from '../utils/authSession';
 import { DATABASE_TIMEOUT_MESSAGE, SERVER_INSTABILITY_MESSAGE } from '../utils/apiError';
 
 export interface RetryableRequestConfig extends InternalAxiosRequestConfig {
@@ -67,9 +67,8 @@ export async function renovarSessao(): Promise<LoginResponse> {
 }
 
 interface TratamentoErroRespostaDeps {
-  renovarSessao: () => Promise<LoginResponse>;
-  repetirRequisicao: (config: RetryableRequestConfig) => Promise<unknown>;
   limparSessao: () => void;
+  revogarSessaoRemota?: () => Promise<void>;
   obterPathAtual: () => string;
   redirecionar: (path: string) => void;
 }
@@ -86,6 +85,33 @@ function encerrarSessaoLocal(deps: Pick<TratamentoErroRespostaDeps, 'limparSessa
   deps.limparSessao();
   if (deps.obterPathAtual() !== '/login') {
     deps.redirecionar('/login');
+  }
+}
+
+async function revogarSessaoRemota(): Promise<void> {
+  const logoutUrl = `${API_BASE_URL}/api/auth/logout`;
+
+  try {
+    if (typeof fetch === 'function') {
+      await fetch(logoutUrl, {
+        method: 'POST',
+        credentials: 'include',
+        keepalive: true,
+      });
+      return;
+    }
+
+    await axios.post(
+      logoutUrl,
+      {},
+      {
+        withCredentials: true,
+        timeout: AUTH_REQUEST_TIMEOUT_MS,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+  } catch {
+    // A sessao local ja foi encerrada; falha remota nao deve impedir o redirecionamento.
   }
 }
 
@@ -138,21 +164,10 @@ export async function tratarErroRespostaApi(
 
   notificarErroInfraestrutura(status);
 
-  if (status === 401 && originalRequest && !originalRequest._retry && !ehEndpointAuth(url)) {
-    originalRequest._retry = true;
-
-    try {
-      const sessaoRenovada = await deps.renovarSessao();
-      originalRequest.headers = originalRequest.headers ?? {};
-      originalRequest.headers.Authorization = `Bearer ${obterAccessToken() ?? sessaoRenovada.token}`;
-      return deps.repetirRequisicao(originalRequest);
-    } catch (refreshError) {
-      if (ehSessaoExpiradaError(refreshError)) {
-        encerrarSessaoLocal(deps);
-      }
-
-      return Promise.reject(refreshError);
-    }
+  if (status === 401 && !ehEndpointAuth(url)) {
+    void deps.revogarSessaoRemota?.();
+    encerrarSessaoLocal(deps);
+    return Promise.reject(new SessaoExpiradaError(error));
   }
 
   if (status === 403) {
@@ -167,9 +182,8 @@ export async function tratarErroRespostaApi(
 clienteAxios.interceptors.response.use(
   (response) => response,
   (error) => tratarErroRespostaApi(error, {
-    renovarSessao,
-    repetirRequisicao: (config) => clienteAxios(config),
     limparSessao,
+    revogarSessaoRemota,
     obterPathAtual: () => window.location.pathname,
     redirecionar: (path) => {
       window.location.href = path;

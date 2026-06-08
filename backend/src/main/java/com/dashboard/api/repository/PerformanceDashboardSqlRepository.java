@@ -1208,9 +1208,9 @@ public class PerformanceDashboardSqlRepository {
     private static String updatedAt(Map<String, Object> row, String chave) {
         Object valor = row.get(chave);
         if (valor instanceof Timestamp timestamp) {
-            return TemporalJsonUtils.formatarUtc(timestamp.toLocalDateTime());
+            return TemporalJsonUtils.formatarIsoComOffset(timestamp.toLocalDateTime());
         }
-        return TemporalJsonUtils.garantirUtc(valor == null ? null : String.valueOf(valor));
+        return TemporalJsonUtils.garantirIsoComOffset(valor == null ? null : String.valueOf(valor));
     }
 
     private static long longo(Map<String, Object> row, String chave) {

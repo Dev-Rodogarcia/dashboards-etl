@@ -92,7 +92,7 @@ public class PerformanceEntregaIndicadorService {
     }
 
     private static String updatedAtOuAgora(String updatedAt) {
-        return TemporalJsonUtils.garantirUtc(updatedAt);
+        return TemporalJsonUtils.garantirIsoComOffset(updatedAt);
     }
 
     private static int inteiro(long valor) {
