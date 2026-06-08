@@ -9,8 +9,7 @@ import com.dashboard.api.repository.IndicadoresGestaoAVistaSqlRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.ConsultaLimiteUtils;
 import com.dashboard.api.util.IndicadoresGestaoMetricasUtils;
-import java.time.format.DateTimeFormatter;
-import java.time.LocalDateTime;
+import com.dashboard.api.util.TemporalJsonUtils;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -93,9 +92,7 @@ public class PerformanceEntregaIndicadorService {
     }
 
     private static String updatedAtOuAgora(String updatedAt) {
-        return updatedAt != null && !updatedAt.isBlank()
-                ? updatedAt
-                : LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        return TemporalJsonUtils.garantirUtc(updatedAt);
     }
 
     private static int inteiro(long valor) {

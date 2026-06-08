@@ -46,7 +46,9 @@ class EtlSaudeSqlRepositoryTest {
                 .contains("AVG(CAST(COALESCE(TRY_CONVERT(INT, [Duracao (s)]), 0) AS FLOAT)) AS tempo_medio_execucao_segundos")
                 .contains("SUM(CASE WHEN COALESCE(NULLIF(LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))), N''), N'') <> N'success' THEN 1 ELSE 0 END) AS execucoes_com_erro")
                 .contains("SUM(COALESCE(TRY_CONVERT(INT, [Total Registros]), 0)) AS volume_processado_total")
-                .contains("SUM(CASE WHEN COALESCE(NULLIF(LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))), N''), N'') = N'success' THEN 1 ELSE 0 END) AS execucoes_sucesso");
+                .contains("SUM(CASE WHEN COALESCE(NULLIF(LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))), N''), N'') = N'success' THEN 1 ELSE 0 END) AS execucoes_sucesso")
+                .contains("CAST(NULL AS DATETIME2) AS updated_at")
+                .doesNotContain("SYSDATETIME() AS updated_at");
     }
 
     @Test

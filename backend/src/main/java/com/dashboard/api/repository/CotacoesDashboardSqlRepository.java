@@ -13,6 +13,7 @@ import com.dashboard.api.dto.cotacoes.CotacoesResumoAgregadoDTO;
 import com.dashboard.api.dto.cotacoes.CotacoesTrendPointDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import com.dashboard.api.util.TemporalJsonUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
@@ -20,7 +21,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Arrays;
-import java.time.format.DateTimeFormatter;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +32,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class CotacoesDashboardSqlRepository {
 
-    private static final DateTimeFormatter ISO_LOCAL_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     private static final String STATUS_NORMALIZADO_SQL =
             "LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status Conversão]))))";
     private static final String STATUS_CONVERTIDA_SQL =
@@ -680,8 +679,8 @@ public class CotacoesDashboardSqlRepository {
     }
 
     private String updatedAt(Timestamp timestamp) {
-        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : LocalDateTime.now();
-        return valor.format(ISO_LOCAL_DATE_TIME);
+        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : null;
+        return TemporalJsonUtils.formatarUtc(valor);
     }
 
     private BigDecimal decimal(BigDecimal valor) {

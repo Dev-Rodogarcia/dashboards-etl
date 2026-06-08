@@ -9,10 +9,10 @@ import com.dashboard.api.dto.faturascliente.FaturasPorClienteStatusProcessoDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteTopClienteDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import com.dashboard.api.util.TemporalJsonUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Timestamp;
-import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -26,7 +26,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class FaturasPorClienteSqlRepository {
 
-    private static final DateTimeFormatter ISO_LOCAL_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     private static final List<String> ORDEM_AGING = List.of(
             "A vencer",
             "1-15 dias",
@@ -283,8 +282,8 @@ public class FaturasPorClienteSqlRepository {
     }
 
     private String updatedAt(Timestamp timestamp) {
-        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : LocalDateTime.now();
-        return valor.format(ISO_LOCAL_DATE_TIME);
+        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : null;
+        return TemporalJsonUtils.formatarUtc(valor);
     }
 
     private BigDecimal decimal(BigDecimal valor) {

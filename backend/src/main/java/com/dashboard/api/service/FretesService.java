@@ -18,6 +18,7 @@ import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.ConsultaFiltroUtils;
 import com.dashboard.api.util.ConsultaLimiteUtils;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
+import com.dashboard.api.util.TemporalJsonUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
@@ -87,7 +88,7 @@ public class FretesService {
 
         if (totalFretes == 0) {
             return new FretesOverviewDTO(
-                    LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                    TemporalJsonUtils.formatarUtc(null),
                     0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
                     BigDecimal.ZERO, 0, 0.0, 0.0, 0,
                     metas.metaFaturamento(),
@@ -357,9 +358,7 @@ public class FretesService {
     }
 
     private String formatarAtualizacao(LocalDateTime updatedAt) {
-        return updatedAt != null
-                ? updatedAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                : LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        return TemporalJsonUtils.formatarUtc(updatedAt);
     }
 
     private List<FretesFaturamentoGrupoDTO> mapearGrupos(

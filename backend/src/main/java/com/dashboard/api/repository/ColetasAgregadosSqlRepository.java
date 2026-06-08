@@ -12,11 +12,11 @@ import com.dashboard.api.dto.coletas.ColetasTrendPointDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.model.coletas.ColetaStatusPendente;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import com.dashboard.api.util.TemporalJsonUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -30,7 +30,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ColetasAgregadosSqlRepository {
 
-    private static final DateTimeFormatter ISO_LOCAL_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     private static final String REGIAO_SEM_MAPEAMENTO = "Sem regiao";
     private static final String CIDADE_SEM_MAPEAMENTO = "Sem cidade";
     private static final List<String> ORDEM_AGING = List.of("0-2 dias", "3-5 dias", "6-10 dias", "11+ dias");
@@ -393,8 +392,8 @@ public class ColetasAgregadosSqlRepository {
     }
 
     private String updatedAt(Timestamp timestamp) {
-        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : LocalDateTime.now();
-        return valor.format(ISO_LOCAL_DATE_TIME);
+        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : null;
+        return TemporalJsonUtils.formatarUtc(valor);
     }
 
     private String data(Date data) {

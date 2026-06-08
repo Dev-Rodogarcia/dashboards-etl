@@ -16,6 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Repository;
 public class EtlSaudeSqlRepository {
 
     private static final DateTimeFormatter ISO_LOCAL_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    private static final ZoneId ZONE_ID_APLICACAO = ZoneId.of("America/Sao_Paulo");
     private static final String STATUS_NORMALIZADO_SQL =
             "COALESCE(NULLIF(LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))), N''), N'')";
     private static final String STATUS_SUCESSO_SQL = STATUS_NORMALIZADO_SQL + " = N'success'";
@@ -54,7 +56,7 @@ public class EtlSaudeSqlRepository {
                 ),
                 agregado AS (
                     SELECT
-                        SYSDATETIME() AS updated_at,
+                        CAST(NULL AS DATETIME2) AS updated_at,
                         COUNT(1) AS total_execucoes,
                         AVG(CAST(%s AS FLOAT)) AS tempo_medio_execucao_segundos,
                         SUM(CASE WHEN %s THEN 1 ELSE 0 END) AS execucoes_com_erro,
@@ -220,7 +222,7 @@ public class EtlSaudeSqlRepository {
     }
 
     private String updatedAt(Timestamp timestamp) {
-        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : LocalDateTime.now();
+        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : LocalDateTime.now(ZONE_ID_APLICACAO);
         return valor.format(ISO_LOCAL_DATE_TIME);
     }
 

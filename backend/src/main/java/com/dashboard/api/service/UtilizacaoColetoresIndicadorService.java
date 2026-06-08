@@ -9,9 +9,8 @@ import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.repository.IndicadoresGestaoAVistaSqlRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.ConsultaLimiteUtils;
+import com.dashboard.api.util.TemporalJsonUtils;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -144,9 +143,7 @@ public class UtilizacaoColetoresIndicadorService {
     }
 
     private static String updatedAtOuAgora(String updatedAt) {
-        return updatedAt != null && !updatedAt.isBlank()
-                ? updatedAt
-                : LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        return TemporalJsonUtils.garantirUtc(updatedAt);
     }
 
     private static int inteiro(long valor) {

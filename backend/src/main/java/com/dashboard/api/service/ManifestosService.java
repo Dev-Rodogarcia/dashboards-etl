@@ -14,6 +14,7 @@ import com.dashboard.api.repository.VisaoManifestosRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.ConsultaFiltroUtils;
 import com.dashboard.api.util.ConsultaLimiteUtils;
+import com.dashboard.api.util.TemporalJsonUtils;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -63,7 +64,7 @@ public class ManifestosService {
 
         if (totalManifestos == 0) {
             return new ManifestosOverviewDTO(
-                    LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                    TemporalJsonUtils.formatarUtc(null),
                     0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0.0, 0.0
             );
         }
@@ -179,9 +180,7 @@ public class ManifestosService {
     }
 
     private String formatarAtualizacao(LocalDateTime updatedAt) {
-        return updatedAt != null
-                ? updatedAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                : LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        return TemporalJsonUtils.formatarUtc(updatedAt);
     }
 
     private ManifestosConsulta consulta(FiltroConsultaDTO filtro) {

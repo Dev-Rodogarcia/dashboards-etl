@@ -10,11 +10,11 @@ import com.dashboard.api.dto.contaspagar.ContasAPagarMensalTrendDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarOverviewDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import com.dashboard.api.util.TemporalJsonUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.time.format.DateTimeFormatter;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -24,8 +24,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class ContasAPagarSqlRepository {
-
-    private static final DateTimeFormatter ISO_LOCAL_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private final NamedParameterJdbcOperations jdbcTemplate;
     private final DashboardExportSqlBuilder sqlBuilder;
@@ -210,8 +208,8 @@ public class ContasAPagarSqlRepository {
     }
 
     private String updatedAt(Timestamp timestamp) {
-        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : LocalDateTime.now();
-        return valor.format(ISO_LOCAL_DATE_TIME);
+        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : null;
+        return TemporalJsonUtils.formatarUtc(valor);
     }
 
     private BigDecimal decimal(BigDecimal valor) {

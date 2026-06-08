@@ -20,6 +20,7 @@ import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.service.ValidadorPeriodoService;
 import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
+import com.dashboard.api.util.TemporalJsonUtils;
 import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.math.BigDecimal;
 import com.dashboard.api.util.JanelaOffsetDateTime;
@@ -92,7 +93,7 @@ public class ManifestosPerformanceSqlRepository {
         );
 
         return new ManifestosPerformanceDTO(
-                texto(overview, "updated_at"),
+                TemporalJsonUtils.garantirUtc(texto(overview, "updated_at")),
                 kpis,
                 buscarGauge(ctx, "remuneracao"),
               buscarGauge(ctx, "aproveitamento"),

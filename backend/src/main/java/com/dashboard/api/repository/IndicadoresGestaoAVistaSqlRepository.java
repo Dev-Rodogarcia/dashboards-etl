@@ -22,6 +22,7 @@ import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
+import com.dashboard.api.util.TemporalJsonUtils;
 import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.math.BigDecimal;
 import com.dashboard.api.util.JanelaOffsetDateTime;
@@ -911,7 +912,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     private static PerformanceEntregaResumo resumoPerformance(java.util.Map<String, Object> row) {
         return new PerformanceEntregaResumo(
-                texto(row, "updated_at"),
+                TemporalJsonUtils.garantirUtc(texto(row, "updated_at")),
                 longo(row, "total_entregas"),
                 longo(row, "entregas_no_prazo"),
                 longo(row, "entregas_fora_do_prazo")
@@ -920,7 +921,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     private static CubagemResumo resumoCubagem(java.util.Map<String, Object> row) {
         return new CubagemResumo(
-                texto(row, "updated_at"),
+                TemporalJsonUtils.garantirUtc(texto(row, "updated_at")),
                 longo(row, "total_fretes"),
                 longo(row, "fretes_cubados"),
                 longo(row, "fretes_com_peso_real")
@@ -929,7 +930,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     private static IndenizacaoResumo resumoIndenizacao(java.util.Map<String, Object> row) {
         return new IndenizacaoResumo(
-                texto(row, "updated_at"),
+                TemporalJsonUtils.garantirUtc(texto(row, "updated_at")),
                 longo(row, "total_sinistros"),
                 escala(decimal(row, "valor_indenizado_abs"), 2),
                 escala(decimal(row, "valor_indenizado_original"), 2),
@@ -939,7 +940,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     private static UtilizacaoColetoresResumo resumoColetores(java.util.Map<String, Object> row) {
         return new UtilizacaoColetoresResumo(
-                texto(row, "updated_at"),
+                TemporalJsonUtils.garantirUtc(texto(row, "updated_at")),
                 longo(row, "manifestos_bipados"),
                 longo(row, "manifestos_emitidos"),
                 longo(row, "manifestos_descarregamento"),

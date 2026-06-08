@@ -14,11 +14,11 @@ import com.dashboard.api.dto.tracking.TrackingValorPorRegiaoDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.ConsultaFiltroUtils;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
+import com.dashboard.api.util.TemporalJsonUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.time.format.DateTimeFormatter;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -34,8 +34,6 @@ import org.springframework.stereotype.Repository;
 public class TrackingSqlRepository {
 
     private static final Logger log = LoggerFactory.getLogger(TrackingSqlRepository.class);
-    private static final DateTimeFormatter ISO_LOCAL_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-
     private final NamedParameterJdbcOperations jdbcTemplate;
     private final DashboardExportSqlBuilder sqlBuilder;
     private final EscopoFilialService escopoFilialService;
@@ -529,8 +527,8 @@ public class TrackingSqlRepository {
     }
 
     private String updatedAt(Timestamp timestamp) {
-        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : LocalDateTime.now();
-        return valor.format(ISO_LOCAL_DATE_TIME);
+        LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : null;
+        return TemporalJsonUtils.formatarUtc(valor);
     }
 
     private BigDecimal decimal(BigDecimal valor) {

@@ -8,6 +8,8 @@ export type CotacoesResumoVisualView = 'usuario' | 'filial' | 'clientes';
 
 type SortKey = 'cotacoes' | 'conversao' | 'frete';
 type InsightTone = 'accent' | 'success' | 'warning' | 'danger' | 'info';
+type TableAlignClass = 'text-left' | 'text-right';
+type ResumoColumnKey = 'entidade' | 'total' | 'ganhas' | 'emAberto' | 'conversao' | 'freteCotado' | 'freteGanho' | 'volumeM3';
 
 interface InsightConfig {
   label: string;
@@ -60,6 +62,27 @@ const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
   { key: 'conversao', label: 'Maior conversão' },
   { key: 'frete', label: 'Maior frete ganho' },
 ];
+
+const COLUMN_BODY_TINT = 'color-mix(in srgb, var(--color-primary) 4%, transparent)';
+const COLUMN_HEADER_TINT = 'color-mix(in srgb, var(--color-primary) 7%, var(--color-bg))';
+const RESUMO_COLUMNS: Array<{ key: ResumoColumnKey; label: string; align: TableAlignClass }> = [
+  { key: 'entidade', label: 'Entidade', align: 'text-left' },
+  { key: 'total', label: 'Total Cot.', align: 'text-right' },
+  { key: 'ganhas', label: 'Ganhas', align: 'text-right' },
+  { key: 'emAberto', label: 'Em Aberto', align: 'text-right' },
+  { key: 'conversao', label: 'Conversão', align: 'text-right' },
+  { key: 'freteCotado', label: 'Frete Cotado', align: 'text-right' },
+  { key: 'freteGanho', label: 'Frete Ganho', align: 'text-right' },
+  { key: 'volumeM3', label: 'Volume (m³)', align: 'text-right' },
+];
+
+function getColumnBodyBackground(index: number): string | undefined {
+  return index % 2 === 1 ? COLUMN_BODY_TINT : undefined;
+}
+
+function getColumnHeaderBackground(index: number): string | undefined {
+  return index % 2 === 1 ? COLUMN_HEADER_TINT : undefined;
+}
 
 function taxaConversao(row: CotacoesResumoAgregado): number {
   if (Number.isFinite(row.taxaConversao)) return row.taxaConversao;
@@ -146,8 +169,8 @@ function escolherMenor(
   }, null);
 }
 
-function insightNome(row: CotacoesResumoAgregado, maxLength = 34): string {
-  return row.entidade.length > maxLength ? `${row.entidade.slice(0, maxLength - 3)}...` : row.entidade;
+function insightNome(row: CotacoesResumoAgregado): string {
+  return row.entidade;
 }
 
 function montarInsights(rows: CotacoesResumoAgregado[]): InsightConfig[] {
@@ -194,7 +217,7 @@ function ConversionProgress({ value }: { value: number }) {
   const largura = Math.max(3, Math.min(100, value));
 
   return (
-    <div className="flex min-w-[14rem] items-center gap-3">
+    <div className="flex min-w-[14rem] items-center justify-end gap-3">
       <div className="h-2 w-36 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--color-border)' }} role="presentation">
         <div className="h-full rounded-full" style={{ width: `${largura}%`, backgroundColor: tone.fill }} />
       </div>
@@ -239,7 +262,7 @@ function InsightsBar({ insights }: { insights: InsightConfig[] }) {
       className="rounded-xl border px-3 py-2.5"
       style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
     >
-      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+      <div className="grid grid-cols-1 gap-2 text-xs font-semibold sm:grid-cols-2 lg:grid-cols-4">
         {insights.map((insight) => {
           const Icon = insight.icon;
           const color = getInsightToneColor(insight.tone);
@@ -247,12 +270,12 @@ function InsightsBar({ insights }: { insights: InsightConfig[] }) {
           return (
             <div
               key={`${insight.label}-${insight.value}`}
-              className="inline-flex min-w-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5"
+              className="flex min-w-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5"
               style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
             >
               <Icon size={14} className="shrink-0" style={{ color }} aria-hidden="true" />
               <span className="shrink-0" style={{ color: 'var(--color-text-muted)' }}>{insight.label}:</span>
-              <strong className="min-w-0 truncate font-bold" style={{ color: 'var(--color-text)' }} title={insight.value}>
+              <strong className="min-w-0 flex-1 truncate font-bold" style={{ color: 'var(--color-text)' }} title={insight.value}>
                 {insight.value}
               </strong>
             </div>
@@ -270,11 +293,11 @@ function LoadingInsightsBar() {
       style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
       aria-hidden="true"
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="h-7 w-48 animate-pulse rounded-lg border"
+            className="h-7 w-full animate-pulse rounded-lg border"
             style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
           />
         ))}
@@ -373,15 +396,20 @@ export default function CotacoesResumoVisualTable({
 
       <div className="overflow-x-auto px-4 pb-4 sm:px-5">
         <table className="w-max text-sm" style={{ minWidth: 'max(100%, 1080px)' }}>
+          <colgroup>
+            {RESUMO_COLUMNS.map((column, index) => (
+              <col key={column.key} style={{ backgroundColor: getColumnBodyBackground(index) }} />
+            ))}
+          </colgroup>
           <thead>
             <tr className="h-10 border-b" style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
-              {['Entidade', 'Total Cot.', 'Ganhas', 'Em Aberto', 'Conversão', 'Frete Cotado', 'Frete Ganho', 'Volume (m³)'].map((column) => (
+              {RESUMO_COLUMNS.map((column, index) => (
                 <th
-                  key={column}
-                  className={`h-10 whitespace-nowrap px-3 py-2.5 text-xs font-medium uppercase tracking-wider ${column === 'Entidade' ? 'text-left' : 'text-right'}`}
-                  style={{ color: 'var(--color-text-muted)' }}
+                  key={column.key}
+                  className={`h-10 whitespace-nowrap px-3 py-2.5 text-xs font-medium uppercase tracking-wider ${column.align}`}
+                  style={{ color: 'var(--color-text-muted)', backgroundColor: getColumnHeaderBackground(index) }}
                 >
-                  {column}
+                  {column.label}
                 </th>
               ))}
             </tr>
@@ -415,7 +443,7 @@ export default function CotacoesResumoVisualTable({
                   className="border-b transition-colors hover:bg-[var(--color-bg)]"
                   style={{ borderColor: 'var(--color-border)' }}
                 >
-                  <td className="max-w-[26rem] px-3 py-3 align-middle">
+                  <td className={`max-w-[26rem] px-3 py-3 align-middle ${RESUMO_COLUMNS[0].align}`}>
                     <div className="flex min-w-0 items-center gap-3">
                       <span
                         className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black tabular-nums"
@@ -432,25 +460,43 @@ export default function CotacoesResumoVisualTable({
                       </span>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-right font-black tabular-nums" style={{ color: 'var(--color-text)' }}>
+                  <td
+                    className={`px-3 py-3 font-black tabular-nums ${RESUMO_COLUMNS[1].align}`}
+                    style={{ color: 'var(--color-text)' }}
+                  >
                     {formatarNumero(row.totalCotacoes)}
                   </td>
-                  <td className="px-3 py-3 text-right tabular-nums" style={{ color: 'var(--color-text)' }}>
+                  <td
+                    className={`px-3 py-3 tabular-nums ${RESUMO_COLUMNS[2].align}`}
+                    style={{ color: 'var(--color-text)' }}
+                  >
                     {formatarNumero(row.ganhas)}
                   </td>
-                  <td className="px-3 py-3 text-right tabular-nums" style={{ color: 'var(--color-text)' }}>
+                  <td
+                    className={`px-3 py-3 tabular-nums ${RESUMO_COLUMNS[3].align}`}
+                    style={{ color: 'var(--color-text)' }}
+                  >
                     {formatarNumero(row.emAberto)}
                   </td>
-                  <td className="px-3 py-3">
+                  <td className={`px-3 py-3 ${RESUMO_COLUMNS[4].align}`}>
                     <ConversionProgress value={conversao} />
                   </td>
-                  <td className="px-3 py-3 text-right tabular-nums" style={{ color: 'var(--color-text)' }}>
+                  <td
+                    className={`px-3 py-3 tabular-nums ${RESUMO_COLUMNS[5].align}`}
+                    style={{ color: 'var(--color-text)' }}
+                  >
                     {formatarMoeda(row.freteCotado)}
                   </td>
-                  <td className="px-3 py-3 text-right tabular-nums" style={{ color: 'var(--color-text)' }}>
+                  <td
+                    className={`px-3 py-3 tabular-nums ${RESUMO_COLUMNS[6].align}`}
+                    style={{ color: 'var(--color-text)' }}
+                  >
                     {formatarMoeda(row.freteGanho)}
                   </td>
-                  <td className="px-3 py-3 text-right tabular-nums" style={{ color: 'var(--color-text)' }}>
+                  <td
+                    className={`px-3 py-3 tabular-nums ${RESUMO_COLUMNS[7].align}`}
+                    style={{ color: 'var(--color-text)' }}
+                  >
                     {formatarNumero(row.volumeM3, 2)}
                   </td>
                 </tr>

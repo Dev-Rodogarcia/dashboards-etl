@@ -15,9 +15,11 @@ import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.service.ValidadorPeriodoService;
 import com.dashboard.api.util.ConsultaLimiteUtils;
 import com.dashboard.api.util.PerformanceMetricasUtils;
+import com.dashboard.api.util.TemporalJsonUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Collection;
@@ -125,7 +127,7 @@ public class PerformanceDashboardSqlRepository {
         BigDecimal pesoKg = decimal(row, "peso_taxado");
 
         return new PerformanceOverviewDTO(
-                texto(row, "updated_at"),
+                updatedAt(row, "updated_at"),
                 longo(row, "total_entregas"),
                 finalizadas,
                 noPrazo,
@@ -1201,6 +1203,14 @@ public class PerformanceDashboardSqlRepository {
     private static String texto(Map<String, Object> row, String chave) {
         Object valor = row.get(chave);
         return valor == null ? null : String.valueOf(valor);
+    }
+
+    private static String updatedAt(Map<String, Object> row, String chave) {
+        Object valor = row.get(chave);
+        if (valor instanceof Timestamp timestamp) {
+            return TemporalJsonUtils.formatarUtc(timestamp.toLocalDateTime());
+        }
+        return TemporalJsonUtils.garantirUtc(valor == null ? null : String.valueOf(valor));
     }
 
     private static long longo(Map<String, Object> row, String chave) {

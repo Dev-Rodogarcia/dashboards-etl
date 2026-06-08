@@ -463,8 +463,13 @@ public class DashboardExportSqlBuilder {
         adicionarPrefixoTabela(where, params, colunas.placa(), filtro, "tabelaPlaca", "tabelaPlaca");
         adicionarStatusTabela(where, params, definition, colunas.status(), filtro);
         adicionarTextoTabela(where, params, colunas.razaoSocial(), filtro, "tabelaRazaoSocial", "tabelaRazaoSocial", false);
-        adicionarTextoTabela(where, params, colunas.origem(), filtro, "tabelaOrigem", "tabelaOrigem", true);
-        adicionarTextoTabela(where, params, colunas.destino(), filtro, "tabelaDestino", "tabelaDestino", true);
+        if (definition == DashboardExportDefinition.COTACOES) {
+            adicionarSmartLocationTabela(where, params, colunas.origem(), "[Origem]", filtro, "tabelaOrigem", "tabelaOrigem");
+            adicionarSmartLocationTabela(where, params, colunas.destino(), "[Destino]", filtro, "tabelaDestino", "tabelaDestino");
+        } else {
+            adicionarTextoTabela(where, params, colunas.origem(), filtro, "tabelaOrigem", "tabelaOrigem", true);
+            adicionarTextoTabela(where, params, colunas.destino(), filtro, "tabelaDestino", "tabelaDestino", true);
+        }
         adicionarFiltrosColunasTabela(where, params, definition, filtro);
     }
 
@@ -509,6 +514,7 @@ public class DashboardExportSqlBuilder {
         String param = "filtro_tabelaColuna_" + chaveColuna.replaceAll("[^A-Za-z0-9]", "_");
         switch (coluna.kind()) {
             case TEXT -> adicionarFiltroTextoColuna(where, params, coluna.expressions(), valores, param, false);
+            case SMART_LOCATION -> adicionarFiltroSmartLocationColuna(where, params, coluna.expressions(), valores, param);
             case UF -> adicionarFiltroTextoColuna(where, params, coluna.expressions(), valores, param, true);
             case CODE -> adicionarFiltroCodigoColuna(where, params, coluna.expressions(), valores, param);
             case NUMERIC_CODE -> adicionarFiltroCodigoNumericoDiretoColuna(where, params, coluna.expressions(), valores, param);
@@ -535,6 +541,36 @@ public class DashboardExportSqlBuilder {
             params.addValue(param, termo);
             where.add("(" + String.join(" OR ", expressions.stream()
                     .map(expressao -> normalizarSql(expressao) + " = :" + param)
+                    .toList()) + ")");
+            return;
+        }
+
+        if (termo.length() < 3) {
+            return;
+        }
+
+        params.addValue(param, "%" + termo + "%");
+        where.add("(" + String.join(" OR ", expressions.stream()
+                .map(expressao -> normalizarSql(expressao) + " LIKE :" + param)
+                .toList()) + ")");
+    }
+
+    private void adicionarFiltroSmartLocationColuna(
+            List<String> where,
+            MapSqlParameterSource params,
+            List<String> expressions,
+            Collection<String> valores,
+            String param
+    ) {
+        String termo = primeiroNormalizado(valores);
+        if (termo == null) {
+            return;
+        }
+
+        if (ehUf(termo)) {
+            params.addValue(param, "% - " + termo.toUpperCase(Locale.ROOT));
+            where.add("(" + String.join(" OR ", expressions.stream()
+                    .map(expressao -> "UPPER(" + expressao + ") LIKE UPPER(:" + param + ")")
                     .toList()) + ")");
             return;
         }
@@ -819,6 +855,37 @@ public class DashboardExportSqlBuilder {
                 .toList()) + ")");
     }
 
+    private void adicionarSmartLocationTabela(
+            List<String> where,
+            MapSqlParameterSource params,
+            List<String> colunasFallback,
+            String colunaLocalizacao,
+            FiltroConsultaDTO filtro,
+            String chaveFiltro,
+            String nomeParam
+    ) {
+        String termo = primeiroNormalizado(filtro.valores(chaveFiltro));
+        if (termo == null) {
+            return;
+        }
+
+        String param = "filtro_" + nomeParam;
+        if (ehUf(termo)) {
+            params.addValue(param, "% - " + termo.toUpperCase(Locale.ROOT));
+            where.add("UPPER(" + colunaLocalizacao + ") LIKE UPPER(:" + param + ")");
+            return;
+        }
+
+        if (termo.length() < 3 || colunasFallback.isEmpty()) {
+            return;
+        }
+
+        params.addValue(param, "%" + termo + "%");
+        where.add("(" + String.join(" OR ", colunasFallback.stream()
+                .map(coluna -> normalizarSql(coluna) + " LIKE :" + param)
+                .toList()) + ")");
+    }
+
     private String primeiroNormalizado(Collection<String> valores) {
         return normalizar(valores).stream().findFirst().orElse(null);
     }
@@ -1045,8 +1112,8 @@ public class DashboardExportSqlBuilder {
                 put(colunas, "valorNf", numero("[Valor NF]"));
                 put(colunas, "percentualNf", numero("CASE WHEN TRY_CONVERT(decimal(18,6), [Valor NF]) > 0 THEN (TRY_CONVERT(decimal(18,6), [Valor frete]) * 100) / TRY_CONVERT(decimal(18,6), [Valor NF]) ELSE 0 END"));
                 put(colunas, "tabela", texto("[Tabela]"));
-                put(colunas, "origem", texto("[Origem]"));
-                put(colunas, "destino", texto("[Destino]"));
+                put(colunas, "origem", smartLocation("[Origem]"));
+                put(colunas, "destino", smartLocation("[Destino]"));
             }
             case CONTAS_A_PAGAR -> {
                 put(colunas, "lancamentoNumero", codigo("[Lançamento a Pagar/N°]"));
@@ -1089,6 +1156,10 @@ public class DashboardExportSqlBuilder {
 
     private TableColumnFilterDefinition texto(String... expressions) {
         return coluna(TableColumnKind.TEXT, expressions);
+    }
+
+    private TableColumnFilterDefinition smartLocation(String... expressions) {
+        return coluna(TableColumnKind.SMART_LOCATION, expressions);
     }
 
     private TableColumnFilterDefinition uf(String... expressions) {
@@ -1219,6 +1290,7 @@ public class DashboardExportSqlBuilder {
 
     private enum TableColumnKind {
         TEXT,
+        SMART_LOCATION,
         UF,
         CODE,
         NUMERIC_CODE,
