@@ -64,6 +64,7 @@ class FretesServiceTest {
 
         FretesOverviewDTO overview = service.buscarOverview(new FiltroConsultaDTO(dataInicio, dataFim, Map.of()));
 
+        assertThat(overview.updatedAt()).isEqualTo("2026-05-19T09:00:00-03:00");
         assertThat(overview.receitaBruta()).isEqualByComparingTo("4830280.00");
         assertThat(overview.faturamentoDiario().totalDiasUteisMes()).isEqualTo(21);
         assertThat(overview.faturamentoDiario().diasUteisDecorridos()).isEqualTo(13);

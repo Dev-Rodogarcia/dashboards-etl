@@ -34,4 +34,11 @@ class TemporalJsonUtilsTest {
 
         assertThat(resultado).isEqualTo("2026-06-08T18:00:00-03:00");
     }
+
+    @Test
+    void formatarUtcComoIsoComOffsetDeveConverterSnapshotUtcIngenuoParaSaoPaulo() {
+        String resultado = TemporalJsonUtils.formatarUtcComoIsoComOffset(LocalDateTime.of(2026, 6, 8, 22, 2));
+
+        assertThat(resultado).isEqualTo("2026-06-08T19:02:00-03:00");
+    }
 }

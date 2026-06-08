@@ -283,7 +283,7 @@ public class FaturasPorClienteSqlRepository {
 
     private String updatedAt(Timestamp timestamp) {
         LocalDateTime valor = timestamp != null ? timestamp.toLocalDateTime() : null;
-        return TemporalJsonUtils.formatarIsoComOffset(valor);
+        return TemporalJsonUtils.formatarUtcComoIsoComOffset(valor);
     }
 
     private BigDecimal decimal(BigDecimal valor) {

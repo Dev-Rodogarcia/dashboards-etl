@@ -73,6 +73,7 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
                 .contains("WHERE [Data abertura] >= :dataInicio")
                 .contains("AND [Data abertura] < :dataFimExclusivo")
                 .contains("FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento")
+                .contains("snapshot_em AT TIME ZONE 'UTC' AT TIME ZONE 'E. South America Standard Time'")
                 .contains("data_referencia_faturamento_date >= :dataInicio")
                 .contains("data_referencia_faturamento_date < :dataFimExclusivo")
                 .contains("faturamento_mensal AS")

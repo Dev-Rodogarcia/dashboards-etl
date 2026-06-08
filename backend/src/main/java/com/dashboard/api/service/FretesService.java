@@ -358,7 +358,7 @@ public class FretesService {
     }
 
     private String formatarAtualizacao(LocalDateTime updatedAt) {
-        return TemporalJsonUtils.formatarIsoComOffset(updatedAt);
+        return TemporalJsonUtils.formatarUtcComoIsoComOffset(updatedAt);
     }
 
     private List<FretesFaturamentoGrupoDTO> mapearGrupos(

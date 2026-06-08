@@ -8,9 +8,14 @@ import com.dashboard.api.repository.FaturasPorClienteSqlRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import javax.sql.rowset.CachedRowSet;
+import javax.sql.rowset.RowSetMetaDataImpl;
+import javax.sql.rowset.RowSetProvider;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -66,6 +71,60 @@ class FaturasPorClienteSqlRepositoryTest {
                 .doesNotContain("ROW_NUMBER() OVER")
                 .doesNotContain("WHERE TRY_CONVERT")
                 .doesNotContain("TRY_CONVERT(datetimeoffset, data_emissao_cte)");
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void buscarOverviewDeveConverterSnapshotUtcParaHorarioOperacional() throws Exception {
+        when(jdbcTemplate.queryForObject(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenAnswer(invocation -> {
+                    RowMapper<FaturasPorClienteOverviewDTO> mapper = invocation.getArgument(2);
+                    return mapper.mapRow(overviewRowSet(Timestamp.valueOf("2026-06-08 22:05:00")), 0);
+                });
+
+        FaturasPorClienteSqlRepository repository = new FaturasPorClienteSqlRepository(
+                jdbcTemplate,
+                new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao()),
+                escopoSemRestricao()
+        );
+
+        FaturasPorClienteOverviewDTO overview = repository.buscarOverview(filtroPadrao(), LocalDate.of(2026, 6, 8));
+
+        assertThat(overview.updatedAt()).isEqualTo("2026-06-08T19:05:00-03:00");
+    }
+
+    private static CachedRowSet overviewRowSet(Timestamp updatedAt) throws Exception {
+        RowSetMetaDataImpl metadata = new RowSetMetaDataImpl();
+        metadata.setColumnCount(7);
+        configurarColuna(metadata, 1, "updated_at", Types.TIMESTAMP);
+        configurarColuna(metadata, 2, "valor_faturado", Types.DECIMAL);
+        configurarColuna(metadata, 3, "registros_faturados", Types.INTEGER);
+        configurarColuna(metadata, 4, "aguardando_faturamento", Types.INTEGER);
+        configurarColuna(metadata, 5, "titulos_em_atraso", Types.INTEGER);
+        configurarColuna(metadata, 6, "prazo_medio_dias", Types.DECIMAL);
+        configurarColuna(metadata, 7, "clientes_ativos", Types.INTEGER);
+
+        CachedRowSet rowSet = RowSetProvider.newFactory().createCachedRowSet();
+        rowSet.setMetaData(metadata);
+        rowSet.moveToInsertRow();
+        rowSet.updateTimestamp("updated_at", updatedAt);
+        rowSet.updateBigDecimal("valor_faturado", BigDecimal.ZERO);
+        rowSet.updateInt("registros_faturados", 0);
+        rowSet.updateInt("aguardando_faturamento", 0);
+        rowSet.updateInt("titulos_em_atraso", 0);
+        rowSet.updateBigDecimal("prazo_medio_dias", BigDecimal.ZERO);
+        rowSet.updateInt("clientes_ativos", 0);
+        rowSet.insertRow();
+        rowSet.moveToCurrentRow();
+        rowSet.beforeFirst();
+        rowSet.next();
+        return rowSet;
+    }
+
+    private static void configurarColuna(RowSetMetaDataImpl metadata, int indice, String nome, int tipo) throws Exception {
+        metadata.setColumnName(indice, nome);
+        metadata.setColumnLabel(indice, nome);
+        metadata.setColumnType(indice, tipo);
     }
 
     @Test

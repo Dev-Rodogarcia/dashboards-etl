@@ -3,6 +3,7 @@ package com.dashboard.api.util;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
@@ -66,6 +67,17 @@ public final class TemporalJsonUtils {
         }
 
         return resolverOffsetDateTime(timestamp.trim())
+                .format(ISO_COM_OFFSET);
+    }
+
+    public static String formatarUtcComoIsoComOffset(LocalDateTime timestampUtc) {
+        if (timestampUtc == null) {
+            return formatarIsoComOffset(null);
+        }
+
+        return timestampUtc.atOffset(ZoneOffset.UTC)
+                .atZoneSameInstant(ZONA_OPERACIONAL)
+                .toOffsetDateTime()
                 .format(ISO_COM_OFFSET);
     }
 

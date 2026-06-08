@@ -659,7 +659,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
                             1
                         ) AS mes_ref,
                         receita_bruta AS faturamento,
-                        snapshot_em AS data_extracao
+                        CAST(snapshot_em AT TIME ZONE 'UTC' AT TIME ZONE 'E. South America Standard Time' AS DATETIME2) AS data_extracao
                     FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
                     WHERE data_referencia_faturamento_date >= :dataInicio
                       AND data_referencia_faturamento_date < :dataFimExclusivo
