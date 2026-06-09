@@ -108,7 +108,7 @@ export default function TooltipKpi({
             Cálculo
           </p>
           <p className="mt-1.5 text-sm font-semibold leading-relaxed">
-            {definition.calculo}
+            {definition.calculo.replaceAll('÷', '/')}
           </p>
         </div>
 
