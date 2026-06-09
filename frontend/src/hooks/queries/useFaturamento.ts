@@ -15,12 +15,14 @@ import {
 } from '../../api/endpoints/faturamentoServico';
 import type { FaturamentoFiltro, FaturamentoGoalConfigPayload } from '../../types/faturamento';
 import type { TableApiFilters } from '../../types/tableFilters';
+import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
 const STALE_TIME = 5 * 60 * 1000;
 const QUERY_KEY = ['faturamento'];
 
 export function useFaturamentoOverview(filtro: FaturamentoFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, 'overview', filtro],
     queryFn: () => buscarFaturamentoOverview(filtro),
     staleTime: STALE_TIME,
@@ -30,6 +32,7 @@ export function useFaturamentoOverview(filtro: FaturamentoFiltro) {
 
 export function useFaturamentoSerie(filtro: FaturamentoFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, 'serie', filtro],
     queryFn: () => buscarFaturamentoSerie(filtro),
     staleTime: STALE_TIME,
@@ -40,6 +43,7 @@ export function useFaturamentoSerie(filtro: FaturamentoFiltro, enabled = true) {
 
 export function useFaturamentoTopClientes(filtro: FaturamentoFiltro, limite = 10, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, 'top-clientes', filtro, limite],
     queryFn: () => buscarFaturamentoTopClientes(filtro, limite),
     staleTime: STALE_TIME,
@@ -50,6 +54,7 @@ export function useFaturamentoTopClientes(filtro: FaturamentoFiltro, limite = 10
 
 export function useFaturamentoMixDocumental(filtro: FaturamentoFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, 'mix-documental', filtro],
     queryFn: () => buscarFaturamentoMixDocumental(filtro),
     staleTime: STALE_TIME,
@@ -60,6 +65,7 @@ export function useFaturamentoMixDocumental(filtro: FaturamentoFiltro, enabled =
 
 export function useFaturamentoGraficos(filtro: FaturamentoFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, 'graficos', filtro],
     queryFn: () => buscarFaturamentoGraficos(filtro),
     staleTime: STALE_TIME,
@@ -70,6 +76,7 @@ export function useFaturamentoGraficos(filtro: FaturamentoFiltro, enabled = true
 
 export function useFaturamentoMetas(filtro: FaturamentoFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, 'metas', filtro],
     queryFn: () => buscarFaturamentoMetas(filtro),
     staleTime: STALE_TIME,
@@ -110,6 +117,7 @@ export function useRemoverFaturamentoMetaConfiguracao() {
 
 export function useFaturamentoTabela(filtro: FaturamentoFiltro, limite = 100, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, 'tabela', filtro, limite],
     queryFn: () => buscarFaturamentoTabela(filtro, limite),
     staleTime: STALE_TIME,
@@ -120,6 +128,7 @@ export function useFaturamentoTabela(filtro: FaturamentoFiltro, limite = 100, en
 
 export function useFaturamentoTabelaTotal(filtro: FaturamentoFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, 'tabela-total', filtro],
     queryFn: () => buscarFaturamentoTabelaTotal(filtro),
     staleTime: STALE_TIME,
@@ -136,6 +145,7 @@ export function useFaturamentoTabelaPaginada(
   enabled = true,
 ) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarFaturamentoTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     placeholderData: (previousData) => previousData,

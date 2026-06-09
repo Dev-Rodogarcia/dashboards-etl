@@ -11,11 +11,13 @@ import {
 } from '../../api/endpoints/faturasPorClienteServico';
 import type { FaturasPorClienteFiltro } from '../../types/faturasPorCliente';
 import type { TableApiFilters } from '../../types/tableFilters';
+import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
 const STALE_TIME = 5 * 60 * 1000;
 
 export function useFaturasPorClienteOverview(filtro: FaturasPorClienteFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['faturas-por-cliente', 'overview', filtro],
     queryFn: () => buscarFaturasPorClienteOverview(filtro),
     staleTime: STALE_TIME,
@@ -25,6 +27,7 @@ export function useFaturasPorClienteOverview(filtro: FaturasPorClienteFiltro) {
 
 export function useFaturasPorClienteMensal(filtro: FaturasPorClienteFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['faturas-por-cliente', 'mensal', filtro],
     queryFn: () => buscarFaturasPorClienteMensal(filtro),
     staleTime: STALE_TIME,
@@ -34,6 +37,7 @@ export function useFaturasPorClienteMensal(filtro: FaturasPorClienteFiltro) {
 
 export function useFaturasPorClienteAging(filtro: FaturasPorClienteFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['faturas-por-cliente', 'aging', filtro],
     queryFn: () => buscarFaturasPorClienteAging(filtro),
     staleTime: STALE_TIME,
@@ -43,6 +47,7 @@ export function useFaturasPorClienteAging(filtro: FaturasPorClienteFiltro) {
 
 export function useFaturasPorClienteTopClientes(filtro: FaturasPorClienteFiltro, limite = 10) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['faturas-por-cliente', 'top-clientes', filtro, limite],
     queryFn: () => buscarFaturasPorClienteTopClientes(filtro, limite),
     staleTime: STALE_TIME,
@@ -52,6 +57,7 @@ export function useFaturasPorClienteTopClientes(filtro: FaturasPorClienteFiltro,
 
 export function useFaturasPorClienteStatusProcesso(filtro: FaturasPorClienteFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['faturas-por-cliente', 'status-processo', filtro],
     queryFn: () => buscarFaturasPorClienteStatusProcesso(filtro),
     staleTime: STALE_TIME,
@@ -61,6 +67,7 @@ export function useFaturasPorClienteStatusProcesso(filtro: FaturasPorClienteFilt
 
 export function useFaturasPorClienteTabela(filtro: FaturasPorClienteFiltro, limite = 100) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['faturas-por-cliente', 'tabela', filtro, limite],
     queryFn: () => buscarFaturasPorClienteTabela(filtro, limite),
     staleTime: STALE_TIME,
@@ -70,6 +77,7 @@ export function useFaturasPorClienteTabela(filtro: FaturasPorClienteFiltro, limi
 
 export function useFaturasPorClienteTabelaTotal(filtro: FaturasPorClienteFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['faturas-por-cliente', 'tabela-total', filtro],
     queryFn: () => buscarFaturasPorClienteTabelaTotal(filtro),
     staleTime: STALE_TIME,
@@ -84,6 +92,7 @@ export function useFaturasPorClienteTabelaPaginada(
   filtrosTabela?: TableApiFilters,
 ) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['faturas-por-cliente', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarFaturasPorClienteTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     placeholderData: (previousData) => previousData,

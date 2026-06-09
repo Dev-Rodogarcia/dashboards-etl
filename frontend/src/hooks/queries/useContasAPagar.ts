@@ -9,11 +9,13 @@ import {
 } from '../../api/endpoints/contasAPagarServico';
 import type { ContasAPagarFiltro } from '../../types/contasAPagar';
 import type { TableApiFilters } from '../../types/tableFilters';
+import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
 const STALE_TIME = 5 * 60 * 1000;
 
 export function useContasAPagarOverview(filtro: ContasAPagarFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['contas-a-pagar', 'overview', filtro],
     queryFn: () => buscarContasAPagarOverview(filtro),
     staleTime: STALE_TIME,
@@ -23,6 +25,7 @@ export function useContasAPagarOverview(filtro: ContasAPagarFiltro) {
 
 export function useContasAPagarSerie(filtro: ContasAPagarFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['contas-a-pagar', 'serie', filtro],
     queryFn: () => buscarContasAPagarSerie(filtro),
     staleTime: STALE_TIME,
@@ -32,6 +35,7 @@ export function useContasAPagarSerie(filtro: ContasAPagarFiltro) {
 
 export function useContasAPagarGraficos(filtro: ContasAPagarFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['contas-a-pagar', 'graficos', filtro],
     queryFn: () => buscarContasAPagarGraficos(filtro),
     staleTime: STALE_TIME,
@@ -41,6 +45,7 @@ export function useContasAPagarGraficos(filtro: ContasAPagarFiltro) {
 
 export function useContasAPagarTabela(filtro: ContasAPagarFiltro, limite = 100) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['contas-a-pagar', 'tabela', filtro, limite],
     queryFn: () => buscarContasAPagarTabela(filtro, limite),
     staleTime: STALE_TIME,
@@ -50,6 +55,7 @@ export function useContasAPagarTabela(filtro: ContasAPagarFiltro, limite = 100) 
 
 export function useContasAPagarTabelaTotal(filtro: ContasAPagarFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['contas-a-pagar', 'tabela-total', filtro],
     queryFn: () => buscarContasAPagarTabelaTotal(filtro),
     staleTime: STALE_TIME,
@@ -64,6 +70,7 @@ export function useContasAPagarTabelaPaginada(
   filtrosTabela?: TableApiFilters,
 ) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['contas-a-pagar', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarContasAPagarTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     placeholderData: (previousData) => previousData,

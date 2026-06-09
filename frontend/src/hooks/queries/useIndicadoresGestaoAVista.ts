@@ -31,6 +31,7 @@ import {
 } from '../../api/endpoints/indicadoresGestaoAVistaServico';
 import type { IndicadoresGestaoVistaFiltro, KpiGoalIndicatorKey, KpiGoalsUpdatePayload } from '../../types/indicadoresGestaoAVista';
 import { normalizarCompetenciaApiOpcional } from '../../utils/competencia';
+import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
 const STALE_TIME = 5 * 60 * 1000;
 
@@ -113,6 +114,7 @@ export function useRemoverKpiGoalsOverride() {
 
 export function usePerformanceEntregaOverview(filtro: IndicadoresGestaoVistaFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'performance-entrega', 'overview', filtro],
     queryFn: () => buscarPerformanceEntregaOverview(filtro),
     staleTime: STALE_TIME,
@@ -122,6 +124,7 @@ export function usePerformanceEntregaOverview(filtro: IndicadoresGestaoVistaFilt
 
 export function usePerformanceEntregaSerie(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'performance-entrega', 'serie', filtro],
     queryFn: () => buscarPerformanceEntregaSerie(filtro),
     staleTime: STALE_TIME,
@@ -132,6 +135,7 @@ export function usePerformanceEntregaSerie(filtro: IndicadoresGestaoVistaFiltro,
 
 export function usePerformanceEntregaTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'performance-entrega', 'tabela', filtro, limite],
     queryFn: () => buscarPerformanceEntregaTabela(filtro, limite),
     staleTime: STALE_TIME,
@@ -147,6 +151,7 @@ export function usePerformanceEntregaTabelaPaginada(
   enabled = true,
 ) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'performance-entrega', 'tabela-paginada', filtro, pagina, tamanhoPagina],
     queryFn: () => buscarPerformanceEntregaTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
@@ -158,6 +163,7 @@ export function usePerformanceEntregaTabelaPaginada(
 
 export function useUtilizacaoColetoresOverview(filtro: IndicadoresGestaoVistaFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'utilizacao-coletores', 'overview', filtro],
     queryFn: () => buscarUtilizacaoColetoresOverview(filtro),
     staleTime: STALE_TIME,
@@ -167,6 +173,7 @@ export function useUtilizacaoColetoresOverview(filtro: IndicadoresGestaoVistaFil
 
 export function useUtilizacaoColetoresSerie(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'utilizacao-coletores', 'serie', filtro],
     queryFn: () => buscarUtilizacaoColetoresSerie(filtro),
     staleTime: STALE_TIME,
@@ -177,6 +184,7 @@ export function useUtilizacaoColetoresSerie(filtro: IndicadoresGestaoVistaFiltro
 
 export function useUtilizacaoColetoresRanking(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'utilizacao-coletores', 'ranking', filtro],
     queryFn: () => buscarUtilizacaoColetoresRanking(filtro),
     staleTime: STALE_TIME,
@@ -188,6 +196,7 @@ export function useUtilizacaoColetoresRanking(filtro: IndicadoresGestaoVistaFilt
 
 export function useUtilizacaoColetoresTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'utilizacao-coletores', 'tabela', filtro, limite],
     queryFn: () => buscarUtilizacaoColetoresTabela(filtro, limite),
     staleTime: STALE_TIME,
@@ -203,6 +212,7 @@ export function useUtilizacaoColetoresTabelaPaginada(
   enabled = true,
 ) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'utilizacao-coletores', 'tabela-paginada', filtro, pagina, tamanhoPagina],
     queryFn: () => buscarUtilizacaoColetoresTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
@@ -214,6 +224,7 @@ export function useUtilizacaoColetoresTabelaPaginada(
 
 export function useCubagemMercadoriasOverview(filtro: IndicadoresGestaoVistaFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'cubagem-mercadorias', 'overview', filtro],
     queryFn: () => buscarCubagemMercadoriasOverview(filtro),
     staleTime: STALE_TIME,
@@ -223,6 +234,7 @@ export function useCubagemMercadoriasOverview(filtro: IndicadoresGestaoVistaFilt
 
 export function useCubagemMercadoriasSerie(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'cubagem-mercadorias', 'serie', filtro],
     queryFn: () => buscarCubagemMercadoriasSerie(filtro),
     staleTime: STALE_TIME,
@@ -233,6 +245,7 @@ export function useCubagemMercadoriasSerie(filtro: IndicadoresGestaoVistaFiltro,
 
 export function useCubagemMercadoriasTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'cubagem-mercadorias', 'tabela', filtro, limite],
     queryFn: () => buscarCubagemMercadoriasTabela(filtro, limite),
     staleTime: STALE_TIME,
@@ -248,6 +261,7 @@ export function useCubagemMercadoriasTabelaPaginada(
   enabled = true,
 ) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'cubagem-mercadorias', 'tabela-paginada', filtro, pagina, tamanhoPagina],
     queryFn: () => buscarCubagemMercadoriasTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
@@ -259,6 +273,7 @@ export function useCubagemMercadoriasTabelaPaginada(
 
 export function useIndenizacaoMercadoriasOverview(filtro: IndicadoresGestaoVistaFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'indenizacao-mercadorias', 'overview', filtro],
     queryFn: () => buscarIndenizacaoMercadoriasOverview(filtro),
     staleTime: STALE_TIME,
@@ -268,6 +283,7 @@ export function useIndenizacaoMercadoriasOverview(filtro: IndicadoresGestaoVista
 
 export function useIndenizacaoMercadoriasSerie(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'indenizacao-mercadorias', 'serie', filtro],
     queryFn: () => buscarIndenizacaoMercadoriasSerie(filtro),
     staleTime: STALE_TIME,
@@ -278,6 +294,7 @@ export function useIndenizacaoMercadoriasSerie(filtro: IndicadoresGestaoVistaFil
 
 export function useIndenizacaoMercadoriasTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'indenizacao-mercadorias', 'tabela', filtro, limite],
     queryFn: () => buscarIndenizacaoMercadoriasTabela(filtro, limite),
     staleTime: STALE_TIME,
@@ -293,6 +310,7 @@ export function useIndenizacaoMercadoriasTabelaPaginada(
   enabled = true,
 ) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'indenizacao-mercadorias', 'tabela-paginada', filtro, pagina, tamanhoPagina],
     queryFn: () => buscarIndenizacaoMercadoriasTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,
@@ -304,6 +322,7 @@ export function useIndenizacaoMercadoriasTabelaPaginada(
 
 export function useHorariosCorteOverview(filtro: IndicadoresGestaoVistaFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'horarios-corte', 'overview', filtro],
     queryFn: () => buscarHorariosCorteOverview(filtro),
     staleTime: STALE_TIME,
@@ -313,6 +332,7 @@ export function useHorariosCorteOverview(filtro: IndicadoresGestaoVistaFiltro) {
 
 export function useHorariosCorteSerie(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'horarios-corte', 'serie', filtro],
     queryFn: () => buscarHorariosCorteSerie(filtro),
     staleTime: STALE_TIME,
@@ -323,6 +343,7 @@ export function useHorariosCorteSerie(filtro: IndicadoresGestaoVistaFiltro, enab
 
 export function useHorariosCorteTabela(filtro: IndicadoresGestaoVistaFiltro, limite = 100, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'horarios-corte', 'tabela', filtro, limite],
     queryFn: () => buscarHorariosCorteTabela(filtro, limite),
     staleTime: STALE_TIME,
@@ -338,6 +359,7 @@ export function useHorariosCorteTabelaPaginada(
   enabled = true,
 ) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['indicadores-gestao-a-vista', 'horarios-corte', 'tabela-paginada', filtro, pagina, tamanhoPagina],
     queryFn: () => buscarHorariosCorteTabelaPaginada(filtro, pagina, tamanhoPagina),
     staleTime: STALE_TIME,

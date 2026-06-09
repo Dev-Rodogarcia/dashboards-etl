@@ -11,11 +11,13 @@ import {
 } from '../../api/endpoints/trackingServico';
 import type { TrackingFiltro } from '../../types/tracking';
 import type { TableApiFilters } from '../../types/tableFilters';
+import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
 const STALE_TIME = 5 * 60 * 1000;
 
 export function useTrackingOverview(filtro: TrackingFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['tracking', 'overview', filtro],
     queryFn: () => buscarTrackingOverview(filtro),
     staleTime: STALE_TIME,
@@ -25,6 +27,7 @@ export function useTrackingOverview(filtro: TrackingFiltro) {
 
 export function useTrackingDashboard(filtro: TrackingFiltro, enabled = true) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['tracking', 'dashboard', filtro],
     queryFn: () => buscarTrackingDashboard(filtro),
     enabled,
@@ -36,6 +39,7 @@ export function useTrackingDashboard(filtro: TrackingFiltro, enabled = true) {
 
 export function useTrackingSerie(filtro: TrackingFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['tracking', 'serie', filtro],
     queryFn: () => buscarTrackingSerie(filtro),
     staleTime: STALE_TIME,
@@ -45,6 +49,7 @@ export function useTrackingSerie(filtro: TrackingFiltro) {
 
 export function useTrackingGraficos(filtro: TrackingFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['tracking', 'graficos', filtro],
     queryFn: () => buscarTrackingGraficos(filtro),
     staleTime: STALE_TIME,
@@ -54,6 +59,7 @@ export function useTrackingGraficos(filtro: TrackingFiltro) {
 
 export function useTrackingTabela(filtro: TrackingFiltro, limite = 100) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['tracking', 'tabela', filtro, limite],
     queryFn: () => buscarTrackingTabela(filtro, limite),
     staleTime: STALE_TIME,
@@ -63,6 +69,7 @@ export function useTrackingTabela(filtro: TrackingFiltro, limite = 100) {
 
 export function useTrackingTabelaTotal(filtro: TrackingFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['tracking', 'tabela-total', filtro],
     queryFn: () => buscarTrackingTabelaTotal(filtro),
     staleTime: STALE_TIME,
@@ -77,6 +84,7 @@ export function useTrackingTabelaPaginada(
   filtrosTabela?: TableApiFilters,
 ) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['tracking', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarTrackingTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     placeholderData: (previousData) => previousData,
@@ -93,6 +101,7 @@ export function useTrackingDetalhesPaginada(
   enabled = true,
 ) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['tracking', 'detalhes', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarTrackingDetalhesPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     enabled,

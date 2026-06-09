@@ -15,11 +15,13 @@ import {
 } from '../../api/endpoints/fretesServico';
 import type { FretesFiltro, FretesGoalConfigPayload } from '../../types/fretes';
 import type { TableApiFilters } from '../../types/tableFilters';
+import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
 const STALE_TIME = 5 * 60 * 1000;
 
 export function useFretesOverview(filtro: FretesFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['fretes', 'overview', filtro],
     queryFn: () => buscarFretesOverview(filtro),
     staleTime: STALE_TIME,
@@ -29,6 +31,7 @@ export function useFretesOverview(filtro: FretesFiltro) {
 
 export function useFretesSerie(filtro: FretesFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['fretes', 'serie', filtro],
     queryFn: () => buscarFretesSerie(filtro),
     staleTime: STALE_TIME,
@@ -38,6 +41,7 @@ export function useFretesSerie(filtro: FretesFiltro) {
 
 export function useFretesTopClientes(filtro: FretesFiltro, limite = 10) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['fretes', 'top-clientes', filtro, limite],
     queryFn: () => buscarFretesTopClientes(filtro, limite),
     staleTime: STALE_TIME,
@@ -47,6 +51,7 @@ export function useFretesTopClientes(filtro: FretesFiltro, limite = 10) {
 
 export function useFretesMixDocumental(filtro: FretesFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['fretes', 'mix-documental', filtro],
     queryFn: () => buscarFretesMixDocumental(filtro),
     staleTime: STALE_TIME,
@@ -56,6 +61,7 @@ export function useFretesMixDocumental(filtro: FretesFiltro) {
 
 export function useFretesGraficos(filtro: FretesFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['fretes', 'graficos', filtro],
     queryFn: () => buscarFretesGraficos(filtro),
     staleTime: STALE_TIME,
@@ -65,6 +71,7 @@ export function useFretesGraficos(filtro: FretesFiltro) {
 
 export function useFretesMetas(filtro: FretesFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['fretes', 'metas', filtro],
     queryFn: () => buscarFretesMetas(filtro),
     staleTime: STALE_TIME,
@@ -104,6 +111,7 @@ export function useRemoverFretesMetaConfiguracao() {
 
 export function useFretesTabela(filtro: FretesFiltro, limite = 100) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['fretes', 'tabela', filtro, limite],
     queryFn: () => buscarFretesTabela(filtro, limite),
     staleTime: STALE_TIME,
@@ -113,6 +121,7 @@ export function useFretesTabela(filtro: FretesFiltro, limite = 100) {
 
 export function useFretesTabelaTotal(filtro: FretesFiltro) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['fretes', 'tabela-total', filtro],
     queryFn: () => buscarFretesTabelaTotal(filtro),
     staleTime: STALE_TIME,
@@ -127,6 +136,7 @@ export function useFretesTabelaPaginada(
   filtrosTabela?: TableApiFilters,
 ) {
   return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['fretes', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
     queryFn: () => buscarFretesTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     placeholderData: (previousData) => previousData,
