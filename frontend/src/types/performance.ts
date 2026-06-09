@@ -1,4 +1,5 @@
 import type { GoalTone } from '../utils/indicadoresGestaoVistaUi';
+import type { KpiDefinition } from '../constants/kpiDictionary';
 
 export type PerformanceStatusEntrega =
   | 'Pendente'
@@ -125,6 +126,7 @@ export interface PerformanceAgingPoint {
 export interface PerformanceKpiItem {
   label: string;
   valor: string;
+  definition: KpiDefinition;
   helperText?: string;
   tone?: GoalTone;
 }

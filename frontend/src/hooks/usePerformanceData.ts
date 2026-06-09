@@ -8,6 +8,7 @@ import type {
   PerformanceSerieTemporalPoint,
   PerformanceStatusDistribuicao,
 } from '../types/performance';
+import { KpiDictionary } from '../constants/kpiDictionary';
 import { formatarMoeda, formatarNumero, formatarPorcentagem } from '../utils/formatadores';
 
 interface UsePerformanceDataInput {
@@ -27,26 +28,30 @@ export function buildPerformanceKpis(overview?: PerformanceOverview): Performanc
   const emAtraso = overview?.emAtraso ?? 0;
 
   return [
-    { label: 'Total de Entregas', valor: formatarNumero(totalEntregas) },
-    { label: 'Finalizadas', valor: formatarNumero(finalizadas), tone: finalizadas > 0 ? 'positive' : 'neutral' },
-    { label: 'No Prazo', valor: formatarNumero(overview?.noPrazo ?? 0), tone: 'positive' },
-    { label: 'Fora do Prazo', valor: formatarNumero(overview?.foraDoPrazo ?? 0), tone: (overview?.foraDoPrazo ?? 0) > 0 ? 'negative' : 'neutral' },
+    { definition: KpiDictionary.performance.totalEntregas, label: 'Total de Entregas', valor: formatarNumero(totalEntregas) },
+    { definition: KpiDictionary.performance.finalizadas, label: 'Finalizadas', valor: formatarNumero(finalizadas), tone: finalizadas > 0 ? 'positive' : 'neutral' },
+    { definition: KpiDictionary.performance.noPrazo, label: 'No Prazo', valor: formatarNumero(overview?.noPrazo ?? 0), tone: 'positive' },
+    { definition: KpiDictionary.performance.foraDoPrazo, label: 'Fora do Prazo', valor: formatarNumero(overview?.foraDoPrazo ?? 0), tone: (overview?.foraDoPrazo ?? 0) > 0 ? 'negative' : 'neutral' },
     {
+      definition: KpiDictionary.performance.percentualPerformance,
       label: 'Performance',
       valor: formatarPorcentagem(performance, 2),
       tone: performance >= 95 ? 'positive' : performance >= 90 ? 'warning' : 'negative',
     },
-    { label: 'Em Atraso', valor: formatarNumero(emAtraso), tone: emAtraso > 0 ? 'negative' : 'positive' },
+    { definition: KpiDictionary.performance.emAtraso, label: 'Em Atraso', valor: formatarNumero(emAtraso), tone: emAtraso > 0 ? 'negative' : 'positive' },
     {
+      definition: KpiDictionary.performance.pesoTaxadoToneladas,
       label: 'Peso Taxado (t)',
       valor: `${formatarNumero(overview?.pesoTaxadoToneladas ?? 0, 3)} t`,
     },
     {
+      definition: KpiDictionary.performance.comprovanteAnexado,
       label: 'Comprovante Anexado',
       valor: formatarPorcentagem(comprovante, 2),
       tone: comprovante >= 95 ? 'positive' : comprovante > 0 ? 'warning' : 'neutral',
     },
     {
+      definition: KpiDictionary.performance.valorNfSemComprovante,
       label: 'Valor NF sem Comprovante',
       valor: formatarMoeda(overview?.valorNfSemComprovante ?? 0),
       tone: (overview?.valorNfSemComprovante ?? 0) > 0 ? 'warning' : 'positive',

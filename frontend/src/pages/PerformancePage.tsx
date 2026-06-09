@@ -9,6 +9,7 @@ import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import KpiCard from '../components/shared/KpiCard';
+import TooltipKpi from '../components/shared/TooltipKpi';
 import MensagemErro from '../components/ui/MensagemErro';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -796,14 +797,16 @@ export default function PerformancePage() {
         >
           {kpis.map((kpi) => (
             <div key={kpi.label} className={`min-w-0 ${kpiGridSpan(kpi.label)}`}>
-              <KpiCard
-                label={kpi.label}
-                valor={kpi.valor}
-                valorClassName={kpiValorClassName(kpi.label)}
-                helperText={kpi.helperText}
-                tone={kpi.tone}
-                helperTone={kpi.tone}
-              />
+              <TooltipKpi definition={kpi.definition} className="h-full">
+                <KpiCard
+                  label={kpi.label}
+                  valor={kpi.valor}
+                  valorClassName={kpiValorClassName(kpi.label)}
+                  helperText={kpi.helperText}
+                  tone={kpi.tone}
+                  helperTone={kpi.tone}
+                />
+              </TooltipKpi>
             </div>
           ))}
         </div>

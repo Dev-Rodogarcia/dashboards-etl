@@ -9,8 +9,11 @@ import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -29,6 +32,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class FretesServiceTest {
 
+    private static final ZoneId ZONE_ID_BRASILIA = ZoneId.of("America/Sao_Paulo");
+
     @Mock
     private VisaoFretesRepository repository;
 
@@ -43,7 +48,8 @@ class FretesServiceTest {
                 repository,
                 escopoSemRestricao(),
                 PeriodoOffsetDateTimeHelper.padrao(),
-                fretesGoalService
+                fretesGoalService,
+                Clock.fixed(Instant.parse("2026-06-08T12:00:00Z"), ZONE_ID_BRASILIA)
         );
     }
 
@@ -53,6 +59,10 @@ class FretesServiceTest {
         LocalDate dataFim = LocalDate.of(2026, 5, 19);
         stubOverview(overview(2, "4830280.00", "4830280.00", 2));
         stubRealizados(List.of(realizado("SPO", "2400000.00"), realizado("REC", "2430280.00")));
+        when(repository.contarDiasUteisCalendario(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31)))
+                .thenReturn(21);
+        when(repository.contarDiasUteisCalendario(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 19)))
+                .thenReturn(13);
         fretesGoalService.summary = new FretesGoalSummaryDTO(
                 "2026-05-01",
                 "2026-05-19",
@@ -75,6 +85,54 @@ class FretesServiceTest {
         assertThat(overview.faturamentoDiario().faturamentoFaltante()).isEqualByComparingTo("3569720.00");
         assertThat(overview.faturamentoDiario().tendenciaFaturamento()).isEqualByComparingTo("7802760.00");
         assertThat(overview.faturamentoDiario().tendenciaPercentual()).isEqualByComparingTo("-0.071100");
+    }
+
+    @Test
+    void buscarOverviewCalculaRunRateComD1EProjetaSobreAcumuladoComD0() {
+        service = new FretesService(
+                new ValidadorPeriodoService(),
+                repository,
+                escopoSemRestricao(),
+                PeriodoOffsetDateTimeHelper.padrao(),
+                fretesGoalService,
+                Clock.fixed(Instant.parse("2026-05-19T12:00:00Z"), ZONE_ID_BRASILIA)
+        );
+        LocalDate dataInicio = LocalDate.of(2026, 5, 1);
+        LocalDate dataFim = LocalDate.of(2026, 5, 19);
+        when(repository.buscarUltimoDiaUtilFechado(LocalDate.of(2026, 5, 19)))
+                .thenReturn(LocalDate.of(2026, 5, 18));
+        when(repository.contarDiasUteisCalendario(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31)))
+                .thenReturn(20);
+        when(repository.contarDiasUteisCalendario(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 18)))
+                .thenReturn(11);
+        when(repository.buscarOverviewAgregado(
+                any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
+        )).thenReturn(
+                overview(10, "5000000.00", "5000000.00", 10),
+                overview(9, "4400000.00", "4400000.00", 9)
+        );
+        stubRealizados(List.of(realizado("SPO", "5000000.00")));
+        fretesGoalService.summary = new FretesGoalSummaryDTO(
+                "2026-05-01",
+                "2026-05-19",
+                new BigDecimal("8400000.00"),
+                new BigDecimal("5000000.00"),
+                59.52,
+                List.of()
+        );
+
+        FretesOverviewDTO overview = service.buscarOverview(new FiltroConsultaDTO(dataInicio, dataFim, Map.of()));
+
+        assertThat(overview.receitaBruta()).isEqualByComparingTo("5000000.00");
+        assertThat(overview.faturamentoDiario().totalDiasUteisMes()).isEqualTo(20);
+        assertThat(overview.faturamentoDiario().diasUteisDecorridos()).isEqualTo(11);
+        assertThat(overview.faturamentoDiario().diasUteisRestantes()).isEqualTo(9);
+        assertThat(overview.faturamentoDiario().faturamentoDiarioReal()).isEqualByComparingTo("400000.00");
+        assertThat(overview.faturamentoDiario().faturamentoFaltante()).isEqualByComparingTo("4000000.00");
+        assertThat(overview.faturamentoDiario().metaDiariaDinamica()).isEqualByComparingTo("444444.44");
+        assertThat(overview.faturamentoDiario().tendenciaFaturamento()).isEqualByComparingTo("8600000.00");
+        assertThat(overview.faturamentoDiario().tendenciaPercentual()).isEqualByComparingTo("0.023810");
     }
 
     @Test

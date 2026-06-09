@@ -21,7 +21,9 @@ import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import com.dashboard.api.util.TemporalJsonUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.DayOfWeek;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,17 +40,19 @@ public class FretesService {
 
     private static final Logger log = LoggerFactory.getLogger(FretesService.class);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final ZoneId ZONE_ID_BRASILIA = ZoneId.of("America/Sao_Paulo");
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final VisaoFretesRepository repository;
     private final EscopoFilialService escopoFilialService;
     private final FretesGoalService fretesGoalService;
+    private final Clock clock;
 
     FretesService(
             ValidadorPeriodoService validadorPeriodo,
             VisaoFretesRepository repository
     ) {
-        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao(), null);
+        this(validadorPeriodo, repository, escopoSemRestricao(), PeriodoOffsetDateTimeHelper.padrao(), null, Clock.system(ZONE_ID_BRASILIA));
     }
 
     @Autowired
@@ -59,10 +63,22 @@ public class FretesService {
             PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper,
             FretesGoalService fretesGoalService
     ) {
+        this(validadorPeriodo, repository, escopoFilialService, periodoOffsetDateTimeHelper, fretesGoalService, Clock.system(ZONE_ID_BRASILIA));
+    }
+
+    FretesService(
+            ValidadorPeriodoService validadorPeriodo,
+            VisaoFretesRepository repository,
+            EscopoFilialService escopoFilialService,
+            PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper,
+            FretesGoalService fretesGoalService,
+            Clock clock
+    ) {
         this.validadorPeriodo = validadorPeriodo;
         this.repository = repository;
         this.escopoFilialService = escopoFilialService;
         this.fretesGoalService = fretesGoalService;
+        this.clock = clock != null ? clock : Clock.system(ZONE_ID_BRASILIA);
     }
 
     FretesService(
@@ -71,7 +87,7 @@ public class FretesService {
             EscopoFilialService escopoFilialService,
             PeriodoOffsetDateTimeHelper periodoOffsetDateTimeHelper
     ) {
-        this(validadorPeriodo, repository, escopoFilialService, periodoOffsetDateTimeHelper, null);
+        this(validadorPeriodo, repository, escopoFilialService, periodoOffsetDateTimeHelper, null, Clock.system(ZONE_ID_BRASILIA));
     }
 
     public FretesOverviewDTO buscarOverview(LocalDate dataInicio, LocalDate dataFim) {
@@ -85,6 +101,7 @@ public class FretesService {
         VisaoFretesRepository.FretesOverviewProjection overview = buscarOverviewAgregado(consulta);
         int totalFretes = overview != null ? overview.getTotalFretes() : 0;
         FretesGoalSummaryDTO metas = buscarResumoMetas(filtro);
+        LocalDate referenciaFechadaTendencia = referenciaFechadaTendencia(filtro.dataFim());
 
         if (totalFretes == 0) {
             return new FretesOverviewDTO(
@@ -93,11 +110,22 @@ public class FretesService {
                     BigDecimal.ZERO, 0, 0.0, 0.0, 0,
                     metas.metaFaturamento(),
                     metas.percentualAtingimentoFaturamento(),
-                    calcularFaturamentoDiario(filtro.dataFim(), metas.metaFaturamento(), BigDecimal.ZERO)
+                    calcularFaturamentoDiario(
+                            filtro.dataFim(),
+                            referenciaFechadaTendencia,
+                            metas.metaFaturamento(),
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO
+                    )
             );
         }
 
         BigDecimal receitaBruta = zero(overview.getReceitaBruta()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal receitaBrutaFechadaTendencia = buscarReceitaBrutaFechadaTendencia(
+                filtro,
+                referenciaFechadaTendencia,
+                receitaBruta
+        );
         BigDecimal valorFrete = zero(overview.getValorFrete()).setScale(2, RoundingMode.HALF_UP);
         int fretesFaturamento = overview.getFretesFaturamento();
         BigDecimal ticketMedio = fretesFaturamento == 0
@@ -119,7 +147,13 @@ public class FretesService {
                 overview.getFretesPrevisaoVencida(),
                 metas.metaFaturamento(),
                 metas.percentualAtingimentoFaturamento(),
-                calcularFaturamentoDiario(filtro.dataFim(), metas.metaFaturamento(), receitaBruta)
+                calcularFaturamentoDiario(
+                        filtro.dataFim(),
+                        referenciaFechadaTendencia,
+                        metas.metaFaturamento(),
+                        receitaBruta,
+                        receitaBrutaFechadaTendencia
+                )
         );
     }
 
@@ -278,26 +312,35 @@ public class FretesService {
     }
 
     private FretesFaturamentoDiarioDTO calcularFaturamentoDiario(
-            LocalDate referencia,
+            LocalDate competencia,
+            LocalDate referenciaFechada,
             BigDecimal metaFaturamento,
-            BigDecimal realizadoFaturamento
+            BigDecimal faturamentoAcumulado,
+            BigDecimal faturamentoFechado
     ) {
         BigDecimal meta = ConsultaFiltroUtils.zeroSeNulo(metaFaturamento).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal realizado = ConsultaFiltroUtils.zeroSeNulo(realizadoFaturamento).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal acumulado = ConsultaFiltroUtils.zeroSeNulo(faturamentoAcumulado).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal fechado = ConsultaFiltroUtils.zeroSeNulo(faturamentoFechado).setScale(2, RoundingMode.HALF_UP);
+        LocalDate inicioMes = competencia.withDayOfMonth(1);
+        LocalDate fimMes = competencia.withDayOfMonth(competencia.lengthOfMonth());
+        LocalDate referenciaLimitada = referenciaFechada.isAfter(fimMes) ? fimMes : referenciaFechada;
         int totalDiasUteisMes = Math.max(1, contarDiasUteis(
-                referencia.withDayOfMonth(1),
-                referencia.withDayOfMonth(referencia.lengthOfMonth())
+                inicioMes,
+                fimMes
         ));
-        int diasUteisDecorridos = Math.max(1, contarDiasUteis(referencia.withDayOfMonth(1), referencia));
+        int diasUteisDecorridos = referenciaLimitada.isBefore(inicioMes)
+                ? 0
+                : contarDiasUteis(inicioMes, referenciaLimitada);
         int diasUteisRestantes = Math.max(0, totalDiasUteisMes - diasUteisDecorridos);
         int divisorDiasRestantes = Math.max(1, diasUteisRestantes);
+        int divisorDiasDecorridos = Math.max(1, diasUteisDecorridos);
 
         BigDecimal metaDiariaBase = dividir(meta, totalDiasUteisMes);
-        BigDecimal faturamentoDiarioReal = dividir(realizado, diasUteisDecorridos);
-        BigDecimal faturamentoFaltante = meta.subtract(realizado).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal faturamentoDiarioReal = dividir(fechado, divisorDiasDecorridos);
+        BigDecimal faturamentoFaltante = meta.subtract(fechado).setScale(2, RoundingMode.HALF_UP);
         BigDecimal metaDiariaDinamica = dividir(faturamentoFaltante, divisorDiasRestantes);
-        BigDecimal tendenciaFaturamento = faturamentoDiarioReal
-                .multiply(BigDecimal.valueOf(totalDiasUteisMes))
+        BigDecimal tendenciaFaturamento = acumulado
+                .add(faturamentoDiarioReal.multiply(BigDecimal.valueOf(diasUteisRestantes)))
                 .setScale(2, RoundingMode.HALF_UP);
         BigDecimal tendenciaPercentual = meta.compareTo(BigDecimal.ZERO) > 0
                 ? tendenciaFaturamento.divide(meta, 6, RoundingMode.HALF_UP).subtract(BigDecimal.ONE)
@@ -316,19 +359,84 @@ public class FretesService {
         );
     }
 
+    private BigDecimal buscarReceitaBrutaFechadaTendencia(
+            FiltroConsultaDTO filtro,
+            LocalDate referenciaFechadaTendencia,
+            BigDecimal receitaBrutaPeriodo
+    ) {
+        if (!referenciaFechadaTendencia.isBefore(filtro.dataFim())) {
+            return receitaBrutaPeriodo;
+        }
+        if (referenciaFechadaTendencia.isBefore(filtro.dataInicio())) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        FiltroConsultaDTO filtroFechado = new FiltroConsultaDTO(
+                filtro.dataInicio(),
+                referenciaFechadaTendencia,
+                filtro.filtros()
+        );
+        VisaoFretesRepository.FretesOverviewProjection overviewFechado = buscarOverviewAgregado(consulta(filtroFechado));
+        return overviewFechado == null
+                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                : zero(overviewFechado.getReceitaBruta()).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private LocalDate referenciaFechadaTendencia(LocalDate dataFimFiltro) {
+        LocalDate ultimoDiaUtilFechado = buscarUltimoDiaUtilFechado(LocalDate.now(clock));
+        return dataFimFiltro.isAfter(ultimoDiaUtilFechado) ? ultimoDiaUtilFechado : dataFimFiltro;
+    }
+
+    private LocalDate buscarUltimoDiaUtilFechado(LocalDate dataReferencia) {
+        try {
+            LocalDate ultimoDiaUtilFechado = repository.buscarUltimoDiaUtilFechado(dataReferencia);
+            if (ultimoDiaUtilFechado != null) {
+                return ultimoDiaUtilFechado;
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Não foi possível consultar dim_calendario para tendencia diaria. Usando fallback por fim de semana. Motivo: {}", ex.getMessage());
+        }
+        return ultimoDiaUtilAnterior(dataReferencia);
+    }
+
+    private LocalDate ultimoDiaUtilAnterior(LocalDate data) {
+        LocalDate candidato = data.minusDays(1);
+        while (!isDiaUtil(candidato)) {
+            candidato = candidato.minusDays(1);
+        }
+        return candidato;
+    }
+
     private int contarDiasUteis(LocalDate inicio, LocalDate fim) {
         if (inicio.isAfter(fim)) {
             return 0;
         }
 
+        try {
+            Integer total = repository.contarDiasUteisCalendario(inicio, fim);
+            if (total != null) {
+                return total;
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Não foi possível consultar dias úteis na dim_calendario. Usando fallback por fim de semana. Motivo: {}", ex.getMessage());
+        }
+
+        return contarDiasUteisPorFimDeSemana(inicio, fim);
+    }
+
+    private int contarDiasUteisPorFimDeSemana(LocalDate inicio, LocalDate fim) {
         int total = 0;
         for (LocalDate data = inicio; !data.isAfter(fim); data = data.plusDays(1)) {
-            DayOfWeek dia = data.getDayOfWeek();
-            if (dia != DayOfWeek.SATURDAY && dia != DayOfWeek.SUNDAY) {
+            if (isDiaUtil(data)) {
                 total++;
             }
         }
         return total;
+    }
+
+    private boolean isDiaUtil(LocalDate data) {
+        DayOfWeek dia = data.getDayOfWeek();
+        return dia != DayOfWeek.SATURDAY && dia != DayOfWeek.SUNDAY;
     }
 
     private BigDecimal dividir(BigDecimal valor, int divisor) {

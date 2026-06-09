@@ -12,6 +12,7 @@ import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
+import { KpiDictionary } from '../constants/kpiDictionary';
 import { exportarManifestosCsv } from '../api/endpoints/manifestosServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
@@ -238,18 +239,21 @@ export default function ManifestosPage() {
           metric={dadosPerformance?.remuneracao}
           isLoading={performance.isLoading}
           corDestaque={CORES_GAUGE_MANIFESTOS.remuneracao}
+          definitions={KpiDictionary.manifestos.remuneracao}
         />
         <ManifestosGaugeCard
           titulo="Aproveitamento (Peso Transportado x Capacidade do Veículo)"
           metric={dadosPerformance?.aproveitamento}
           isLoading={performance.isLoading}
           corDestaque={CORES_GAUGE_MANIFESTOS.aproveitamento}
+          definitions={KpiDictionary.manifestos.aproveitamento}
         />
         <ManifestosGaugeCard
           titulo="Efetividade (quantidade de serviços x quantidade de serviços finalizados)"
           metric={dadosPerformance?.efetividade}
           isLoading={performance.isLoading}
           corDestaque={CORES_GAUGE_MANIFESTOS.efetividade}
+          definitions={KpiDictionary.manifestos.efetividade}
         />
       </div>
 

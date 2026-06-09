@@ -86,6 +86,26 @@ O frontend implementa roteamento seguro e autorização granular por setor para 
 
 ---
 
+## 📐 Governança de KPIs e Tooltips
+
+As regras matemáticas dos KPIs são definidas na camada de dados e expostas pela API. A explicação apresentada ao usuário fica centralizada em:
+
+- `frontend/src/constants/kpiDictionary.ts`: títulos, descrições, fórmulas e observações de negócio.
+- `frontend/src/components/shared/TooltipKpi.tsx`: apresentação acessível das definições nos cards, com suporte a hover e foco.
+
+Qualquer alteração de fórmula, numerador, denominador, unidade, arredondamento, status, exclusão, deduplicação, calendário ou período de referência deve atualizar o `kpiDictionary.ts` na mesma entrega. Também é obrigatório conferir todos os cards que usam aquela definição.
+
+O `TooltipKpi.tsx` deve ser atualizado quando houver mudança no contrato visual, nos campos exibidos ou no comportamento do tooltip. O texto das regras não deve ser duplicado dentro do componente: a fonte central da explicação continua sendo o dicionário.
+
+Uma mudança de KPI só está concluída quando:
+
+1. A regra na camada de dados e o retorno da API estão corretos.
+2. A definição correspondente no `kpiDictionary.ts` descreve exatamente a nova regra.
+3. Os cards continuam envolvidos pelo `TooltipKpi`.
+4. TypeScript, lint, build e testes do frontend foram executados.
+
+---
+
 ## ⚙️ Variáveis de Ambiente & Configurações
 
 O monorepo separa os arquivos de ambiente por finalidade:

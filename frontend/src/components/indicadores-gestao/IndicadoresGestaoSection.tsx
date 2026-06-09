@@ -6,7 +6,9 @@ import DataTable, { type ColunaTabela } from '../shared/DataTable';
 import ExportButton from '../shared/ExportButton';
 import KpiCard from '../shared/KpiCard';
 import KpiGrid from '../shared/KpiGrid';
+import TooltipKpi from '../shared/TooltipKpi';
 import MensagemErro from '../ui/MensagemErro';
+import type { KpiDefinition } from '../../constants/kpiDictionary';
 import { getApiErrorMessage, getTipoErro } from '../../utils/apiError';
 import { getGoalToneStyle, type GoalTone } from '../../utils/indicadoresGestaoVistaUi';
 
@@ -37,7 +39,14 @@ interface IndicadoresGestaoSectionProps<T> {
   goalOverridesNotice?: ReactNode;
   alert?: ReactNode;
   extra?: ReactNode;
-  kpis: Array<{ label: string; value: string; icon?: ReactNode; tone?: GoalTone; progressPct?: number | null }>;
+  kpis: Array<{
+    definition: KpiDefinition;
+    label: string;
+    value: string;
+    icon?: ReactNode;
+    tone?: GoalTone;
+    progressPct?: number | null;
+  }>;
   chartTitle: string;
   chartOption: EChartsOption;
   chartLoading: boolean;
@@ -141,14 +150,15 @@ export default function IndicadoresGestaoSection<T>({
       <div className="mb-5">
         <KpiGrid count={4}>
           {kpis.map((kpi) => (
-            <KpiCard
-              key={kpi.label}
-              label={kpi.label}
-              valor={kpi.value}
-              icone={kpi.icon}
-              tone={kpi.tone ?? goalTone}
-              progressPct={kpi.progressPct}
-            />
+            <TooltipKpi key={kpi.label} definition={kpi.definition}>
+              <KpiCard
+                label={kpi.label}
+                valor={kpi.value}
+                icone={kpi.icon}
+                tone={kpi.tone ?? goalTone}
+                progressPct={kpi.progressPct}
+              />
+            </TooltipKpi>
           ))}
         </KpiGrid>
       </div>

@@ -85,6 +85,26 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
 
     List<VisaoFretesEntity> findByDataFreteBetween(OffsetDateTime inicio, OffsetDateTime fim);
 
+    @Query(value = """
+            SELECT MAX(data)
+            FROM [ETL_SISTEMA].dbo.dim_calendario
+            WHERE data < :dataReferencia
+              AND is_dia_util = 1
+            """, nativeQuery = true)
+    LocalDate buscarUltimoDiaUtilFechado(@Param("dataReferencia") LocalDate dataReferencia);
+
+    @Query(value = """
+            SELECT CAST(COUNT_BIG(1) AS INT)
+            FROM [ETL_SISTEMA].dbo.dim_calendario
+            WHERE data >= :dataInicio
+              AND data <= :dataFim
+              AND is_dia_util = 1
+            """, nativeQuery = true)
+    Integer contarDiasUteisCalendario(
+            @Param("dataInicio") LocalDate dataInicio,
+            @Param("dataFim") LocalDate dataFim
+    );
+
     @Query(value = FRETES_FILTRADOS_SQL + """
             SELECT
                 MAX(data_extracao) AS updatedAt,

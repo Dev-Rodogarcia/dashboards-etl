@@ -1,12 +1,7 @@
 import { createElement, type CSSProperties, type ReactNode } from 'react';
 import { resolveKpiIcon } from './kpiIconResolver';
+import { getKpiFlexBasis } from './kpiCardLayout';
 import { getGoalToneStyle, type GoalTone } from '../../utils/indicadoresGestaoVistaUi';
-
-function getFlexBasis(valor: string): number {
-  if (valor.length > 14) return 190;
-  if (valor.length > 8) return 155;
-  return 110;
-}
 
 interface KpiCardProps {
   label: string;
@@ -40,7 +35,7 @@ export default function KpiCard({
   progressPct,
   trend,
 }: KpiCardProps) {
-  const flexBasis = getFlexBasis(valor);
+  const flexBasis = getKpiFlexBasis(valor);
   const style = getGoalToneStyle(tone);
   const helperStyle = getGoalToneStyle(helperTone ?? tone);
   const secondaryColor = tone === 'neutral' ? 'var(--color-text-subtle)' : style.text;

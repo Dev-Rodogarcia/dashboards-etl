@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { KpiDictionary } from '../../constants/kpiDictionary';
 import IndicadoresGestaoPanoramaSection from './IndicadoresGestaoPanoramaSection';
 
 describe('IndicadoresGestaoPanoramaSection', () => {
@@ -10,6 +11,7 @@ describe('IndicadoresGestaoPanoramaSection', () => {
         items: [
           {
             id: 'performance',
+            definition: KpiDictionary.gestaoAVista.resumo.performanceFretes,
             title: 'Performance de Entrega',
             value: '8,0%',
             statusLabel: 'Crítico',
@@ -22,6 +24,7 @@ describe('IndicadoresGestaoPanoramaSection', () => {
           },
           {
             id: 'horarios',
+            definition: KpiDictionary.gestaoAVista.resumo.horariosCorte,
             title: 'Horários de Corte',
             value: '85,7%',
             statusLabel: 'Em atenção',
@@ -53,6 +56,7 @@ describe('IndicadoresGestaoPanoramaSection', () => {
         items: [
           {
             id: 'coletores',
+            definition: KpiDictionary.gestaoAVista.resumo.utilizacaoColetores,
             title: 'Utilização dos Coletores',
             value: '84,0%',
             statusLabel: 'Dentro da meta',

@@ -10,6 +10,7 @@ import IndicadoresGestaoPanoramaSection, { type PanoramaOperacionalItem } from '
 import IndicadoresGestaoSection from '../components/indicadores-gestao/IndicadoresGestaoSection';
 import IndicadoresGestaoSummaryCard from '../components/indicadores-gestao/IndicadoresGestaoSummaryCard';
 import KpiGoalsManagerPanel from '../components/indicadores-gestao/KpiGoalsManagerPanel';
+import { KpiDictionary } from '../constants/kpiDictionary';
 import {
   exportarCubagemMercadoriasCsv,
   exportarHorariosCorteCsv,
@@ -726,6 +727,7 @@ export default function IndicadoresGestaoAVistaPage() {
   const panoramaItems: PanoramaOperacionalItem[] = [
     {
       id: 'performance',
+      definition: KpiDictionary.gestaoAVista.resumo.performanceFretes,
       title: 'Nova Tela de Fretes - Performance',
       value: formatarPorcentagem(performanceOverview.data?.pctNoPrazo ?? 0),
       statusLabel: performanceAssessment.label,
@@ -738,6 +740,7 @@ export default function IndicadoresGestaoAVistaPage() {
     },
     {
       id: 'coletores',
+      definition: KpiDictionary.gestaoAVista.resumo.utilizacaoColetores,
       title: 'Utilização dos Coletores',
       value: formatarPorcentagem(coletoresOverview.data?.pctUtilizacao ?? 0),
       statusLabel: coletoresAssessment.label,
@@ -750,6 +753,7 @@ export default function IndicadoresGestaoAVistaPage() {
     },
     {
       id: 'cubagem',
+      definition: KpiDictionary.gestaoAVista.resumo.cubagemMercadorias,
       title: 'Cubagem de Mercadorias',
       value: formatarPorcentagem(cubagemOverview.data?.pctCubagem ?? 0),
       statusLabel: cubagemAssessment.label,
@@ -762,6 +766,7 @@ export default function IndicadoresGestaoAVistaPage() {
     },
     {
       id: 'indenizacao',
+      definition: KpiDictionary.gestaoAVista.resumo.indenizacaoMercadorias,
       title: 'Indenização de Mercadorias',
       value: formatarPorcentagem(indenizacaoOverview.data?.pctIndenizacao ?? 0, 2),
       statusLabel: indenizacaoAssessment.label,
@@ -774,6 +779,7 @@ export default function IndicadoresGestaoAVistaPage() {
     },
     {
       id: 'horarios',
+      definition: KpiDictionary.gestaoAVista.resumo.horariosCorte,
       title: 'Horários de Corte',
       value: formatarPorcentagem(horariosOverview.data?.pctNoHorario ?? 0),
       statusLabel: horariosAssessment.label,
@@ -834,6 +840,7 @@ export default function IndicadoresGestaoAVistaPage() {
 
       <div className="mb-5 grid grid-cols-1 gap-3 xl:grid-cols-5">
         <IndicadoresGestaoSummaryCard
+          definition={KpiDictionary.gestaoAVista.resumo.performanceFretes}
           title="Nova Tela de Fretes = Performance"
           description="Pontualidade por previsão de entrega, incluindo registros em aberto no denominador."
           value={formatarPorcentagem(performanceOverview.data?.pctNoPrazo ?? 0)}
@@ -845,6 +852,7 @@ export default function IndicadoresGestaoAVistaPage() {
           icon={<Truck size={18} />}
         />
         <IndicadoresGestaoSummaryCard
+          definition={KpiDictionary.gestaoAVista.resumo.utilizacaoColetores}
           title="Utilização dos Coletores"
           description="Aderência operacional da conferência."
           value={formatarPorcentagem(coletoresOverview.data?.pctUtilizacao ?? 0)}
@@ -856,6 +864,7 @@ export default function IndicadoresGestaoAVistaPage() {
           icon={<Boxes size={18} />}
         />
         <IndicadoresGestaoSummaryCard
+          definition={KpiDictionary.gestaoAVista.resumo.cubagemMercadorias}
           title="Cubagem de Mercadorias"
           description="Cobertura de cubagem das minutas emitidas."
           value={formatarPorcentagem(cubagemOverview.data?.pctCubagem ?? 0)}
@@ -867,6 +876,7 @@ export default function IndicadoresGestaoAVistaPage() {
           icon={<PackageCheck size={18} />}
         />
         <IndicadoresGestaoSummaryCard
+          definition={KpiDictionary.gestaoAVista.resumo.indenizacaoMercadorias}
           title="Indenização de Mercadorias"
           description="Valor a pagar ao cliente por abertura do sinistro sobre o faturamento da filial."
           value={formatarPorcentagem(indenizacaoOverview.data?.pctIndenizacao ?? 0, 2)}
@@ -878,6 +888,7 @@ export default function IndicadoresGestaoAVistaPage() {
           icon={<ShieldAlert size={18} />}
         />
         <IndicadoresGestaoSummaryCard
+          definition={KpiDictionary.gestaoAVista.resumo.horariosCorte}
           title="Horários de Corte"
           description="Pontualidade das saídas programadas."
           value={formatarPorcentagem(horariosOverview.data?.pctNoHorario ?? 0)}
@@ -900,10 +911,10 @@ export default function IndicadoresGestaoAVistaPage() {
         error={performanceOverview.error}
         goalOverridesNotice={goalOverridesNotice('delivery_performance')}
         kpis={[
-          { label: 'Total de Entregas', value: formatarNumero(performanceOverview.data?.totalEntregas ?? 0), icon: <Truck size={16} />, progressPct: performanceAssessment.progressPct },
-          { label: 'Entregas Fora do Prazo', value: formatarNumero(performanceForaPrazo), icon: <AlertCircle size={16} />, progressPct: performanceAssessment.progressPct },
-          { label: 'Entregas No Prazo', value: formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0), icon: <Truck size={16} />, progressPct: performanceAssessment.progressPct },
-          { label: `Gap vs ${goals.performance.label.toLowerCase()}`, value: performanceGapLabel, icon: <Gauge size={16} />, progressPct: performanceAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.performance.totalEntregas, label: 'Total de Entregas', value: formatarNumero(performanceOverview.data?.totalEntregas ?? 0), icon: <Truck size={16} />, progressPct: performanceAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.performance.foraDoPrazo, label: 'Entregas Fora do Prazo', value: formatarNumero(performanceForaPrazo), icon: <AlertCircle size={16} />, progressPct: performanceAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.performance.noPrazo, label: 'Entregas No Prazo', value: formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0), icon: <Truck size={16} />, progressPct: performanceAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.performance.gapMeta, label: `Gap vs ${goals.performance.label.toLowerCase()}`, value: performanceGapLabel, icon: <Gauge size={16} />, progressPct: performanceAssessment.progressPct },
         ]}
         chartTitle={performanceRanking.length <= 1 ? 'Comparativo contra meta' : 'Piores filiais performance por pontualidade'}
         chartOption={performanceChartOption}
@@ -936,10 +947,10 @@ export default function IndicadoresGestaoAVistaPage() {
         goalOverridesNotice={goalOverridesNotice('collector_usage')}
         extra={coletoresFilterBox}
         kpis={[
-          { label: 'Ordens de Conferência', value: formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0), icon: <Boxes size={16} />, progressPct: coletoresAssessment.progressPct },
-          { label: 'Manifestos Bipáveis', value: formatarNumero(coletoresOverview.data?.totalManifestos ?? 0), icon: <BarChart3 size={16} />, progressPct: coletoresAssessment.progressPct },
-          { label: 'Descarregamentos', value: formatarNumero(coletoresOverview.data?.manifestosDescarregamento ?? 0), icon: <Truck size={16} />, progressPct: coletoresAssessment.progressPct },
-          { label: 'Ordens Incompletas', value: formatarNumero(coletoresOverview.data?.manifestosIncompletos ?? 0), icon: <AlertCircle size={16} />, progressPct: coletoresAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.coletores.ordensConferencia, label: 'Ordens de Conferência', value: formatarNumero(coletoresOverview.data?.manifestosBipados ?? 0), icon: <Boxes size={16} />, progressPct: coletoresAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.coletores.manifestosBipaveis, label: 'Manifestos Bipáveis', value: formatarNumero(coletoresOverview.data?.totalManifestos ?? 0), icon: <BarChart3 size={16} />, progressPct: coletoresAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.coletores.descarregamentos, label: 'Descarregamentos', value: formatarNumero(coletoresOverview.data?.manifestosDescarregamento ?? 0), icon: <Truck size={16} />, progressPct: coletoresAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.coletores.ordensIncompletas, label: 'Ordens Incompletas', value: formatarNumero(coletoresOverview.data?.manifestosIncompletos ?? 0), icon: <AlertCircle size={16} />, progressPct: coletoresAssessment.progressPct },
         ]}
         chartTitle={coletoresRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais com menor utilização'}
         chartOption={coletoresChartOption}
@@ -972,10 +983,10 @@ export default function IndicadoresGestaoAVistaPage() {
         goalOverridesNotice={goalOverridesNotice('cargo_cubage')}
         alert={<div className="mb-4 rounded-xl border border-dashed px-3 py-3 text-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>A regra oficial considera `Status != CANCELADO`, cubagem por `Total M3` ou `Peso Cubado` e exclusão pela lista oficial de `Pagador Doc`.</div>}
         kpis={[
-          { label: 'Minutas Cubadas', value: formatarNumero(cubagemOverview.data?.fretesCubados ?? 0), icon: <PackageCheck size={16} />, progressPct: cubagemAssessment.progressPct },
-          { label: 'Minutas Sem Cubagem', value: formatarNumero(cubagemNaoCubados), icon: <AlertCircle size={16} />, progressPct: cubagemAssessment.progressPct },
-          { label: 'Minutas com Peso Real', value: formatarNumero(cubagemOverview.data?.fretesComPesoReal ?? 0), icon: <BarChart3 size={16} />, progressPct: cubagemAssessment.progressPct },
-          { label: `Gap vs ${goals.cubagem.label.toLowerCase()}`, value: cubagemGapLabel, icon: <Gauge size={16} />, progressPct: cubagemAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.cubagem.minutasCubadas, label: 'Minutas Cubadas', value: formatarNumero(cubagemOverview.data?.fretesCubados ?? 0), icon: <PackageCheck size={16} />, progressPct: cubagemAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.cubagem.minutasSemCubagem, label: 'Minutas Sem Cubagem', value: formatarNumero(cubagemNaoCubados), icon: <AlertCircle size={16} />, progressPct: cubagemAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.cubagem.minutasComPesoReal, label: 'Minutas com Peso Real', value: formatarNumero(cubagemOverview.data?.fretesComPesoReal ?? 0), icon: <BarChart3 size={16} />, progressPct: cubagemAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.cubagem.gapMeta, label: `Gap vs ${goals.cubagem.label.toLowerCase()}`, value: cubagemGapLabel, icon: <Gauge size={16} />, progressPct: cubagemAssessment.progressPct },
         ]}
         chartTitle={cubagemRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais com menor cubagem por minuta'}
         chartOption={cubagemChartOption}
@@ -1008,10 +1019,10 @@ export default function IndicadoresGestaoAVistaPage() {
         goalOverridesNotice={goalOverridesNotice('cargo_indemnity')}
         alert={<div className="mb-4 rounded-xl border border-dashed px-3 py-3 text-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>A competência do custo segue `Data abertura` e o numerador usa `valor a pagar ao cliente`. O faturamento base continua vindo de `Valor Total do Serviço`.</div>}
         kpis={[
-          { label: 'Valor Indenizado', value: formatarMoeda(indenizacaoOverview.data?.valorIndenizadoAbs ?? 0), icon: <ShieldAlert size={16} />, progressPct: indenizacaoAssessment.progressPct },
-          { label: 'Total de Sinistros', value: formatarNumero(indenizacaoOverview.data?.totalSinistros ?? 0), icon: <ShieldAlert size={16} />, progressPct: indenizacaoAssessment.progressPct },
-          { label: 'Faturamento Base', value: formatarMoeda(indenizacaoOverview.data?.faturamentoBase ?? 0), icon: <BarChart3 size={16} />, progressPct: indenizacaoAssessment.progressPct },
-          { label: `Acima do ${goals.indenizacao.label.toLowerCase()}`, value: indenizacaoGapLabel, icon: <Gauge size={16} />, progressPct: indenizacaoAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.indenizacao.valorIndenizado, label: 'Valor Indenizado', value: formatarMoeda(indenizacaoOverview.data?.valorIndenizadoAbs ?? 0), icon: <ShieldAlert size={16} />, progressPct: indenizacaoAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.indenizacao.totalSinistros, label: 'Total de Sinistros', value: formatarNumero(indenizacaoOverview.data?.totalSinistros ?? 0), icon: <ShieldAlert size={16} />, progressPct: indenizacaoAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.indenizacao.faturamentoBase, label: 'Faturamento Base', value: formatarMoeda(indenizacaoOverview.data?.faturamentoBase ?? 0), icon: <BarChart3 size={16} />, progressPct: indenizacaoAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.indenizacao.acimaDoLimite, label: `Acima do ${goals.indenizacao.label.toLowerCase()}`, value: indenizacaoGapLabel, icon: <Gauge size={16} />, progressPct: indenizacaoAssessment.progressPct },
         ]}
         chartTitle={indenizacaoRanking.length <= 1 ? 'Comparativo contra limite' : 'Filiais com maior impacto por abertura de sinistro'}
         chartOption={indenizacaoChartOption}
@@ -1044,10 +1055,10 @@ export default function IndicadoresGestaoAVistaPage() {
         goalOverridesNotice={goalOverridesNotice('cutoff_time')}
         extra={horariosFonteBox}
         kpis={[
-          { label: 'Saídas no horário', value: formatarNumero(horariosOverview.data?.saidasNoHorario ?? 0), icon: <Truck size={16} />, progressPct: horariosAssessment.progressPct },
-          { label: 'Saídas fora do horário', value: formatarNumero(horariosForaHorario), icon: <AlertCircle size={16} />, progressPct: horariosAssessment.progressPct },
-          { label: 'Total programado', value: formatarNumero(horariosOverview.data?.totalProgramado ?? 0), icon: <BarChart3 size={16} />, progressPct: horariosAssessment.progressPct },
-          { label: `Gap vs ${goals.horarios.label.toLowerCase()}`, value: horariosGapLabel, icon: <Gauge size={16} />, progressPct: horariosAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.horariosCorte.saidasNoHorario, label: 'Saídas no horário', value: formatarNumero(horariosOverview.data?.saidasNoHorario ?? 0), icon: <Truck size={16} />, progressPct: horariosAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.horariosCorte.saidasForaHorario, label: 'Saídas fora do horário', value: formatarNumero(horariosForaHorario), icon: <AlertCircle size={16} />, progressPct: horariosAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.horariosCorte.totalProgramado, label: 'Total programado', value: formatarNumero(horariosOverview.data?.totalProgramado ?? 0), icon: <BarChart3 size={16} />, progressPct: horariosAssessment.progressPct },
+          { definition: KpiDictionary.gestaoAVista.horariosCorte.gapMeta, label: `Gap vs ${goals.horarios.label.toLowerCase()}`, value: horariosGapLabel, icon: <Gauge size={16} />, progressPct: horariosAssessment.progressPct },
         ]}
         chartTitle={horariosRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais com menor pontualidade de saída'}
         chartOption={horariosChartOption}

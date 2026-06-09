@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { GaugeMetric } from '../../../types/manifestos';
+import { KpiDictionary } from '../../../constants/kpiDictionary';
 import ManifestosGaugeCard from './ManifestosGaugeCard';
 import { buildManifestosHalfDonutOption } from './manifestosGaugeOptions';
 
@@ -49,6 +50,7 @@ describe('ManifestosGaugeCard', () => {
       createElement(ManifestosGaugeCard, {
         titulo: 'Aproveitamento',
         metric,
+        definitions: KpiDictionary.manifestos.aproveitamento,
       }),
     );
 
@@ -73,6 +75,7 @@ describe('ManifestosGaugeCard', () => {
       createElement(ManifestosGaugeCard, {
         titulo: 'Remuneração',
         metric,
+        definitions: KpiDictionary.manifestos.remuneracao,
       }),
     );
 

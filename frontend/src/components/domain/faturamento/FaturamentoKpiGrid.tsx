@@ -1,5 +1,7 @@
 import KpiCard from '../../shared/KpiCard';
 import KpiGrid from '../../shared/KpiGrid';
+import TooltipKpi from '../../shared/TooltipKpi';
+import { KpiDictionary } from '../../../constants/kpiDictionary';
 import type { FaturamentoDiario, FaturamentoOverview } from '../../../types/faturamento';
 import { formatarMoeda, formatarNumero, formatarPorcentagem, formatarPeso } from '../../../utils/formatadores';
 import type { GoalTone } from '../../../utils/indicadoresGestaoVistaUi';
@@ -79,28 +81,44 @@ export default function FaturamentoKpiGrid({
 
   return (
     <KpiGrid count={8}>
-      <KpiCard label="Minutas" valor={formatarNumero(overview.totalFretes)} />
-      <KpiCard label="Faturamento (Realizado)" valor={formatarMoeda(overview.receitaBruta)} />
-      <KpiCard label="Faturamento Líquido" valor={formatarMoeda(overview.valorFrete)} />
-      <KpiCard label="Ticket Médio" valor={formatarMoeda(overview.ticketMedio)} />
-      <KpiCard label="Peso Taxado" valor={formatarPeso(overview.pesoTaxadoTotal)} />
-      <KpiCard label="Volumes" valor={formatarNumero(overview.volumesTotais)} />
-      <KpiCard
-        label="Meta Faturamento"
-        valor={faturamentoMeta.metaValue}
-        helperText={faturamentoMeta.helperText}
-        tone={faturamentoMeta.tone}
-        helperTone={faturamentoMeta.tone}
-        progressPct={faturamentoMeta.progressPct}
-      />
-      <KpiCard
-        label="Tendência %"
-        valor={formatarPorcentagem(tendenciaPercentualExibicao)}
-        valorClassName={`text-4xl font-bold ${tendenciaPercentual < 0 ? 'text-red-600' : 'text-green-600'}`}
-        helperText={`Tendência: ${formatarMoeda(faturamentoDiario?.tendenciaFaturamento ?? 0)}`}
-        tone={tendenciaTone}
-        helperTone={tendenciaTone}
-      />
+      <TooltipKpi definition={KpiDictionary.faturamento.totalMinutas}>
+        <KpiCard label="Minutas" valor={formatarNumero(overview.totalFretes)} />
+      </TooltipKpi>
+      <TooltipKpi definition={KpiDictionary.faturamento.faturamentoRealizado}>
+        <KpiCard label="Faturamento (Realizado)" valor={formatarMoeda(overview.receitaBruta)} />
+      </TooltipKpi>
+      <TooltipKpi definition={KpiDictionary.faturamento.faturamentoLiquido}>
+        <KpiCard label="Faturamento Líquido" valor={formatarMoeda(overview.valorFrete)} />
+      </TooltipKpi>
+      <TooltipKpi definition={KpiDictionary.faturamento.ticketMedio}>
+        <KpiCard label="Ticket Médio" valor={formatarMoeda(overview.ticketMedio)} />
+      </TooltipKpi>
+      <TooltipKpi definition={KpiDictionary.faturamento.pesoTaxado}>
+        <KpiCard label="Peso Taxado" valor={formatarPeso(overview.pesoTaxadoTotal)} />
+      </TooltipKpi>
+      <TooltipKpi definition={KpiDictionary.faturamento.volumes}>
+        <KpiCard label="Volumes" valor={formatarNumero(overview.volumesTotais)} />
+      </TooltipKpi>
+      <TooltipKpi definition={KpiDictionary.faturamento.metaFaturamento}>
+        <KpiCard
+          label="Meta Faturamento"
+          valor={faturamentoMeta.metaValue}
+          helperText={faturamentoMeta.helperText}
+          tone={faturamentoMeta.tone}
+          helperTone={faturamentoMeta.tone}
+          progressPct={faturamentoMeta.progressPct}
+        />
+      </TooltipKpi>
+      <TooltipKpi definition={KpiDictionary.faturamento.tendenciaPercentual}>
+        <KpiCard
+          label="Tendência %"
+          valor={formatarPorcentagem(tendenciaPercentualExibicao)}
+          valorClassName={`text-4xl font-bold ${tendenciaPercentual < 0 ? 'text-red-600' : 'text-green-600'}`}
+          helperText={`Tendência: ${formatarMoeda(faturamentoDiario?.tendenciaFaturamento ?? 0)}`}
+          tone={tendenciaTone}
+          helperTone={tendenciaTone}
+        />
+      </TooltipKpi>
     </KpiGrid>
   );
 }

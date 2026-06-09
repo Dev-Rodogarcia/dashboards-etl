@@ -13,7 +13,9 @@ import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
+import TooltipKpi from '../components/shared/TooltipKpi';
 import MensagemErro from '../components/ui/MensagemErro';
+import { KpiDictionary } from '../constants/kpiDictionary';
 import { exportarFaturamentoCsv } from '../api/endpoints/faturamentoServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
@@ -678,11 +680,11 @@ function FaturamentoEvolutionCard({
   );
 
   const indicadores = [
-    { label: 'Meta de Faturamento Diário', value: formatarMoeda(metaDiaria), tone: 'neutral' },
-    { label: 'Faturamento Diário Real', value: formatarMoeda(faturamentoDiarioReal), tone: 'neutral' },
-    { label: 'Diferença', value: formatarMoeda(diferencaDiaria), tone: diferencaDiaria < 0 ? 'danger' : 'success' },
-    { label: 'Faturamento Faltante', value: formatarMoeda(faturamentoFaltante), tone: 'neutral' },
-    { label: 'Meta Diária Dinâmica', value: formatarMoeda(metaDiariaDinamica), tone: 'neutral' },
+    { definition: KpiDictionary.faturamento.metaDiaria, label: 'Meta de Faturamento Diário', value: formatarMoeda(metaDiaria), tone: 'neutral' },
+    { definition: KpiDictionary.faturamento.faturamentoDiarioReal, label: 'Faturamento Diário Real', value: formatarMoeda(faturamentoDiarioReal), tone: 'neutral' },
+    { definition: KpiDictionary.faturamento.diferencaDiaria, label: 'Diferença', value: formatarMoeda(diferencaDiaria), tone: diferencaDiaria < 0 ? 'danger' : 'success' },
+    { definition: KpiDictionary.faturamento.faturamentoFaltante, label: 'Faturamento Faltante', value: formatarMoeda(faturamentoFaltante), tone: 'neutral' },
+    { definition: KpiDictionary.faturamento.metaDiariaDinamica, label: 'Meta Diária Dinâmica', value: formatarMoeda(metaDiariaDinamica), tone: 'neutral' },
   ];
 
   return (
@@ -696,17 +698,24 @@ function FaturamentoEvolutionCard({
       <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1 lg:flex-row lg:overflow-hidden">
         <div className="w-full shrink-0 space-y-3 lg:w-[13rem]">
           {indicadores.map((item) => (
-            <div key={item.label}>
-              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{item.label}</p>
-              <p
-                className="mt-0.5 text-xl font-bold leading-tight"
-                style={{
-                  color: item.tone === 'danger' ? CORES.perigo : item.tone === 'success' ? CORES.sucesso : 'var(--color-text)',
-                }}
-              >
-                {item.value}
-              </p>
-            </div>
+            <TooltipKpi
+              key={item.label}
+              definition={item.definition}
+              className="w-full rounded-lg"
+              style={{ flex: '0 0 auto' }}
+            >
+              <div className="w-full">
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{item.label}</p>
+                <p
+                  className="mt-0.5 text-xl font-bold leading-tight"
+                  style={{
+                    color: item.tone === 'danger' ? CORES.perigo : item.tone === 'success' ? CORES.sucesso : 'var(--color-text)',
+                  }}
+                >
+                  {item.value}
+                </p>
+              </div>
+            </TooltipKpi>
           ))}
         </div>
         <div className="min-h-[12rem] min-w-0 flex-1 lg:min-h-0">

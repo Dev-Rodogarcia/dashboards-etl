@@ -1,8 +1,11 @@
 import type { ReactNode } from 'react';
+import type { KpiDefinition } from '../../constants/kpiDictionary';
 import { getGoalToneStyle, type GoalTone } from '../../utils/indicadoresGestaoVistaUi';
+import TooltipKpi from '../shared/TooltipKpi';
 
 export interface PanoramaOperacionalItem {
   id: string;
+  definition: KpiDefinition;
   title: string;
   value: string;
   statusLabel: string;
@@ -66,61 +69,67 @@ export default function IndicadoresGestaoPanoramaSection({
           const progressPct = Math.max(0, Math.min(item.progressPct ?? 0, 100));
 
           return (
-            <article
+            <TooltipKpi
               key={item.id}
-              className="rounded-[20px] border px-4 py-[14px] transition-colors xl:px-5 xl:py-4"
-              style={{
-                backgroundColor: 'var(--color-bg)',
-                borderColor: item.tone === 'neutral' ? 'var(--color-border)' : style.border,
-              }}
+              definition={item.definition}
+              className="w-full"
+              style={{ flex: '0 0 auto' }}
             >
-              <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1.55fr)_auto_auto_minmax(320px,1.95fr)] xl:items-center">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    {item.icon ? (
-                      <span className="shrink-0" style={{ color: style.text }}>
-                        {item.icon}
+              <article
+                className="w-full rounded-[20px] border px-4 py-[14px] transition-colors xl:px-5 xl:py-4"
+                style={{
+                  backgroundColor: 'var(--color-bg)',
+                  borderColor: item.tone === 'neutral' ? 'var(--color-border)' : style.border,
+                }}
+              >
+                <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1.55fr)_auto_auto_minmax(320px,1.95fr)] xl:items-center">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      {item.icon ? (
+                        <span className="shrink-0" style={{ color: style.text }}>
+                          {item.icon}
+                        </span>
+                      ) : null}
+                      <span className="truncate text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                        {item.title}
                       </span>
-                    ) : null}
-                    <span className="truncate text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                      {item.title}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="text-left xl:text-right">
-                  <div className="text-xl font-bold leading-none" style={{ color: 'var(--color-text)' }}>
-                    {item.value}
-                  </div>
-                </div>
-
-                <div className="xl:justify-self-start">
-                  <span
-                    className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
-                    style={{ backgroundColor: style.badgeBg, color: style.badgeText }}
-                  >
-                    {item.statusLabel}
-                  </span>
-                </div>
-
-                <div className="min-w-0">
-                  <div className="mb-1.5 flex items-center justify-between gap-3 text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
-                    <span className="truncate">{item.detail}</span>
-                    <span className="shrink-0 font-semibold" style={{ color: style.text }}>
-                      {formatarProgresso(item.progressPct)}
-                    </span>
-                  </div>
-                  {item.progressPct != null ? (
-                    <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: style.track }}>
-                      <div
-                        className="h-full rounded-full transition-all duration-300"
-                        style={{ width: `${progressPct}%`, backgroundColor: style.fill }}
-                      />
                     </div>
-                  ) : null}
+                  </div>
+
+                  <div className="text-left xl:text-right">
+                    <div className="text-xl font-bold leading-none" style={{ color: 'var(--color-text)' }}>
+                      {item.value}
+                    </div>
+                  </div>
+
+                  <div className="xl:justify-self-start">
+                    <span
+                      className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
+                      style={{ backgroundColor: style.badgeBg, color: style.badgeText }}
+                    >
+                      {item.statusLabel}
+                    </span>
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="mb-1.5 flex items-center justify-between gap-3 text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
+                      <span className="truncate">{item.detail}</span>
+                      <span className="shrink-0 font-semibold" style={{ color: style.text }}>
+                        {formatarProgresso(item.progressPct)}
+                      </span>
+                    </div>
+                    {item.progressPct != null ? (
+                      <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: style.track }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{ width: `${progressPct}%`, backgroundColor: style.fill }}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            </article>
+              </article>
+            </TooltipKpi>
           );
         })}
       </div>
