@@ -13,7 +13,7 @@ import org.hibernate.annotations.Immutable;
 
 @Entity
 @Immutable
-@Table(name = "fato_fretes_faturamento", schema = "dbo", catalog = "ETL_SISTEMA")
+@Table(name = "fato_fretes_faturamento", schema = "dbo")
 public class VisaoFretesEntity {
 
     @Id

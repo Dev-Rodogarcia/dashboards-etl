@@ -27,6 +27,7 @@ export default function ManifestosKpiGrid({ kpis, isLoading }: ManifestosKpiGrid
         { definition: KpiDictionary.manifestos.encerrados, label: 'Encerrados', valor: formatarNumero(kpis.encerrados) },
         { definition: KpiDictionary.manifestos.kmTotal, label: 'KM Total', valor: formatarNumero(kpis.kmTotal, 0) },
         { definition: KpiDictionary.manifestos.custoTotal, label: 'Custo Total', valor: formatarMoeda(kpis.custoTotal) },
+        { definition: KpiDictionary.manifestos.custoPorKg, label: 'Custo/KG', valor: formatarMoeda(kpis.custoPorKg) },
         { definition: KpiDictionary.manifestos.custoPorKm, label: 'Custo/KM', valor: formatarMoeda(kpis.custoPorKm) },
         { definition: KpiDictionary.manifestos.receitaPorKm, label: 'Receita/KM', valor: formatarMoeda(kpis.receitaPorKm) },
       ]
@@ -35,7 +36,7 @@ export default function ManifestosKpiGrid({ kpis, isLoading }: ManifestosKpiGrid
   return (
     <div className="mb-6 grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
       {isLoading
-        ? Array.from({ length: 8 }, (_, index) => <KpiSkeleton key={index} />)
+        ? Array.from({ length: 9 }, (_, index) => <KpiSkeleton key={index} />)
         : cards.map((card) => (
           <TooltipKpi key={card.label} definition={card.definition}>
             <KpiCard label={card.label} valor={card.valor} />

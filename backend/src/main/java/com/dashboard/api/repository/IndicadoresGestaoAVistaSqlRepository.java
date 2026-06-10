@@ -603,7 +603,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
                         is_no_prazo,
                         is_fora_prazo,
                         data_extracao
-                    FROM [ETL_SISTEMA].dbo.fato_gestao_vista_fretes
+                    FROM dbo.fato_gestao_vista_fretes
                     WHERE indicador_codigo = 'PE'
                       AND data_referencia >= :dataInicio
                       AND data_referencia < :dataFimExclusivo
@@ -634,7 +634,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
                         is_cubado,
                         is_peso_real_informado,
                         data_extracao
-                    FROM [ETL_SISTEMA].dbo.fato_gestao_vista_fretes
+                    FROM dbo.fato_gestao_vista_fretes
                     WHERE indicador_codigo = 'CB'
                       AND data_referencia >= :dataInicio
                       AND data_referencia < :dataFimExclusivo
@@ -660,7 +660,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
                         ) AS mes_ref,
                         receita_bruta AS faturamento,
                         CAST(snapshot_em AT TIME ZONE 'UTC' AT TIME ZONE 'E. South America Standard Time' AS DATETIME2) AS data_extracao
-                    FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                    FROM dbo.fato_fretes_faturamento
                     WHERE data_referencia_faturamento_date >= :dataInicio
                       AND data_referencia_faturamento_date < :dataFimExclusivo
                       AND excluido_na_origem = 0
@@ -759,7 +759,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
                         manifestos_incompletos,
                         is_filial_operacional,
                         updated_at
-                    FROM [ETL_SISTEMA].dbo.fato_gestao_vista_coletores
+                    FROM dbo.fato_gestao_vista_coletores
                     WHERE data_referencia >= :dataInicio
                       AND data_referencia < :dataFimExclusivo
                       AND is_linha_valida_indicador = 1

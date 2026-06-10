@@ -38,6 +38,7 @@ class ManifestosPerformanceSqlRepositoryTest {
         );
 
         assertThat(dto.kpis().totalManifestos()).isEqualTo(12);
+        assertThat(dto.kpis().custoPorKg()).isEqualByComparingTo("0.10");
         assertThat(dto.kpis().custoPorKm()).isEqualByComparingTo("4.00");
         assertThat(dto.kpis().receitaPorKm()).isEqualByComparingTo("7.50");
 
@@ -45,6 +46,7 @@ class ManifestosPerformanceSqlRepositoryTest {
                 .anySatisfy(sql -> assertThat(sql)
                         .contains("COUNT_BIG(1) AS total_manifestos")
                         .contains("SUM(CASE WHEN status_norm = N'Pendente'")
+                        .contains("NULLIF(SUM(peso_taxado), 0)")
                         .contains("NULLIF(SUM(km_total), 0)"));
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql)
@@ -63,6 +65,15 @@ class ManifestosPerformanceSqlRepositoryTest {
                 .allSatisfy(sql -> assertThat(sql)
                         .doesNotContain("LOWER(filial) IN")
                         .doesNotContain("TRY_CONVERT(DECIMAL(18, 3), [Capacidade Lotação Kg])"));
+        assertThat(jdbcTemplate.sqls)
+                .anySatisfy(sql -> assertThat(sql)
+                        .contains("COALESCE([Receita Total Transportada], 0) AS receita_total")
+                        .contains("FROM dbo.vw_manifestos_powerbi")
+                        .doesNotContain("COALESCE([Fretes/Total], 0) AS receita_total"));
+        assertThat(jdbcTemplate.sqls)
+                .anySatisfy(sql -> assertThat(sql)
+                        .contains("sys.dm_exec_describe_first_result_set")
+                        .contains("N'SELECT TOP (0) * FROM dbo.vw_manifestos_powerbi'"));
     }
 
     @Test
@@ -95,7 +106,7 @@ class ManifestosPerformanceSqlRepositoryTest {
     }
 
     @Test
-    void buscarPerformanceNaoAtualizaMetadataQuandoWrapperManifestosEstaDesatualizado() {
+    void buscarPerformanceConsomeSynonymLocalDeManifestosSemRefreshView() {
         CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
         jdbcTemplate.colunasManifestos = List.of(
                 "Número",
@@ -109,6 +120,7 @@ class ManifestosPerformanceSqlRepositoryTest {
                 "KM Total",
                 "Custo total",
                 "Fretes/Total",
+                "Receita Total Transportada",
                 "Total peso taxado",
                 "Capacidade Lotação Kg",
                 "Itens/Finalizados",
@@ -127,6 +139,10 @@ class ManifestosPerformanceSqlRepositoryTest {
 
         assertThat(jdbcTemplate.sqls)
                 .noneSatisfy(sql -> assertThat(sql).contains("sp_refreshview"));
+        assertThat(jdbcTemplate.sqls)
+                .anySatisfy(sql -> assertThat(sql).contains("FROM dbo.vw_manifestos_powerbi"));
+        assertThat(jdbcTemplate.sqls)
+                .noneSatisfy(sql -> assertThat(sql).contains("ETL_SISTEMA"));
         assertThat(jdbcTemplate.consultasColunas).isEqualTo(2);
     }
 
@@ -184,6 +200,7 @@ class ManifestosPerformanceSqlRepositoryTest {
                     "encerrados", 7L,
                     "km_total", new BigDecimal("100.00"),
                     "custo_total", new BigDecimal("400.00"),
+                    "custo_por_kg", new BigDecimal("0.10"),
                     "custo_por_km", new BigDecimal("4.00"),
                     "receita_por_km", new BigDecimal("7.50")
             );
@@ -213,6 +230,7 @@ class ManifestosPerformanceSqlRepositoryTest {
                 "KM Total",
                 "Custo total",
                 "Fretes/Total",
+                "Receita Total Transportada",
                 "Total peso taxado",
                 "Capacidade Lotação Kg",
                 "Itens/Finalizados",

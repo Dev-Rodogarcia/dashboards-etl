@@ -1036,9 +1036,15 @@ public class PerformanceDashboardSqlRepository {
 
     private PerformanceViewColumns carregarColunasViewFretes() {
         List<String> nomes = jdbcTemplate.queryForList("""
-                SELECT c.name
-                FROM sys.columns c
-                WHERE c.object_id = OBJECT_ID(N'dbo.vw_fretes_powerbi')
+                SELECT name
+                FROM sys.dm_exec_describe_first_result_set(
+                    N'SELECT TOP (0) * FROM dbo.vw_fretes_powerbi',
+                    NULL,
+                    0
+                )
+                WHERE error_number IS NULL
+                  AND is_hidden = 0
+                ORDER BY column_ordinal
                 """, new MapSqlParameterSource(), String.class);
         return new PerformanceViewColumns(nomes);
     }

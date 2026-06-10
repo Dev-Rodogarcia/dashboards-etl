@@ -45,7 +45,7 @@ public class ExecutivoFinanceiroSqlRepository {
                         COALESCE(valor_frete, 0) AS frete_valor,
                         CONVERT(INT, is_elegivel_faturamento) AS elegivel_faturamento,
                         data_referencia_faturamento_date AS data_referencia_periodo
-                    FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                    FROM dbo.fato_fretes_faturamento
                     WHERE excluido_na_origem = 0
                 ),
                 filtrados AS (
@@ -130,9 +130,15 @@ public class ExecutivoFinanceiroSqlRepository {
         }
 
         List<String> nomes = jdbcTemplate.queryForList("""
-                SELECT c.name
-                FROM [ETL_SISTEMA].sys.columns c
-                WHERE c.object_id = OBJECT_ID(N'[ETL_SISTEMA].dbo.fato_fretes_faturamento')
+                SELECT name
+                FROM sys.dm_exec_describe_first_result_set(
+                    N'SELECT TOP (0) * FROM dbo.fato_fretes_faturamento',
+                    NULL,
+                    0
+                )
+                WHERE error_number IS NULL
+                  AND is_hidden = 0
+                ORDER BY column_ordinal
                 """, new MapSqlParameterSource(), String.class);
 
         FretesFactColumns carregadas = new FretesFactColumns(nomes);

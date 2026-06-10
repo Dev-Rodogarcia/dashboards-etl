@@ -14,7 +14,7 @@ import org.hibernate.annotations.Immutable;
 
 @Entity
 @Immutable
-@Table(name = "fato_gestao_vista_faturas", schema = "dbo", catalog = "ETL_SISTEMA")
+@Table(name = "fato_gestao_vista_faturas", schema = "dbo")
 public class VisaoFaturasClienteEntity {
 
     private static final DateTimeFormatter DATA_BR = DateTimeFormatter.ofPattern("dd/MM/yyyy");

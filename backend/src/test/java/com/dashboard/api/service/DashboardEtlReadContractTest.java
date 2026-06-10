@@ -44,14 +44,14 @@ class DashboardEtlReadContractTest {
     );
 
     private static final Pattern RAW_ETL_TABLE_SQL = Pattern.compile(
-            "\\b(?:FROM|JOIN)\\s+(?:ETL_SISTEMA\\.)?dbo\\.\\[?(?:"
+            "\\b(?:FROM|JOIN)\\s+dbo\\.\\[?(?:"
                     + RAW_ETL_TABLES
                     + ")\\]?(?![A-Za-z0-9_])",
             Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern RAW_ETL_TABLE_DML = Pattern.compile(
-            "\\b(?:UPDATE|DELETE\\s+FROM|INSERT\\s+INTO)\\s+(?:ETL_SISTEMA\\.)?dbo\\.\\[?(?:"
+            "\\b(?:UPDATE|DELETE\\s+FROM|INSERT\\s+INTO)\\s+dbo\\.\\[?(?:"
                     + RAW_ETL_TABLES
                     + ")\\]?(?![A-Za-z0-9_])",
             Pattern.CASE_INSENSITIVE

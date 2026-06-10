@@ -63,7 +63,7 @@ class FaturasPorClienteSqlRepositoryTest {
         verify(jdbcTemplate).queryForObject(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
 
         assertThat(sqlCaptor.getValue())
-                .contains("[ETL_SISTEMA].dbo.fato_gestao_vista_faturas")
+                .contains("dbo.fato_gestao_vista_faturas")
                 .contains("data_emissao_cte >= :inicioOffset AND data_emissao_cte < :fimOffset")
                 .contains("excluido_na_origem = 0")
                 .contains("SUM(CASE WHEN status_processo = N'Faturado' THEN valor_operacional ELSE 0 END)")

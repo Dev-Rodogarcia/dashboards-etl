@@ -54,7 +54,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                     CAST(v.data_hora_identificou_fim_viagem AS DATETIME2(0)) AS data_hora_identificou_fim_at,
                     CAST(COALESCE(v.data_hora_prev_ini, v.data_hora_real_ini) AS DATETIME2(0)) AS data_base_sm_at,
                     v.data_extracao
-                FROM [ETL_SISTEMA].dbo.raster_viagens v
+                FROM dbo.raster_viagens v
                 WHERE v.data_hora_prev_ini >= :dataInicio
                   AND v.data_hora_prev_ini < :dataFimExclusivo
 
@@ -72,7 +72,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                     CAST(v.data_hora_identificou_fim_viagem AS DATETIME2(0)) AS data_hora_identificou_fim_at,
                     CAST(COALESCE(v.data_hora_prev_ini, v.data_hora_real_ini) AS DATETIME2(0)) AS data_base_sm_at,
                     v.data_extracao
-                FROM [ETL_SISTEMA].dbo.raster_viagens v
+                FROM dbo.raster_viagens v
                 WHERE v.data_hora_prev_ini IS NULL
                   AND v.data_hora_real_ini >= :dataInicio
                   AND v.data_hora_real_ini < :dataFimExclusivo
@@ -81,7 +81,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                 SELECT
                     p.cod_solicitacao,
                     MAX(p.data_extracao) AS parada_data_extracao
-                FROM [ETL_SISTEMA].dbo.raster_viagem_paradas p
+                FROM dbo.raster_viagem_paradas p
                 INNER JOIN viagens_base vb
                     ON vb.cod_solicitacao = p.cod_solicitacao
                 GROUP BY p.cod_solicitacao
@@ -263,7 +263,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                 ) AS observacao,
                 N'Raster API - SQL Server' AS nome_arquivo,
                 data_extracao_at AS importado_em,
-                N'ETL_SISTEMA.raster_viagens' AS importado_por,
+                N'dbo.raster_viagens' AS importado_por,
                 data_extracao_at AS data_extracao
             FROM calculado
             """;

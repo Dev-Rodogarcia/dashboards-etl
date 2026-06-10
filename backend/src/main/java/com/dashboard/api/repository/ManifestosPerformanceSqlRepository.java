@@ -27,6 +27,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ManifestosPerformanceSqlRepository {
 
+    private static final String MANIFESTOS_VIEW = "dbo.vw_manifestos_powerbi";
+
     private static final GaugeMetricDTO GAUGE_ZERADO = new GaugeMetricDTO(
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO
     );
@@ -66,6 +68,7 @@ public class ManifestosPerformanceSqlRepository {
                 longo(overview, "encerrados"),
                 escala(decimal(overview, "km_total"), 2),
                 escala(decimal(overview, "custo_total"), 2),
+                escala(decimal(overview, "custo_por_kg"), 2),
                 escala(decimal(overview, "custo_por_km"), 2),
                 escala(decimal(overview, "receita_por_km"), 2)
         );
@@ -174,6 +177,11 @@ public class ManifestosPerformanceSqlRepository {
                     SUM(CASE WHEN status_norm = N'Encerrado' THEN 1 ELSE 0 END) AS encerrados,
                     COALESCE(SUM(km_total), 0) AS km_total,
                     COALESCE(SUM(custo_total), 0) AS custo_total,
+                    CASE
+                        WHEN COALESCE(SUM(peso_taxado), 0) > 0
+                        THEN COALESCE(SUM(custo_total), 0) / NULLIF(SUM(peso_taxado), 0)
+                        ELSE 0
+                    END AS custo_por_kg,
                     CASE
                         WHEN COALESCE(SUM(km_total), 0) > 0
                         THEN COALESCE(SUM(custo_total), 0) / NULLIF(SUM(km_total), 0)
@@ -410,9 +418,15 @@ public class ManifestosPerformanceSqlRepository {
 
     private ManifestosViewColumns carregarColunasViewManifestos() {
         List<String> nomes = jdbcTemplate.queryForList("""
-                SELECT c.name
-                FROM sys.columns c
-                WHERE c.object_id = OBJECT_ID(N'dbo.vw_manifestos_powerbi')
+                SELECT name
+                FROM sys.dm_exec_describe_first_result_set(
+                    N'SELECT TOP (0) * FROM dbo.vw_manifestos_powerbi',
+                    NULL,
+                    0
+                )
+                WHERE error_number IS NULL
+                  AND is_hidden = 0
+                ORDER BY column_ordinal
                 """, new MapSqlParameterSource(), String.class);
         return new ManifestosViewColumns(nomes);
     }
@@ -449,17 +463,17 @@ public class ManifestosPerformanceSqlRepository {
                         CAST([Data criação] AS date) AS data_criacao_date,
                         COALESCE([KM Total], 0) AS km_total,
                         COALESCE([Custo total], 0) AS custo_total,
-                        COALESCE([Fretes/Total], 0) AS receita_total,
+                        COALESCE([Receita Total Transportada], 0) AS receita_total,
                         COALESCE([Total peso taxado], 0) AS peso_taxado,
                         COALESCE([Capacidade Lotação Kg], 0) AS capacidade_veiculo,
                         COALESCE([Itens/Finalizados], 0) AS servicos_finalizados,
                         COALESCE([Itens/Total], 0) AS servicos_total,
                         [Data de extracao] AS data_extracao
-                    FROM dbo.vw_manifestos_powerbi
+                    FROM %s
                     WHERE [Data criação] >= :inicioOffset
                       AND [Data criação] < :fimOffset
                 )
-                """.formatted(tipoMotorista);
+                """.formatted(tipoMotorista, MANIFESTOS_VIEW);
     }
 
     private static String tipoMotoristaSql(ManifestosViewColumns colunas) {
@@ -610,6 +624,7 @@ public class ManifestosPerformanceSqlRepository {
                     && existe("KM Total")
                     && existe("Custo total")
                     && existe("Fretes/Total")
+                    && existe("Receita Total Transportada")
                     && existe("Total peso taxado")
                     && existe("Capacidade Lotação Kg")
                     && existe("Itens/Finalizados")

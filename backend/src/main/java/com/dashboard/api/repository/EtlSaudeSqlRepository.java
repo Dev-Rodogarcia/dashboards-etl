@@ -143,7 +143,7 @@ public class EtlSaudeSqlRepository {
                     log.paginas_processadas,
                     log.noop_count,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), log.mensagem))), N'') AS mensagem
-                FROM [ETL_SISTEMA].dbo.log_extracoes log
+                FROM dbo.log_extracoes log
                 WHERE log.timestamp_fim >= :dataInicio
                   AND log.timestamp_fim < :dataFimExclusivo
                 ORDER BY log.timestamp_fim DESC, log.id DESC
@@ -168,7 +168,7 @@ public class EtlSaudeSqlRepository {
     public long totalTabela(FiltroConsultaDTO filtro) {
         String sql = """
                 SELECT COUNT(1)
-                FROM [ETL_SISTEMA].dbo.log_extracoes log
+                FROM dbo.log_extracoes log
                 WHERE log.timestamp_fim >= :dataInicio
                   AND log.timestamp_fim < :dataFimExclusivo
                 """;

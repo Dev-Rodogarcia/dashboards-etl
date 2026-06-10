@@ -25,7 +25,7 @@ public enum DashboardExportDefinition {
     FRETES(
             "fretes",
             "fretes",
-            "[ETL_SISTEMA].dbo.fato_fretes_faturamento",
+            "dbo.fato_fretes_faturamento",
             DateMode.OFFSET_DATE_TIME,
             "data_referencia_faturamento",
             List.of("filial_nome"),
@@ -119,7 +119,7 @@ public enum DashboardExportDefinition {
     FATURAS_POR_CLIENTE(
             "faturas-por-cliente",
             "faturas-por-cliente",
-            "[ETL_SISTEMA].dbo.fato_gestao_vista_faturas",
+            "dbo.fato_gestao_vista_faturas",
             DateMode.OFFSET_DATE_TIME,
             "data_emissao_cte",
             List.of("filial"),

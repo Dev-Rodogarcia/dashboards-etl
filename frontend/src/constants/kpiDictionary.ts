@@ -141,6 +141,12 @@ export const KpiDictionary = {
       calculo: 'Soma do Custo Total dos Manifestos.',
       observacao: periodoManifestos,
     },
+    custoPorKg: {
+      titulo: 'Custo por KG',
+      descricao: 'Custo médio ponderado por quilograma transportado.',
+      calculo: 'Custo Total ÷ Peso Taxado Total.',
+      observacao: 'Quando o peso taxado total é zero, o indicador retorna zero.',
+    },
     custoPorKm: {
       titulo: 'Custo por Quilômetro',
       descricao: 'Custo médio ponderado por quilômetro percorrido.',
@@ -150,35 +156,37 @@ export const KpiDictionary = {
     receitaPorKm: {
       titulo: 'Receita por Quilômetro',
       descricao: 'Receita transportada média por quilômetro percorrido.',
-      calculo: 'Receita Transportada Total ÷ Quilometragem Total.',
+      calculo:
+        'Receita Total Transportada (Frete Total + Receita de Coleta (Minuta de Coleta Vinculada)) ÷ Quilometragem Total.',
       observacao: 'Quando a quilometragem total é zero, o indicador retorna zero.',
     },
     remuneracao: {
       geral: {
         titulo: 'Remuneração Geral',
         descricao: 'Relação entre o custo dos manifestos e a receita transportada.',
-        calculo: 'Custo Total ÷ Receita Transportada Total × 100.',
+        calculo:
+          'Custo Total ÷ Receita Total Transportada (Frete Total + Receita de Coleta (Minuta de Coleta Vinculada)) × 100.',
         observacao: percentualSemBase,
       },
       distribuicao: {
         titulo: 'Remuneração de Distribuição',
         descricao: 'Relação entre custo e receita dos manifestos de distribuição.',
         calculo:
-          'Custo dos Manifestos de Distribuição ÷ Receita Transportada de Distribuição × 100.',
+          'Custo dos Manifestos de Distribuição ÷ Receita Total Transportada de Distribuição (Frete Total + Receita de Coleta (Minuta de Coleta Vinculada)) × 100.',
         observacao: percentualSemBase,
       },
       transferencia: {
         titulo: 'Remuneração de Transferência',
         descricao: 'Relação entre custo e receita dos manifestos de transferência.',
         calculo:
-          'Custo dos Manifestos de Transferência ÷ Receita Transportada de Transferência × 100.',
+          'Custo dos Manifestos de Transferência ÷ Receita Total Transportada de Transferência (Frete Total + Receita de Coleta (Minuta de Coleta Vinculada)) × 100.',
         observacao: percentualSemBase,
       },
       cargaFechada: {
         titulo: 'Remuneração de Carga Fechada',
         descricao: 'Relação entre custo e receita dos manifestos de carga fechada.',
         calculo:
-          'Custo dos Manifestos de Carga Fechada ÷ Receita Transportada de Carga Fechada × 100.',
+          'Custo dos Manifestos de Carga Fechada ÷ Receita Total Transportada de Carga Fechada (Frete Total + Receita de Coleta (Minuta de Coleta Vinculada)) × 100.',
         observacao: percentualSemBase,
       },
     },

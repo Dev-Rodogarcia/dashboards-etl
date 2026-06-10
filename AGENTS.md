@@ -8,6 +8,12 @@ Você atua como Engenheiro de Software Principal neste repositório (Interface R
 * **Não execute `iniciar-prod.bat`:** O start, restart ou gerenciamento do runtime de produção é exclusivo do operador humano.
 * **Não toque nas portas de produção:** É terminantemente proibido derrubar, reiniciar ou liberar as portas `5010` (API) e `5173` (UI) via script ou comando direto.
 
+### 🚫 REGRA DE OURO: ZERO HARDCODE DE DATABASE NO DASHBOARD
+É EXPRESSAMENTE PROIBIDO "chumbar" (hardcode) o prefixo do banco de dados analítico (ex: `[ETL_SISTEMA].dbo...` ou `catalog="ETL_SISTEMA"`) em repositórios, entidades JPA ou queries nativas do código Java do Dashboard. 
+- O backend deve ignorar onde os dados moram e ler os objetos pelo nome simples (ex: `dbo.vw_manifestos_powerbi`).
+- O isolamento entre DEV e PROD é garantido pela camada de banco (Flyway).
+- Se o Dashboard precisar enxergar um objeto do ETL, crie uma migration no Flyway do Dashboard utilizando `SYNONYM` (ex: `CREATE SYNONYM dbo.vw_x FOR ETL_SISTEMA.dbo.vw_x`). Nunca crie Views Wrappers estáticas que engessem o schema.
+
 ## 🟢 Permissão de Escrita e Preparação de Código
 * **Escopo de Alteração:** Você tem permissão total para alterar código (`tsx`, `java`), criar DTOs, ajustar controllers e escrever migrations do Flyway em `database/migrations`.
 * **Preservação de Documentação Operacional:** É proibido apagar arquivos `README.md` e `AGENTS.md`. Quando necessário, apenas atualize seu conteúdo mantendo esses arquivos presentes no repositório.

@@ -107,9 +107,15 @@ public class FretesDashboardSqlRepository {
         }
 
         List<String> nomes = jdbcTemplate.queryForList("""
-                SELECT c.name
-                FROM [ETL_SISTEMA].sys.columns c
-                WHERE c.object_id = OBJECT_ID(N'[ETL_SISTEMA].dbo.fato_fretes_faturamento')
+                SELECT name
+                FROM sys.dm_exec_describe_first_result_set(
+                    N'SELECT TOP (0) * FROM dbo.fato_fretes_faturamento',
+                    NULL,
+                    0
+                )
+                WHERE error_number IS NULL
+                  AND is_hidden = 0
+                ORDER BY column_ordinal
                 """, new MapSqlParameterSource(), String.class);
 
         FretesViewColumns carregadas = new FretesViewColumns(nomes);
@@ -154,7 +160,7 @@ public class FretesDashboardSqlRepository {
                         CAST(0 AS DECIMAL(18, 2)) AS valor_pis,
                         CAST(0 AS DECIMAL(18, 2)) AS valor_cofins,
                         snapshot_em AS data_extracao
-                    FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                    FROM dbo.fato_fretes_faturamento
                     WHERE excluido_na_origem = 0
                 )
                 """;

@@ -109,7 +109,7 @@ class EtlSaudeSqlRepositoryTest {
                 .contains("log.paginas_processadas")
                 .contains("log.noop_count")
                 .contains("log.mensagem")
-                .contains("FROM [ETL_SISTEMA].dbo.log_extracoes log")
+                .contains("FROM dbo.log_extracoes log")
                 .contains("log.timestamp_fim >= :dataInicio")
                 .contains("log.timestamp_fim < :dataFimExclusivo")
                 .contains("ORDER BY log.timestamp_fim DESC, log.id DESC");
@@ -129,7 +129,7 @@ class EtlSaudeSqlRepositoryTest {
         assertThat(total).isEqualTo(123L);
         assertThat(sqlCaptor.getValue())
                 .contains("SELECT COUNT(1)")
-                .contains("FROM [ETL_SISTEMA].dbo.log_extracoes log")
+                .contains("FROM dbo.log_extracoes log")
                 .contains("log.timestamp_fim >= :dataInicio")
                 .contains("log.timestamp_fim < :dataFimExclusivo");
     }

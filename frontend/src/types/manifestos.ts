@@ -41,6 +41,7 @@ export interface KPIsManifestos {
   encerrados: number;
   kmTotal: number;
   custoTotal: number;
+  custoPorKg: number;
   custoPorKm: number;
   receitaPorKm: number;
 }

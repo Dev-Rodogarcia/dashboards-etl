@@ -18,7 +18,7 @@ public interface VisaoFaturasClienteRepository extends JpaRepository<VisaoFatura
 
     @Query(value = """
             SELECT *
-            FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+            FROM dbo.fato_gestao_vista_faturas
             WHERE data_emissao_cte >= :inicioInclusivo
               AND data_emissao_cte < :fimExclusivo
               AND excluido_na_origem = 0
@@ -32,15 +32,15 @@ public interface VisaoFaturasClienteRepository extends JpaRepository<VisaoFatura
             SELECT DISTINCT cliente
             FROM (
                 SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '') AS cliente
-                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                FROM dbo.fato_gestao_vista_faturas
                 WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), remetente_nome))), '') AS cliente
-                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                FROM dbo.fato_gestao_vista_faturas
                 WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destinatario_nome))), '') AS cliente
-                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                FROM dbo.fato_gestao_vista_faturas
                 WHERE excluido_na_origem = 0
             ) clientes
             WHERE cliente IS NOT NULL
@@ -54,19 +54,19 @@ public interface VisaoFaturasClienteRepository extends JpaRepository<VisaoFatura
                 SELECT
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '') AS cliente,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial))), '')) AS filial
-                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                FROM dbo.fato_gestao_vista_faturas
                 WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), remetente_nome))), '') AS cliente,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial))), '')) AS filial
-                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                FROM dbo.fato_gestao_vista_faturas
                 WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destinatario_nome))), '') AS cliente,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial))), '')) AS filial
-                FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+                FROM dbo.fato_gestao_vista_faturas
                 WHERE excluido_na_origem = 0
             ) clientes
             WHERE cliente IS NOT NULL
@@ -77,7 +77,7 @@ public interface VisaoFaturasClienteRepository extends JpaRepository<VisaoFatura
 
     @Query(value = """
             SELECT DISTINCT c.clienteCnpj
-            FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+            FROM dbo.fato_gestao_vista_faturas
             CROSS APPLY (VALUES (
                 COALESCE(
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), cliente_cnpj))), ''),
@@ -92,7 +92,7 @@ public interface VisaoFaturasClienteRepository extends JpaRepository<VisaoFatura
 
     @Query(value = """
             SELECT DISTINCT c.clienteCnpj
-            FROM [ETL_SISTEMA].dbo.fato_gestao_vista_faturas
+            FROM dbo.fato_gestao_vista_faturas
             CROSS APPLY (VALUES (
                 COALESCE(
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), cliente_cnpj))), ''),

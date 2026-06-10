@@ -352,9 +352,15 @@ public class TrackingSqlRepository {
         }
 
         List<String> nomes = jdbcTemplate.queryForList("""
-                SELECT c.name
-                FROM sys.columns c
-                WHERE c.object_id = OBJECT_ID(N'dbo.vw_localizacao_cargas_powerbi')
+                SELECT name
+                FROM sys.dm_exec_describe_first_result_set(
+                    N'SELECT TOP (0) * FROM dbo.vw_localizacao_cargas_powerbi',
+                    NULL,
+                    0
+                )
+                WHERE error_number IS NULL
+                  AND is_hidden = 0
+                ORDER BY column_ordinal
                 """, new MapSqlParameterSource(), String.class);
 
         Set<String> colunas = nomes.stream()

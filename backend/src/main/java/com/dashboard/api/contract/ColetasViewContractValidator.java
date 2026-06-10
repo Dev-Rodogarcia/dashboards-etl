@@ -29,17 +29,21 @@ public class ColetasViewContractValidator {
         }
 
         String tipo = jdbcTemplate.query("""
-                SELECT TYPE_NAME(c.user_type_id)
-                FROM sys.columns c
-                WHERE c.object_id = OBJECT_ID(N'dbo.vw_coletas_powerbi')
-                  AND c.name = N'Solicitacao'
+                SELECT system_type_name
+                FROM sys.dm_exec_describe_first_result_set(
+                    N'SELECT TOP (0) [Solicitacao] FROM dbo.vw_coletas_powerbi',
+                    NULL,
+                    0
+                )
+                WHERE error_number IS NULL
+                  AND name = N'Solicitacao'
                 """, rs -> rs.next() ? rs.getString(1) : null);
 
         if (tipo == null || tipo.isBlank()) {
             throw new IllegalStateException("Contrato invalido: coluna vw_coletas_powerbi.[Solicitacao] nao encontrada.");
         }
 
-        String normalizado = tipo.trim().toLowerCase(Locale.ROOT);
+        String normalizado = tipo.trim().toLowerCase(Locale.ROOT).replaceFirst("\\(.*\\)$", "");
         if (!TIPOS_DATA_NATIVOS.contains(normalizado)) {
             throw new IllegalStateException(
                     "Contrato invalido: vw_coletas_powerbi.[Solicitacao] deve ser tipo de data nativo no ETL, mas veio como "

@@ -80,22 +80,22 @@ public class IndicadoresGestaoInfraBootstrapService implements ApplicationRunner
     }
 
     private List<String> auditarObjeto(String nomeObjeto, List<String> colunasEsperadas) {
-        Integer existe = jdbcTemplate.queryForObject("""
-                SELECT
-                    (SELECT COUNT(1) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?)
-                  + (SELECT COUNT(1) FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = ?)
-                """, Integer.class, nomeObjeto, nomeObjeto);
+        List<String> colunasEncontradas = jdbcTemplate.queryForList("""
+                SELECT name
+                FROM sys.dm_exec_describe_first_result_set(
+                    CONCAT(N'SELECT TOP (0) * FROM dbo.', QUOTENAME(?)),
+                    NULL,
+                    0
+                )
+                WHERE error_number IS NULL
+                  AND is_hidden = 0
+                ORDER BY column_ordinal
+                """, String.class, nomeObjeto);
 
-        if (existe == null || existe == 0) {
+        if (colunasEncontradas.isEmpty()) {
             log.warn("Auditoria Indicadores de Gestão: objeto {} não encontrado.", nomeObjeto);
             return List.of("Objeto ausente: " + nomeObjeto);
         }
-
-        List<String> colunasEncontradas = jdbcTemplate.queryForList("""
-                SELECT COLUMN_NAME
-                FROM INFORMATION_SCHEMA.COLUMNS
-                WHERE TABLE_NAME = ?
-                """, String.class, nomeObjeto);
 
         List<String> faltantes = colunasFaltantes(colunasEsperadas, colunasEncontradas);
 

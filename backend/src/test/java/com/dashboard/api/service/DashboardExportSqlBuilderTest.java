@@ -37,7 +37,7 @@ class DashboardExportSqlBuilderTest {
         assertThat(query.sql()).contains("filial_nome IN (:escopoFiliais)");
         assertThat(query.sql()).contains("status_frete IN (:filtro_status)");
         assertThat(query.sql()).contains("pagador_nome IN (:filtro_pagadores)");
-        assertThat(query.sql()).contains("[ETL_SISTEMA].dbo.fato_fretes_faturamento");
+        assertThat(query.sql()).contains("dbo.fato_fretes_faturamento");
         assertThat(query.sql()).doesNotContain("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX)");
         assertThat(query.sql()).doesNotContainIgnoringCase("limit");
         assertThat(query.sql()).doesNotContainIgnoringCase("top ");
@@ -109,7 +109,7 @@ class DashboardExportSqlBuilderTest {
                 Set.of()
         );
 
-        assertThat(query.sql()).contains("[ETL_SISTEMA].dbo.fato_gestao_vista_faturas");
+        assertThat(query.sql()).contains("dbo.fato_gestao_vista_faturas");
         assertThat(query.sql()).contains("excluido_na_origem = 0");
         assertThat(query.sql()).contains("status_processo IN (N'Faturado')");
     }

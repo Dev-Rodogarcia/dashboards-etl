@@ -45,7 +45,7 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
         String coletoresSql = jdbcTemplate.sqls.get(3);
 
         assertThat(performanceSql)
-                .contains("FROM [ETL_SISTEMA].dbo.fato_gestao_vista_fretes")
+                .contains("FROM dbo.fato_gestao_vista_fretes")
                 .contains("WHERE indicador_codigo = 'PE'")
                 .contains("AND data_referencia >= :dataInicio")
                 .contains("AND data_referencia < :dataFimExclusivo")
@@ -57,7 +57,7 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
                 .doesNotContain("[Previsão de Entrega]");
 
         assertThat(cubagemSql)
-                .contains("FROM [ETL_SISTEMA].dbo.fato_gestao_vista_fretes")
+                .contains("FROM dbo.fato_gestao_vista_fretes")
                 .contains("WHERE indicador_codigo = 'CB'")
                 .contains("AND data_referencia >= :dataInicio")
                 .contains("AND data_referencia < :dataFimExclusivo")
@@ -72,7 +72,7 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
         assertThat(indenizacaoSql)
                 .contains("WHERE [Data abertura] >= :dataInicio")
                 .contains("AND [Data abertura] < :dataFimExclusivo")
-                .contains("FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento")
+                .contains("FROM dbo.fato_fretes_faturamento")
                 .contains("snapshot_em AT TIME ZONE 'UTC' AT TIME ZONE 'E. South America Standard Time'")
                 .contains("data_referencia_faturamento_date >= :dataInicio")
                 .contains("data_referencia_faturamento_date < :dataFimExclusivo")
@@ -84,7 +84,7 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
                 .doesNotContain("elegivel_operacional_com_valor");
 
         assertThat(coletoresSql)
-                .contains("FROM [ETL_SISTEMA].dbo.fato_gestao_vista_coletores")
+                .contains("FROM dbo.fato_gestao_vista_coletores")
                 .contains("WHERE data_referencia >= :dataInicio")
                 .contains("AND data_referencia < :dataFimExclusivo")
                 .contains("AND is_linha_valida_indicador = 1")

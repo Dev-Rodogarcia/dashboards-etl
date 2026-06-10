@@ -63,7 +63,7 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '')) AS pagador_normalizado,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), origem_uf))), '')) AS origem_uf_normalizada,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), destino_uf))), '')) AS destino_uf_normalizada
-                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                FROM dbo.fato_fretes_faturamento
                 WHERE excluido_na_origem = 0
             ),
             filtrados AS (
@@ -87,7 +87,7 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
 
     @Query(value = """
             SELECT MAX(data)
-            FROM [ETL_SISTEMA].dbo.dim_calendario
+            FROM dbo.dim_calendario
             WHERE data < :dataReferencia
               AND is_dia_util = 1
             """, nativeQuery = true)
@@ -95,7 +95,7 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
 
     @Query(value = """
             SELECT CAST(COUNT_BIG(1) AS INT)
-            FROM [ETL_SISTEMA].dbo.dim_calendario
+            FROM dbo.dim_calendario
             WHERE data >= :dataInicio
               AND data <= :dataFim
               AND is_dia_util = 1
@@ -624,7 +624,7 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '')) AS nome_normalizado,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_documento))), '')) AS documento_normalizado,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '')) AS filial
-                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                FROM dbo.fato_fretes_faturamento
                 WHERE excluido_na_origem = 0
             ) pagadores
             WHERE nome IS NOT NULL
@@ -646,15 +646,15 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
             SELECT DISTINCT cliente
             FROM (
                 SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '') AS cliente
-                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                FROM dbo.fato_fretes_faturamento
                 WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), remetente_nome))), '') AS cliente
-                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                FROM dbo.fato_fretes_faturamento
                 WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destinatario_nome))), '') AS cliente
-                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                FROM dbo.fato_fretes_faturamento
                 WHERE excluido_na_origem = 0
             ) clientes
             WHERE cliente IS NOT NULL
@@ -668,19 +668,19 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
                 SELECT
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_nome))), '') AS cliente,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '')) AS filial
-                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                FROM dbo.fato_fretes_faturamento
                 WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), remetente_nome))), '') AS cliente,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '')) AS filial
-                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                FROM dbo.fato_fretes_faturamento
                 WHERE excluido_na_origem = 0
                 UNION ALL
                 SELECT
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), destinatario_nome))), '') AS cliente,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '')) AS filial
-                FROM [ETL_SISTEMA].dbo.fato_fretes_faturamento
+                FROM dbo.fato_fretes_faturamento
                 WHERE excluido_na_origem = 0
             ) clientes
             WHERE cliente IS NOT NULL
