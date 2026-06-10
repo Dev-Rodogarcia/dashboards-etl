@@ -29,13 +29,16 @@ describe('ManifestosGaugeCard', () => {
     expect(textos).toEqual(expect.arrayContaining(['72,5%', '0,0%', '100,0%']));
   });
 
-  it('limita o percentual global entre zero e cem', () => {
+  it('limita apenas o preenchimento visual quando o percentual passa de cem', () => {
     const option = buildManifestosHalfDonutOption(140);
     const series = Array.isArray(option.series) ? option.series[0] : undefined as unknown;
     const data = (series as { data?: Array<{ value: number }> }).data ?? [];
+    const graphic = (option.graphic as Array<{ style?: { text?: string } }> | undefined) ?? [];
+    const textos = graphic.map((item) => item.style?.text);
 
     expect(data[0].value).toBe(100);
     expect(data[1].value).toBe(0);
+    expect(textos).toEqual(expect.arrayContaining(['140,0%']));
   });
 
   it('renderiza no DOM o global e os tres desdobramentos vindos do GaugeMetric', () => {
@@ -80,5 +83,26 @@ describe('ManifestosGaugeCard', () => {
     );
 
     expect((html.match(/0,0%/g) ?? []).length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('preserva percentuais acima de cem no texto exibido', () => {
+    const metric: GaugeMetric = {
+      global: 123.4,
+      distribuicao: 140.5,
+      transferencia: 65.7,
+      cargaFechada: 203.9,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(ManifestosGaugeCard, {
+        titulo: 'Remuneração',
+        metric,
+        definitions: KpiDictionary.manifestos.remuneracao,
+      }),
+    );
+
+    expect(html).toContain('Global: 123,4%');
+    expect(html).toContain('140,5%');
+    expect(html).toContain('203,9%');
   });
 });

@@ -23,7 +23,7 @@ interface ManifestosGaugeCardProps {
 function percentualSeguro(valor: unknown): number {
   const numero = typeof valor === 'number' ? valor : Number(valor);
   if (!Number.isFinite(numero)) return 0;
-  return Math.max(0, Math.min(100, numero));
+  return Math.max(0, numero);
 }
 
 function normalizarMetric(metric?: GaugeMetric | null): GaugeMetric {

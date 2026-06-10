@@ -2,16 +2,21 @@ import type { EChartsOption } from 'echarts';
 import { CORES } from '../../../utils/chartColors';
 import { formatarPorcentagem } from '../../../utils/formatadores';
 
-function limitarPercentual(valor: unknown): number {
+function percentualSeguro(valor: unknown): number {
   const numero = typeof valor === 'number' ? valor : Number(valor);
   if (!Number.isFinite(numero)) return 0;
-  return Math.max(0, Math.min(100, numero));
+  return Math.max(0, numero);
+}
+
+function limitarPreenchimento(valor: number): number {
+  return Math.min(100, valor);
 }
 
 export function buildManifestosHalfDonutOption(globalInput: number, corDestaque: string = CORES.primaria): EChartsOption {
-  const global = limitarPercentual(globalInput);
-  const restante = Math.max(0, 100 - global);
-  const textoGlobal = formatarPorcentagem(global, 1);
+  const globalReal = percentualSeguro(globalInput);
+  const globalPreenchimento = limitarPreenchimento(globalReal);
+  const restante = Math.max(0, 100 - globalPreenchimento);
+  const textoGlobal = formatarPorcentagem(globalReal, 1);
 
   return {
     tooltip: {
@@ -19,7 +24,8 @@ export function buildManifestosHalfDonutOption(globalInput: number, corDestaque:
       formatter: (params: unknown) => {
         const item = params as { name?: string; value?: number };
         if (!item.name || item.name === 'Metade Oculta') return '';
-        return `${item.name}: ${formatarPorcentagem(Number(item.value ?? 0), 1)}`;
+        const valor = item.name === 'Global' ? globalReal : Number(item.value ?? 0);
+        return `${item.name}: ${formatarPorcentagem(valor, 1)}`;
       },
     },
     graphic: [
@@ -75,7 +81,7 @@ export function buildManifestosHalfDonutOption(globalInput: number, corDestaque:
         data: [
           {
             name: 'Global',
-            value: global,
+            value: globalPreenchimento,
             itemStyle: { color: corDestaque, borderWidth: 0 },
           },
           {
