@@ -1,55 +1,32 @@
 package com.dashboard.api.repository;
 
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.FiltroConsultaDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.CustoMotoristaDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.GaugeMetricDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.KpisManifestosDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.StatusSazonalDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.TipoVeiculoDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
-import com.dashboard.api.service.acesso.EscopoFilialService;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.service.ValidadorPeriodoService;
+import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import com.dashboard.api.util.TemporalJsonUtils;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.math.BigDecimal;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.math.RoundingMode;
-import com.dashboard.api.util.JanelaOffsetDateTime;
-import java.sql.Date;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.time.LocalDate;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.Collection;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.LinkedHashMap;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.List;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.Locale;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.Map;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class ManifestosPerformanceSqlRepository {
 
-    private static final BigDecimal CEM = BigDecimal.valueOf(100);
     private static final GaugeMetricDTO GAUGE_ZERADO = new GaugeMetricDTO(
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO
     );
@@ -80,6 +57,7 @@ public class ManifestosPerformanceSqlRepository {
     ) {
         QueryContext ctx = criarContexto(filtro);
         Map<String, Object> overview = jdbcTemplate.queryForMap(sqlOverview(ctx), ctx.params());
+        Gauges gauges = buscarGauges(ctx);
 
         KpisManifestosDTO kpis = new KpisManifestosDTO(
                 longo(overview, "total_manifestos"),
@@ -95,30 +73,31 @@ public class ManifestosPerformanceSqlRepository {
         return new ManifestosPerformanceDTO(
                 TemporalJsonUtils.garantirIsoComOffset(texto(overview, "updated_at")),
                 kpis,
-                buscarGauge(ctx, "remuneracao"),
-              buscarGauge(ctx, "aproveitamento"),
-              buscarGauge(ctx, "efetividade"),
-              buscarStatusSazonal(ctx, nivel, ano, mes),
-              buscarCustosMotorista(ctx),
-              buscarTiposVeiculo(ctx)
+                gauges.remuneracao(),
+                gauges.aproveitamento(),
+                gauges.efetividade(),
+                buscarStatusSazonal(ctx, nivel, ano, mes),
+                buscarCustosMotorista(ctx),
+                buscarTiposVeiculo(ctx)
         );
     }
 
-    private GaugeMetricDTO buscarGauge(QueryContext ctx, String metrica) {
-        List<GaugeBucket> buckets = jdbcTemplate.query(sqlGauge(ctx, metrica), ctx.params(), (rs, rowNum) -> new GaugeBucket(
+    private Gauges buscarGauges(QueryContext ctx) {
+        List<GaugeBucket> buckets = jdbcTemplate.query(sqlGauges(ctx), ctx.params(), (rs, rowNum) -> new GaugeBucket(
                 rs.getString("bucket"),
-                escala(rs.getBigDecimal("percentual"), 2)
+                escala(rs.getBigDecimal("remuneracao"), 2),
+                escala(rs.getBigDecimal("aproveitamento"), 2),
+                escala(rs.getBigDecimal("efetividade"), 2)
         ));
 
         if (buckets.isEmpty()) {
-            return GAUGE_ZERADO;
+            return new Gauges(GAUGE_ZERADO, GAUGE_ZERADO, GAUGE_ZERADO);
         }
 
-        return new GaugeMetricDTO(
-                valorBucket(buckets, "global"),
-                valorBucket(buckets, "distribuicao"),
-                valorBucket(buckets, "transferencia"),
-                valorBucket(buckets, "cargaFechada")
+        return new Gauges(
+                montarGauge(buckets, "remuneracao"),
+                montarGauge(buckets, "aproveitamento"),
+                montarGauge(buckets, "efetividade")
         );
     }
 
@@ -210,38 +189,33 @@ public class ManifestosPerformanceSqlRepository {
                 """ + ctx.where();
     }
 
-    private String sqlGauge(QueryContext ctx, String metrica) {
-        FormulaGauge formula = formulaGauge(metrica);
+    private String sqlGauges(QueryContext ctx) {
         return ctx.baseCte() + """
-                SELECT bucket, percentual
-                FROM (
-                    SELECT
-                        N'global' AS bucket,
-                        CASE
-                            WHEN COALESCE(SUM(%s), 0) > 0
-                            THEN COALESCE(SUM(%s), 0) * 100.0 / NULLIF(SUM(%s), 0)
-                            ELSE 0
-                        END AS percentual
-                    FROM manifestos
-                    WHERE 1 = 1
-                    %s
-                    UNION ALL
-                    SELECT
-                        classificacao_bucket AS bucket,
-                        CASE
-                            WHEN COALESCE(SUM(%s), 0) > 0
-                            THEN COALESCE(SUM(%s), 0) * 100.0 / NULLIF(SUM(%s), 0)
-                            ELSE 0
-                        END AS percentual
-                    FROM manifestos
-                    WHERE 1 = 1
-                    %s
-                    GROUP BY classificacao_bucket
-                ) gauge
-                """.formatted(
-                formula.denominador(), formula.numerador(), formula.denominador(), ctx.where(),
-                formula.denominador(), formula.numerador(), formula.denominador(), ctx.where()
-        );
+                SELECT
+                    CASE
+                        WHEN GROUPING(classificacao_bucket) = 1 THEN N'global'
+                        ELSE classificacao_bucket
+                    END AS bucket,
+                    CASE
+                        WHEN COALESCE(SUM(receita_total), 0) > 0
+                        THEN COALESCE(SUM(custo_total), 0) * 100.0 / NULLIF(SUM(receita_total), 0)
+                        ELSE 0
+                    END AS remuneracao,
+                    CASE
+                        WHEN COALESCE(SUM(capacidade_veiculo), 0) > 0
+                        THEN COALESCE(SUM(peso_taxado), 0) * 100.0 / NULLIF(SUM(capacidade_veiculo), 0)
+                        ELSE 0
+                    END AS aproveitamento,
+                    CASE
+                        WHEN COALESCE(SUM(servicos_total), 0) > 0
+                        THEN COALESCE(SUM(servicos_finalizados), 0) * 100.0 / NULLIF(SUM(servicos_total), 0)
+                        ELSE 0
+                    END AS efetividade
+                FROM manifestos
+                WHERE 1 = 1
+                """ + ctx.where() + """
+                GROUP BY GROUPING SETS ((classificacao_bucket), ())
+                """;
     }
 
     private QueryContext criarContexto(FiltroConsultaDTO filtro) {
@@ -276,7 +250,7 @@ public class ManifestosPerformanceSqlRepository {
             return;
         }
         ctx.params().addValue("escopoFiliais", filiais);
-        ctx.whereBuilder().append("\n AND LOWER(filial) IN (:escopoFiliais)");
+        ctx.whereBuilder().append("\n AND filial COLLATE Latin1_General_CI_AI IN (:escopoFiliais)");
     }
 
     private static void adicionarFiltroTexto(
@@ -291,7 +265,11 @@ public class ManifestosPerformanceSqlRepository {
             return;
         }
         params.addValue(chave, normalizados);
-        where.append("\n AND LOWER(").append(campo).append(") IN (:").append(chave).append(")");
+        where.append("\n AND ")
+                .append(campo)
+                .append(" COLLATE Latin1_General_CI_AI IN (:")
+                .append(chave)
+                .append(")");
     }
 
     private static List<String> normalizar(Collection<String> valores) {
@@ -305,7 +283,7 @@ public class ManifestosPerformanceSqlRepository {
                 .toList();
     }
 
-    private static TemporalQuery temporalQuery(
+    private TemporalQuery temporalQuery(
             String nivel,
             Integer ano,
             Integer mes,
@@ -327,7 +305,7 @@ public class ManifestosPerformanceSqlRepository {
                 adicionarIntervaloTemporal(
                         where,
                         parametros,
-                        "data_criacao_date",
+                        "data_criacao",
                         "inicioTemporal",
                         "fimTemporal",
                         LocalDate.of(anoSeguro, 1, 1),
@@ -344,11 +322,11 @@ public class ManifestosPerformanceSqlRepository {
         if (anoSeguro != null && mesSeguro != null) {
             LocalDate inicio = LocalDate.of(anoSeguro, mesSeguro, 1);
             adicionarIntervaloTemporal(
-                    where,
-                    parametros,
-                    "data_criacao_date",
-                    "inicioTemporal",
-                    "fimTemporal",
+                        where,
+                        parametros,
+                        "data_criacao",
+                        "inicioTemporal",
+                        "fimTemporal",
                     inicio,
                     inicio.plusMonths(1)
             );
@@ -356,20 +334,20 @@ public class ManifestosPerformanceSqlRepository {
             adicionarIntervaloTemporal(
                     where,
                     parametros,
-                    "data_criacao_date",
+                    "data_criacao",
                     "inicioTemporal",
                     "fimTemporal",
                     LocalDate.of(anoSeguro, 1, 1),
                     LocalDate.of(anoSeguro + 1, 1, 1)
             );
         } else if (mesSeguro != null) {
-            adicionarIntervalosMensaisPorAno(where, parametros, "data_criacao_date", mesSeguro, periodoInicio, periodoFim);
+            adicionarIntervalosMensaisPorAno(where, parametros, "data_criacao", mesSeguro, periodoInicio, periodoFim);
         }
 
         return new TemporalQuery("data_criacao_date", where.toString(), parametros);
     }
 
-    private static void adicionarIntervaloTemporal(
+    private void adicionarIntervaloTemporal(
             StringBuilder where,
             Map<String, Object> parametros,
             String coluna,
@@ -378,8 +356,9 @@ public class ManifestosPerformanceSqlRepository {
             LocalDate inicio,
             LocalDate fim
     ) {
-        parametros.put(inicioParam, Date.valueOf(inicio));
-        parametros.put(fimParam, Date.valueOf(fim));
+        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(inicio, fim.minusDays(1));
+        parametros.put(inicioParam, janela.inicioInclusivo());
+        parametros.put(fimParam, janela.fimExclusivo());
         where.append("\n AND ")
                 .append(coluna)
                 .append(" >= :")
@@ -390,7 +369,7 @@ public class ManifestosPerformanceSqlRepository {
                 .append(fimParam);
     }
 
-    private static void adicionarIntervalosMensaisPorAno(
+    private void adicionarIntervalosMensaisPorAno(
             StringBuilder where,
             Map<String, Object> parametros,
             String coluna,
@@ -405,22 +384,15 @@ public class ManifestosPerformanceSqlRepository {
             LocalDate fim = inicio.plusMonths(1);
             String inicioParam = "inicioTemporal" + indice;
             String fimParam = "fimTemporal" + indice;
-            parametros.put(inicioParam, Date.valueOf(inicio));
-            parametros.put(fimParam, Date.valueOf(fim));
+            JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(inicio, fim.minusDays(1));
+            parametros.put(inicioParam, janela.inicioInclusivo());
+            parametros.put(fimParam, janela.fimExclusivo());
             predicados.add("(" + coluna + " >= :" + inicioParam + " AND " + coluna + " < :" + fimParam + ")");
             indice++;
         }
         if (!predicados.isEmpty()) {
             where.append("\n AND (").append(String.join(" OR ", predicados)).append(")");
         }
-    }
-
-    private static FormulaGauge formulaGauge(String metrica) {
-        return switch (metrica) {
-            case "aproveitamento" -> new FormulaGauge("peso_taxado", "capacidade_veiculo");
-            case "efetividade" -> new FormulaGauge("servicos_finalizados", "servicos_total");
-            default -> new FormulaGauge("custo_total", "receita_total");
-        };
     }
 
     private ManifestosViewColumns carregarColunasManifestos() {
@@ -451,7 +423,7 @@ public class ManifestosPerformanceSqlRepository {
         return """
                 WITH manifestos AS (
                     SELECT
-                        TRY_CONVERT(BIGINT, [Número]) AS numero,
+                        [Número] AS numero,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), ''), N'Sem filial') AS filial,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Motorista]))), ''), N'Sem motorista') AS motorista,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Veículo/Placa]))), ''), N'Sem veículo') AS veiculo_placa,
@@ -475,14 +447,14 @@ public class ManifestosPerformanceSqlRepository {
                         END AS classificacao_bucket,
                         [Data criação] AS data_criacao,
                         CAST([Data criação] AS date) AS data_criacao_date,
-                        COALESCE(TRY_CONVERT(DECIMAL(18, 2), [KM Total]), 0) AS km_total,
-                        COALESCE(TRY_CONVERT(DECIMAL(18, 2), [Custo total]), 0) AS custo_total,
-                        COALESCE(TRY_CONVERT(DECIMAL(18, 2), [Fretes/Total]), 0) AS receita_total,
-                        COALESCE(TRY_CONVERT(DECIMAL(18, 3), [Total peso taxado]), 0) AS peso_taxado,
-                        COALESCE(TRY_CONVERT(DECIMAL(18, 3), [Capacidade Lotação Kg]), 0) AS capacidade_veiculo,
-                        COALESCE(TRY_CONVERT(DECIMAL(18, 2), [Itens/Finalizados]), 0) AS servicos_finalizados,
-                        COALESCE(TRY_CONVERT(DECIMAL(18, 2), [Itens/Total]), 0) AS servicos_total,
-                        TRY_CONVERT(datetime2, [Data de extracao]) AS data_extracao
+                        COALESCE([KM Total], 0) AS km_total,
+                        COALESCE([Custo total], 0) AS custo_total,
+                        COALESCE([Fretes/Total], 0) AS receita_total,
+                        COALESCE([Total peso taxado], 0) AS peso_taxado,
+                        COALESCE([Capacidade Lotação Kg], 0) AS capacidade_veiculo,
+                        COALESCE([Itens/Finalizados], 0) AS servicos_finalizados,
+                        COALESCE([Itens/Total], 0) AS servicos_total,
+                        [Data de extracao] AS data_extracao
                     FROM dbo.vw_manifestos_powerbi
                     WHERE [Data criação] >= :inicioOffset
                       AND [Data criação] < :fimOffset
@@ -539,10 +511,23 @@ public class ManifestosPerformanceSqlRepository {
         return new MapSqlParameterSource(params.getValues());
     }
 
-    private static BigDecimal valorBucket(List<GaugeBucket> buckets, String bucket) {
+    private static GaugeMetricDTO montarGauge(List<GaugeBucket> buckets, String metrica) {
+        return new GaugeMetricDTO(
+                valorBucket(buckets, "global", metrica),
+                valorBucket(buckets, "distribuicao", metrica),
+                valorBucket(buckets, "transferencia", metrica),
+                valorBucket(buckets, "cargaFechada", metrica)
+        );
+    }
+
+    private static BigDecimal valorBucket(List<GaugeBucket> buckets, String bucket, String metrica) {
         return buckets.stream()
                 .filter(item -> bucket.equals(item.bucket()))
-                .map(GaugeBucket::valor)
+                .map(item -> switch (metrica) {
+                    case "aproveitamento" -> item.aproveitamento();
+                    case "efetividade" -> item.efetividade();
+                    default -> item.remuneracao();
+                })
                 .findFirst()
                 .orElse(BigDecimal.ZERO);
     }
@@ -588,10 +573,19 @@ public class ManifestosPerformanceSqlRepository {
         }
     }
 
-    private record FormulaGauge(String numerador, String denominador) {
+    private record Gauges(
+            GaugeMetricDTO remuneracao,
+            GaugeMetricDTO aproveitamento,
+            GaugeMetricDTO efetividade
+    ) {
     }
 
-    private record GaugeBucket(String bucket, BigDecimal valor) {
+    private record GaugeBucket(
+            String bucket,
+            BigDecimal remuneracao,
+            BigDecimal aproveitamento,
+            BigDecimal efetividade
+    ) {
     }
 
     private record TemporalQuery(String expressaoData, String where, Map<String, Object> parametros) {

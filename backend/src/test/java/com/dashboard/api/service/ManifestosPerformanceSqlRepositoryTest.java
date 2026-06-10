@@ -6,8 +6,8 @@ import com.dashboard.api.repository.ManifestosPerformanceSqlRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,13 +49,20 @@ class ManifestosPerformanceSqlRepositoryTest {
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql)
                         .contains("NULLIF(SUM(receita_total), 0)")
-                        .contains("classificacao_bucket"));
+                        .contains("NULLIF(SUM(capacidade_veiculo), 0)")
+                        .contains("NULLIF(SUM(servicos_total), 0)")
+                        .contains("GROUP BY GROUPING SETS ((classificacao_bucket), ())")
+                        .doesNotContain("UNION ALL"));
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql).contains("tipo_motorista AS tipo"));
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql).contains("[Tipo Motorista]"));
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql).contains("COUNT(DISTINCT numero) AS quantidade"));
+        assertThat(jdbcTemplate.sqls)
+                .allSatisfy(sql -> assertThat(sql)
+                        .doesNotContain("LOWER(filial) IN")
+                        .doesNotContain("TRY_CONVERT(DECIMAL(18, 3), [Capacidade Lotação Kg])"));
     }
 
     @Test
@@ -72,16 +79,18 @@ class ManifestosPerformanceSqlRepositoryTest {
 
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql)
-                        .contains("data_criacao_date >= :inicioTemporal")
-                        .contains("data_criacao_date < :fimTemporal")
-                        .doesNotContain("YEAR(data_criacao_date) =")
-                        .doesNotContain("MONTH(data_criacao_date) =")
+                        .contains("data_criacao >= :inicioTemporal")
+                        .contains("data_criacao < :fimTemporal")
+                        .doesNotContain("YEAR(data_criacao) =")
+                        .doesNotContain("MONTH(data_criacao) =")
                         .contains("GROUP BY data_criacao_date"));
         assertThat(jdbcTemplate.parametros)
                 .filteredOn(params -> params.hasValue("inicioTemporal") && params.hasValue("fimTemporal"))
                 .anySatisfy(params -> {
-                    assertThat(params.getValue("inicioTemporal")).isEqualTo(Date.valueOf(LocalDate.of(2026, 5, 1)));
-                    assertThat(params.getValue("fimTemporal")).isEqualTo(Date.valueOf(LocalDate.of(2026, 6, 1)));
+                    assertThat(params.getValue("inicioTemporal"))
+                            .isEqualTo(OffsetDateTime.parse("2026-05-01T00:00:00-03:00"));
+                    assertThat(params.getValue("fimTemporal"))
+                            .isEqualTo(OffsetDateTime.parse("2026-06-01T00:00:00-03:00"));
                 });
     }
 

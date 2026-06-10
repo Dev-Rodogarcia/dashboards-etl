@@ -186,28 +186,29 @@ export const KpiDictionary = {
       geral: {
         titulo: 'Aproveitamento Geral',
         descricao: 'Percentual da capacidade de peso utilizada pelos manifestos.',
-        calculo: 'Peso Taxado Transportado ÷ Capacidade Total dos Veículos × 100.',
+        calculo:
+          'Peso Taxado Transportado ÷ Capacidade de Lotação × 100. A capacidade soma as Carretas 1 e 2; sem Carreta 1, utiliza a capacidade do veículo trator.',
         observacao: percentualSemBase,
       },
       distribuicao: {
         titulo: 'Aproveitamento de Distribuição',
         descricao: 'Percentual da capacidade utilizada nos manifestos de distribuição.',
         calculo:
-          'Peso Taxado de Distribuição ÷ Capacidade dos Veículos de Distribuição × 100.',
+          'Peso Taxado de Distribuição ÷ Capacidade de Lotação de Distribuição × 100. A capacidade soma as Carretas 1 e 2; sem Carreta 1, utiliza a capacidade do veículo trator.',
         observacao: percentualSemBase,
       },
       transferencia: {
         titulo: 'Aproveitamento de Transferência',
         descricao: 'Percentual da capacidade utilizada nos manifestos de transferência.',
         calculo:
-          'Peso Taxado de Transferência ÷ Capacidade dos Veículos de Transferência × 100.',
+          'Peso Taxado de Transferência ÷ Capacidade de Lotação de Transferência × 100. A capacidade soma as Carretas 1 e 2; sem Carreta 1, utiliza a capacidade do veículo trator.',
         observacao: percentualSemBase,
       },
       cargaFechada: {
         titulo: 'Aproveitamento de Carga Fechada',
         descricao: 'Percentual da capacidade utilizada nos manifestos de carga fechada.',
         calculo:
-          'Peso Taxado de Carga Fechada ÷ Capacidade dos Veículos de Carga Fechada × 100.',
+          'Peso Taxado de Carga Fechada ÷ Capacidade de Lotação de Carga Fechada × 100. A capacidade soma as Carretas 1 e 2; sem Carreta 1, utiliza a capacidade do veículo trator.',
         observacao: percentualSemBase,
       },
     },
