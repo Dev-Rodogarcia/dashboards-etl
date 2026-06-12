@@ -3,6 +3,7 @@ import type { EChartsOption } from 'echarts';
 import { ChevronRight, ChevronUp } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import ChartWrapper from '../components/charts/ChartWrapper';
+import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import PerformanceTabela from '../components/domain/performance/PerformanceTabela';
 import AsyncMultiSelect, { type AsyncMultiSelectOpcao } from '../components/shared/AsyncMultiSelect';
 import DateRangePicker from '../components/shared/DateRangePicker';
@@ -45,8 +46,9 @@ import type {
   PerformanceTempoNivel,
 } from '../types/performance';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
-import { CORES, CORES_STATUS, PALETA_SERIES } from '../utils/chartColors';
+import { CORES } from '../utils/chartColors';
 import { dataHojeLocal, primeiroDiaMesesAtrasLocal } from '../utils/dateUtils';
+import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarNumero, formatarPorcentagem } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
@@ -126,21 +128,15 @@ function normalizeDrillNivel(value: string | null): PerformanceDrilldownNivel {
   return 'responsavel';
 }
 
-function buildSerieTemporalOption(dados: PerformanceSerieTemporalPoint[], nivel: PerformanceTempoNivel): EChartsOption {
-  return {
+function buildSerieTemporalOption(dados: PerformanceSerieTemporalPoint[], nivel: PerformanceTempoNivel, isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
+
+  return buildBaseLineOption(isDark, {
     legend: { top: 0 },
-    grid: { top: 42, left: 10, right: 10, bottom: 10, containLabel: true },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'cross',
-        crossStyle: { color: '#999', type: 'dashed' },
-        label: { show: true, backgroundColor: '#536298', color: '#fff' },
-      },
-    },
+    grid: { top: 42, left: 18, right: 28, bottom: 18, containLabel: true },
+    tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
-      boundaryGap: false,
       data: dados.map((item) => item.date),
       axisLabel: {
         formatter: (value: string) => formatarLabelTemporal(value, nivel),
@@ -155,7 +151,7 @@ function buildSerieTemporalOption(dados: PerformanceSerieTemporalPoint[], nivel:
         areaStyle: {},
         smooth: true,
         data: dados.map((item) => item.finalizadas),
-        itemStyle: { color: CORES_STATUS['finalizado'] },
+        itemStyle: { color: tokens.palette[2] },
       },
       {
         name: 'Em Trânsito',
@@ -164,7 +160,7 @@ function buildSerieTemporalOption(dados: PerformanceSerieTemporalPoint[], nivel:
         areaStyle: {},
         smooth: true,
         data: dados.map((item) => item.emTransito ?? 0),
-        itemStyle: { color: CORES_STATUS['em trânsito'] },
+        itemStyle: { color: tokens.palette[0] },
       },
       {
         name: 'Pendente',
@@ -173,7 +169,7 @@ function buildSerieTemporalOption(dados: PerformanceSerieTemporalPoint[], nivel:
         areaStyle: {},
         smooth: true,
         data: dados.map((item) => item.pendentes ?? 0),
-        itemStyle: { color: CORES_STATUS['pendente'] },
+        itemStyle: { color: tokens.palette[1] },
       },
       {
         name: 'Canceladas',
@@ -182,7 +178,7 @@ function buildSerieTemporalOption(dados: PerformanceSerieTemporalPoint[], nivel:
         areaStyle: {},
         smooth: true,
         data: dados.map((item) => item.canceladas),
-        itemStyle: { color: CORES_STATUS['cancelada'] },
+        itemStyle: { color: tokens.palette[3] },
       },
       {
         name: 'Em Tratativa',
@@ -191,16 +187,18 @@ function buildSerieTemporalOption(dados: PerformanceSerieTemporalPoint[], nivel:
         areaStyle: {},
         smooth: true,
         data: dados.map((item) => item.emTratativa),
-        itemStyle: { color: CORES_STATUS['em tratativa'] },
+        itemStyle: { color: tokens.palette[4] },
       },
     ],
-  };
+  });
 }
 
-function buildStatusOption(dados: PerformanceStatusDistribuicao[]): EChartsOption {
-  return {
+function buildStatusOption(dados: PerformanceStatusDistribuicao[], isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
+
+  return buildBaseBarOption(isDark, {
     grid: { top: 24, right: 18, bottom: 38, left: 34, containLabel: true },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
       data: dados.map((item) => item.status),
@@ -216,22 +214,22 @@ function buildStatusOption(dados: PerformanceStatusDistribuicao[]): EChartsOptio
         data: dados.map((item, index) => ({
           name: item.status,
           value: item.total,
-          itemStyle: { color: PALETA_SERIES[index % PALETA_SERIES.length], borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: tokens.palette[index % tokens.palette.length] },
         })),
-        barMaxWidth: 46,
       },
     ],
-  };
+  });
 }
 
-function buildHistoricoOption(dados: PerformanceHistoricoPoint[]): EChartsOption {
+function buildHistoricoOption(dados: PerformanceHistoricoPoint[], isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
   const percentuais = dados.flatMap((item) => [item.performancePercentual, item.metaPercentual]);
   const menor = percentuais.length > 0 ? Math.min(...percentuais) : 0;
   const maior = percentuais.length > 0 ? Math.max(...percentuais) : 100;
   const yMin = Math.max(0, Math.floor(menor - 3));
   const yMax = Math.min(100, Math.ceil(maior + 3));
 
-  return {
+  return buildBaseLineOption(isDark, {
     title: {
       text: 'Histórico da Performance de Entregas',
       left: 24,
@@ -239,17 +237,11 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[]): EChartsOption
       textStyle: {
         fontSize: 12,
         fontWeight: 500,
-        color: 'var(--color-text)',
       },
     },
-    grid: { top: 38, right: 24, bottom: 34, left: 14, containLabel: true },
+    grid: { top: 42, right: 38, bottom: 36, left: 24, containLabel: true },
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'cross',
-        crossStyle: { color: '#999', type: 'dashed' },
-        label: { show: true, backgroundColor: '#536298', color: '#fff' },
-      },
       formatter: (params: unknown) => {
         const entries = params as { marker?: string; seriesName: string; value: number; name: string }[];
         const name = entries[0]?.name ?? '';
@@ -261,7 +253,6 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[]): EChartsOption
     },
     xAxis: {
       type: 'category',
-      boundaryGap: false,
       data: dados.map((item) => item.date),
       axisLabel: {
         formatter: monthName,
@@ -273,7 +264,7 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[]): EChartsOption
       min: yMin,
       max: yMax <= yMin ? yMin + 10 : yMax,
       splitLine: {
-        lineStyle: { type: 'dashed', color: 'rgba(100, 116, 139, 0.32)' },
+        lineStyle: { type: 'dashed' },
       },
       axisLabel: { formatter: (value: number) => `${value}%` },
     },
@@ -292,32 +283,32 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[]): EChartsOption
             const item = params as { value?: unknown };
             return formatarPorcentagem(Number(item.value ?? 0), 1);
           },
-          color: 'var(--color-text)',
           fontSize: 10,
           fontWeight: 700,
         },
-        lineStyle: { width: 3, color: CORES.primaria },
-        itemStyle: { color: CORES.primaria },
+        lineStyle: { width: 3, color: tokens.palette[0] },
+        itemStyle: { color: tokens.palette[0] },
       },
       {
         name: 'Meta',
         type: 'line',
         data: dados.map((item) => item.metaPercentual),
         symbol: 'none',
-        lineStyle: { width: 2, type: 'dashed', color: 'rgba(71, 85, 105, 0.75)' },
-        itemStyle: { color: 'rgba(71, 85, 105, 0.75)' },
+        lineStyle: { width: 2, type: 'dashed', color: tokens.mutedTextColor },
+        itemStyle: { color: tokens.mutedTextColor },
       },
     ],
-  };
+  });
 }
 
-function buildDrilldownOption(dados: PerformanceDrilldownPoint[], nivel: PerformanceDrilldownNivel): EChartsOption {
+function buildDrilldownOption(dados: PerformanceDrilldownPoint[], nivel: PerformanceDrilldownNivel, isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
   const labels = dados.map((item) => item.nome);
   const axisRotate = labels.some((label) => label.length > 14) ? 24 : 0;
-  return {
+  return buildBaseBarOption(isDark, {
     legend: { top: 0 },
     grid: { top: 42, right: 12, bottom: 14, left: 40, containLabel: true },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
       data: labels.map((item) => truncateLabel(item, 14)),
@@ -333,7 +324,7 @@ function buildDrilldownOption(dados: PerformanceDrilldownPoint[], nivel: Perform
         type: 'bar',
         stack: 'performance',
         data: dados.map((item) => ({ name: item.nome, value: item.foraDoPrazo })),
-        itemStyle: { color: CORES.perigo },
+        itemStyle: { color: tokens.palette[3] },
         cursor: nivel === 'cidade' ? 'default' : 'pointer',
       },
       {
@@ -341,7 +332,7 @@ function buildDrilldownOption(dados: PerformanceDrilldownPoint[], nivel: Perform
         type: 'bar',
         stack: 'performance',
         data: dados.map((item) => ({ name: item.nome, value: item.noPrazo })),
-        itemStyle: { color: CORES.sucesso },
+        itemStyle: { color: tokens.palette[2] },
         cursor: nivel === 'cidade' ? 'default' : 'pointer',
       },
       {
@@ -349,30 +340,30 @@ function buildDrilldownOption(dados: PerformanceDrilldownPoint[], nivel: Perform
         type: 'bar',
         stack: 'performance',
         data: dados.map((item) => ({ name: item.nome, value: item.emAtraso })),
-        itemStyle: { color: CORES.aviso },
+        itemStyle: { color: tokens.palette[1] },
         cursor: nivel === 'cidade' ? 'default' : 'pointer',
       },
     ],
-  };
+  });
 }
 
-function buildAgingOption(dados: PerformanceAgingPoint[]): EChartsOption {
+function buildAgingOption(dados: PerformanceAgingPoint[], isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
   const ordem = ['0-2 dias', '3-5 dias', '6-10 dias', '11+ dias'];
   const porBucket = new Map(dados.map((item) => [item.bucket, item.total]));
-  return {
+  return buildBaseBarOption(isDark, {
     grid: { top: 24, right: 18, bottom: 32, left: 34, containLabel: true },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: { trigger: 'axis' },
     xAxis: { type: 'category', data: ordem },
     yAxis: { type: 'value' },
     series: [
       {
         type: 'bar',
         data: ordem.map((bucket) => porBucket.get(bucket) ?? 0),
-        barMaxWidth: 72,
-        itemStyle: { color: CORES.aviso, borderRadius: [4, 4, 0, 0] },
+        itemStyle: { color: tokens.palette[1] },
       },
     ],
-  };
+  });
 }
 
 function PerformanceKpiSkeleton() {
@@ -519,6 +510,7 @@ function HistoricoPeriodoActions({
 
 export default function PerformancePage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const { isDark } = useEchartsTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const [historicoPeriodoMeses, setHistoricoPeriodoMeses] = useState<HistoricoPeriodoMeses>(3);
   const [pagadorBusca, setPagadorBusca] = useState('');
@@ -648,11 +640,11 @@ export default function PerformancePage() {
     aging: aging.data,
   });
 
-  const serieTemporalOption = useMemo(() => buildSerieTemporalOption(serieTemporalData, nivelTemporal), [nivelTemporal, serieTemporalData]);
-  const statusOption = useMemo(() => buildStatusOption(statusData), [statusData]);
-  const historicoOption = useMemo(() => buildHistoricoOption(historicoData), [historicoData]);
-  const drilldownOption = useMemo(() => buildDrilldownOption(drilldownData, drillNivel), [drillNivel, drilldownData]);
-  const agingOption = useMemo(() => buildAgingOption(agingData), [agingData]);
+  const serieTemporalOption = useMemo(() => buildSerieTemporalOption(serieTemporalData, nivelTemporal, isDark), [isDark, nivelTemporal, serieTemporalData]);
+  const statusOption = useMemo(() => buildStatusOption(statusData, isDark), [isDark, statusData]);
+  const historicoOption = useMemo(() => buildHistoricoOption(historicoData, isDark), [historicoData, isDark]);
+  const drilldownOption = useMemo(() => buildDrilldownOption(drilldownData, drillNivel, isDark), [drillNivel, drilldownData, isDark]);
+  const agingOption = useMemo(() => buildAgingOption(agingData, isDark), [agingData, isDark]);
   const statusTabelaOptions = combinarStatusOptions(
     status.data?.map((item) => item.status),
     tabela.data?.conteudo.map((item) => item.status),

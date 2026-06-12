@@ -11,7 +11,8 @@ public record ManifestosPerformanceDTO(
         GaugeMetricDTO efetividade,
         List<StatusSazonalDTO> statusSazonal,
         List<CustoMotoristaDTO> custosMotorista,
-        List<TipoVeiculoDTO> tiposVeiculo
+        List<TipoVeiculoDTO> tiposVeiculo,
+        ManifestosCustosEvolucaoDTO custosEvolucao
 ) {
 
     public record KpisManifestosDTO(

@@ -1,8 +1,9 @@
 import { useCallback, useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../../charts/ChartWrapper';
+import { useEchartsTheme } from '../../charts/useEchartsTheme';
 import type { ManifestosTempoNivel, ManifestosTrendPoint } from '../../../types/manifestos';
-import { CORES_STATUS } from '../../../utils/chartColors';
+import { buildBaseLineOption, getEchartsThemeTokens } from '../../../utils/echartsBuilders';
 
 interface ManifestosTrendProps {
   dados: ManifestosTrendPoint[];
@@ -26,67 +27,67 @@ function formatarLabelTemporal(data: string, nivel: ManifestosTempoNivel): strin
 }
 
 export default function ManifestosTrend({ dados, nivel, onNivelChange, onPointClick, isLoading }: ManifestosTrendProps) {
-  const option: EChartsOption = useMemo(() => ({
-    tooltip: {
-      trigger: 'axis' as const,
-      axisPointer: {
-        type: 'cross',
-        crossStyle: { color: '#999', type: 'dashed' },
-        label: { show: true, backgroundColor: '#536298', color: '#fff' },
+  const { isDark } = useEchartsTheme();
+
+  const option: EChartsOption = useMemo(() => {
+    const tokens = getEchartsThemeTokens(isDark);
+
+    return buildBaseLineOption(isDark, {
+      tooltip: {
+        trigger: 'axis' as const,
       },
-    },
-    legend: {
-      top: 0,
-    },
-    grid: {
-      top: 42,
-      left: 10,
-      right: 10,
-      bottom: 10,
-      containLabel: true,
-    },
-    xAxis: {
-      type: 'category' as const,
-      data: dados.map((d) => d.date),
-      boundaryGap: false,
-      axisLabel: {
-        formatter: (value: string) => formatarLabelTemporal(value, nivel),
+      legend: {
+        top: 0,
       },
-    },
-    yAxis: {
-      type: 'value' as const,
-      name: 'Qtd',
-    },
-    series: [
-      {
-        name: 'Encerrado',
-        type: 'line' as const,
-        stack: 'total',
-        areaStyle: {},
-        data: dados.map((d) => d.encerrado),
-        itemStyle: { color: CORES_STATUS['encerrado'] },
-        smooth: true,
+      grid: {
+        top: 42,
+        left: 18,
+        right: 36,
+        bottom: 18,
+        containLabel: true,
       },
-      {
-        name: 'Em Trânsito',
-        type: 'line' as const,
-        stack: 'total',
-        areaStyle: {},
-        data: dados.map((d) => d.emTransito),
-        itemStyle: { color: CORES_STATUS['em trânsito'] },
-        smooth: true,
+      xAxis: {
+        type: 'category' as const,
+        data: dados.map((d) => d.date),
+        axisLabel: {
+          formatter: (value: string) => formatarLabelTemporal(value, nivel),
+        },
       },
-      {
-        name: 'Pendente',
-        type: 'line' as const,
-        stack: 'total',
-        areaStyle: {},
-        data: dados.map((d) => d.pendente),
-        itemStyle: { color: CORES_STATUS['pendente'] },
-        smooth: true,
+      yAxis: {
+        type: 'value' as const,
+        name: 'Qtd',
       },
-    ],
-  }), [dados, nivel]);
+      series: [
+        {
+          name: 'Encerrado',
+          type: 'line' as const,
+          stack: 'total',
+          areaStyle: {},
+          data: dados.map((d) => d.encerrado),
+          itemStyle: { color: tokens.palette[2] },
+          smooth: true,
+        },
+        {
+          name: 'Em Trânsito',
+          type: 'line' as const,
+          stack: 'total',
+          areaStyle: {},
+          data: dados.map((d) => d.emTransito),
+          itemStyle: { color: tokens.palette[0] },
+          smooth: true,
+        },
+        {
+          name: 'Pendente',
+          type: 'line' as const,
+          stack: 'total',
+          areaStyle: {},
+          data: dados.map((d) => d.pendente),
+          itemStyle: { color: tokens.palette[8] },
+          smooth: true,
+        },
+      ],
+    });
+  }, [dados, isDark, nivel]);
 
   const handlePointClick = useCallback((params: unknown) => {
     const item = params as { name?: string };

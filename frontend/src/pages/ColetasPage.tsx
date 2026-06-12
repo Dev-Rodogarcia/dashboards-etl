@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
 import ColetasKpiGrid from '../components/domain/coletas/ColetasKpiGrid';
 import ColetasTrend from '../components/domain/coletas/ColetasTrend';
 import ChartWrapper from '../components/charts/ChartWrapper';
+import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
@@ -21,6 +22,7 @@ import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ColetaResumoRow, ColetasFiltro } from '../types/coletas';
 import { CORES } from '../utils/chartColors';
+import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
@@ -30,6 +32,7 @@ const EMPTY_ARRAY: never[] = [];
 
 export default function ColetasPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const { isDark } = useEchartsTheme();
   const [regiaoSelecionada, setRegiaoSelecionada] = useState<string | null>(null);
   const [regiaoEmFoco, setRegiaoEmFoco] = useState<string | null>(null);
   const [origemLimite, setOrigemLimite] = useState<(typeof ORIGEM_LIMITES)[number]>(10);
@@ -98,124 +101,126 @@ export default function ColetasPage() {
     filtros.status,
   ), [filtros.status, statusData, tabelaConteudo]);
 
-  const statusOption: EChartsOption = useMemo(() => ({
-    grid: { top: 24, right: 18, bottom: 18, left: 34, containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: statusData.map((item) => item.status),
-      axisLabel: {
-        interval: 0,
-        formatter: (value: string) => value.length > 12 ? value.slice(0, 12) + '…' : value,
-      },
-    },
-    yAxis: { type: 'value' },
-    series: [{
-      type: 'bar',
-      data: statusData.map((item) => item.total),
-      barMaxWidth: 42,
-      itemStyle: { color: CORES.primaria, borderRadius: [4, 4, 0, 0] },
-    }],
-  }), [statusData]);
+  const statusOption: EChartsOption = useMemo(() => {
+    const tokens = getEchartsThemeTokens(isDark);
 
-  const slaOption: EChartsOption = useMemo(() => ({
-    grid: { top: 20, right: 18, bottom: 24, left: 10, containLabel: true },
-    xAxis: { type: 'value', max: 100 },
-    yAxis: {
-      type: 'category',
-      data: slaPorFilial.map((item) => item.filial).reverse(),
-      axisLabel: {
-        formatter: (value: string) => value.length > 18 ? value.slice(0, 18) + '…' : value,
-      },
-    },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      formatter: (params: unknown) => {
-        const p = (params as { name: string; value: number }[])[0];
-        return `${p.name}<br/>${p.value.toFixed(1)}%`;
-      },
-    },
-    series: [{
-      type: 'bar',
-      data: slaPorFilial.map((item) => item.slaPct).reverse(),
-      barMaxWidth: 16,
-      itemStyle: { color: CORES.sucesso, borderRadius: [0, 4, 4, 0] },
-    }],
-  }), [slaPorFilial]);
-
-  const origemOption: EChartsOption = useMemo(() => ({
-    legend: { show: false },
-    grid: { top: 28, right: 54, bottom: 34, left: 42, containLabel: true },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'cross',
-        crossStyle: { color: '#999', type: 'dashed' },
-        label: { show: true, backgroundColor: '#536298', color: '#fff' },
-      },
-      formatter: (params: unknown) => {
-        const entries = params as { marker?: string; seriesName: string; name: string; value: number }[];
-        const primeira = entries[0];
-        return [
-          primeira?.name ?? '',
-          ...entries.map((item) => {
-            const valor = item.seriesName === 'Peso Taxado'
-              ? formatarPeso(Number(item.value ?? 0))
-              : Number(item.value ?? 0).toLocaleString('pt-BR');
-            return `${item.marker ?? ''}${item.seriesName}: ${valor}`;
-          }),
-        ].join('<br/>');
-      },
-    },
-    xAxis: {
-      type: 'category',
-      data: origemData.map((item) => item.nome),
-      axisLabel: {
-        interval: 0,
-        rotate: 24,
-        formatter: (value: string) => value.length > 14 ? value.slice(0, 14) + '…' : value,
-      },
-    },
-    yAxis: [
-      { type: 'value', name: 'Coletas' },
-      {
-        type: 'value',
-        name: 'Peso',
-        position: 'right',
+    return buildBaseBarOption(isDark, {
+      grid: { top: 24, right: 18, bottom: 18, left: 34, containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: statusData.map((item) => item.status),
         axisLabel: {
-          formatter: (value: number) => formatarPeso(value).replace(' ', ''),
+          interval: 0,
+          formatter: (value: string) => value.length > 12 ? value.slice(0, 12) + '…' : value,
         },
       },
-    ],
-    series: [
-      {
-        name: 'Coletas',
+      yAxis: { type: 'value' },
+      series: [{
         type: 'bar',
-        data: origemData.map((item) => item.totalColetas),
-        barMaxWidth: 42,
-        cursor: regiaoSelecionada ? 'default' : 'pointer',
-        itemStyle: {
-          color: regiaoSelecionada ? CORES.sucesso : CORES.primaria,
-          borderRadius: [4, 4, 0, 0],
-        },
-        emphasis: {
-          itemStyle: { color: regiaoSelecionada ? CORES.sucesso : '#2f5fb3' },
+        data: statusData.map((item) => item.total),
+        itemStyle: { color: tokens.palette[0] },
+      }],
+    });
+  }, [isDark, statusData]);
+
+  const slaOption: EChartsOption = useMemo(() => {
+    const tokens = getEchartsThemeTokens(isDark);
+
+    return buildBaseBarOption(isDark, {
+      grid: { top: 20, right: 18, bottom: 24, left: 10, containLabel: true },
+      xAxis: { type: 'value', max: 100 },
+      yAxis: {
+        type: 'category',
+        data: slaPorFilial.map((item) => item.filial).reverse(),
+        axisLabel: {
+          formatter: (value: string) => value.length > 18 ? value.slice(0, 18) + '…' : value,
         },
       },
-      {
-        name: 'Peso Taxado',
-        type: 'line',
-        yAxisIndex: 1,
-        data: origemData.map((item) => item.pesoTaxado),
-        smooth: true,
-        showSymbol: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        itemStyle: { color: CORES.secundaria },
-        lineStyle: { color: CORES.secundaria, width: 2 },
+      tooltip: {
+        trigger: 'axis',
+        formatter: (params: unknown) => {
+          const p = (params as { name: string; value: number }[])[0];
+          return `${p.name}<br/>${p.value.toFixed(1)}%`;
+        },
       },
-    ],
-  }), [origemData, regiaoSelecionada]);
+      series: [{
+        type: 'bar',
+        data: slaPorFilial.map((item) => item.slaPct).reverse(),
+        barMaxWidth: 16,
+        itemStyle: { color: tokens.palette[2], borderRadius: [0, 4, 4, 0] },
+      }],
+    });
+  }, [isDark, slaPorFilial]);
+
+  const origemOption: EChartsOption = useMemo(() => {
+    const tokens = getEchartsThemeTokens(isDark);
+    const coletaColor = regiaoSelecionada ? tokens.palette[2] : tokens.palette[0];
+    const pesoColor = tokens.palette[1];
+
+    return buildBaseLineOption(isDark, buildBaseBarOption(isDark, {
+      legend: { show: false },
+      grid: { top: 28, right: 54, bottom: 34, left: 42, containLabel: true },
+      tooltip: {
+        trigger: 'axis',
+        formatter: (params: unknown) => {
+          const entries = params as { marker?: string; seriesName: string; name: string; value: number }[];
+          const primeira = entries[0];
+          return [
+            primeira?.name ?? '',
+            ...entries.map((item) => {
+              const valor = item.seriesName === 'Peso Taxado'
+                ? formatarPeso(Number(item.value ?? 0))
+                : Number(item.value ?? 0).toLocaleString('pt-BR');
+              return `${item.marker ?? ''}${item.seriesName}: ${valor}`;
+            }),
+          ].join('<br/>');
+        },
+      },
+      xAxis: {
+        type: 'category',
+        data: origemData.map((item) => item.nome),
+        axisLabel: {
+          interval: 0,
+          rotate: 24,
+          formatter: (value: string) => value.length > 14 ? value.slice(0, 14) + '…' : value,
+        },
+      },
+      yAxis: [
+        { type: 'value', name: 'Coletas' },
+        {
+          type: 'value',
+          name: 'Peso',
+          position: 'right',
+          axisLabel: {
+            formatter: (value: number) => formatarPeso(value).replace(' ', ''),
+          },
+        },
+      ],
+      series: [
+        {
+          name: 'Coletas',
+          type: 'bar',
+          data: origemData.map((item) => item.totalColetas),
+          cursor: regiaoSelecionada ? 'default' : 'pointer',
+          itemStyle: { color: coletaColor },
+          emphasis: {
+            itemStyle: { color: coletaColor },
+          },
+        },
+        {
+          name: 'Peso Taxado',
+          type: 'line',
+          yAxisIndex: 1,
+          data: origemData.map((item) => item.pesoTaxado),
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 6,
+          itemStyle: { color: pesoColor },
+          lineStyle: { color: pesoColor, width: 2 },
+        },
+      ],
+    }));
+  }, [isDark, origemData, regiaoSelecionada]);
 
   const handleOrigemClick = useCallback((params: unknown) => {
     if (regiaoSelecionada) {
@@ -330,17 +335,21 @@ export default function ColetasPage() {
     </div>
   ), [fazerDrillDownOrigem, fazerDrillUpOrigem, origemLimite, podeDrillDownOrigem, regiaoDestinoDrilldown, regiaoSelecionada]);
 
-  const agingOption: EChartsOption = useMemo(() => ({
-    grid: { top: 22, right: 18, bottom: 32, left: 34, containLabel: true },
-    xAxis: { type: 'category', data: aging.map((item) => item.faixa) },
-    yAxis: { type: 'value' },
-    series: [{
-      type: 'bar',
-      data: aging.map((item) => item.total),
-      barMaxWidth: 72,
-      itemStyle: { color: CORES.aviso, borderRadius: [4, 4, 0, 0] },
-    }],
-  }), [aging]);
+  const agingOption: EChartsOption = useMemo(() => {
+    const tokens = getEchartsThemeTokens(isDark);
+
+    return buildBaseBarOption(isDark, {
+      grid: { top: 22, right: 18, bottom: 32, left: 34, containLabel: true },
+      xAxis: { type: 'category', data: aging.map((item) => item.faixa) },
+      yAxis: { type: 'value' },
+      series: [{
+        type: 'bar',
+        data: aging.map((item) => item.total),
+        barMaxWidth: 72,
+        itemStyle: { color: tokens.palette[8] },
+      }],
+    });
+  }, [aging, isDark]);
 
   const colunas: ColunaTabelaAnalitica<ColetaResumoRow>[] = useMemo(() => [
     { chave: 'id', label: 'ID', fixo: true, filtroTabela: 'codigo' },

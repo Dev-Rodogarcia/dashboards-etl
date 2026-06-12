@@ -9,7 +9,7 @@ const colunas: ColunaTabelaAnalitica<Row>[] = [
   { chave: 'id', label: 'ID', fixo: true, filtroTabela: 'codigo' },
   { chave: 'status', label: 'Status', filtroTabela: 'status' },
   { chave: 'cliente', label: 'Cliente', filtroTabela: 'razaoSocial' },
-  { chave: 'valor', label: 'Valor' },
+  { chave: 'valor', label: 'Valor', tooltip: 'Valor consolidado do registro.' },
 ];
 
 function renderTabela(overrides = {}) {
@@ -59,6 +59,13 @@ describe('AnalyticalDataTable', () => {
     expect(html).toContain('Status');
   });
 
+  it('usa tooltip acessivel sem atributo title nativo', () => {
+    const html = renderTabela();
+
+    expect(html).toContain('aria-label="Detalhes da coluna Valor"');
+    expect(html).not.toContain('title="Valor consolidado do registro."');
+  });
+
   it('nao conta busca global no badge de filtros', () => {
     const html = renderTabela({
       filtros: { busca: 'ACME' },
@@ -102,5 +109,14 @@ describe('AnalyticalDataTable', () => {
 
     expect(html).toContain('Falha de comunicação');
     expect(html).not.toContain('Nenhum registro encontrado.');
+  });
+
+  it('sinaliza atualização paginada e bloqueia os controles temporariamente', () => {
+    const html = renderTabela({ isFetching: true });
+
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('Atualizando...');
+    expect(html).toContain('<select disabled=""');
+    expect(html).toContain('role="status"');
   });
 });

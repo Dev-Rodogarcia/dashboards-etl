@@ -21,6 +21,7 @@ sqlcmd -S localhost,1433 -d DASHBOARDS -E -C -b -f 65001 -i database\migrations\
 
 ```powershell
 sqlcmd -S localhost,1433 -d DASHBOARDS -U usuario_etl -P "<senha>" -C -b -f 65001 -i database\validation\001_validar_escopo_filiais_usuario.sql
+sqlcmd -S localhost,1433 -d DASHBOARDS -U usuario_etl -P "<senha>" -C -b -f 65001 -i database\validation\002_validar_metas_custo_manifestos.sql
 ```
 
 ## Observacoes

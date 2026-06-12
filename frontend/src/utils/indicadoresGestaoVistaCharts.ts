@@ -1,4 +1,5 @@
 import type { EChartsOption } from 'echarts';
+import { buildBaseBarOption, getEchartsThemeTokens } from './echartsBuilders';
 import { getGoalToneStyle, resolverTomMetaPorValor, type GoalMode } from './indicadoresGestaoVistaUi';
 
 interface RankingOptionArgs<T> {
@@ -13,6 +14,7 @@ interface RankingOptionArgs<T> {
   valueFormatter?: (value: number) => string;
   axisFormatter?: (value: number) => string;
   max?: number;
+  isDark?: boolean;
 }
 
 interface MetaComparisonOptionArgs {
@@ -24,6 +26,7 @@ interface MetaComparisonOptionArgs {
   valueFormatter?: (value: number) => string;
   axisFormatter?: (value: number) => string;
   max?: number;
+  isDark?: boolean;
 }
 
 function truncarRotulo(label: string, limite = 26): string {
@@ -100,7 +103,9 @@ export function buildRankingOption<T>({
   valueFormatter = defaultValueFormatter,
   axisFormatter = defaultAxisFormatter,
   max,
+  isDark = false,
 }: RankingOptionArgs<T>): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
   const topItems = items.slice(0, 8);
   const ordered = [...topItems].reverse();
   const labels = ordered.map((item) => truncarRotulo(getLabel(item)));
@@ -108,11 +113,10 @@ export function buildRankingOption<T>({
   const itemThresholds = getThreshold ? ordered.map((item) => getThreshold(item)) : [threshold];
   const resolvedMax = resolveMax([...values, ...itemThresholds], threshold, max);
 
-  return {
+  return buildBaseBarOption(isDark, {
     grid: { left: 110, right: 32, top: 20, bottom: 32 },
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'shadow' },
       formatter: (params: unknown) => {
         const [first] = Array.isArray(params) ? params : [];
         const index = typeof first === 'object' && first !== null && 'dataIndex' in first
@@ -134,7 +138,7 @@ export function buildRankingOption<T>({
       min: 0,
       max: resolvedMax,
       axisLabel: { formatter: (value: number) => axisFormatter(Number(value)) },
-      splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.16)' } },
+      splitLine: { lineStyle: { color: tokens.splitLineColor } },
     },
     yAxis: {
       type: 'category',
@@ -153,25 +157,27 @@ export function buildRankingOption<T>({
         label: {
           show: true,
           position: 'right',
-          color: 'var(--color-text)',
+          color: tokens.textColor,
           formatter: (params: { value?: unknown }) => valueFormatter(resolveChartValue(params.value)),
         },
         markLine: {
           silent: true,
           symbol: 'none',
-          lineStyle: { color: '#64748b', type: 'dashed', width: 2 },
+          lineStyle: { color: tokens.mutedTextColor, type: 'dashed', width: 2 },
           label: {
             formatter: thresholdLabel,
-            color: '#64748b',
-            backgroundColor: '#ffffff',
+            color: tokens.tooltipText,
+            backgroundColor: tokens.tooltipBg,
             padding: [2, 6],
             borderRadius: 999,
+            textBorderWidth: 0,
+            textShadowBlur: 0,
           },
           data: [{ xAxis: threshold }],
         },
       },
     ],
-  };
+  });
 }
 
 export function buildMetaComparisonOption({
@@ -183,14 +189,15 @@ export function buildMetaComparisonOption({
   valueFormatter = defaultValueFormatter,
   axisFormatter = defaultAxisFormatter,
   max,
+  isDark = false,
 }: MetaComparisonOptionArgs): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
   const resolvedMax = resolveMax([value], threshold, max);
 
-  return {
+  return buildBaseBarOption(isDark, {
     grid: { left: 110, right: 32, top: 20, bottom: 20 },
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'shadow' },
       formatter: (params: unknown) => {
         const items = Array.isArray(params) ? params : [];
         return items
@@ -206,7 +213,7 @@ export function buildMetaComparisonOption({
       min: 0,
       max: resolvedMax,
       axisLabel: { formatter: (axisValue: number) => axisFormatter(Number(axisValue)) },
-      splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.16)' } },
+      splitLine: { lineStyle: { color: tokens.splitLineColor } },
     },
     yAxis: {
       type: 'category',
@@ -220,7 +227,7 @@ export function buildMetaComparisonOption({
         data: [
           {
             value: threshold,
-            itemStyle: { color: '#94a3b8' },
+            itemStyle: { color: tokens.mutedTextColor },
           },
           {
             value,
@@ -231,10 +238,10 @@ export function buildMetaComparisonOption({
         label: {
           show: true,
           position: 'right',
-          color: 'var(--color-text)',
+          color: tokens.textColor,
           formatter: (params: { value?: unknown }) => valueFormatter(resolveChartValue(params.value)),
         },
       },
     ],
-  };
+  });
 }

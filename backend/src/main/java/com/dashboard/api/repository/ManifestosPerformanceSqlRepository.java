@@ -1,6 +1,7 @@
 package com.dashboard.api.repository;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.manifestos.ManifestosCustosEvolucaoDTO.CustoDiarioDTO;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.CustoMotoristaDTO;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.GaugeMetricDTO;
@@ -25,7 +26,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class ManifestosPerformanceSqlRepository {
+public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRepository {
 
     private static final String MANIFESTOS_VIEW = "dbo.vw_manifestos_powerbi";
 
@@ -81,8 +82,64 @@ public class ManifestosPerformanceSqlRepository {
                 gauges.efetividade(),
                 buscarStatusSazonal(ctx, nivel, ano, mes),
                 buscarCustosMotorista(ctx),
-                buscarTiposVeiculo(ctx)
+                buscarTiposVeiculo(ctx),
+                null
         );
+    }
+
+    @Override
+    public List<CustoDiarioDTO> buscarCustosDiarios(FiltroConsultaDTO filtro) {
+        QueryContext ctx = criarContexto(filtro);
+        String sql = ctx.baseCte() + """
+                SELECT
+                    CONVERT(char(10), data_criacao_date, 23) AS data,
+                    COALESCE(SUM(custo_total), 0) AS custo_real
+                FROM manifestos
+                WHERE data_criacao_date IS NOT NULL
+                """ + ctx.where() + """
+                GROUP BY data_criacao_date
+                ORDER BY data_criacao_date
+                """;
+
+        return jdbcTemplate.query(sql, ctx.params(), (rs, rowNum) -> new CustoDiarioDTO(
+                rs.getString("data"),
+                escala(rs.getBigDecimal("custo_real"), 2)
+        ));
+    }
+
+    @Override
+    public BigDecimal buscarCustoTotal(FiltroConsultaDTO filtro) {
+        QueryContext ctx = criarContexto(filtro);
+        String sql = ctx.baseCte() + """
+                SELECT COALESCE(SUM(custo_total), 0)
+                FROM manifestos
+                WHERE 1 = 1
+                """ + ctx.where();
+        BigDecimal custoTotal = jdbcTemplate.queryForObject(sql, ctx.params(), BigDecimal.class);
+        return escala(custoTotal, 2);
+    }
+
+    @Override
+    public LocalDate buscarUltimoDiaUtilFechado(LocalDate dataReferencia) {
+        return jdbcTemplate.queryForObject("""
+                SELECT MAX(data)
+                FROM dbo.dim_calendario
+                WHERE data < :dataReferencia
+                  AND is_dia_util = 1
+                """, new MapSqlParameterSource("dataReferencia", dataReferencia), LocalDate.class);
+    }
+
+    @Override
+    public Integer contarDiasUteisCalendario(LocalDate dataInicio, LocalDate dataFim) {
+        return jdbcTemplate.queryForObject("""
+                SELECT CAST(COUNT_BIG(1) AS INT)
+                FROM dbo.dim_calendario
+                WHERE data >= :dataInicio
+                  AND data <= :dataFim
+                  AND is_dia_util = 1
+                """, new MapSqlParameterSource()
+                .addValue("dataInicio", dataInicio)
+                .addValue("dataFim", dataFim), Integer.class);
     }
 
     private Gauges buscarGauges(QueryContext ctx) {

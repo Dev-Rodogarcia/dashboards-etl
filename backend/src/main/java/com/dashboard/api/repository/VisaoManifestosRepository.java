@@ -36,6 +36,7 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
                     TRY_CONVERT(DECIMAL(18, 2), [Total M3]) AS total_m3,
                     TRY_CONVERT(DECIMAL(18, 2), [Custo total]) AS custo_total,
                     TRY_CONVERT(DECIMAL(18, 2), [Valor frete]) AS valor_frete,
+                    TRY_CONVERT(DECIMAL(18, 2), [Receita Total Transportada]) AS receita_total_transportada,
                     TRY_CONVERT(DECIMAL(18, 2), [Combustível]) AS combustivel,
                     TRY_CONVERT(DECIMAL(18, 2), [Pedágio]) AS pedagio,
                     TRY_CONVERT(DECIMAL(18, 2), [Saldo a pagar]) AS saldo_pagar,
@@ -47,6 +48,7 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Tipo de carga]))), '') AS tipo_carga,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Tipo de carga]))), '')) AS tipo_carga_normalizado,
                     TRY_CONVERT(INT, [Itens/Total]) AS itens_total,
+                    TRY_CONVERT(INT, [Itens/Finalizados]) AS itens_finalizados,
                     TRY_CONVERT(datetime2, [Data de extracao]) AS data_extracao
                 FROM dbo.vw_manifestos_powerbi
             ),
@@ -151,6 +153,9 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
                 COALESCE(pedagio, 0) AS pedagio,
                 COALESCE(saldo_pagar, 0) AS saldoPagar,
                 COALESCE(km_total, 0) AS kmTotal,
+                COALESCE(receita_total_transportada, 0) AS receitaTotalTransportada,
+                COALESCE(capacidade_kg, 0) AS capacidadeKg,
+                itens_finalizados AS itensFinalizados,
                 itens_total AS itensTotal
             FROM filtrados
             ORDER BY data_criacao DESC
@@ -308,23 +313,6 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
             @Param("tiposContratoVazio") int tiposContratoVazio
     );
 
-    @Query(value = """
-            SELECT DISTINCT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Motorista]))), '') AS motorista
-            FROM dbo.vw_manifestos_powerbi
-            WHERE NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Motorista]))), '') IS NOT NULL
-            ORDER BY motorista
-            """, nativeQuery = true)
-    List<String> findDistinctMotoristas();
-
-    @Query(value = """
-            SELECT DISTINCT NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Motorista]))), '') AS motorista
-            FROM dbo.vw_manifestos_powerbi
-            WHERE NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Motorista]))), '') IS NOT NULL
-              AND LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) IN (:filiais)
-            ORDER BY motorista
-            """, nativeQuery = true)
-    List<String> findDistinctMotoristasByFilialIn(@Param("filiais") List<String> filiais);
-
     interface ManifestosOverviewProjection {
         LocalDateTime getUpdatedAt();
 
@@ -389,6 +377,12 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
         BigDecimal getSaldoPagar();
 
         BigDecimal getKmTotal();
+
+        BigDecimal getReceitaTotalTransportada();
+
+        BigDecimal getCapacidadeKg();
+
+        Integer getItensFinalizados();
 
         Integer getItensTotal();
     }

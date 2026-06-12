@@ -265,6 +265,9 @@ public class DashboardTabelaPaginadaService {
                 decimal(row, "Pedágio", "Pedagio"),
                 decimal(row, "Saldo a pagar"),
                 decimal(row, "KM Total"),
+                decimal(row, "Receita Total Transportada"),
+                decimal(row, "Capacidade Lotação Kg", "Capacidade Lotacao Kg"),
+                inteiro(row, "Itens/Finalizados"),
                 inteiro(row, "Itens/Total")
         );
     }

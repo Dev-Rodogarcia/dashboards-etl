@@ -2,6 +2,9 @@ import { useCallback, useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import { useSearchParams } from 'react-router-dom';
 import ChartWrapper from '../components/charts/ChartWrapper';
+import { useEchartsTheme } from '../components/charts/useEchartsTheme';
+import ManifestosCustoEvolutionCard from '../components/domain/manifestos/ManifestosCustoEvolutionCard';
+import ManifestosCustoKpis from '../components/domain/manifestos/ManifestosCustoKpis';
 import ManifestosGaugeCard from '../components/domain/manifestos/ManifestosGaugeCard';
 import ManifestosKpiGrid from '../components/domain/manifestos/ManifestosKpiGrid';
 import ManifestosTrend from '../components/domain/manifestos/ManifestosTrend';
@@ -22,7 +25,7 @@ import { useManifestosPerformance, useManifestosTabelaPaginada } from '../hooks/
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ManifestoResumoRow, ManifestosFiltro, ManifestosTempoNivel } from '../types/manifestos';
-import { CORES } from '../utils/chartColors';
+import { buildBaseBarOption, buildBaseDonutOption } from '../utils/echartsBuilders';
 import { formatarMoeda, formatarNumero, formatarPeso } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
@@ -30,11 +33,65 @@ const NIVEL_PARAM = 'manifestosNivel';
 const ANO_PARAM = 'manifestosAno';
 const MES_PARAM = 'manifestosMes';
 const CORES_GAUGE_MANIFESTOS = {
-  remuneracao: '#1d4ed8',
-  aproveitamento: '#059669',
-  efetividade: '#ea580c',
+  remuneracao: 'var(--color-primary)',
+  aproveitamento: 'var(--color-positive-fill)',
+  efetividade: 'var(--color-warning-fill)',
 } as const;
 const EMPTY_ARRAY: never[] = [];
+const KPI_BADGE_BASE_CLASS = 'inline-flex min-w-[68px] items-center justify-center rounded-md px-2 py-1 text-xs font-semibold tabular-nums';
+
+type ManifestoTabelaRow = ManifestoResumoRow & {
+  percentualRemuneracao: number | null;
+  percentualAproveitamento: number | null;
+  percentualEfetividade: number | null;
+};
+
+function calcularPercentual(
+  numerador: number | null | undefined,
+  denominador: number | null | undefined,
+): number | null {
+  if (
+    numerador == null
+    || denominador == null
+    || !Number.isFinite(numerador)
+    || !Number.isFinite(denominador)
+    || denominador <= 0
+  ) {
+    return null;
+  }
+
+  return (numerador / denominador) * 100;
+}
+
+function renderPercentualBadge(percentual: number | null, classeCor: string) {
+  if (percentual == null) {
+    return '—';
+  }
+
+  return (
+    <span className={`${KPI_BADGE_BASE_CLASS} ${classeCor}`}>
+      {formatarNumero(percentual, 1)}%
+    </span>
+  );
+}
+
+function classeRemuneracao(percentual: number): string {
+  if (percentual <= 20) return 'bg-green-500/10 text-green-500';
+  if (percentual <= 30) return 'bg-yellow-500/10 text-yellow-600';
+  return 'bg-red-500/10 text-red-500';
+}
+
+function classeAproveitamento(percentual: number): string {
+  if (percentual > 80) return 'bg-green-500/10 text-green-500';
+  if (percentual >= 40) return 'bg-yellow-500/10 text-yellow-600';
+  return 'bg-red-500/10 text-red-500';
+}
+
+function classeEfetividade(percentual: number): string {
+  if (percentual > 70) return 'bg-green-500/10 text-green-500';
+  if (percentual >= 60) return 'bg-yellow-500/10 text-yellow-600';
+  return 'bg-red-500/10 text-red-500';
+}
 
 function normalizarNivel(valor: string | null): ManifestosTempoNivel {
   return valor === 'ano' || valor === 'mes' || valor === 'dia' ? valor : 'dia';
@@ -49,6 +106,7 @@ function numeroParam(valor: string | null): number | null {
 export default function ManifestosPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isDark } = useEchartsTheme();
   const filiais = useFiliais();
   const motoristas = useMotoristas();
   const veiculos = useVeiculos();
@@ -100,7 +158,15 @@ export default function ManifestosPage() {
   const statusSazonal = useMemo(() => dadosPerformance?.statusSazonal ?? EMPTY_ARRAY, [dadosPerformance?.statusSazonal]);
   const custosMotorista = useMemo(() => dadosPerformance?.custosMotorista ?? EMPTY_ARRAY, [dadosPerformance?.custosMotorista]);
   const tiposVeiculo = useMemo(() => dadosPerformance?.tiposVeiculo ?? EMPTY_ARRAY, [dadosPerformance?.tiposVeiculo]);
-  const tabelaConteudo = tabela.data?.conteudo ?? EMPTY_ARRAY;
+  const tabelaConteudo = useMemo<ManifestoTabelaRow[]>(
+    () => (tabela.data?.conteudo ?? EMPTY_ARRAY).map((row) => ({
+      ...row,
+      percentualRemuneracao: calcularPercentual(row.custoTotal, row.receitaTotalTransportada),
+      percentualAproveitamento: calcularPercentual(row.totalPesoTaxado, row.capacidadeKg),
+      percentualEfetividade: calcularPercentual(row.itensFinalizados, row.itensTotal),
+    })),
+    [tabela.data?.conteudo],
+  );
   const veiculoPlacas = useMemo(() => (veiculos.data ?? EMPTY_ARRAY).map((item) => item.placa), [veiculos.data]);
   const statusTabelaOptions = useMemo(() => combinarStatusOptions(
     ['encerrado', 'em trânsito', 'pendente'],
@@ -138,7 +204,7 @@ export default function ManifestosPage() {
     pendente: item.pendente,
   })), [statusSazonal]);
 
-  const custosMotoristaOption: EChartsOption = useMemo(() => ({
+  const custosMotoristaOption: EChartsOption = useMemo(() => buildBaseDonutOption(isDark, {
     tooltip: {
       trigger: 'item',
       formatter: (params: unknown) => {
@@ -152,16 +218,16 @@ export default function ManifestosPage() {
     },
     series: [
       {
+        name: 'Custos',
         type: 'pie',
-        radius: ['42%', '70%'],
-        center: ['50%', '45%'],
         data: custosMotorista.map((item) => ({ name: item.tipo, value: item.custo })),
       },
     ],
-  }), [custosMotorista]);
+  }), [custosMotorista, isDark]);
 
-  const tiposVeiculoOption: EChartsOption = useMemo(() => ({
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  const tiposVeiculoOption: EChartsOption = useMemo(() => buildBaseBarOption(isDark, {
+    tooltip: { trigger: 'axis' },
+    legend: { show: false },
     grid: { top: 34, right: 10, bottom: 4, left: 44, containLabel: true },
     xAxis: {
       type: 'category',
@@ -175,15 +241,14 @@ export default function ManifestosPage() {
     yAxis: { type: 'value', name: 'Qtd' },
     series: [
       {
+        name: 'Veículos',
         type: 'bar',
         data: tiposVeiculo.map((item) => item.quantidade),
-        itemStyle: { color: CORES.primaria },
-        barMaxWidth: 42,
       },
     ],
-  }), [tiposVeiculo]);
+  }), [isDark, tiposVeiculo]);
 
-  const colunas: ColunaTabelaAnalitica<ManifestoResumoRow>[] = useMemo(() => [
+  const colunas: ColunaTabelaAnalitica<ManifestoTabelaRow>[] = useMemo(() => [
     { chave: 'numero', label: 'Manifesto', fixo: true, filtroTabela: 'codigo' },
     { chave: 'status', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
     { chave: 'filial', label: 'Filial' },
@@ -195,6 +260,33 @@ export default function ManifestosPage() {
     { chave: 'custoTotal', label: 'Custo', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'valorFrete', label: 'Valor Frete', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'kmTotal', label: 'KM', formato: (valor) => formatarNumero(Number(valor ?? 0), 0) },
+    {
+      chave: 'percentualRemuneracao',
+      label: '% Remuneração',
+      tooltip: KpiDictionary.manifestos.remuneracao.geral.calculo,
+      formato: (_, row) => {
+        const percentual = calcularPercentual(row.custoTotal, row.receitaTotalTransportada);
+        return renderPercentualBadge(percentual, percentual == null ? '' : classeRemuneracao(percentual));
+      },
+    },
+    {
+      chave: 'percentualAproveitamento',
+      label: '% Aproveitamento',
+      tooltip: KpiDictionary.manifestos.aproveitamento.geral.calculo,
+      formato: (_, row) => {
+        const percentual = calcularPercentual(row.totalPesoTaxado, row.capacidadeKg);
+        return renderPercentualBadge(percentual, percentual == null ? '' : classeAproveitamento(percentual));
+      },
+    },
+    {
+      chave: 'percentualEfetividade',
+      label: '% Efetividade',
+      tooltip: KpiDictionary.manifestos.efetividade.geral.calculo,
+      formato: (_, row) => {
+        const percentual = calcularPercentual(row.itensFinalizados, row.itensTotal);
+        return renderPercentualBadge(percentual, percentual == null ? '' : classeEfetividade(percentual));
+      },
+    },
   ], []);
 
   return (
@@ -232,6 +324,21 @@ export default function ManifestosPage() {
 
       {performance.isError && <MensagemErro mensagem={getApiErrorMessage(performance.error, 'Erro ao carregar indicadores de manifestos.')} tipo={getTipoErro(performance.error)} />}
       <ManifestosKpiGrid kpis={dadosPerformance?.kpis} isLoading={performance.isLoading} />
+
+      <div className="mb-6 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-12">
+        <div className="h-[25rem] min-h-0 xl:col-span-8">
+          <ManifestosCustoEvolutionCard
+            dados={dadosPerformance?.custosEvolucao}
+            isLoading={performance.isLoading}
+          />
+        </div>
+        <div className="xl:col-span-4">
+          <ManifestosCustoKpis
+            dados={dadosPerformance?.custosEvolucao}
+            isLoading={performance.isLoading}
+          />
+        </div>
+      </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <ManifestosGaugeCard
@@ -296,6 +403,7 @@ export default function ManifestosPage() {
         onClearFilters={filtrosTabela.clearTableFilters}
         statusOptions={statusTabelaOptions}
         isLoading={tabela.isLoading}
+        isFetching={tabela.isFetching}
         error={tabela.error}
         errorFallbackMessage="Erro ao carregar manifestos analíticos."
         totalRegistros={tabela.data?.totalElementos}

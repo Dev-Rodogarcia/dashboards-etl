@@ -36,6 +36,7 @@ class ManifestosPerformanceSqlRepositoryTest {
                 null,
                 null
         );
+        repository.buscarCustosDiarios(filtroPadrao());
 
         assertThat(dto.kpis().totalManifestos()).isEqualTo(12);
         assertThat(dto.kpis().custoPorKg()).isEqualByComparingTo("0.10");
@@ -61,6 +62,10 @@ class ManifestosPerformanceSqlRepositoryTest {
                 .anySatisfy(sql -> assertThat(sql).contains("[Tipo Motorista]"));
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql).contains("COUNT(DISTINCT numero) AS quantidade"));
+        assertThat(jdbcTemplate.sqls)
+                .anySatisfy(sql -> assertThat(sql)
+                        .contains("COALESCE(SUM(custo_total), 0) AS custo_real")
+                        .contains("GROUP BY data_criacao_date"));
         assertThat(jdbcTemplate.sqls)
                 .allSatisfy(sql -> assertThat(sql)
                         .doesNotContain("LOWER(filial) IN")

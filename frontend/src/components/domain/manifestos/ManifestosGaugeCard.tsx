@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { useEchartsTheme } from '../../charts/useEchartsTheme';
 import ChartCard from '../../shared/ChartCard';
 import TooltipKpi from '../../shared/TooltipKpi';
 import type { KpiDefinition } from '../../../constants/kpiDictionary';
@@ -42,10 +43,11 @@ export default function ManifestosGaugeCard({
   corDestaque,
   definitions,
 }: ManifestosGaugeCardProps) {
+  const { isDark } = useEchartsTheme();
   const dados = normalizarMetric(metric);
   const globalFormatado = formatarPorcentagem(dados.global, 1);
 
-  const option = useMemo(() => buildManifestosHalfDonutOption(dados.global, corDestaque), [corDestaque, dados.global]);
+  const option = useMemo(() => buildManifestosHalfDonutOption(dados.global, corDestaque, isDark), [corDestaque, dados.global, isDark]);
 
   return (
     <ChartCard titulo={titulo} isLoading={isLoading}>

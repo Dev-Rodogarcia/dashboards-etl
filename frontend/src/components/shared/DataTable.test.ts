@@ -84,6 +84,22 @@ describe('DataTable', () => {
     expect(html).not.toContain('min-w-0 truncate');
   });
 
+  it('usa tooltip acessivel sem atributo title nativo', () => {
+    type Row = { id: number; nome: string };
+    const Tabela = DataTable<Row>;
+    const html = renderToStaticMarkup(
+      createElement(Tabela, {
+        titulo: 'Fretes',
+        dados: [{ id: 1, nome: 'A' }],
+        colunas: [{ chave: 'nome', label: 'Nome', tooltip: 'Nome completo do cliente.' }],
+        chaveLinha: 'id',
+      }),
+    );
+
+    expect(html).toContain('aria-label="Detalhes da coluna Nome"');
+    expect(html).not.toContain('title="Nome completo do cliente."');
+  });
+
   it('exibe erro sem cair no estado vazio', () => {
     type Row = { id: number; nome: string };
     const Tabela = DataTable<Row>;

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ChartWrapper from '../components/charts/ChartWrapper';
+import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import TrackingKpiGrid from '../components/domain/tracking/TrackingKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
@@ -18,8 +19,8 @@ import { useTrackingDashboard, useTrackingDetalhesPaginada } from '../hooks/quer
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { TrackingFiltro, TrackingMatrizRegiao, TrackingRawRow } from '../types/tracking';
-import { CORES, PALETA_SERIES } from '../utils/chartColors';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
+import { buildBaseBarOption, buildBaseDonutOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarMoeda, formatarPeso } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
@@ -27,18 +28,6 @@ const STATUS_RAPIDOS = ['NO ARMAZÉM', 'Em transferência', 'Em entrega'] as con
 const STATUS_BASE = ['NO ARMAZÉM', 'Manifestado', 'Em transferência', 'Em entrega', 'Entregue', 'Cancelado'];
 const FILIAL_ATUAL_PADRAO = 'AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA';
 const REGIOES_POR_PAGINA = 9;
-const STATUS_ROSCA_CORES: Record<string, string> = {
-  'no armazém': CORES.aviso,
-  manifestado: PALETA_SERIES[8],
-  'em transferência': CORES.info,
-  'em entrega': CORES.primaria,
-  entregue: PALETA_SERIES[7],
-  cancelado: CORES.perigo,
-  canceled: CORES.perigo,
-  cancelled: CORES.perigo,
-  'sem status': CORES.cinza,
-};
-
 function numeroCurto(valor: number): string {
   return valor.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 }
@@ -88,8 +77,21 @@ function rotuloCurtoRegiao(valor: string): string {
   return texto.length > 14 ? `${texto.slice(0, 12)}...` : texto;
 }
 
-function corStatusRosca(status: string, index: number): string {
-  return STATUS_ROSCA_CORES[status.toLowerCase()] ?? PALETA_SERIES[index % PALETA_SERIES.length];
+function corStatusRosca(status: string, index: number, isDark: boolean): string {
+  const tokens = getEchartsThemeTokens(isDark);
+  const statusColors: Record<string, string> = {
+    'no armazém': tokens.palette[1],
+    manifestado: tokens.palette[8],
+    'em transferência': tokens.palette[5],
+    'em entrega': tokens.palette[0],
+    entregue: tokens.palette[7],
+    cancelado: tokens.palette[3],
+    canceled: tokens.palette[3],
+    cancelled: tokens.palette[3],
+    'sem status': tokens.mutedTextColor,
+  };
+
+  return statusColors[status.toLowerCase()] ?? tokens.palette[index % tokens.palette.length];
 }
 
 function codigoFilialAtual(valor: string): string {
@@ -278,6 +280,7 @@ function MetricCell({ label, value, danger = false }: { label: string; value: st
 
 export default function TrackingPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const { isDark } = useEchartsTheme();
   const filiais = useFiliais();
 
   const filiaisDisponiveis = useMemo(() => filiais.data ?? [], [filiais.data]);
@@ -348,23 +351,18 @@ export default function TrackingPage() {
   const valorChartData = useMemo(() => valorRegiao, [valorRegiao]);
   const statusTotal = useMemo(() => statusData.reduce((total, item) => total + item.total, 0), [statusData]);
 
-  const statusOption: EChartsOption = {
+  const statusOption: EChartsOption = buildBaseDonutOption(isDark, {
     tooltip: { trigger: 'item', formatter: '{b}<br/>{c} cargas ({d}%)' },
-    grid: { top: 0, right: 0, bottom: 0, left: 0 },
-    xAxis: { show: false },
-    yAxis: { show: false },
     title: {
       text: numeroCurto(statusTotal),
       subtext: 'Cargas',
       left: 'center',
       top: '36%',
       textStyle: {
-        color: CORES.primaria,
         fontSize: 22,
         fontWeight: 800,
       },
       subtextStyle: {
-        color: CORES.cinza,
         fontSize: 11,
         fontWeight: 600,
       },
@@ -383,22 +381,13 @@ export default function TrackingPage() {
     series: [{
       name: 'Cargas',
       type: 'pie',
-      radius: ['46%', '72%'],
-      center: ['50%', '44%'],
       minAngle: 4,
       avoidLabelOverlap: true,
       data: statusData.map((item, index) => ({
         name: item.status,
         value: item.total,
-        itemStyle: { color: corStatusRosca(item.status, index) },
+        itemStyle: { color: corStatusRosca(item.status, index, isDark) },
       })),
-      label: {
-        show: true,
-        formatter: '{b}\n{c} ({d}%)',
-        fontSize: 11,
-        fontWeight: 600,
-      },
-      labelLine: { show: true, length: 10, length2: 8 },
       emphasis: {
         label: {
           show: true,
@@ -408,10 +397,10 @@ export default function TrackingPage() {
         },
       },
     }],
-  };
+  });
 
-  const valorRegiaoOption: EChartsOption = {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  const valorRegiaoOption: EChartsOption = buildBaseBarOption(isDark, {
+    tooltip: { trigger: 'axis' },
     grid: { left: 66, right: 12, top: 10, bottom: 38 },
     xAxis: {
       type: 'category',
@@ -432,9 +421,9 @@ export default function TrackingPage() {
       barWidth: 18,
       barCategoryGap: '32%',
       data: valorChartData.map((item) => item.valorFrete),
-      itemStyle: { color: CORES.secundaria },
+      itemStyle: { color: getEchartsThemeTokens(isDark).palette[1] },
     }],
-  };
+  });
 
   const colunas: ColunaTabelaAnalitica<TrackingRawRow>[] = [
     { chave: 'numeroMinuta', label: 'Minuta', fixo: true, filtroTabela: 'codigo' },

@@ -2,8 +2,10 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.builder.DashboardExportSqlBuilder;
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.manifestos.ManifestoResumoDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -70,6 +72,27 @@ class DashboardTabelaPaginadaServiceTest {
                 .contains("ORDER BY [Emissão] DESC, [Lançamento a Pagar/N°] DESC")
                 .contains("OFFSET :offsetTabela ROWS FETCH NEXT :tamanhoTabela ROWS ONLY");
         assertThat(jdbcTemplate.params().get(1).getValue("tamanhoTabela")).isEqualTo(125);
+    }
+
+    @Test
+    void buscarManifestosDeveMapearDadosConsolidadosDaView() {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("Número", 62848L);
+        row.put("Identificador Único", "62848_MDFE_4380");
+        row.put("Receita Total Transportada", new BigDecimal("1000.25"));
+        row.put("Capacidade Lotação Kg", new BigDecimal("12000.50"));
+        row.put("Itens/Finalizados", 8);
+        row.put("Itens/Total", 10);
+        CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate(List.of(row));
+        DashboardTabelaPaginadaService service = service(jdbcTemplate);
+
+        ManifestoResumoDTO manifesto = service.buscarManifestos(filtroPadrao(), 1, 10).conteudo().get(0);
+
+        assertThat(jdbcTemplate.sqls().get(1)).contains("SELECT * FROM [vw_manifestos_powerbi] base");
+        assertThat(manifesto.receitaTotalTransportada()).isEqualByComparingTo("1000.25");
+        assertThat(manifesto.capacidadeKg()).isEqualByComparingTo("12000.50");
+        assertThat(manifesto.itensFinalizados()).isEqualTo(8);
+        assertThat(manifesto.itensTotal()).isEqualTo(10);
     }
 
     private static DashboardTabelaPaginadaService service(NamedParameterJdbcTemplate jdbcTemplate) {

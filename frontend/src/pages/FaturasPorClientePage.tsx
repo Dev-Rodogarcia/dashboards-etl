@@ -1,5 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../components/charts/ChartWrapper';
+import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import FaturasPorClienteKpiGrid from '../components/domain/faturasPorCliente/FaturasPorClienteKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
@@ -24,7 +25,7 @@ import {
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { FaturaPorClienteResumoRow, FaturasPorClienteFiltro, FaturasPorClienteTopCliente } from '../types/faturasPorCliente';
-import { CORES } from '../utils/chartColors';
+import { buildBaseBarOption, buildBaseDonutOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarMoeda } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
@@ -34,6 +35,7 @@ function rotuloTopCliente(item: FaturasPorClienteTopCliente): string {
 
 export default function FaturasPorClientePage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const { isDark } = useEchartsTheme();
   const filiais = useFiliais();
   const clientes = useClientes();
   const clientesCnpj = useFaturasPorClienteClientesCnpj();
@@ -59,6 +61,7 @@ export default function FaturasPorClientePage() {
   const aging = useFaturasPorClienteAging(filtro);
   const topClientes = useFaturasPorClienteTopClientes(filtro);
   const statusProcesso = useFaturasPorClienteStatusProcesso(filtro);
+  const tokens = getEchartsThemeTokens(isDark);
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
   const tabela = useFaturasPorClienteTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
@@ -69,7 +72,7 @@ export default function FaturasPorClientePage() {
     updatedAt: overview.data?.updatedAt ?? null,
   });
 
-  const mensalOption: EChartsOption = {
+  const mensalOption: EChartsOption = buildBaseLineOption(isDark, buildBaseBarOption(isDark, {
     legend: { bottom: 0 },
     xAxis: { type: 'category', data: (mensal.data ?? []).map((item) => item.month) },
     yAxis: [
@@ -81,25 +84,25 @@ export default function FaturasPorClientePage() {
         name: 'Valor Faturado',
         type: 'bar',
         data: (mensal.data ?? []).map((item) => item.valorFaturado),
-        itemStyle: { color: CORES.primaria },
+        itemStyle: { color: tokens.palette[0] },
       },
       {
         name: 'Registros Faturados',
         type: 'line',
         yAxisIndex: 1,
         data: (mensal.data ?? []).map((item) => item.registrosFaturados),
-        itemStyle: { color: CORES.secundaria },
+        itemStyle: { color: tokens.palette[1] },
       },
     ],
-  };
+  }));
 
-  const agingOption: EChartsOption = {
+  const agingOption: EChartsOption = buildBaseBarOption(isDark, {
     xAxis: { type: 'category', data: (aging.data ?? []).map((item) => item.faixa) },
     yAxis: { type: 'value' },
-    series: [{ type: 'bar', data: (aging.data ?? []).map((item) => item.valor), itemStyle: { color: CORES.aviso } }],
-  };
+    series: [{ type: 'bar', data: (aging.data ?? []).map((item) => item.valor), itemStyle: { color: tokens.palette[1] } }],
+  });
 
-  const topClientesOption: EChartsOption = {
+  const topClientesOption: EChartsOption = buildBaseBarOption(isDark, {
     grid: { left: 10, containLabel: true },
     xAxis: { type: 'value' },
     yAxis: { type: 'category', data: (topClientes.data ?? []).map(rotuloTopCliente).reverse() },
@@ -107,21 +110,21 @@ export default function FaturasPorClientePage() {
       {
         type: 'bar',
         data: (topClientes.data ?? []).map((item) => item.valorFaturado).reverse(),
-        itemStyle: { color: CORES.sucesso },
+        itemStyle: { color: tokens.palette[2] },
       },
     ],
-  };
+  });
 
-  const statusOption: EChartsOption = {
+  const statusOption: EChartsOption = buildBaseDonutOption(isDark, {
     tooltip: { trigger: 'item' },
     series: [
       {
         type: 'pie',
-        radius: ['38%', '68%'],
+        name: 'Status do Processo',
         data: (statusProcesso.data ?? []).map((item) => ({ name: item.statusProcesso, value: item.total })),
       },
     ],
-  };
+  });
   const statusTabelaOptions = combinarStatusOptions(
     ['Faturado', 'Aguardando Faturamento'],
     (statusProcesso.data ?? []).map((item) => item.statusProcesso),

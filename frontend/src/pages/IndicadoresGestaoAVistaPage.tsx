@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, BarChart3, Boxes, Clock3, Gauge, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
+import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import type { ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
@@ -180,6 +181,7 @@ function formatarDiferencaMeta(value: number, goal: number): string {
 
 export default function IndicadoresGestaoAVistaPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const { isDark } = useEchartsTheme();
   const { canAccess } = usePermissions();
   const filiais = useFiliais();
   const [expandedSection, setExpandedSection] = useState<SectionId | null>(null);
@@ -483,6 +485,7 @@ export default function IndicadoresGestaoAVistaPage() {
           threshold: goals.performance.threshold,
           mode: goals.performance.mode,
           thresholdLabel: goals.performance.label,
+          isDark,
         })
       : buildRankingOption({
           items: performanceRanking,
@@ -492,6 +495,7 @@ export default function IndicadoresGestaoAVistaPage() {
           getThreshold: (item) => metaFilial('performance', item.group),
           mode: goals.performance.mode,
           thresholdLabel: goals.performance.label,
+          isDark,
           tooltipLines: (item) => [
             `Meta da filial: ${formatarPorcentagem(metaFilial('performance', item.group))}`,
             `Diferença: ${formatarDiferencaMeta(item.pctNoPrazo, metaFilial('performance', item.group))}`,
@@ -500,7 +504,7 @@ export default function IndicadoresGestaoAVistaPage() {
             `Fora do prazo: ${formatarNumero(item.entregasForaDoPrazo)}`,
           ],
         })
-  ), [goals, metaFilial, performanceRanking, performanceOverview.data?.pctNoPrazo]);
+  ), [goals, isDark, metaFilial, performanceRanking, performanceOverview.data?.pctNoPrazo]);
 
   const coletoresChartOption = useMemo(() => (
     coletoresRanking.length <= 1
@@ -510,6 +514,7 @@ export default function IndicadoresGestaoAVistaPage() {
           threshold: goals.coletores.threshold,
           mode: goals.coletores.mode,
           thresholdLabel: goals.coletores.label,
+          isDark,
         })
       : buildRankingOption({
           items: coletoresRanking,
@@ -519,6 +524,7 @@ export default function IndicadoresGestaoAVistaPage() {
           getThreshold: (item) => item.goal ?? metaFilial('coletores', item.group),
           mode: goals.coletores.mode,
           thresholdLabel: goals.coletores.label,
+          isDark,
           tooltipLines: (item) => [
             `Utilização: ${formatarPorcentagem(item.pctUtilizacao)}`,
             `Meta: ${formatarPorcentagem(item.goal ?? metaFilial('coletores', item.group))}`,
@@ -530,7 +536,7 @@ export default function IndicadoresGestaoAVistaPage() {
             `Manifestos bipáveis: ${formatarNumero(item.totalManifestos)}`,
           ],
         })
-  ), [coletoresRanking, coletoresOverview.data?.pctUtilizacao, goals, metaFilial]);
+  ), [coletoresRanking, coletoresOverview.data?.pctUtilizacao, goals, isDark, metaFilial]);
 
   const cubagemChartOption = useMemo(() => (
     cubagemRanking.length <= 1
@@ -540,6 +546,7 @@ export default function IndicadoresGestaoAVistaPage() {
           threshold: goals.cubagem.threshold,
           mode: goals.cubagem.mode,
           thresholdLabel: goals.cubagem.label,
+          isDark,
         })
       : buildRankingOption({
           items: cubagemRanking,
@@ -549,6 +556,7 @@ export default function IndicadoresGestaoAVistaPage() {
           getThreshold: (item) => metaFilial('cubagem', item.group),
           mode: goals.cubagem.mode,
           thresholdLabel: goals.cubagem.label,
+          isDark,
           tooltipLines: (item) => [
             `Meta da filial: ${formatarPorcentagem(metaFilial('cubagem', item.group))}`,
             `Diferença: ${formatarDiferencaMeta(item.pctCubagem, metaFilial('cubagem', item.group))}`,
@@ -557,7 +565,7 @@ export default function IndicadoresGestaoAVistaPage() {
             `Sem cubagem: ${formatarNumero(item.fretesNaoCubados)}`,
           ],
         })
-  ), [cubagemRanking, cubagemOverview.data?.pctCubagem, goals, metaFilial]);
+  ), [cubagemRanking, cubagemOverview.data?.pctCubagem, goals, isDark, metaFilial]);
 
   const indenizacaoChartOption = useMemo(() => (
     indenizacaoRanking.length <= 1
@@ -567,6 +575,7 @@ export default function IndicadoresGestaoAVistaPage() {
           threshold: goals.indenizacao.threshold,
           mode: goals.indenizacao.mode,
           thresholdLabel: goals.indenizacao.label,
+          isDark,
           valueFormatter: (value) => formatarPorcentagem(value, 2),
           axisFormatter: (value) => formatarPorcentagem(value, 2),
         })
@@ -578,6 +587,7 @@ export default function IndicadoresGestaoAVistaPage() {
           getThreshold: (item) => metaFilial('indenizacao', item.group),
           mode: goals.indenizacao.mode,
           thresholdLabel: goals.indenizacao.label,
+          isDark,
           tooltipLines: (item) => [
             `Limite da filial: ${formatarPorcentagem(metaFilial('indenizacao', item.group), 2)}`,
             `Diferença: ${formatarDiferencaMeta(item.pctIndenizacao, metaFilial('indenizacao', item.group))}`,
@@ -588,7 +598,7 @@ export default function IndicadoresGestaoAVistaPage() {
           valueFormatter: (value) => formatarPorcentagem(value, 2),
           axisFormatter: (value) => formatarPorcentagem(value, 2),
         })
-  ), [goals, indenizacaoRanking, indenizacaoOverview.data?.pctIndenizacao, metaFilial]);
+  ), [goals, indenizacaoRanking, indenizacaoOverview.data?.pctIndenizacao, isDark, metaFilial]);
 
   const horariosChartOption = useMemo(() => (
     horariosRanking.length <= 1
@@ -598,6 +608,7 @@ export default function IndicadoresGestaoAVistaPage() {
           threshold: goals.horarios.threshold,
           mode: goals.horarios.mode,
           thresholdLabel: goals.horarios.label,
+          isDark,
         })
       : buildRankingOption({
           items: horariosRanking,
@@ -607,6 +618,7 @@ export default function IndicadoresGestaoAVistaPage() {
           getThreshold: (item) => metaFilial('horarios', item.group),
           mode: goals.horarios.mode,
           thresholdLabel: goals.horarios.label,
+          isDark,
           tooltipLines: (item) => [
             `Meta da filial: ${formatarPorcentagem(metaFilial('horarios', item.group))}`,
             `Diferença: ${formatarDiferencaMeta(item.pctNoHorario, metaFilial('horarios', item.group))}`,
@@ -615,7 +627,7 @@ export default function IndicadoresGestaoAVistaPage() {
             `Fora do horario: ${formatarNumero(item.saidasForaDoHorario)}`,
           ],
         })
-  ), [goals, horariosRanking, horariosOverview.data?.pctNoHorario, metaFilial]);
+  ), [goals, horariosRanking, horariosOverview.data?.pctNoHorario, isDark, metaFilial]);
 
   const performanceColumns: ColunaTabela<PerformanceEntregaRow>[] = [
     { chave: 'numeroMinuta', label: 'Minuta', fixo: true },

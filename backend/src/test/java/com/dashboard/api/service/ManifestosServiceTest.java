@@ -74,6 +74,12 @@ class ManifestosServiceTest {
         assertThat(tabela).extracting(ManifestoResumoDTO::numero).containsExactly(62848L, 62848L);
         assertThat(tabela).extracting(ManifestoResumoDTO::identificadorUnico)
                 .containsExactly("62848_MDFE_4380", "62848_MDFE_4381");
+        assertThat(tabela).extracting(ManifestoResumoDTO::receitaTotalTransportada)
+                .allSatisfy(valor -> assertThat(valor).isEqualByComparingTo("1000.00"));
+        assertThat(tabela).extracting(ManifestoResumoDTO::capacidadeKg)
+                .allSatisfy(valor -> assertThat(valor).isEqualByComparingTo("12000.00"));
+        assertThat(tabela).extracting(ManifestoResumoDTO::itensFinalizados).containsOnly(8);
+        assertThat(tabela).extracting(ManifestoResumoDTO::itensTotal).containsOnly(10);
     }
 
     @Test
@@ -124,7 +130,10 @@ class ManifestosServiceTest {
             @Override public BigDecimal getPedagio() { return BigDecimal.ZERO; }
             @Override public BigDecimal getSaldoPagar() { return BigDecimal.ZERO; }
             @Override public BigDecimal getKmTotal() { return BigDecimal.ZERO; }
-            @Override public Integer getItensTotal() { return 1; }
+            @Override public BigDecimal getReceitaTotalTransportada() { return new BigDecimal("1000.00"); }
+            @Override public BigDecimal getCapacidadeKg() { return new BigDecimal("12000.00"); }
+            @Override public Integer getItensFinalizados() { return 8; }
+            @Override public Integer getItensTotal() { return 10; }
         };
     }
 

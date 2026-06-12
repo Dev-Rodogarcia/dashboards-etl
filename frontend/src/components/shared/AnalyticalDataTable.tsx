@@ -1,8 +1,9 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Funnel, Info, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Funnel, Loader2, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import type { ColunaTabela } from './DataTable';
+import TableHeaderTooltip from './TableHeaderTooltip';
 import { calcularLarguraMinimaTabela, getColumnSizingStyle } from './tableLayout';
 import type { TableColumnFilterValue, TableFilterField, TableFilters } from '../../types/tableFilters';
 import MensagemErro from '../ui/MensagemErro';
@@ -32,6 +33,7 @@ interface AnalyticalDataTableProps<T> {
   statusOptions?: string[];
   statusOptionsLoading?: boolean;
   isLoading?: boolean;
+  isFetching?: boolean;
   titulo?: string;
   totalRegistros?: number;
   paginaAtual: number;
@@ -488,6 +490,7 @@ export default function AnalyticalDataTable<T>({
   statusOptions,
   statusOptionsLoading,
   isLoading,
+  isFetching,
   titulo,
   totalRegistros,
   paginaAtual,
@@ -501,6 +504,7 @@ export default function AnalyticalDataTable<T>({
   const [direcao, setDirecao] = useState<'asc' | 'desc'>('asc');
   const colunaOrdenada = colunas.find((coluna) => coluna.chave === ordenarPor);
   const hasError = Boolean(error);
+  const isUpdating = Boolean(isFetching && !isLoading);
   const totalReal = totalRegistros ?? dados.length;
   const totalPaginas = Math.max(1, Math.ceil(totalReal / tamanhoPagina));
   const paginaSegura = Math.min(paginaAtual, totalPaginas);
@@ -576,6 +580,7 @@ export default function AnalyticalDataTable<T>({
     <div
       className="overflow-hidden rounded-[20px] border shadow-sm"
       style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+      aria-busy={isUpdating}
     >
       <div
         className="flex min-h-[68px] flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
@@ -585,8 +590,14 @@ export default function AnalyticalDataTable<T>({
           <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
             {titulo ?? 'Tabela analitica'}
           </h3>
-          <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            {resumoRegistros}
+          <p className="flex items-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+            <span>{resumoRegistros}</span>
+            {isUpdating && (
+              <span className="inline-flex items-center gap-1 font-medium" role="status">
+                <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+                Atualizando...
+              </span>
+            )}
           </p>
         </div>
 
@@ -625,6 +636,7 @@ export default function AnalyticalDataTable<T>({
             <select
               value={tamanhoPagina}
               onChange={(event) => alterarTamanhoPagina(Number(event.target.value))}
+              disabled={isUpdating}
               className="h-9 rounded-lg border px-2 py-1 text-xs"
               style={{
                 backgroundColor: 'var(--color-bg)',
@@ -650,7 +662,6 @@ export default function AnalyticalDataTable<T>({
                 <th
                   key={col.chave}
                   onClick={() => handleSort(col.chave, col.ordenavel !== false)}
-                  title={col.tooltip ?? col.label}
                   className={`h-10 px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap select-none ${
                     col.ordenavel === false ? 'cursor-default' : 'cursor-pointer'
                   } ${col.fixo ? 'sticky left-0 z-10' : ''}`}
@@ -662,20 +673,7 @@ export default function AnalyticalDataTable<T>({
                 >
                   <span className="flex items-center gap-1">
                     <span>{col.label}</span>
-                    {col.tooltip ? (
-                      <span
-                        className="inline-flex shrink-0 normal-case"
-                        title={col.tooltip}
-                        aria-label={col.tooltip}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <Info
-                          size={12}
-                          style={{ color: 'var(--color-text-muted)' }}
-                          aria-hidden="true"
-                        />
-                      </span>
-                    ) : null}
+                    {col.tooltip ? <TableHeaderTooltip label={col.label} content={col.tooltip} /> : null}
                     {col.ordenavel !== false && ordenarPor === col.chave && (
                       <span className="shrink-0">{direcao === 'asc' ? '↑' : '↓'}</span>
                     )}
@@ -772,7 +770,7 @@ export default function AnalyticalDataTable<T>({
             <button
               type="button"
               onClick={() => onPaginaChange(Math.max(1, paginaSegura - 1))}
-              disabled={paginaSegura === 1}
+              disabled={isUpdating || paginaSegura === 1}
               className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
             >
@@ -799,6 +797,7 @@ export default function AnalyticalDataTable<T>({
                     key={item}
                     type="button"
                     onClick={() => onPaginaChange(item)}
+                    disabled={isUpdating}
                     aria-current={ativo ? 'page' : undefined}
                     className="min-w-8 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed"
                     style={
@@ -825,7 +824,7 @@ export default function AnalyticalDataTable<T>({
             <button
               type="button"
               onClick={() => onPaginaChange(Math.min(totalPaginas, paginaSegura + 1))}
-              disabled={paginaSegura === totalPaginas}
+              disabled={isUpdating || paginaSegura === totalPaginas}
               className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
             >

@@ -141,6 +141,59 @@ export const KpiDictionary = {
       calculo: 'Soma do Custo Total dos Manifestos.',
       observacao: periodoManifestos,
     },
+    orcamentoCusto: {
+      titulo: 'Orçamento de Custo',
+      descricao: 'Orçamento mensal de custo operacional aplicável às competências e filiais selecionadas.',
+      calculo:
+        'Soma dos Orçamentos Mensais. Sem filtro de filial, a meta global prevalece; com filtro ou escopo restrito, são somadas as metas das filiais aplicáveis.',
+      observacao:
+        'O orçamento não é comparado quando existem filtros de status, motorista, veículo, tipo de carga, contrato ou tipo de motorista.',
+    },
+    custoReal: {
+      titulo: 'Custo Real',
+      descricao: 'Custo operacional acumulado dos manifestos no período selecionado.',
+      calculo: 'Soma do Custo Total dos Manifestos filtrados.',
+      observacao: periodoManifestos,
+    },
+    limiteDiarioBase: {
+      titulo: 'Limite Diário Base',
+      descricao: 'Parcela média diária do orçamento de custo.',
+      calculo: 'Orçamento de Custo ÷ Total de Dias Úteis das competências.',
+      observacao:
+        'Os dias úteis vêm do calendário corporativo; na indisponibilidade dele, são usados os dias de segunda a sexta.',
+    },
+    custoMedioDiarioReal: {
+      titulo: 'Custo Médio Diário Real',
+      descricao: 'Média diária do custo acumulado até o último dia útil fechado.',
+      calculo: 'Custo acumulado até D-1 ÷ Dias Úteis Decorridos.',
+      observacao: 'O divisor mínimo é um.',
+    },
+    saldoOrcamentario: {
+      titulo: 'Saldo Orçamentário',
+      descricao: 'Valor de orçamento ainda disponível para o restante das competências.',
+      calculo: 'Orçamento de Custo − Custo acumulado até o último Dia Útil Fechado.',
+      observacao: 'O valor fica negativo quando o custo realizado supera o orçamento.',
+    },
+    limiteDiarioDinamico: {
+      titulo: 'Limite Diário Dinâmico',
+      descricao: 'Custo médio diário máximo disponível nos dias úteis restantes.',
+      calculo: 'Saldo Orçamentário ÷ Dias Úteis Restantes.',
+      observacao: 'O divisor mínimo é um.',
+    },
+    tendenciaCusto: {
+      titulo: 'Tendência de Custo',
+      descricao: 'Projeção de custo para o fechamento das competências selecionadas.',
+      calculo: 'Custo Real + Custo Médio Diário Real × Dias Úteis Restantes.',
+      observacao:
+        'A média diária usa somente os dias úteis já fechados, enquanto o custo real preserva o acumulado do período selecionado.',
+    },
+    consumoOrcamento: {
+      titulo: 'Consumo do Orçamento',
+      descricao: 'Percentual do orçamento de custo já consumido.',
+      calculo: 'Custo Real ÷ Orçamento de Custo × 100.',
+      observacao:
+        'Para controle de custos, valores até 100% são favoráveis; valores acima de 100% indicam estouro orçamentário.',
+    },
     custoPorKg: {
       titulo: 'Custo por KG',
       descricao: 'Custo médio ponderado por quilograma transportado.',

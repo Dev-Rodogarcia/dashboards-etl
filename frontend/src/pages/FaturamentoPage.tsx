@@ -42,7 +42,8 @@ import type {
   FaturamentoResumoRow,
   FaturamentoTrendPoint,
 } from '../types/faturamento';
-import { CORES, PALETA_SERIES } from '../utils/chartColors';
+import { CORES } from '../utils/chartColors';
+import { buildBaseBarOption, buildBaseDonutOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarDataHoraMinuto, formatarMoeda, formatarNumero, formatarPeso, formatarPorcentagem } from '../utils/formatadores';
 import { formatarStatusOperacional } from '../utils/statusLabels';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
@@ -390,13 +391,11 @@ function ResponsavelActions({
   );
 }
 
-function buildClassificacaoDonutOption(dados: ChartDatum[], selectedName: string | null): EChartsOption {
-  const total = dados.reduce((acc, item) => acc + item.receita, 0);
-  const percentByName = new Map(dados.map((item) => [item.nome, total > 0 ? (item.receita / total) * 100 : 0]));
-  const valueByName = new Map(dados.map((item) => [item.nome, item.receita]));
+function buildClassificacaoDonutOption(dados: ChartDatum[], selectedName: string | null, isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
   const hasSelection = Boolean(selectedName && dados.some((item) => item.nome === selectedName));
 
-  return {
+  return buildBaseDonutOption(isDark, {
     tooltip: {
       trigger: 'item',
       formatter: (params: unknown) => {
@@ -408,48 +407,49 @@ function buildClassificacaoDonutOption(dados: ChartDatum[], selectedName: string
         ].join('<br/>');
       },
     },
-    legend: {
-      type: 'scroll',
-      orient: 'vertical',
-      right: 0,
-      top: 16,
-      bottom: 12,
-      width: 148,
-      formatter: (name: string) => {
-        const value = valueByName.get(name) ?? 0;
-        const percent = percentByName.get(name) ?? 0;
-        return `${truncateLabel(name, 18)}\n${formatarMoeda(value)} · ${formatarPorcentagem(percent, 1)}`;
-      },
-    },
+    legend: { show: false },
     series: [
       {
         type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['32%', '50%'],
+        radius: ['38%', '64%'],
+        center: ['50%', '50%'],
         data: dados.map((item, index) => ({
           name: item.nome,
           value: item.receita,
           itemStyle: {
-            color: PALETA_SERIES[index % PALETA_SERIES.length],
+            color: tokens.palette[index % tokens.palette.length],
             opacity: hasSelection && selectedName !== item.nome ? 0.35 : 1,
           },
         })),
         label: {
-          show: false,
+          show: true,
+          formatter: '{b}\n{d}%',
+          fontSize: 10,
+          width: 92,
+          overflow: 'truncate',
         },
-        labelLine: { show: false },
+        labelLine: {
+          show: true,
+          length: 10,
+          length2: 6,
+        },
+        labelLayout: {
+          hideOverlap: true,
+          moveOverlap: 'shiftY',
+        },
         emphasis: {
           itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.22)' },
         },
       },
     ],
-  };
+  });
 }
 
-function buildClientePieOption(dados: ChartDatum[], selectedName: string | null): EChartsOption {
+function buildClientePieOption(dados: ChartDatum[], selectedName: string | null, isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
   const hasSelection = Boolean(selectedName && dados.some((item) => item.nome === selectedName));
 
-  return {
+  return buildBaseDonutOption(isDark, {
     tooltip: {
       trigger: 'item',
       formatter: (params: unknown) => {
@@ -461,31 +461,37 @@ function buildClientePieOption(dados: ChartDatum[], selectedName: string | null)
         ].join('<br/>');
       },
     },
-    legend: {
-      type: 'scroll',
-      orient: 'vertical',
-      right: 0,
-      top: 4,
-      bottom: 4,
-      width: 126,
-      formatter: (name: string) => truncateLabel(name, 18),
-    },
+    legend: { show: false },
     series: [
       {
         type: 'pie',
-        radius: '66%',
-        center: ['29%', '50%'],
+        radius: ['36%', '60%'],
+        center: ['50%', '50%'],
         avoidLabelOverlap: true,
         data: dados.map((item, index) => ({
           name: item.nome,
           value: item.receita,
           itemStyle: {
-            color: PALETA_SERIES[index % PALETA_SERIES.length],
+            color: tokens.palette[index % tokens.palette.length],
             opacity: hasSelection && selectedName !== item.nome ? 0.35 : 1,
           },
         })),
-        label: { show: false },
-        labelLine: { show: false },
+        label: {
+          show: true,
+          formatter: '{b}\n{d}%',
+          fontSize: 10,
+          width: 88,
+          overflow: 'truncate',
+        },
+        labelLine: {
+          show: true,
+          length: 8,
+          length2: 5,
+        },
+        labelLayout: {
+          hideOverlap: true,
+          moveOverlap: 'shiftY',
+        },
         emphasis: {
           label: {
             show: true,
@@ -497,22 +503,25 @@ function buildClientePieOption(dados: ChartDatum[], selectedName: string | null)
         },
       },
     ],
-  };
+  });
 }
 
 function buildHorizontalBarOption(
   dados: ChartDatum[],
   selectedName: string | null,
-  color: string = CORES.secundaria,
-  metric: FaturamentoMetric = 'receita',
+  metric: FaturamentoMetric,
+  isDark: boolean,
+  color?: string,
 ): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
+  const barColor = color ?? tokens.palette[1];
   const sorted = [...dados].sort((left, right) => getMetricValue(right, metric) - getMetricValue(left, metric));
   const dadosRevertidos = sorted.reverse();
   const totalMetric = sorted.reduce((acc, item) => acc + getMetricValue(item, metric), 0);
   const metricLabel = metric === 'receita' ? 'Faturamento' : 'Minutas';
   const hasSelection = Boolean(selectedName && dados.some((item) => item.nome === selectedName));
 
-  return {
+  return buildBaseBarOption(isDark, {
     legend: { show: false },
     grid: { left: 8, right: 18, top: 18, bottom: 18, containLabel: true },
     xAxis: { type: 'value', name: metric === 'receita' ? 'R$' : 'Qtd' },
@@ -528,7 +537,7 @@ function buildHorizontalBarOption(
           name: item.nome,
           value: getMetricValue(item, metric),
           itemStyle: {
-            color,
+            color: barColor,
             opacity: hasSelection && selectedName !== item.nome ? 0.35 : 1,
           },
         })),
@@ -551,7 +560,7 @@ function buildHorizontalBarOption(
         ].join('<br/>');
       },
     },
-  };
+  });
 }
 
 function buildEvolutionOption(
@@ -559,7 +568,9 @@ function buildEvolutionOption(
   level: PeriodDrillLevel,
   dataFim: string,
   metaDiaria: number,
+  isDark: boolean,
 ): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
   const referencia = parseDateLocal(dataFim);
   const anoReferencia = referencia.getFullYear();
   const mesReferencia = referencia.getMonth();
@@ -603,7 +614,7 @@ function buildEvolutionOption(
     metaValues = labels.map(() => metaDiaria);
   }
 
-  return {
+  return buildBaseLineOption(isDark, buildBaseBarOption(isDark, {
     grid: { left: 10, right: 20, top: 42, bottom: 34, containLabel: true },
     legend: { bottom: 0 },
     xAxis: { type: 'category', data: labels },
@@ -614,7 +625,7 @@ function buildEvolutionOption(
         type: 'bar',
         data: values.map((value, index) => ({
           value,
-          itemStyle: { color: value >= metaValues[index] ? CORES.sucesso : CORES.perigo },
+          itemStyle: { color: value >= metaValues[index] ? tokens.palette[2] : tokens.palette[3] },
         })),
         barCategoryGap: level === 'dia' ? '18%' : '24%',
         barMaxWidth: level === 'dia' ? 30 : 52,
@@ -625,7 +636,7 @@ function buildEvolutionOption(
         data: metaValues,
         symbol: 'none',
         lineStyle: {
-          color: CORES.primaria,
+          color: tokens.palette[0],
           type: 'dashed',
           width: 3,
         },
@@ -633,11 +644,6 @@ function buildEvolutionOption(
     ],
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'cross',
-        crossStyle: { color: '#999', type: 'dashed' },
-        label: { show: true, backgroundColor: '#536298', color: '#fff' },
-      },
       formatter: (params: unknown) => {
         const items = Array.isArray(params) ? params as Array<{ marker?: string; seriesName?: string; value?: number | { value?: number } }> : [];
         return items
@@ -648,7 +654,7 @@ function buildEvolutionOption(
           .join('<br/>');
       },
     },
-  };
+  }));
 }
 
 function FaturamentoEvolutionCard({
@@ -674,9 +680,10 @@ function FaturamentoEvolutionCard({
   faturamentoFaltante: number;
   metaDiariaDinamica: number;
 }) {
+  const { isDark } = useEchartsTheme();
   const option = useMemo(
-    () => buildEvolutionOption(dados, drillLevel, dataFim, metaDiaria),
-    [dados, dataFim, drillLevel, metaDiaria],
+    () => buildEvolutionOption(dados, drillLevel, dataFim, metaDiaria, isDark),
+    [dados, dataFim, drillLevel, isDark, metaDiaria],
   );
 
   const indicadores = [
@@ -847,6 +854,7 @@ function TopClientesTableCard({
 
 export default function FaturamentoPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const { isDark } = useEchartsTheme();
   const [periodDrillLevel, setPeriodDrillLevel] = useState<PeriodDrillLevel>('dia');
   const [routeDrillLevel, setRouteDrillLevel] = useState<RouteDrillLevel>('rota');
   const [routeMetric, setRouteMetric] = useState<FaturamentoMetric>('receita');
@@ -999,20 +1007,20 @@ export default function FaturamentoPage() {
   }, [overviewData?.receitaBruta, topClientesData]);
 
   const classificacaoOption = useMemo(
-    () => buildClassificacaoDonutOption(classificacaoEntries, selectedClassificacao),
-    [classificacaoEntries, selectedClassificacao],
+    () => buildClassificacaoDonutOption(classificacaoEntries, selectedClassificacao, isDark),
+    [classificacaoEntries, isDark, selectedClassificacao],
   );
   const participacaoClientesOption = useMemo(
-    () => buildClientePieOption(participacaoClientes, selectedCliente),
-    [participacaoClientes, selectedCliente],
+    () => buildClientePieOption(participacaoClientes, selectedCliente, isDark),
+    [isDark, participacaoClientes, selectedCliente],
   );
   const responsavelOption = useMemo(
-    () => buildHorizontalBarOption(responsavelEntries, selectedResponsavel, CORES.sucesso, responsavelMetric),
-    [responsavelEntries, responsavelMetric, selectedResponsavel],
+    () => buildHorizontalBarOption(responsavelEntries, selectedResponsavel, responsavelMetric, isDark, getEchartsThemeTokens(isDark).palette[2]),
+    [isDark, responsavelEntries, responsavelMetric, selectedResponsavel],
   );
   const rotaOption = useMemo(
-    () => buildHorizontalBarOption(rotaEntries, selectedRota, CORES.secundaria, routeMetric),
-    [rotaEntries, routeMetric, selectedRota],
+    () => buildHorizontalBarOption(rotaEntries, selectedRota, routeMetric, isDark, getEchartsThemeTokens(isDark).palette[1]),
+    [isDark, rotaEntries, routeMetric, selectedRota],
   );
 
   const statusTabelaOptions = combinarStatusOptions(

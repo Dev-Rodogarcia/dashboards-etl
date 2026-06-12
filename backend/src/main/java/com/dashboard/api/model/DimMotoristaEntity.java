@@ -3,11 +3,13 @@ package com.dashboard.api.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.Immutable;
 
 @Entity
 @Immutable
+@IdClass(DimMotoristaId.class)
 @Table(name = "vw_dim_motoristas")
 public class DimMotoristaEntity {
 
@@ -15,10 +17,18 @@ public class DimMotoristaEntity {
     @Column(name = "[NomeMotorista]")
     private String nomeMotorista;
 
+    @Id
+    @Column(name = "[Filial]")
+    private String filial;
+
     protected DimMotoristaEntity() {
     }
 
     public String getNomeMotorista() {
         return nomeMotorista;
+    }
+
+    public String getFilial() {
+        return filial;
     }
 }

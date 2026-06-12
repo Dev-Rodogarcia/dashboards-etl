@@ -9,9 +9,14 @@ import org.springframework.stereotype.Service;
 public class ManifestosPerformanceService {
 
     private final ManifestosPerformanceSqlRepository repository;
+    private final ManifestosCostGoalService costGoalService;
 
-    public ManifestosPerformanceService(ManifestosPerformanceSqlRepository repository) {
+    public ManifestosPerformanceService(
+            ManifestosPerformanceSqlRepository repository,
+            ManifestosCostGoalService costGoalService
+    ) {
         this.repository = repository;
+        this.costGoalService = costGoalService;
     }
 
     public ManifestosPerformanceDTO buscarPerformance(
@@ -20,6 +25,17 @@ public class ManifestosPerformanceService {
             Integer ano,
             Integer mes
     ) {
-        return repository.buscarPerformance(filtro, nivel, ano, mes);
+        ManifestosPerformanceDTO performance = repository.buscarPerformance(filtro, nivel, ano, mes);
+        return new ManifestosPerformanceDTO(
+                performance.updatedAt(),
+                performance.kpis(),
+                performance.remuneracao(),
+                performance.aproveitamento(),
+                performance.efetividade(),
+                performance.statusSazonal(),
+                performance.custosMotorista(),
+                performance.tiposVeiculo(),
+                costGoalService.calcular(filtro, performance.kpis().custoTotal())
+        );
     }
 }

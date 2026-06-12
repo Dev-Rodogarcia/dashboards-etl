@@ -1,29 +1,21 @@
 import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import { useTheme } from 'next-themes';
-import { PALETA_SERIES } from '../../utils/chartColors';
+import { getEchartsThemeTokens } from '../../utils/echartsBuilders';
 
 export function useEchartsTheme() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
   const baseOption: EChartsOption = useMemo(() => {
-    const axisColor = isDark ? '#94a3b8' : '#6b7280';
-    const axisLineColor = isDark ? '#334155' : '#e5e7eb';
-    const splitLineColor = isDark ? '#1f2937' : '#f3f4f6';
-    const tooltipBg = isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.95)';
-    const tooltipBorder = isDark ? '#334155' : '#e5e7eb';
-    const tooltipText = isDark ? '#e5e7eb' : '#374151';
-    const palette = isDark
-      ? ['#60a5fa', '#f97316', '#34d399', '#f87171', '#a78bfa', '#22d3ee', '#f472b6', '#a3e635', '#facc15', '#c4b5fd']
-      : [...PALETA_SERIES];
+    const tokens = getEchartsThemeTokens(isDark);
 
     return {
-      color: palette,
+      color: tokens.palette,
       textStyle: {
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: 12,
-        color: axisColor,
+        color: tokens.axisColor,
       },
       grid: {
         top: 40,
@@ -34,35 +26,37 @@ export function useEchartsTheme() {
       },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: tooltipBg,
-        borderColor: tooltipBorder,
+        backgroundColor: tokens.tooltipBg,
+        borderColor: tokens.tooltipBorder,
         borderWidth: 1,
         textStyle: {
-          color: tooltipText,
+          color: tokens.tooltipText,
           fontSize: 12,
+          textBorderWidth: 0,
+          textShadowBlur: 0,
         },
       },
       legend: {
         bottom: 0,
         textStyle: {
           fontSize: 11,
-          color: axisColor,
+          color: tokens.axisColor,
         },
       },
       xAxis: {
-        axisLine: { lineStyle: { color: axisLineColor } },
+        axisLine: { lineStyle: { color: tokens.axisLineColor } },
         axisTick: { show: false },
-        axisLabel: { color: axisColor, fontSize: 11 },
+        axisLabel: { color: tokens.axisColor, fontSize: 11, textBorderWidth: 0, textShadowBlur: 0 },
       },
       yAxis: {
         axisLine: { show: false },
         axisTick: { show: false },
-        splitLine: { lineStyle: { color: splitLineColor } },
-        axisLabel: { color: axisColor, fontSize: 11 },
-        nameTextStyle: { color: axisColor, fontSize: 11 },
+        splitLine: { lineStyle: { color: tokens.splitLineColor } },
+        axisLabel: { color: tokens.axisColor, fontSize: 11, textBorderWidth: 0, textShadowBlur: 0 },
+        nameTextStyle: { color: tokens.axisColor, fontSize: 11, textBorderWidth: 0, textShadowBlur: 0 },
       },
     };
   }, [isDark]);
 
-  return { baseOption };
+  return { baseOption, isDark };
 }

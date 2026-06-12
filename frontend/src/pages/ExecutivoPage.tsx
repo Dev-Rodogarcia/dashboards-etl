@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../components/charts/ChartWrapper';
+import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import ExecutivoKpiGrid from '../components/domain/executivo/ExecutivoKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
@@ -17,15 +18,8 @@ import { useFiliais } from '../hooks/queries/useDimensoes';
 import { useExecutivoOverview, useExecutivoResumoFinanceiro, useExecutivoSerie } from '../hooks/queries/useExecutivo';
 import type { ExecutivoResumoFinanceiro } from '../types/executivo';
 import { normalizarPeriodo } from '../utils/dateUtils';
+import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarMoeda, formatarNumero } from '../utils/formatadores';
-
-const EXECUTIVO_CHART_COLORS = {
-  receitaOperacional: 'var(--color-primary)',
-  valorFaturado: 'var(--color-positive-fill)',
-  saldoAReceber: 'var(--color-warning-fill)',
-  saldoAPagar: 'var(--color-negative-fill)',
-  backlog: 'var(--color-primary)',
-} as const;
 
 type TooltipParam = {
   axisValue?: string | number;
@@ -73,47 +67,6 @@ function formatarTooltipExecutivoMisto(params: unknown) {
     return `${item.marker ?? ''}${nomeSerie}: ${valorFormatado}`;
   });
   return [titulo, ...linhas].filter(Boolean).join('<br/>');
-}
-
-function resolveCssColor(cssColor: string) {
-  if (typeof document === 'undefined') {
-    return cssColor;
-  }
-  const match = /^var\((--[\w-]+)\)$/.exec(cssColor.trim());
-  if (!match) {
-    return cssColor;
-  }
-  return getComputedStyle(document.documentElement).getPropertyValue(match[1]).trim() || cssColor;
-}
-
-function aplicarAlpha(color: string, alpha: number) {
-  const resolved = resolveCssColor(color);
-  const hex = resolved.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)?.[1];
-  if (!hex) {
-    return resolved;
-  }
-
-  const normalized = hex.length === 3
-    ? hex.split('').map((char) => `${char}${char}`).join('')
-    : hex;
-  const red = Number.parseInt(normalized.slice(0, 2), 16);
-  const green = Number.parseInt(normalized.slice(2, 4), 16);
-  const blue = Number.parseInt(normalized.slice(4, 6), 16);
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}
-
-function areaGradient(color: string) {
-  return {
-    type: 'linear' as const,
-    x: 0,
-    y: 0,
-    x2: 0,
-    y2: 1,
-    colorStops: [
-      { offset: 0, color: aplicarAlpha(color, 0.28) },
-      { offset: 1, color: aplicarAlpha(color, 0.03) },
-    ],
-  };
 }
 
 const CSV_SEPARATOR = ';';
@@ -226,6 +179,7 @@ function ResumoFinanceiroTable({
 
 export default function ExecutivoPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const { isDark } = useEchartsTheme();
   const filiais = useFiliais();
 
   useEffect(() => {
@@ -262,39 +216,34 @@ export default function ExecutivoPage() {
   const serieDados = serie.data ?? [];
   const erroSerie = serie.isError ? getApiErrorMessage(serie.error, 'Erro ao carregar série executiva.') : null;
   const resumoFinanceiroDados = resumoFinanceiro.data ?? [];
+  const tokens = getEchartsThemeTokens(isDark);
   const chartColors = {
-    receitaOperacional: resolveCssColor(EXECUTIVO_CHART_COLORS.receitaOperacional),
-    valorFaturado: resolveCssColor(EXECUTIVO_CHART_COLORS.valorFaturado),
-    saldoAReceber: resolveCssColor(EXECUTIVO_CHART_COLORS.saldoAReceber),
-    saldoAPagar: resolveCssColor(EXECUTIVO_CHART_COLORS.saldoAPagar),
-    backlog: resolveCssColor(EXECUTIVO_CHART_COLORS.backlog),
+    receitaOperacional: tokens.palette[0],
+    valorFaturado: tokens.palette[2],
+    saldoAReceber: tokens.palette[8],
+    saldoAPagar: tokens.palette[3],
+    backlog: tokens.palette[4],
   };
 
-  const financeiroOption: EChartsOption = {
+  const financeiroOption: EChartsOption = buildBaseLineOption(isDark, {
     color: Object.values(chartColors),
     legend: { top: 0 },
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'cross',
-        crossStyle: { color: '#999', type: 'dashed' },
-        label: { show: true, backgroundColor: '#536298', color: '#fff' },
-      },
       formatter: formatarTooltipFinanceiro,
     },
     grid: { top: 54, right: 20, bottom: 30, left: 68 },
-    xAxis: { type: 'category', boundaryGap: false, data: serieDados.map((item) => item.month) },
+    xAxis: { type: 'category', data: serieDados.map((item) => item.month) },
     yAxis: { type: 'value', axisLabel: { formatter: formatarMoedaEixo } },
     series: [
       {
         name: 'Receita Operacional',
         type: 'line',
         smooth: true,
-        showSymbol: false,
         symbolSize: 7,
         lineStyle: { width: 2.5, color: chartColors.receitaOperacional },
         itemStyle: { color: chartColors.receitaOperacional },
-        areaStyle: { color: areaGradient(EXECUTIVO_CHART_COLORS.receitaOperacional) },
+        areaStyle: {},
         emphasis: { focus: 'series' },
         data: serieDados.map((item) => item.receitaOperacional),
       },
@@ -302,11 +251,10 @@ export default function ExecutivoPage() {
         name: 'Valor Faturado',
         type: 'line',
         smooth: true,
-        showSymbol: false,
         symbolSize: 7,
         lineStyle: { width: 2.5, color: chartColors.valorFaturado },
         itemStyle: { color: chartColors.valorFaturado },
-        areaStyle: { color: areaGradient(EXECUTIVO_CHART_COLORS.valorFaturado) },
+        areaStyle: {},
         emphasis: { focus: 'series' },
         data: serieDados.map((item) => item.valorFaturado),
       },
@@ -314,11 +262,10 @@ export default function ExecutivoPage() {
         name: 'Saldo a Receber',
         type: 'line',
         smooth: true,
-        showSymbol: false,
         symbolSize: 7,
         lineStyle: { width: 2.5, color: chartColors.saldoAReceber },
         itemStyle: { color: chartColors.saldoAReceber },
-        areaStyle: { color: areaGradient(EXECUTIVO_CHART_COLORS.saldoAReceber) },
+        areaStyle: {},
         emphasis: { focus: 'series' },
         data: serieDados.map((item) => item.saldoAReceber),
       },
@@ -326,21 +273,20 @@ export default function ExecutivoPage() {
         name: 'Saldo a Pagar',
         type: 'line',
         smooth: true,
-        showSymbol: false,
         symbolSize: 7,
         lineStyle: { width: 2.5, color: chartColors.saldoAPagar },
         itemStyle: { color: chartColors.saldoAPagar },
-        areaStyle: { color: areaGradient(EXECUTIVO_CHART_COLORS.saldoAPagar) },
+        areaStyle: {},
         emphasis: { focus: 'series' },
         data: serieDados.map((item) => item.saldoAPagar),
       },
     ],
-  };
+  });
 
-  const backlogOption: EChartsOption = {
+  const backlogOption: EChartsOption = buildBaseLineOption(isDark, buildBaseBarOption(isDark, {
     color: [chartColors.valorFaturado, chartColors.backlog],
     legend: { top: 0 },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: formatarTooltipExecutivoMisto },
+    tooltip: { trigger: 'axis', formatter: formatarTooltipExecutivoMisto },
     grid: { top: 54, right: 62, bottom: 32, left: 68 },
     xAxis: { type: 'category', data: serieDados.map((item) => item.month) },
     yAxis: [
@@ -358,8 +304,7 @@ export default function ExecutivoPage() {
         name: 'Valor Faturado',
         type: 'bar',
         yAxisIndex: 0,
-        barMaxWidth: 30,
-        itemStyle: { color: chartColors.valorFaturado, borderRadius: [4, 4, 0, 0] },
+        itemStyle: { color: chartColors.valorFaturado },
         data: serieDados.map((item) => item.valorFaturado),
       },
       {
@@ -374,7 +319,7 @@ export default function ExecutivoPage() {
         data: serieDados.map((item) => item.backlogColetas),
       },
     ],
-  };
+  }));
 
   return (
     <div className="w-full">

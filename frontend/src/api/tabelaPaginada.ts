@@ -55,6 +55,8 @@ export async function buscarTabelaPaginada<T, F extends FiltroBase>(
   aplicarFiltrosTabelaParams(params, filtrosTabela);
   params.set('page', String(Math.max(0, pagina - 1)));
   params.set('size', String(tamanhoPagina));
+  params.set('pagina', String(pagina));
+  params.set('tamanhoPagina', String(tamanhoPagina));
 
   const { data } = await clienteAxios.get<PaginacaoBackendResponse<T>>(url, { params });
   return normalizarPaginacaoResponse(data, pagina, tamanhoPagina);

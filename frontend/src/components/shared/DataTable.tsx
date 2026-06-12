@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import TableHeaderTooltip from './TableHeaderTooltip';
 import { calcularLarguraMinimaTabela, getColumnSizingStyle } from './tableLayout';
 import MensagemErro from '../ui/MensagemErro';
 import { getApiErrorMessage, getTipoErro } from '../../utils/apiError';
@@ -236,7 +237,6 @@ export default function DataTable<T>({
                 <th
                   key={col.chave}
                   onClick={() => handleSort(col.chave, col.ordenavel !== false)}
-                  title={col.tooltip ?? col.label}
                   className={`px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap select-none ${
                     col.ordenavel === false ? 'cursor-default' : 'cursor-pointer'
                   } ${
@@ -250,6 +250,7 @@ export default function DataTable<T>({
                 >
                   <span className="flex items-center gap-1">
                     <span>{col.label}</span>
+                    {col.tooltip ? <TableHeaderTooltip label={col.label} content={col.tooltip} /> : null}
                     {col.ordenavel !== false && ordenarPor === col.chave && (
                       <span className="shrink-0">{direcao === 'asc' ? '↑' : '↓'}</span>
                     )}

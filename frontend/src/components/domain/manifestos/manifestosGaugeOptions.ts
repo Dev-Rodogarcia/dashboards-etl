@@ -1,5 +1,5 @@
 import type { EChartsOption } from 'echarts';
-import { CORES } from '../../../utils/chartColors';
+import { getEchartsThemeTokens, resolveEchartsColor } from '../../../utils/echartsBuilders';
 import { formatarPorcentagem } from '../../../utils/formatadores';
 
 function percentualSeguro(valor: unknown): number {
@@ -12,7 +12,9 @@ function limitarPreenchimento(valor: number): number {
   return Math.min(100, valor);
 }
 
-export function buildManifestosHalfDonutOption(globalInput: number, corDestaque: string = CORES.primaria): EChartsOption {
+export function buildManifestosHalfDonutOption(globalInput: number, corDestaque: string = 'var(--color-primary)', isDark = false): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
+  const highlightColor = resolveEchartsColor(corDestaque) ?? tokens.palette[0];
   const globalReal = percentualSeguro(globalInput);
   const globalPreenchimento = limitarPreenchimento(globalReal);
   const restante = Math.max(0, 100 - globalPreenchimento);
@@ -21,6 +23,15 @@ export function buildManifestosHalfDonutOption(globalInput: number, corDestaque:
   return {
     tooltip: {
       trigger: 'item',
+      backgroundColor: tokens.tooltipBg,
+      borderColor: tokens.tooltipBorder,
+      borderWidth: 1,
+      textStyle: {
+        color: tokens.tooltipText,
+        fontSize: 12,
+        textBorderWidth: 0,
+        textShadowBlur: 0,
+      },
       formatter: (params: unknown) => {
         const item = params as { name?: string; value?: number };
         if (!item.name || item.name === 'Metade Oculta') return '';
@@ -36,7 +47,7 @@ export function buildManifestosHalfDonutOption(globalInput: number, corDestaque:
         silent: true,
         style: {
           text: textoGlobal,
-          fill: 'var(--color-text)',
+          fill: tokens.textColor,
           fontSize: 29,
           fontWeight: 800,
         },
@@ -48,7 +59,7 @@ export function buildManifestosHalfDonutOption(globalInput: number, corDestaque:
         silent: true,
         style: {
           text: formatarPorcentagem(0, 1),
-          fill: 'var(--color-text-muted)',
+          fill: tokens.mutedTextColor,
           fontSize: 11,
           fontWeight: 600,
         },
@@ -60,7 +71,7 @@ export function buildManifestosHalfDonutOption(globalInput: number, corDestaque:
         silent: true,
         style: {
           text: formatarPorcentagem(100, 1),
-          fill: 'var(--color-text-muted)',
+          fill: tokens.mutedTextColor,
           fontSize: 11,
           fontWeight: 600,
         },
@@ -82,12 +93,12 @@ export function buildManifestosHalfDonutOption(globalInput: number, corDestaque:
           {
             name: 'Global',
             value: globalPreenchimento,
-            itemStyle: { color: corDestaque, borderWidth: 0 },
+            itemStyle: { color: highlightColor, borderWidth: 0 },
           },
           {
             name: 'Restante',
             value: restante,
-            itemStyle: { color: 'rgba(148, 163, 184, 0.22)', borderWidth: 0 },
+            itemStyle: { color: tokens.softTrack, borderWidth: 0 },
           },
           {
             name: 'Metade Oculta',

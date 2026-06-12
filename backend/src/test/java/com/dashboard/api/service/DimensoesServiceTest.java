@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.repository.DimFilialRepository;
+import com.dashboard.api.repository.DimMotoristaRepository;
 import com.dashboard.api.repository.DimUsuarioRepository;
 import com.dashboard.api.repository.DimVeiculoRepository;
 import com.dashboard.api.repository.VisaoColetasRepository;
@@ -8,7 +9,6 @@ import com.dashboard.api.repository.VisaoContasAPagarRepository;
 import com.dashboard.api.repository.VisaoCotacoesRepository;
 import com.dashboard.api.repository.VisaoFaturasClienteRepository;
 import com.dashboard.api.repository.VisaoFretesRepository;
-import com.dashboard.api.repository.VisaoManifestosRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import java.util.Arrays;
 import java.util.List;
@@ -23,13 +23,13 @@ class DimensoesServiceTest {
     @Test
     void listarClientesDeveIgnorarCamposNulosSemGerarErro() throws Exception {
         DimFilialRepository dimFilialRepository = mock(DimFilialRepository.class);
+        DimMotoristaRepository dimMotoristaRepository = mock(DimMotoristaRepository.class);
         DimUsuarioRepository dimUsuarioRepository = mock(DimUsuarioRepository.class);
         DimVeiculoRepository dimVeiculoRepository = mock(DimVeiculoRepository.class);
         VisaoColetasRepository coletasRepository = mock(VisaoColetasRepository.class);
         VisaoFretesRepository fretesRepository = mock(VisaoFretesRepository.class);
         VisaoCotacoesRepository cotacoesRepository = mock(VisaoCotacoesRepository.class);
         VisaoFaturasClienteRepository faturasClienteRepository = mock(VisaoFaturasClienteRepository.class);
-        VisaoManifestosRepository manifestosRepository = mock(VisaoManifestosRepository.class);
         VisaoContasAPagarRepository contasAPagarRepository = mock(VisaoContasAPagarRepository.class);
 
         EscopoFilialService escopoFilialService = new EscopoFilialService(null, null) {
@@ -41,13 +41,13 @@ class DimensoesServiceTest {
 
         DimensoesService service = new DimensoesService(
                 dimFilialRepository,
+                dimMotoristaRepository,
                 dimUsuarioRepository,
                 dimVeiculoRepository,
                 coletasRepository,
                 fretesRepository,
                 cotacoesRepository,
                 faturasClienteRepository,
-                manifestosRepository,
                 contasAPagarRepository,
                 escopoFilialService
         );

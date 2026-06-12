@@ -1,5 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../components/charts/ChartWrapper';
+import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import ContasAPagarKpiGrid from '../components/domain/contasAPagar/ContasAPagarKpiGrid';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
@@ -17,12 +18,13 @@ import { useContasAPagarGraficos, useContasAPagarOverview, useContasAPagarSerie,
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ContaPagarResumoRow, ContasAPagarFiltro } from '../types/contasAPagar';
-import { CORES } from '../utils/chartColors';
+import { buildBaseBarOption, buildBaseDonutOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarMoeda } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 export default function ContasAPagarPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const { isDark } = useEchartsTheme();
   const filiais = useFiliais();
   const planoContas = usePlanoContas();
 
@@ -57,23 +59,24 @@ export default function ContasAPagarPage() {
   const rankingFornecedor = graficos.data?.topFornecedores ?? [];
   const centroCusto = graficos.data?.centroCusto ?? [];
   const conciliacao = graficos.data?.conciliacao ?? [];
+  const tokens = getEchartsThemeTokens(isDark);
   const statusTabelaOptions = combinarStatusOptions(
     ['Sim', 'Não'],
     (tabela.data?.conteudo ?? []).map((item) => item.statusPagamento),
     filtros.pago,
   );
 
-  const serieOption: EChartsOption = {
+  const serieOption: EChartsOption = buildBaseBarOption(isDark, {
     legend: { bottom: 0 },
     xAxis: { type: 'category', data: (serie.data ?? []).map((item) => item.month) },
     yAxis: { type: 'value' },
     series: [
-      { name: 'Pago', type: 'bar', stack: 'contas', data: (serie.data ?? []).map((item) => item.pago), itemStyle: { color: CORES.sucesso } },
-      { name: 'Aberto', type: 'bar', stack: 'contas', data: (serie.data ?? []).map((item) => item.aberto), itemStyle: { color: CORES.aviso } },
+      { name: 'Pago', type: 'bar', stack: 'contas', data: (serie.data ?? []).map((item) => item.pago), itemStyle: { color: tokens.palette[2] } },
+      { name: 'Aberto', type: 'bar', stack: 'contas', data: (serie.data ?? []).map((item) => item.aberto), itemStyle: { color: tokens.palette[1] } },
     ],
-  };
+  });
 
-  const fornecedorOption: EChartsOption = {
+  const fornecedorOption: EChartsOption = buildBaseBarOption(isDark, {
     grid: { left: 10, containLabel: true },
     xAxis: { type: 'value' },
     yAxis: {
@@ -85,24 +88,23 @@ export default function ContasAPagarPage() {
     },
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'shadow' },
       formatter: (params: unknown) => {
         const p = (params as { name: string; value: number }[])[0];
         return `${p.name}<br/>R$ ${p.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
       },
     },
-    series: [{ type: 'bar', data: rankingFornecedor.map((item) => item.valor).reverse(), itemStyle: { color: CORES.primaria } }],
-  };
+    series: [{ type: 'bar', data: rankingFornecedor.map((item) => item.valor).reverse(), itemStyle: { color: tokens.palette[0] } }],
+  });
 
-  const centroOption: EChartsOption = {
+  const centroOption: EChartsOption = buildBaseBarOption(isDark, {
     xAxis: { type: 'category', data: centroCusto.map((item) => item.centroCusto) },
     yAxis: { type: 'value' },
-    series: [{ type: 'bar', data: centroCusto.map((item) => item.valor), itemStyle: { color: CORES.secundaria } }],
-  };
+    series: [{ type: 'bar', data: centroCusto.map((item) => item.valor), itemStyle: { color: tokens.palette[1] } }],
+  });
 
-  const conciliacaoOption: EChartsOption = {
-    series: [{ type: 'pie', radius: ['40%', '68%'], data: conciliacao.map((item) => ({ name: item.status, value: item.valor })) }],
-  };
+  const conciliacaoOption: EChartsOption = buildBaseDonutOption(isDark, {
+    series: [{ name: 'Conciliação', type: 'pie', data: conciliacao.map((item) => ({ name: item.status, value: item.valor })) }],
+  });
 
   const colunas: ColunaTabelaAnalitica<ContaPagarResumoRow>[] = [
     { chave: 'lancamentoNumero', label: 'Lancamento', fixo: true, filtroTabela: 'codigo' },

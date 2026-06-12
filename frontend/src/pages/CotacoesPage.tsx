@@ -40,6 +40,7 @@ import type {
 } from '../types/cotacoes';
 import { CORES, PALETA_SERIES } from '../utils/chartColors';
 import { dataHojeLocal, primeiroDiaMesesAtrasLocal } from '../utils/dateUtils';
+import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarMoeda, formatarNumero, formatarPeso, formatarPorcentagem } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
@@ -560,17 +561,14 @@ function aggregateTrend(serie: CotacoesTrendPoint[], level: PeriodDrillLevel | C
   return Array.from(buckets.values());
 }
 
-function buildSerieOption(buckets: TrendBucket[]): EChartsOption {
-  return {
+function buildSerieOption(buckets: TrendBucket[], isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
+
+  return buildBaseLineOption(isDark, {
     grid: { left: 44, right: 18, top: 20, bottom: 42, containLabel: true },
     legend: { bottom: 0 },
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'cross',
-        crossStyle: { color: '#999', type: 'dashed' },
-        label: { show: true, backgroundColor: '#536298', color: '#fff' },
-      },
       formatter: (params: unknown) => {
         const item = Array.isArray(params) ? params[0] as { dataIndex?: number } : null;
         const bucket = typeof item?.dataIndex === 'number' ? buckets[item.dataIndex] : null;
@@ -588,7 +586,6 @@ function buildSerieOption(buckets: TrendBucket[]): EChartsOption {
       type: 'category',
       data: buckets.map((item) => item.label),
       axisLabel: { interval: 'auto', rotate: buckets.length > 18 ? 35 : 0 },
-      boundaryGap: false,
     },
     yAxis: { type: 'value' },
     series: [
@@ -599,7 +596,7 @@ function buildSerieOption(buckets: TrendBucket[]): EChartsOption {
         symbolSize: 7,
         areaStyle: {},
         data: buckets.map((item) => item.cotacoes),
-        itemStyle: { color: CORES.primaria },
+        itemStyle: { color: tokens.palette[0] },
       },
       {
         name: 'Convertidas',
@@ -608,7 +605,7 @@ function buildSerieOption(buckets: TrendBucket[]): EChartsOption {
         symbolSize: 7,
         areaStyle: {},
         data: buckets.map((item) => item.convertidas),
-        itemStyle: { color: CORES.sucesso },
+        itemStyle: { color: tokens.palette[2] },
       },
       {
         name: 'Reprovadas',
@@ -617,10 +614,10 @@ function buildSerieOption(buckets: TrendBucket[]): EChartsOption {
         symbolSize: 7,
         areaStyle: {},
         data: buckets.map((item) => item.reprovadas),
-        itemStyle: { color: CORES.perigo },
+        itemStyle: { color: tokens.palette[3] },
       },
     ],
-  };
+  });
 }
 
 function getTrechoMetricValue(item: CotacoesAgrupamento, metric: TrechoMetric): number {
@@ -631,14 +628,15 @@ function formatTrechoMetricValue(value: number): string {
   return formatarMoeda(value);
 }
 
-function buildTrechosOption(entries: CotacoesAgrupamento[], selectedName: string | null, metric: TrechoMetric): EChartsOption {
+function buildTrechosOption(entries: CotacoesAgrupamento[], selectedName: string | null, metric: TrechoMetric, isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
   const metricLabel = metric === 'convertido' ? 'Convertido' : 'Potencial';
-  const metricColor = metric === 'convertido' ? CORES.sucesso : CORES.secundaria;
+  const metricColor = metric === 'convertido' ? tokens.palette[2] : tokens.palette[1];
   const sorted = [...entries].sort((left, right) => getTrechoMetricValue(right, metric) - getTrechoMetricValue(left, metric)).slice(0, 8);
   const dados = sorted.reverse();
   const hasSelection = Boolean(selectedName && entries.some((item) => item.nome === selectedName));
 
-  return {
+  return buildBaseBarOption(isDark, {
     grid: { left: 6, right: 12, top: 10, bottom: 10, containLabel: true },
     legend: { show: false },
     xAxis: { type: 'value', name: 'R$' },
@@ -679,21 +677,22 @@ function buildTrechosOption(entries: CotacoesAgrupamento[], selectedName: string
         barMaxWidth: 18,
       },
     ],
-  };
+  });
 }
 
-function buildConversionOption(buckets: TrendBucket[], metric: ConversionMetric, expanded = false): EChartsOption {
-  const color = metric === 'valor' ? '#60a5fa' : '#111827';
+function buildConversionOption(buckets: TrendBucket[], metric: ConversionMetric, expanded = false, isDark = false): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
+  const color = metric === 'valor' ? tokens.palette[0] : tokens.palette[1];
   const values = buckets.map((item) => (
     metric === 'valor'
       ? percentual(item.valorConvertido, item.valorPotencial)
       : percentual(item.convertidas, item.cotacoes)
   ));
 
-  return {
+  return buildBaseLineOption(isDark, {
     grid: expanded
-      ? { left: 42, right: 22, top: 32, bottom: 30, containLabel: true }
-      : { left: 34, right: 16, top: 26, bottom: 22, containLabel: true },
+      ? { left: 42, right: 30, top: 32, bottom: 30, containLabel: true }
+      : { left: 34, right: 24, top: 26, bottom: 22, containLabel: true },
     tooltip: {
       trigger: 'axis',
       appendToBody: true,
@@ -714,9 +713,9 @@ function buildConversionOption(buckets: TrendBucket[], metric: ConversionMetric,
     },
     xAxis: {
       type: 'category',
-      data: buckets.map((item) => item.label),
-      axisLabel: { fontSize: expanded ? 11 : 10, interval: 'auto', margin: 10 },
-    },
+        data: buckets.map((item) => item.label),
+        axisLabel: { fontSize: expanded ? 11 : 10, interval: 'auto', margin: 10 },
+      },
     yAxis: {
       type: 'value',
       splitNumber: expanded ? 5 : 4,
@@ -738,15 +737,16 @@ function buildConversionOption(buckets: TrendBucket[], metric: ConversionMetric,
         lineStyle: { width: 2.5, color },
       },
     ],
-  };
+  });
 }
 
-function buildMotivosOption(entries: CotacoesMotivoPerda[], selectedName: string | null, totalReprovadas: number): EChartsOption {
+function buildMotivosOption(entries: CotacoesMotivoPerda[], selectedName: string | null, totalReprovadas: number, isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
   const sorted = [...entries].sort((left, right) => right.total - left.total).slice(0, 8);
   const total = totalReprovadas > 0 ? totalReprovadas : entries.reduce((acc, item) => acc + item.total, 0);
   const hasSelection = Boolean(selectedName && entries.some((item) => item.motivo === selectedName));
 
-  return {
+  return buildBaseBarOption(isDark, {
     grid: { left: 6, right: 42, top: 8, bottom: 18, containLabel: true },
     legend: { show: false },
     tooltip: {
@@ -789,7 +789,7 @@ function buildMotivosOption(entries: CotacoesMotivoPerda[], selectedName: string
           name: item.motivo,
           value: item.total,
           itemStyle: {
-            color: PALETA_SERIES[index % PALETA_SERIES.length],
+            color: tokens.palette[index % tokens.palette.length],
             opacity: hasSelection && selectedName !== item.motivo ? 0.35 : 1,
           },
         })),
@@ -802,7 +802,7 @@ function buildMotivosOption(entries: CotacoesMotivoPerda[], selectedName: string
         },
       },
     ],
-  };
+  });
 }
 
 function getFunilValue(
@@ -914,6 +914,7 @@ function TaxasConversaoCard({
   onViewModeChange: (mode: ConversionViewMode) => void;
   onPeriodoChange: (periodoMeses: ConversionPeriodoMeses) => void;
 }) {
+  const { isDark } = useEchartsTheme();
   const tipoMap = new Map(tipos.map((item) => [normalizarTexto(item.nome), item]));
   const blocos = ['LTL', 'FTL', 'PTL'].map((tipo) => (
     tipoMap.get(tipo.toLowerCase()) ?? {
@@ -957,10 +958,10 @@ function TaxasConversaoCard({
       <div className="grid h-full max-h-full min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2 overflow-hidden lg:grid-cols-[minmax(0,1.2fr)_minmax(17rem,1fr)] lg:grid-rows-1">
         <div className="flex h-full max-h-full min-h-0 flex-col gap-2 overflow-hidden">
           {chartMetrics.map((metric) => (
-            <div key={metric} className={`flex max-h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg px-2 ${isSingleMode ? 'py-2' : 'py-1.5'}`} style={{ backgroundColor: 'var(--color-background)' }}>
+            <div key={metric} className={`flex max-h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg px-2 ${isSingleMode ? 'py-2' : 'py-1.5'}`} style={{ backgroundColor: 'var(--color-bg)' }}>
               <div className="shrink-0 px-1 text-xs font-semibold leading-tight" style={{ color: 'var(--color-text)' }}>{chartTitles[metric]}</div>
               <div className="max-h-full min-h-0 flex-1 overflow-hidden pt-1">
-                <ThemedEChart option={buildConversionOption(buckets, metric, isSingleMode)} />
+                <ThemedEChart option={buildConversionOption(buckets, metric, isSingleMode, isDark)} />
               </div>
             </div>
           ))}
@@ -980,7 +981,7 @@ function TaxasConversaoCard({
                 ];
 
                 return (
-                  <div key={item.nome} className="max-h-full min-h-0 flex-1 rounded-xl border p-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                  <div key={item.nome} className="max-h-full min-h-0 flex-1 rounded-xl border p-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
                     <div className="grid h-full max-h-full min-h-0 grid-cols-[4.4rem_1fr] gap-2 overflow-hidden">
                       <div className="flex min-h-0 flex-col items-center justify-center rounded-lg px-1 text-center" style={{ backgroundColor: `${accent}18` }}>
                         <span className="text-base font-black leading-none" style={{ color: accent }}>{item.nome}</span>
@@ -1008,6 +1009,7 @@ function TaxasConversaoCard({
 
 export default function CotacoesPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const { isDark } = useEchartsTheme();
   const [activeView, setActiveView] = useState<CotacoesViewTab>('usuario');
   const [serieDrillLevel, setSerieDrillLevel] = useState<PeriodDrillLevel>('dia');
   const [funilMetric, setFunilMetric] = useState<FunnelMetric>('quantidade');
@@ -1117,9 +1119,9 @@ export default function CotacoesPage() {
     return motivos;
   }, [graficos.data?.perdasPorCliente, graficos.data?.perdasPorTrecho, motivos, perdaDrillLevel]);
 
-  const serieOption = useMemo(() => buildSerieOption(serieBuckets), [serieBuckets]);
-  const trechosOption = useMemo(() => buildTrechosOption(trechosEntries, selectedTrecho, trechoMetric), [selectedTrecho, trechoMetric, trechosEntries]);
-  const motivosOption = useMemo(() => buildMotivosOption(perdasEntries, selectedPerda, totalReprovadas), [perdasEntries, selectedPerda, totalReprovadas]);
+  const serieOption = useMemo(() => buildSerieOption(serieBuckets, isDark), [isDark, serieBuckets]);
+  const trechosOption = useMemo(() => buildTrechosOption(trechosEntries, selectedTrecho, trechoMetric, isDark), [isDark, selectedTrecho, trechoMetric, trechosEntries]);
+  const motivosOption = useMemo(() => buildMotivosOption(perdasEntries, selectedPerda, totalReprovadas, isDark), [isDark, perdasEntries, selectedPerda, totalReprovadas]);
 
   const colunas: ColunaTabelaAnalitica<CotacaoResumoRow>[] = [
     { chave: 'numeroCotacao', label: 'N° Cotação', fixo: true, filtroTabela: 'codigo' },

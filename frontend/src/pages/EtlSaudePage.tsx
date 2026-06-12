@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../components/charts/ChartWrapper';
+import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import EtlSaudeKpiGrid from '../components/domain/etlSaude/EtlSaudeKpiGrid';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
@@ -15,7 +16,7 @@ import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useEtlSaudeOverview, useEtlSaudeSerie, useEtlSaudeTabela } from '../hooks/queries/useEtlSaude';
 import { normalizarPeriodo } from '../utils/dateUtils';
-import { CORES } from '../utils/chartColors';
+import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarDataHora, formatarNumero, formatarPorcentagem } from '../utils/formatadores';
 import type { EtlLogExtracaoAuditoriaRow } from '../types/etlSaude';
 
@@ -78,6 +79,7 @@ function formatarTooltipVolume(params: unknown) {
 
 export default function EtlSaudePage() {
   const { dataInicio, dataFim, setDataInicio, setDataFim, setDataRange, limparFiltros } = useFiltro();
+  const { isDark } = useEchartsTheme();
   const filtro = { dataInicio, dataFim };
 
   useEffect(() => {
@@ -101,10 +103,10 @@ export default function EtlSaudePage() {
     updatedAt: overview.data?.updatedAt ?? null,
   });
 
-  const serieDados = serie.data ?? [];
+  const serieDados = useMemo(() => serie.data ?? [], [serie.data]);
   const erroSerie = serie.isError ? getApiErrorMessage(serie.error, 'Erro ao carregar série do ETL.') : null;
   const auditoriaDados = tabela.data ?? [];
-  const taxasDiarias = serieDados.map((item) => {
+  const taxasDiarias = useMemo(() => serieDados.map((item) => {
     const totalExecucoes = Math.max(item.execucoes, 0);
     const falhas = Math.max(item.erros, 0);
     const sucessos = Math.max(totalExecucoes - falhas, 0);
@@ -114,84 +116,90 @@ export default function EtlSaudePage() {
       taxaSucesso: totalExecucoes > 0 ? (sucessos * 100) / totalExecucoes : 0,
       taxaFalha: totalExecucoes > 0 ? (falhas * 100) / totalExecucoes : 0,
     };
-  });
+  }), [serieDados]);
 
-  const taxasOption: EChartsOption = {
-    legend: { bottom: 0 },
-    tooltip: {
-      trigger: 'axis',
-      valueFormatter: (value) => formatarPorcentagem(Number(value ?? 0), 1),
-    },
-    grid: { top: 34, right: 18, bottom: 46, left: 42, containLabel: true },
-    xAxis: { type: 'category', data: taxasDiarias.map((item) => item.date) },
-    yAxis: {
-      type: 'value',
-      max: 100,
-      axisLabel: { formatter: (value: number | string) => formatarPorcentagem(Number(value), 0) },
-    },
-    series: [
-      {
-        name: 'Sucesso',
-        type: 'line',
-        smooth: true,
-        symbolSize: 7,
-        data: taxasDiarias.map((item) => Number(item.taxaSucesso.toFixed(1))),
-        itemStyle: { color: CORES.sucesso },
-        lineStyle: { color: CORES.sucesso, width: 2 },
-      },
-      {
-        name: 'Falha',
-        type: 'line',
-        smooth: true,
-        symbolSize: 7,
-        data: taxasDiarias.map((item) => Number(item.taxaFalha.toFixed(1))),
-        itemStyle: { color: CORES.perigo },
-        lineStyle: { color: CORES.perigo, width: 2 },
-      },
-    ],
-  };
+  const taxasOption: EChartsOption = useMemo(() => {
+    const tokens = getEchartsThemeTokens(isDark);
 
-  const volumeOption: EChartsOption = {
-    legend: { top: 0 },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'cross' },
-      formatter: formatarTooltipVolume,
-    },
-    grid: { top: 54, right: 62, bottom: 46, left: 42, containLabel: true },
-    xAxis: { type: 'category', data: serieDados.map((item) => item.date) },
-    yAxis: [
-      { type: 'value', name: 'Registros' },
-      {
+    return buildBaseLineOption(isDark, {
+      legend: { bottom: 0 },
+      tooltip: {
+        trigger: 'axis',
+        valueFormatter: (value) => formatarPorcentagem(Number(value ?? 0), 1),
+      },
+      grid: { top: 34, right: 36, bottom: 46, left: 42, containLabel: true },
+      xAxis: { type: 'category', data: taxasDiarias.map((item) => item.date) },
+      yAxis: {
         type: 'value',
-        name: 'Duração',
-        alignTicks: true,
-        splitLine: { show: false },
-        axisLabel: { formatter: (value: number | string) => formatarDuracao(Number(value)) },
+        max: 100,
+        axisLabel: { formatter: (value: number | string) => formatarPorcentagem(Number(value), 0) },
       },
-    ],
-    series: [
-      {
-        name: 'Registros',
-        type: 'bar',
-        yAxisIndex: 0,
-        barMaxWidth: 32,
-        data: serieDados.map((item) => item.volumeProcessado),
-        itemStyle: { color: CORES.primaria, borderRadius: [4, 4, 0, 0] },
+      series: [
+        {
+          name: 'Sucesso',
+          type: 'line',
+          smooth: true,
+          symbolSize: 7,
+          data: taxasDiarias.map((item) => Number(item.taxaSucesso.toFixed(1))),
+          itemStyle: { color: tokens.palette[2] },
+          lineStyle: { color: tokens.palette[2], width: 2 },
+        },
+        {
+          name: 'Falha',
+          type: 'line',
+          smooth: true,
+          symbolSize: 7,
+          data: taxasDiarias.map((item) => Number(item.taxaFalha.toFixed(1))),
+          itemStyle: { color: tokens.palette[3] },
+          lineStyle: { color: tokens.palette[3], width: 2 },
+        },
+      ],
+    });
+  }, [isDark, taxasDiarias]);
+
+  const volumeOption: EChartsOption = useMemo(() => {
+    const tokens = getEchartsThemeTokens(isDark);
+
+    return buildBaseLineOption(isDark, buildBaseBarOption(isDark, {
+      legend: { top: 0 },
+      tooltip: {
+        trigger: 'axis',
+        formatter: formatarTooltipVolume,
       },
-      {
-        name: 'Duração Média',
-        type: 'line',
-        yAxisIndex: 1,
-        smooth: true,
-        symbolSize: 7,
-        data: serieDados.map((item) => item.duracaoMedia),
-        itemStyle: { color: CORES.aviso },
-        lineStyle: { color: CORES.aviso, width: 2.5 },
-        emphasis: { focus: 'series' },
-      },
-    ],
-  };
+      grid: { top: 54, right: 62, bottom: 46, left: 42, containLabel: true },
+      xAxis: { type: 'category', data: serieDados.map((item) => item.date) },
+      yAxis: [
+        { type: 'value', name: 'Registros' },
+        {
+          type: 'value',
+          name: 'Duração',
+          alignTicks: true,
+          splitLine: { show: false },
+          axisLabel: { formatter: (value: number | string) => formatarDuracao(Number(value)) },
+        },
+      ],
+      series: [
+        {
+          name: 'Registros',
+          type: 'bar',
+          yAxisIndex: 0,
+          data: serieDados.map((item) => item.volumeProcessado),
+          itemStyle: { color: tokens.palette[0] },
+        },
+        {
+          name: 'Duração Média',
+          type: 'line',
+          yAxisIndex: 1,
+          smooth: true,
+          symbolSize: 7,
+          data: serieDados.map((item) => item.duracaoMedia),
+          itemStyle: { color: tokens.palette[8] },
+          lineStyle: { color: tokens.palette[8], width: 2.5 },
+          emphasis: { focus: 'series' },
+        },
+      ],
+    }));
+  }, [isDark, serieDados]);
 
   const colunas: ColunaTabela<EtlLogExtracaoAuditoriaRow>[] = [
     {

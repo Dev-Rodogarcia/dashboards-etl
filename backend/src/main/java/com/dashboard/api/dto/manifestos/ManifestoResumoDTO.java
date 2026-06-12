@@ -21,5 +21,8 @@ public record ManifestoResumoDTO(
         BigDecimal pedagio,
         BigDecimal saldoPagar,
         BigDecimal kmTotal,
+        BigDecimal receitaTotalTransportada,
+        BigDecimal capacidadeKg,
+        Integer itensFinalizados,
         Integer itensTotal
 ) {}

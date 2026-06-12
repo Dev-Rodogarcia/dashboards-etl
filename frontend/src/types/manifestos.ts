@@ -17,6 +17,9 @@ export interface ManifestoResumoRow {
   pedagio: number;
   saldoPagar: number;
   kmTotal: number;
+  receitaTotalTransportada: number;
+  capacidadeKg: number;
+  itensFinalizados: number | null;
   itensTotal: number | null;
 }
 
@@ -53,6 +56,29 @@ export interface GaugeMetric {
   cargaFechada: number;
 }
 
+export interface ManifestosCustoDiario {
+  data: string;
+  custoReal: number;
+}
+
+export interface ManifestosCustosEvolucao {
+  orcamentoAplicavel: boolean;
+  orcamentoConfigurado: boolean;
+  observacao: string | null;
+  totalDiasUteis: number;
+  diasUteisDecorridos: number;
+  diasUteisRestantes: number;
+  orcamentoCusto: number;
+  custoReal: number;
+  limiteDiarioBase: number;
+  custoMedioDiarioReal: number;
+  saldoOrcamentario: number;
+  limiteDiarioDinamico: number;
+  tendenciaCusto: number;
+  consumoOrcamento: number;
+  serieDiaria: ManifestosCustoDiario[];
+}
+
 export interface PerformanceVeiculosDados {
   updatedAt?: string | null;
   kpis: KPIsManifestos;
@@ -62,6 +88,7 @@ export interface PerformanceVeiculosDados {
   statusSazonal: Array<{ data: string; encerrado: number; emTransito: number; pendente: number }>;
   custosMotorista: Array<{ tipo: string; custo: number }>;
   tiposVeiculo: Array<{ tipo: string; quantidade: number }>;
+  custosEvolucao: ManifestosCustosEvolucao;
 }
 
 export type ManifestosTempoNivel = 'dia' | 'mes' | 'ano';

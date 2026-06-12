@@ -5,6 +5,7 @@ import com.dashboard.api.dto.dimensoes.PlanoContasDimDTO;
 import com.dashboard.api.dto.dimensoes.UsuarioDimDTO;
 import com.dashboard.api.dto.dimensoes.VeiculoDimDTO;
 import com.dashboard.api.repository.DimFilialRepository;
+import com.dashboard.api.repository.DimMotoristaRepository;
 import com.dashboard.api.repository.DimUsuarioRepository;
 import com.dashboard.api.repository.DimVeiculoRepository;
 import com.dashboard.api.repository.VisaoColetasRepository;
@@ -12,7 +13,6 @@ import com.dashboard.api.repository.VisaoContasAPagarRepository;
 import com.dashboard.api.repository.VisaoCotacoesRepository;
 import com.dashboard.api.repository.VisaoFaturasClienteRepository;
 import com.dashboard.api.repository.VisaoFretesRepository;
-import com.dashboard.api.repository.VisaoManifestosRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import java.time.Duration;
 import java.time.Instant;
@@ -49,13 +49,13 @@ public class DimensoesService {
     );
 
     private final DimFilialRepository dimFilialRepository;
+    private final DimMotoristaRepository dimMotoristaRepository;
     private final DimUsuarioRepository dimUsuarioRepository;
     private final DimVeiculoRepository dimVeiculoRepository;
     private final VisaoColetasRepository coletasRepository;
     private final VisaoFretesRepository fretesRepository;
     private final VisaoCotacoesRepository cotacoesRepository;
     private final VisaoFaturasClienteRepository faturasClienteRepository;
-    private final VisaoManifestosRepository manifestosRepository;
     private final VisaoContasAPagarRepository contasAPagarRepository;
     private final EscopoFilialService escopoFilialService;
     private final ConcurrentMap<String, CacheEntry<List<String>>> filiaisCache = new ConcurrentHashMap<>();
@@ -63,24 +63,24 @@ public class DimensoesService {
     @Autowired
     public DimensoesService(
             DimFilialRepository dimFilialRepository,
+            DimMotoristaRepository dimMotoristaRepository,
             DimUsuarioRepository dimUsuarioRepository,
             DimVeiculoRepository dimVeiculoRepository,
             VisaoColetasRepository coletasRepository,
             VisaoFretesRepository fretesRepository,
             VisaoCotacoesRepository cotacoesRepository,
             VisaoFaturasClienteRepository faturasClienteRepository,
-            VisaoManifestosRepository manifestosRepository,
             VisaoContasAPagarRepository contasAPagarRepository,
             EscopoFilialService escopoFilialService
     ) {
         this.dimFilialRepository = dimFilialRepository;
+        this.dimMotoristaRepository = dimMotoristaRepository;
         this.dimUsuarioRepository = dimUsuarioRepository;
         this.dimVeiculoRepository = dimVeiculoRepository;
         this.coletasRepository = coletasRepository;
         this.fretesRepository = fretesRepository;
         this.cotacoesRepository = cotacoesRepository;
         this.faturasClienteRepository = faturasClienteRepository;
-        this.manifestosRepository = manifestosRepository;
         this.contasAPagarRepository = contasAPagarRepository;
         this.escopoFilialService = escopoFilialService;
     }
@@ -241,15 +241,15 @@ public class DimensoesService {
     public List<String> listarMotoristas() {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         return limparTextos(escopo.acessoTotal()
-                ? manifestosRepository.findDistinctMotoristas()
-                : manifestosRepository.findDistinctMotoristasByFilialIn(filiaisNormalizadas(escopo)));
+                ? dimMotoristaRepository.findDistinctNomes()
+                : dimMotoristaRepository.findDistinctNomesByFilialIn(filiaisOrdenadasOuSentinela(escopo)));
     }
 
     public List<VeiculoDimDTO> listarVeiculos() {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         return (escopo.acessoTotal()
-                ? dimVeiculoRepository.findVeiculosComManifestos()
-                : dimVeiculoRepository.findVeiculosComManifestosByFilialIn(filiaisNormalizadas(escopo))).stream()
+                ? dimVeiculoRepository.findDistinctVeiculos()
+                : dimVeiculoRepository.findDistinctVeiculosByFilialIn(filiaisOrdenadasOuSentinela(escopo))).stream()
                 .map(veiculo -> new VeiculoDimDTO(veiculo.getPlaca(), veiculo.getTipoVeiculo(), veiculo.getProprietario()))
                 .sorted((a, b) -> a.placa().compareToIgnoreCase(b.placa()))
                 .toList();
@@ -296,6 +296,15 @@ public class DimensoesService {
         List<String> filiais = escopo.filiaisOrdenadas().stream()
                 .filter(this::temTexto)
                 .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
+                .distinct()
+                .toList();
+        return filiais.isEmpty() ? List.of("__sem_filial_autorizada__") : filiais;
+    }
+
+    private List<String> filiaisOrdenadasOuSentinela(EscopoFilialService.EscopoFilial escopo) {
+        List<String> filiais = escopo.filiaisOrdenadas().stream()
+                .filter(this::temTexto)
+                .map(String::trim)
                 .distinct()
                 .toList();
         return filiais.isEmpty() ? List.of("__sem_filial_autorizada__") : filiais;

@@ -132,6 +132,9 @@ public class ManifestosService {
                         zero(row.getPedagio()).setScale(2, RoundingMode.HALF_UP),
                         zero(row.getSaldoPagar()).setScale(2, RoundingMode.HALF_UP),
                         zero(row.getKmTotal()).setScale(2, RoundingMode.HALF_UP),
+                        zero(row.getReceitaTotalTransportada()).setScale(2, RoundingMode.HALF_UP),
+                        zero(row.getCapacidadeKg()).setScale(2, RoundingMode.HALF_UP),
+                        row.getItensFinalizados(),
                         row.getItensTotal()
                 ))
                 .toList();
