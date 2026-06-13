@@ -4,6 +4,7 @@ import com.dashboard.api.model.acesso.ManifestosCostGoalEntity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -12,6 +13,14 @@ import org.springframework.data.repository.query.Param;
 public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCostGoalEntity, Long> {
 
     Optional<ManifestosCostGoalEntity> findByBranchIdAndYearMonth(String branchId, LocalDate yearMonth);
+
+    @Query("""
+            SELECT g
+            FROM ManifestosCostGoalEntity g
+            WHERE g.yearMonth = :yearMonth
+            ORDER BY CASE WHEN g.branchId IS NULL THEN 0 ELSE 1 END, g.branchId
+            """)
+    List<ManifestosCostGoalEntity> findAllByYearMonthOrdered(@Param("yearMonth") LocalDate yearMonth);
 
     @Query("""
             SELECT g

@@ -1,10 +1,11 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
+import { Settings } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import ManifestosCustoEvolutionCard from '../components/domain/manifestos/ManifestosCustoEvolutionCard';
-import ManifestosCustoKpis from '../components/domain/manifestos/ManifestosCustoKpis';
+import ManifestosCostGoalsPanel from '../components/domain/manifestos/ManifestosCostGoalsPanel';
 import ManifestosGaugeCard from '../components/domain/manifestos/ManifestosGaugeCard';
 import ManifestosKpiGrid from '../components/domain/manifestos/ManifestosKpiGrid';
 import ManifestosTrend from '../components/domain/manifestos/ManifestosTrend';
@@ -23,6 +24,7 @@ import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useFiliais, useMotoristas, useVeiculos } from '../hooks/queries/useDimensoes';
 import { useManifestosPerformance, useManifestosTabelaPaginada } from '../hooks/queries/useManifestos';
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
+import { usePermissions } from '../hooks/usePermissions';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ManifestoResumoRow, ManifestosFiltro, ManifestosTempoNivel } from '../types/manifestos';
 import { buildBaseBarOption, buildBaseDonutOption } from '../utils/echartsBuilders';
@@ -105,8 +107,10 @@ function numeroParam(valor: string | null): number | null {
 
 export default function ManifestosPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const [isMetasPanelOpen, setIsMetasPanelOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const { isDark } = useEchartsTheme();
+  const { canAccess } = usePermissions();
   const filiais = useFiliais();
   const motoristas = useMotoristas();
   const veiculos = useVeiculos();
@@ -154,6 +158,7 @@ export default function ManifestosPage() {
     updatedAt: performance.data?.updatedAt ?? null,
   });
 
+  const canManageManifestosGoals = canAccess('can_manage_kpi_goals');
   const dadosPerformance = performance.data;
   const statusSazonal = useMemo(() => dadosPerformance?.statusSazonal ?? EMPTY_ARRAY, [dadosPerformance?.statusSazonal]);
   const custosMotorista = useMemo(() => dadosPerformance?.custosMotorista ?? EMPTY_ARRAY, [dadosPerformance?.custosMotorista]);
@@ -291,7 +296,23 @@ export default function ManifestosPage() {
 
   return (
     <div className="w-full">
-      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
+      <FilterBar
+        onClear={limparFiltros}
+        activeFilters={activeFilters}
+        dataInicio={dataInicio}
+        dataFim={dataFim}
+        actions={canManageManifestosGoals ? (
+          <button
+            type="button"
+            onClick={() => setIsMetasPanelOpen((current) => !current)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-150 hover:bg-[var(--color-bg)] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            style={{ color: 'var(--color-text)' }}
+          >
+            <Settings size={14} aria-hidden="true" />
+            Gerenciar Metas
+          </button>
+        ) : null}
+      >
         <DateRangePicker
           dataInicio={dataInicio}
           dataFim={dataFim}
@@ -322,18 +343,16 @@ export default function ManifestosPage() {
         />
       </FilterBar>
 
+      {canManageManifestosGoals ? (
+        <ManifestosCostGoalsPanel open={isMetasPanelOpen} />
+      ) : null}
+
       {performance.isError && <MensagemErro mensagem={getApiErrorMessage(performance.error, 'Erro ao carregar indicadores de manifestos.')} tipo={getTipoErro(performance.error)} />}
       <ManifestosKpiGrid kpis={dadosPerformance?.kpis} isLoading={performance.isLoading} />
 
-      <div className="mb-6 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-12">
-        <div className="h-[25rem] min-h-0 xl:col-span-8">
+      <div className="mb-6 grid grid-cols-1 items-stretch gap-4">
+        <div className="min-h-[43rem] lg:min-h-[34rem] xl:h-[25rem] xl:min-h-0">
           <ManifestosCustoEvolutionCard
-            dados={dadosPerformance?.custosEvolucao}
-            isLoading={performance.isLoading}
-          />
-        </div>
-        <div className="xl:col-span-4">
-          <ManifestosCustoKpis
             dados={dadosPerformance?.custosEvolucao}
             isLoading={performance.isLoading}
           />

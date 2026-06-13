@@ -31,7 +31,8 @@ public class ExecutivoFinanceiroSqlRepository {
 
     public List<ExecutivoResumoFinanceiroDTO> buscarResumoFinanceiro(FiltroConsultaDTO filtro) {
         QueryContext ctx = criarContexto(filtro);
-        String fretePesoSql = decimalSql(ctx.colunas(), "freight_weight_subtotal", "frete_peso", "Frete Peso");
+        String fretePesoSql = decimalSql(ctx.colunas(), "peso_taxado");
+        String freteValorSql = decimalSql(ctx.colunas(), "valor_frete_original", "valor_frete");
         String sql = """
                 WITH fretes AS (
                     SELECT
@@ -42,7 +43,7 @@ public class ExecutivoFinanceiroSqlRepository {
                         LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '')) AS filial_normalizada,
                         COALESCE(receita_bruta, 0) AS total_faturado,
                         %s AS frete_peso,
-                        COALESCE(valor_frete, 0) AS frete_valor,
+                        %s AS frete_valor,
                         CONVERT(INT, is_elegivel_faturamento) AS elegivel_faturamento,
                         data_referencia_faturamento_date AS data_referencia_periodo
                     FROM dbo.fato_fretes_faturamento
@@ -58,8 +59,8 @@ public class ExecutivoFinanceiroSqlRepository {
                 SELECT
                     filial,
                     CAST(COALESCE(SUM(CASE WHEN elegivel_faturamento = 1 THEN total_faturado ELSE 0 END), 0) AS DECIMAL(19, 2)) AS total_faturado,
-                    CAST(COALESCE(SUM(CASE WHEN elegivel_faturamento = 1 THEN frete_peso ELSE 0 END), 0) AS DECIMAL(19, 2)) AS frete_peso,
-                    CAST(COALESCE(SUM(CASE WHEN elegivel_faturamento = 1 THEN frete_valor ELSE 0 END), 0) AS DECIMAL(19, 2)) AS frete_valor,
+                    CAST(COALESCE(SUM(frete_peso), 0) AS DECIMAL(19, 2)) AS frete_peso,
+                    CAST(COALESCE(SUM(frete_valor), 0) AS DECIMAL(19, 2)) AS frete_valor,
                     CAST(COALESCE(
                         SUM(CASE WHEN elegivel_faturamento = 1 THEN total_faturado ELSE 0 END)
                         / NULLIF(SUM(CASE WHEN elegivel_faturamento = 1 THEN 1 ELSE 0 END), 0),
@@ -68,10 +69,10 @@ public class ExecutivoFinanceiroSqlRepository {
                 FROM filtrados
                 GROUP BY filial
                 HAVING COALESCE(SUM(CASE WHEN elegivel_faturamento = 1 THEN total_faturado ELSE 0 END), 0) <> 0
-                    OR COALESCE(SUM(CASE WHEN elegivel_faturamento = 1 THEN frete_peso ELSE 0 END), 0) <> 0
-                    OR COALESCE(SUM(CASE WHEN elegivel_faturamento = 1 THEN frete_valor ELSE 0 END), 0) <> 0
+                    OR COALESCE(SUM(frete_peso), 0) <> 0
+                    OR COALESCE(SUM(frete_valor), 0) <> 0
                 ORDER BY total_faturado DESC, filial
-                """.formatted(fretePesoSql, ctx.where());
+                """.formatted(fretePesoSql, freteValorSql, ctx.where());
 
         return jdbcTemplate.query(sql, ctx.params(), this::mapearResumoFinanceiro);
     }

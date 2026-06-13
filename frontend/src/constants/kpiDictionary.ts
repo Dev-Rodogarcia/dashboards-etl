@@ -177,8 +177,8 @@ export const KpiDictionary = {
     limiteDiarioDinamico: {
       titulo: 'Limite Diário Dinâmico',
       descricao: 'Custo médio diário máximo disponível nos dias úteis restantes.',
-      calculo: 'Saldo Orçamentário ÷ Dias Úteis Restantes.',
-      observacao: 'O divisor mínimo é um.',
+      calculo: 'Máximo entre Saldo Orçamentário e zero ÷ Dias Úteis Restantes.',
+      observacao: 'O divisor mínimo é um. Quando o orçamento já foi estourado, o limite diário exibido é zero.',
     },
     tendenciaCusto: {
       titulo: 'Tendência de Custo',
@@ -686,6 +686,80 @@ export const KpiDictionary = {
       calculo: 'Cargas Finalizadas ÷ Cargas Não Canceladas × 100.',
       observacao:
         'A projeção usada pelo dashboard já exclui cargas finalizadas; por isso, este campo tende a retornar zero e não é exibido nos cards atuais.',
+    },
+  },
+
+  executivo: {
+    receitaOperacional: {
+      titulo: 'Receita Operacional',
+      descricao: 'Receita bruta elegível consolidada no painel executivo.',
+      calculo: 'Soma da Receita Bruta do painel de Faturamento.',
+      observacao: `${periodoFaturamento} ${elegibilidadeFaturamento}`,
+    },
+    valorFaturado: {
+      titulo: 'Valor Faturado',
+      descricao: 'Valor faturado consolidado por cliente no período selecionado.',
+      calculo: 'Soma do Valor Faturado do painel de Faturas por Cliente.',
+      observacao: 'O período considera a data de emissão do CT-e.',
+    },
+    saldoAReceber: {
+      titulo: 'A Receber',
+      descricao: 'Saldo a receber reservado para a visão executiva.',
+      calculo: 'Indicador atualmente fixado em zero.',
+      observacao:
+        'A camada de dados ainda não fornece saldo a receber para o painel executivo.',
+    },
+    saldoAPagar: {
+      titulo: 'A Pagar',
+      descricao: 'Saldo financeiro em aberto no contas a pagar.',
+      calculo: 'Soma do Saldo em Aberto do painel de Contas a Pagar.',
+    },
+    backlogColetas: {
+      titulo: 'Backlog de Coletas',
+      descricao: 'Quantidade de coletas ainda não concluídas no período.',
+      calculo: 'Total de Coletas − Coletas Finalizadas.',
+      observacao: periodoColetas,
+    },
+    cargasPrevisaoVencida: {
+      titulo: 'Previsão Vencida',
+      descricao: 'Cargas em aberto cuja previsão de entrega está vencida.',
+      calculo: 'Cargas com Previsão anterior à data atual e sem status Finalizado ou Cancelado.',
+      observacao: periodoTracking,
+    },
+    ocupacaoMediaManifestos: {
+      titulo: 'Ocupação de Manifestos',
+      descricao: 'Percentual médio de ocupação de peso dos manifestos.',
+      calculo: 'Peso Taxado Transportado ÷ Capacidade de Lotação × 100.',
+      observacao: periodoManifestos,
+    },
+    resumoFinanceiro: {
+      totalFaturado: {
+        titulo: 'Total Faturado',
+        descricao: 'Receita bruta elegível agrupada por filial.',
+        calculo: 'Soma da Receita Bruta dos fretes elegíveis por filial.',
+        observacao: `${periodoFaturamento} ${elegibilidadeFaturamento}`,
+      },
+      fretePeso: {
+        titulo: 'Frete Peso',
+        descricao: 'Peso taxado total dos fretes transportados por filial.',
+        calculo: 'Soma de peso_taxado dos fretes filtrados.',
+        observacao:
+          'Este indicador não restringe o peso pela elegibilidade de faturamento.',
+      },
+      freteValor: {
+        titulo: 'Frete Valor',
+        descricao: 'Valor de frete original dos fretes transportados por filial.',
+        calculo: 'Soma de valor_frete_original dos fretes filtrados.',
+        observacao:
+          'Este indicador não restringe o valor pela elegibilidade de faturamento; quando o valor original não existe, usa o valor de frete publicado pela fato.',
+      },
+      ticketMedio: {
+        titulo: 'Ticket Médio',
+        descricao: 'Receita bruta média por frete elegível em cada filial.',
+        calculo: 'Total Faturado ÷ Quantidade de Fretes Elegíveis.',
+        observacao:
+          `${elegibilidadeFaturamento} Quando não há fretes elegíveis, o indicador retorna zero.`,
+      },
     },
   },
 

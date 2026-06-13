@@ -1,5 +1,7 @@
 import KpiCard from '../../shared/KpiCard';
 import KpiGrid from '../../shared/KpiGrid';
+import TooltipKpi from '../../shared/TooltipKpi';
+import { KpiDictionary, type KpiDefinition } from '../../../constants/kpiDictionary';
 import type { ExecutivoOverview } from '../../../types/executivo';
 import { formatarMoeda, formatarNumero, formatarPorcentagem } from '../../../utils/formatadores';
 
@@ -8,6 +10,13 @@ interface ExecutivoKpiGridProps {
 }
 
 type KpiValorTone = 'text-positive' | 'text-warning' | 'text-negative';
+
+interface ExecutivoKpiCardConfig {
+  definition: KpiDefinition;
+  label: string;
+  valor: string;
+  valorClassName: string;
+}
 
 const KPI_VALOR_CLASS = 'text-2xl font-bold truncate';
 
@@ -61,44 +70,62 @@ function toneOcupacaoManifestos(ocupacaoPct: number): KpiValorTone {
 
 export default function ExecutivoKpiGrid({ overview }: ExecutivoKpiGridProps) {
   const baseFinanceira = Math.max(overview.valorFaturado, overview.receitaOperacional);
+  const cards: ExecutivoKpiCardConfig[] = [
+    {
+      definition: KpiDictionary.executivo.receitaOperacional,
+      label: 'Rec. Operacional',
+      valor: formatarMoeda(overview.receitaOperacional),
+      valorClassName: valorClass(toneReceita(overview.receitaOperacional)),
+    },
+    {
+      definition: KpiDictionary.executivo.valorFaturado,
+      label: 'Valor Faturado',
+      valor: formatarMoeda(overview.valorFaturado),
+      valorClassName: valorClass(toneFaturamento(overview.valorFaturado, overview.receitaOperacional)),
+    },
+    {
+      definition: KpiDictionary.executivo.saldoAReceber,
+      label: 'A Receber',
+      valor: formatarMoeda(overview.saldoAReceber),
+      valorClassName: valorClass(toneSaldoRelativo(overview.saldoAReceber, baseFinanceira, 10, 25)),
+    },
+    {
+      definition: KpiDictionary.executivo.saldoAPagar,
+      label: 'A Pagar',
+      valor: formatarMoeda(overview.saldoAPagar),
+      valorClassName: valorClass(toneSaldoRelativo(overview.saldoAPagar, baseFinanceira, 20, 50)),
+    },
+    {
+      definition: KpiDictionary.executivo.backlogColetas,
+      label: 'Backlog Coletas',
+      valor: formatarNumero(overview.backlogColetas),
+      valorClassName: valorClass(toneQuantidadeMenorMelhor(overview.backlogColetas, 100)),
+    },
+    {
+      definition: KpiDictionary.executivo.cargasPrevisaoVencida,
+      label: 'Previsão Vencida',
+      valor: formatarNumero(overview.cargasPrevisaoVencida),
+      valorClassName: valorClass(toneQuantidadeMenorMelhor(overview.cargasPrevisaoVencida, 10)),
+    },
+    {
+      definition: KpiDictionary.executivo.ocupacaoMediaManifestos,
+      label: 'Ocup. Manifestos',
+      valor: formatarPorcentagem(overview.ocupacaoMediaManifestos),
+      valorClassName: valorClass(toneOcupacaoManifestos(overview.ocupacaoMediaManifestos)),
+    },
+  ];
 
   return (
     <KpiGrid count={7} singleRowDesktop>
-      <KpiCard
-        label="Rec. Operacional"
-        valor={formatarMoeda(overview.receitaOperacional)}
-        valorClassName={valorClass(toneReceita(overview.receitaOperacional))}
-      />
-      <KpiCard
-        label="Valor Faturado"
-        valor={formatarMoeda(overview.valorFaturado)}
-        valorClassName={valorClass(toneFaturamento(overview.valorFaturado, overview.receitaOperacional))}
-      />
-      <KpiCard
-        label="A Receber"
-        valor={formatarMoeda(overview.saldoAReceber)}
-        valorClassName={valorClass(toneSaldoRelativo(overview.saldoAReceber, baseFinanceira, 10, 25))}
-      />
-      <KpiCard
-        label="A Pagar"
-        valor={formatarMoeda(overview.saldoAPagar)}
-        valorClassName={valorClass(toneSaldoRelativo(overview.saldoAPagar, baseFinanceira, 20, 50))}
-      />
-      <KpiCard
-        label="Backlog Coletas"
-        valor={formatarNumero(overview.backlogColetas)}
-        valorClassName={valorClass(toneQuantidadeMenorMelhor(overview.backlogColetas, 100))}
-      />
-      <KpiCard
-        label="Previsão Vencida"
-        valor={formatarNumero(overview.cargasPrevisaoVencida)}
-        valorClassName={valorClass(toneQuantidadeMenorMelhor(overview.cargasPrevisaoVencida, 10))}
-      />
-      <KpiCard
-        label="Ocup. Manifestos"
-        valor={formatarPorcentagem(overview.ocupacaoMediaManifestos)}
-        valorClassName={valorClass(toneOcupacaoManifestos(overview.ocupacaoMediaManifestos))}
-      />
+      {cards.map((card) => (
+        <TooltipKpi key={card.label} definition={card.definition}>
+          <KpiCard
+            label={card.label}
+            valor={card.valor}
+            valorClassName={card.valorClassName}
+          />
+        </TooltipKpi>
+      ))}
     </KpiGrid>
   );
 }

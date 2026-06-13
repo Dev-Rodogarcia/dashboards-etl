@@ -79,6 +79,22 @@ class ManifestosCostGoalServiceTest {
     }
 
     @Test
+    void travaLimiteDiarioDinamicoEmZeroQuandoOrcamentoEstaEstourado() {
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(INICIO_MAIO, FIM_MAIO, Map.of());
+        stubCalendarioECustos(filtro, List.of());
+        when(goalRepository.aggregateGlobalOrBranches(INICIO_MAIO, LocalDate.of(2026, 6, 1)))
+                .thenReturn(aggregate("299000.00", 1));
+
+        ManifestosCustosEvolucaoDTO resultado = service.calcular(
+                filtro,
+                new BigDecimal("5000000.00")
+        );
+
+        assertThat(resultado.saldoOrcamentario()).isEqualByComparingTo("-4101000.00");
+        assertThat(resultado.limiteDiarioDinamico()).isZero();
+    }
+
+    @Test
     void usaMetasPorFilialQuandoEscopoDoUsuarioEhRestrito() {
         service = serviceComEscopo(new EscopoFilialService.EscopoFilial(
                 false,

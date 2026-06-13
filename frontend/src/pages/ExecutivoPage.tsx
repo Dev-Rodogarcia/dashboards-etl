@@ -10,6 +10,7 @@ import { DATE_RANGE_PRESETS } from '../components/shared/dateRangePresets';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import MensagemErro from '../components/ui/MensagemErro';
+import { KpiDictionary } from '../constants/kpiDictionary';
 import { salvarBlobComoArquivo } from '../api/downloadArquivo';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
@@ -19,7 +20,7 @@ import { useExecutivoOverview, useExecutivoResumoFinanceiro, useExecutivoSerie }
 import type { ExecutivoResumoFinanceiro } from '../types/executivo';
 import { normalizarPeriodo } from '../utils/dateUtils';
 import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
-import { formatarMoeda, formatarNumero } from '../utils/formatadores';
+import { formatarMoeda, formatarNumero, formatarPeso } from '../utils/formatadores';
 
 type TooltipParam = {
   axisValue?: string | number;
@@ -134,24 +135,32 @@ function ResumoFinanceiroTable({
       chave: 'totalFaturado',
       label: 'Total Faturado',
       largura: '160px',
+      alinhamento: 'right',
+      tooltip: KpiDictionary.executivo.resumoFinanceiro.totalFaturado.calculo,
       formato: (valor) => <span className="block text-right tabular-nums">{formatarMoeda(Number(valor ?? 0))}</span>,
     },
     {
       chave: 'fretePeso',
       label: 'Frete Peso',
       largura: '150px',
-      formato: (valor) => <span className="block text-right tabular-nums">{formatarMoeda(Number(valor ?? 0))}</span>,
+      alinhamento: 'right',
+      tooltip: KpiDictionary.executivo.resumoFinanceiro.fretePeso.calculo,
+      formato: (valor) => <span className="block text-right tabular-nums">{formatarPeso(Number(valor ?? 0))}</span>,
     },
     {
       chave: 'freteValor',
       label: 'Frete Valor',
       largura: '150px',
+      alinhamento: 'right',
+      tooltip: KpiDictionary.executivo.resumoFinanceiro.freteValor.calculo,
       formato: (valor) => <span className="block text-right tabular-nums">{formatarMoeda(Number(valor ?? 0))}</span>,
     },
     {
       chave: 'ticketMedio',
       label: 'Ticket Médio',
       largura: '150px',
+      alinhamento: 'right',
+      tooltip: KpiDictionary.executivo.resumoFinanceiro.ticketMedio.calculo,
       formato: (valor) => <span className="block text-right tabular-nums">{formatarMoeda(Number(valor ?? 0))}</span>,
     },
   ];
@@ -232,8 +241,8 @@ export default function ExecutivoPage() {
       trigger: 'axis',
       formatter: formatarTooltipFinanceiro,
     },
-    grid: { top: 54, right: 20, bottom: 30, left: 68 },
-    xAxis: { type: 'category', data: serieDados.map((item) => item.month) },
+    grid: { top: 54, right: '3%', bottom: 30, left: '3%', containLabel: true },
+    xAxis: { type: 'category', boundaryGap: false, data: serieDados.map((item) => item.month) },
     yAxis: { type: 'value', axisLabel: { formatter: formatarMoedaEixo } },
     series: [
       {
@@ -287,8 +296,8 @@ export default function ExecutivoPage() {
     color: [chartColors.valorFaturado, chartColors.backlog],
     legend: { top: 0 },
     tooltip: { trigger: 'axis', formatter: formatarTooltipExecutivoMisto },
-    grid: { top: 54, right: 62, bottom: 32, left: 68 },
-    xAxis: { type: 'category', data: serieDados.map((item) => item.month) },
+    grid: { top: 54, right: '3%', bottom: 32, left: '3%', containLabel: true },
+    xAxis: { type: 'category', boundaryGap: false, data: serieDados.map((item) => item.month) },
     yAxis: [
       { type: 'value', name: 'Faturamento', axisLabel: { formatter: formatarMoedaEixo } },
       {

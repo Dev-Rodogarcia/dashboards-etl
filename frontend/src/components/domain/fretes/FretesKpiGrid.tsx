@@ -4,7 +4,6 @@ import TooltipKpi from '../../shared/TooltipKpi';
 import { KpiDictionary } from '../../../constants/kpiDictionary';
 import type { FretesFaturamentoDiario, FretesOverview } from '../../../types/fretes';
 import { formatarMoeda, formatarNumero, formatarPorcentagem, formatarPeso } from '../../../utils/formatadores';
-import type { GoalTone } from '../../../utils/indicadoresGestaoVistaUi';
 
 interface FretesKpiGridProps {
   overview: FretesOverview;
@@ -14,11 +13,20 @@ interface FretesKpiGridProps {
   metasIndisponiveis?: boolean;
 }
 
+type KpiValorTone = 'text-positive' | 'text-warning' | 'text-negative';
+
+const KPI_VALOR_CLASS = 'text-2xl font-bold truncate';
+const KPI_VALOR_DESTAQUE_CLASS = 'text-4xl font-bold truncate';
+
 interface MetaKpiState {
   metaValue: string;
   helperText: string;
-  tone: GoalTone;
+  valorTone: KpiValorTone;
   progressPct: number | null;
+}
+
+function valorClass(tone: KpiValorTone, baseClassName = KPI_VALOR_CLASS) {
+  return `${baseClassName} ${tone}`;
 }
 
 function resolverMetaKpiState({
@@ -38,7 +46,7 @@ function resolverMetaKpiState({
     return {
       metaValue: '—',
       helperText: 'Metas indisponíveis (API offline)',
-      tone: 'error',
+      valorTone: 'text-negative',
       progressPct: null,
     };
   }
@@ -47,7 +55,7 @@ function resolverMetaKpiState({
     return {
       metaValue: 'Não configurada',
       helperText: 'Meta não configurada',
-      tone: 'empty',
+      valorTone: 'text-warning',
       progressPct: null,
     };
   }
@@ -56,7 +64,7 @@ function resolverMetaKpiState({
   return {
     metaValue: formatMeta(meta),
     helperText: atingiu ? 'Acima da meta' : 'Abaixo da meta',
-    tone: atingiu ? 'positive' : 'negative',
+    valorTone: atingiu ? 'text-positive' : 'text-negative',
     progressPct: progresso,
   };
 }
@@ -77,7 +85,7 @@ export default function FretesKpiGrid({
   });
   const tendenciaPercentual = faturamentoDiario?.tendenciaPercentual ?? 0;
   const tendenciaPercentualExibicao = tendenciaPercentual * 100;
-  const tendenciaTone = tendenciaPercentual < 0 ? 'negative' : 'positive';
+  const tendenciaValorTone = tendenciaPercentual < 0 ? 'text-negative' : 'text-positive';
 
   return (
     <KpiGrid count={8}>
@@ -103,9 +111,8 @@ export default function FretesKpiGrid({
         <KpiCard
           label="Meta Faturamento"
           valor={faturamentoMeta.metaValue}
+          valorClassName={valorClass(faturamentoMeta.valorTone)}
           helperText={faturamentoMeta.helperText}
-          tone={faturamentoMeta.tone}
-          helperTone={faturamentoMeta.tone}
           progressPct={faturamentoMeta.progressPct}
         />
       </TooltipKpi>
@@ -113,10 +120,8 @@ export default function FretesKpiGrid({
         <KpiCard
           label="Tendência %"
           valor={formatarPorcentagem(tendenciaPercentualExibicao)}
-          valorClassName={`text-4xl font-bold ${tendenciaPercentual < 0 ? 'text-red-600' : 'text-green-600'}`}
+          valorClassName={valorClass(tendenciaValorTone, KPI_VALOR_DESTAQUE_CLASS)}
           helperText={`Tendência: ${formatarMoeda(faturamentoDiario?.tendenciaFaturamento ?? 0)}`}
-          tone={tendenciaTone}
-          helperTone={tendenciaTone}
         />
       </TooltipKpi>
     </KpiGrid>

@@ -5,11 +5,14 @@ import { calcularLarguraMinimaTabela, getColumnSizingStyle } from './tableLayout
 import MensagemErro from '../ui/MensagemErro';
 import { getApiErrorMessage, getTipoErro } from '../../utils/apiError';
 
+type ColunaAlinhamento = 'left' | 'center' | 'right';
+
 export interface ColunaTabela<T> {
   chave: keyof T & string;
   label: string;
   formato?: (valor: T[keyof T], row: T) => string | ReactNode;
   largura?: string;
+  alinhamento?: ColunaAlinhamento;
   fixo?: boolean;
   ordenavel?: boolean;
   tooltip?: string;
@@ -19,6 +22,18 @@ type ItemPaginacao = number | 'ellipsis-start' | 'ellipsis-end';
 
 function formatarInteiro(valor: number): string {
   return valor.toLocaleString('pt-BR');
+}
+
+function getTextAlignClass(alinhamento: ColunaAlinhamento = 'left') {
+  if (alinhamento === 'right') return 'text-right';
+  if (alinhamento === 'center') return 'text-center';
+  return 'text-left';
+}
+
+function getHeaderJustifyClass(alinhamento: ColunaAlinhamento = 'left') {
+  if (alinhamento === 'right') return 'justify-end';
+  if (alinhamento === 'center') return 'justify-center';
+  return 'justify-start';
 }
 
 interface DataTableProps<T> {
@@ -237,7 +252,7 @@ export default function DataTable<T>({
                 <th
                   key={col.chave}
                   onClick={() => handleSort(col.chave, col.ordenavel !== false)}
-                  className={`px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap select-none ${
+                  className={`px-3 py-2.5 ${getTextAlignClass(col.alinhamento)} text-xs font-medium uppercase tracking-wider whitespace-nowrap select-none ${
                     col.ordenavel === false ? 'cursor-default' : 'cursor-pointer'
                   } ${
                     col.fixo ? 'sticky left-0 z-10' : ''
@@ -248,7 +263,7 @@ export default function DataTable<T>({
                     ...getColumnSizingStyle(col.largura),
                   }}
                 >
-                  <span className="flex items-center gap-1">
+                  <span className={`flex w-full items-center gap-1 ${getHeaderJustifyClass(col.alinhamento)}`}>
                     <span>{col.label}</span>
                     {col.tooltip ? <TableHeaderTooltip label={col.label} content={col.tooltip} /> : null}
                     {col.ordenavel !== false && ordenarPor === col.chave && (
@@ -292,7 +307,7 @@ export default function DataTable<T>({
                     return (
                       <td
                         key={col.chave}
-                        className={`px-3 py-2 align-middle whitespace-nowrap ${
+                        className={`px-3 py-2 ${getTextAlignClass(col.alinhamento)} align-middle whitespace-nowrap ${
                           col.fixo ? 'sticky left-0' : ''
                         }`}
                         style={{

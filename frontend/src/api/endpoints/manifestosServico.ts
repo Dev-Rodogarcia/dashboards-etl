@@ -4,6 +4,8 @@ import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
 import type {
+  ManifestosCostGoalConfig,
+  ManifestosCostGoalPayload,
   ManifestoResumoRow,
   ManifestosCharts,
   ManifestosFiltro,
@@ -54,6 +56,24 @@ export async function buscarManifestosPerformance(
     params,
   });
   return data;
+}
+
+export async function buscarManifestosMetas(ano: number, mes: number): Promise<ManifestosCostGoalConfig[]> {
+  const { data } = await clienteAxios.get<ManifestosCostGoalConfig[]>('/api/painel/manifestos/metas', {
+    params: { ano, mes },
+  });
+  return data;
+}
+
+export async function salvarManifestosMeta(payload: ManifestosCostGoalPayload): Promise<ManifestosCostGoalConfig> {
+  const { data } = await clienteAxios.post<ManifestosCostGoalConfig>('/api/painel/manifestos/metas', payload);
+  return data;
+}
+
+export async function removerManifestosMeta(branchId: string, ano: number, mes: number): Promise<void> {
+  await clienteAxios.delete('/api/painel/manifestos/metas', {
+    params: { branchId, ano, mes },
+  });
 }
 
 export async function buscarManifestosTabela(

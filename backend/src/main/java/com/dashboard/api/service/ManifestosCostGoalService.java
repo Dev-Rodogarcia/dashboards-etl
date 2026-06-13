@@ -135,8 +135,9 @@ public class ManifestosCostGoalService {
         BigDecimal limiteDiarioBase = dividir(orcamentoCusto, totalDiasUteis);
         BigDecimal saldoOrcamentario = orcamentoCusto.subtract(custoFechado)
                 .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal saldoDisponivelParaLimite = saldoOrcamentario.max(BigDecimal.ZERO);
         BigDecimal limiteDiarioDinamico = dividir(
-                saldoOrcamentario,
+                saldoDisponivelParaLimite,
                 Math.max(1, diasUteisRestantes)
         );
         BigDecimal consumoOrcamento = percentual(custoReal, orcamentoCusto);

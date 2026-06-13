@@ -32,32 +32,36 @@ export function buildManifestosCustoEvolutionOption(
   const serie = [...dados.serieDiaria]
     .sort((left, right) => left.data.localeCompare(right.data));
   const temMeta = metaCustoDisponivel(dados);
-  const ultimoCusto = serie.at(-1)?.custoReal ?? dados.custoMedioDiarioReal;
-  const custoDentroDaMeta = temMeta && ultimoCusto <= dados.limiteDiarioDinamico;
-  const corCustoReal = temMeta
-    ? tokens.palette[custoDentroDaMeta ? 2 : 3]
-    : tokens.palette[0];
+  const metasDiarias = serie.map(() => dados.limiteDiarioBase);
+  const resolverCorCustoReal = (params: { value?: unknown }) => {
+    if (!temMeta) return tokens.palette[0];
+
+    const valor = typeof params.value === 'number' ? params.value : Number(params.value ?? 0);
+    const meta = dados.limiteDiarioBase;
+
+    if (!Number.isFinite(valor) || !Number.isFinite(meta)) return tokens.palette[0];
+    const estourou = valor > meta;
+    return estourou ? tokens.palette[3] : tokens.palette[2];
+  };
   const series: NonNullable<EChartsOption['series']> = [
     {
       name: 'Custo Real',
-      type: 'line',
+      type: 'bar',
       data: serie.map((item) => item.custoReal),
-      symbol: 'none',
-      lineStyle: {
-        color: corCustoReal,
-        type: 'solid',
-      },
+      barMaxWidth: 30,
+      barCategoryGap: '18%',
       itemStyle: {
-        color: corCustoReal,
+        color: resolverCorCustoReal,
+        borderRadius: [4, 4, 0, 0],
       },
     },
   ];
 
   if (temMeta) {
     series.push({
-      name: 'Meta Diária Dinâmica',
+      name: 'Meta Diária Base',
       type: 'line',
-      data: serie.map(() => dados.limiteDiarioDinamico),
+      data: metasDiarias,
       symbol: 'none',
       lineStyle: {
         color: tokens.palette[0],

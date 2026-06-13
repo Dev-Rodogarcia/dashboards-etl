@@ -9,7 +9,8 @@ import {
 
 function criarDados(
   ultimoCusto: number,
-  limiteDiarioDinamico = 100,
+  limiteDiarioDinamico = 25,
+  limiteDiarioBase = 100,
 ): ManifestosCustosEvolucao {
   return {
     orcamentoAplicavel: true,
@@ -20,7 +21,7 @@ function criarDados(
     diasUteisRestantes: 10,
     orcamentoCusto: 2000,
     custoReal: 900,
-    limiteDiarioBase: 100,
+    limiteDiarioBase,
     custoMedioDiarioReal: 90,
     saldoOrcamentario: 1100,
     limiteDiarioDinamico,
@@ -37,22 +38,32 @@ function obterSeries(option: EChartsOption) {
   return Array.isArray(option.series) ? option.series : [option.series];
 }
 
+function obterCorCustoReal(series: ReturnType<typeof obterSeries>[number]) {
+  const seriesComItemStyle = series as { itemStyle?: { color?: unknown } } | undefined;
+  if (typeof seriesComItemStyle?.itemStyle?.color !== 'function') {
+    throw new Error('A serie de Custo Real deve configurar itemStyle.color como callback.');
+  }
+  return seriesComItemStyle.itemStyle.color as (params: { value: number; dataIndex: number }) => string;
+}
+
 describe('ManifestosCustoEvolutionCard', () => {
-  it('usa verde quando o ultimo custo e menor ou igual a meta dinamica', () => {
+  it('renderiza custo real em barras verdes quando o custo e menor ou igual a meta diaria base', () => {
     const option = buildManifestosCustoEvolutionOption(criarDados(100), false);
     const [custoReal, meta] = obterSeries(option);
     const tokens = getEchartsThemeTokens(false);
 
     expect(custoReal).toMatchObject({
       name: 'Custo Real',
-      type: 'line',
-      lineStyle: {
-        color: tokens.palette[2],
-        type: 'solid',
+      type: 'bar',
+      data: [80, 100],
+      barMaxWidth: 30,
+      itemStyle: {
+        borderRadius: [4, 4, 0, 0],
       },
     });
+    expect(obterCorCustoReal(custoReal)({ value: 100, dataIndex: 1 })).toBe(tokens.palette[2]);
     expect(meta).toMatchObject({
-      name: 'Meta Diária Dinâmica',
+      name: 'Meta Diária Base',
       type: 'line',
       data: [100, 100],
       lineStyle: {
@@ -61,15 +72,11 @@ describe('ManifestosCustoEvolutionCard', () => {
     });
   });
 
-  it('usa vermelho quando o ultimo custo ultrapassa a meta dinamica', () => {
-    const option = buildManifestosCustoEvolutionOption(criarDados(100.01), false);
+  it('renderiza barra vermelha quando o custo ultrapassa a meta diaria base', () => {
+    const option = buildManifestosCustoEvolutionOption(criarDados(100.01, 1000), false);
     const [custoReal] = obterSeries(option);
 
-    expect(custoReal).toMatchObject({
-      lineStyle: {
-        color: getEchartsThemeTokens(false).palette[3],
-      },
-    });
+    expect(obterCorCustoReal(custoReal)({ value: 100.01, dataIndex: 1 })).toBe(getEchartsThemeTokens(false).palette[3]);
   });
 
   it('nao desenha uma meta artificial quando o orcamento esta indisponivel', () => {
@@ -83,10 +90,9 @@ describe('ManifestosCustoEvolutionCard', () => {
     expect(series).toHaveLength(1);
     expect(series[0]).toMatchObject({
       name: 'Custo Real',
-      lineStyle: {
-        color: getEchartsThemeTokens(false).palette[0],
-      },
+      type: 'bar',
     });
+    expect(obterCorCustoReal(series[0])({ value: 120, dataIndex: 1 })).toBe(getEchartsThemeTokens(false).palette[0]);
   });
 
   it('mantem a inversao de cores dos cards de custo', () => {

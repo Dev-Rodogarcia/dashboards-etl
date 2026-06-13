@@ -143,3 +143,20 @@ export interface ManifestosFiltro {
   tiposContrato?: string[];
   tipoMotorista?: string[];
 }
+
+export interface ManifestosCostGoalConfig {
+  branchId: string;
+  ano: number;
+  mes: number;
+  costGoal: number;
+  updatedAt: string | null;
+  configurado: boolean;
+  mensagem: string | null;
+}
+
+export interface ManifestosCostGoalPayload {
+  branchId: string;
+  ano: number;
+  mes: number;
+  costGoal: number;
+}

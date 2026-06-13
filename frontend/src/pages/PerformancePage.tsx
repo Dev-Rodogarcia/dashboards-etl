@@ -50,6 +50,7 @@ import { CORES } from '../utils/chartColors';
 import { dataHojeLocal, primeiroDiaMesesAtrasLocal } from '../utils/dateUtils';
 import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarNumero, formatarPorcentagem } from '../utils/formatadores';
+import type { GoalTone } from '../utils/indicadoresGestaoVistaUi';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 const STATUS_OPTIONS = ['Pendente', 'Em Trânsito', 'Finalizada', 'Cancelada', 'Em Tratativa'];
@@ -79,6 +80,43 @@ function chartClickName(params: unknown): string | null {
 
 function truncateLabel(value: string, maxLength: number): string {
   return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
+}
+
+function wrapAxisLabel(value: string, maxLineLength: number, maxLines = 2): string {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return value;
+
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (nextLine.length <= maxLineLength) {
+      currentLine = nextLine;
+      continue;
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      lines.push(truncateLabel(word, maxLineLength));
+      currentLine = '';
+    }
+
+    if (lines.length === maxLines) break;
+  }
+
+  if (currentLine && lines.length < maxLines) {
+    lines.push(currentLine);
+  }
+
+  const hasHiddenWords = lines.join(' ').length < value.trim().length;
+  if (hasHiddenWords && lines.length > 0) {
+    lines[lines.length - 1] = truncateLabel(lines[lines.length - 1], maxLineLength);
+  }
+
+  return lines.join('\n');
 }
 
 function formatMonthLabel(value: string): string {
@@ -118,7 +156,7 @@ function monthName(value: string): string {
   if (Number.isNaN(date.getTime())) {
     return formatMonthLabel(value);
   }
-  return new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(date);
+  return new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date).replace('.', '');
 }
 
 function normalizeDrillNivel(value: string | null): PerformanceDrilldownNivel {
@@ -232,14 +270,14 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[], isDark: boolea
   return buildBaseLineOption(isDark, {
     title: {
       text: 'Histórico da Performance de Entregas',
-      left: 24,
+      left: 8,
       top: 8,
       textStyle: {
         fontSize: 12,
         fontWeight: 500,
       },
     },
-    grid: { top: 42, right: 38, bottom: 36, left: 24, containLabel: true },
+    grid: { top: 52, right: '4%', bottom: '10%', left: '3%', containLabel: true },
     tooltip: {
       trigger: 'axis',
       formatter: (params: unknown) => {
@@ -253,10 +291,12 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[], isDark: boolea
     },
     xAxis: {
       type: 'category',
+      boundaryGap: false,
       data: dados.map((item) => item.date),
       axisLabel: {
         formatter: monthName,
         fontWeight: 600,
+        interval: 0,
       },
     },
     yAxis: {
@@ -266,7 +306,9 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[], isDark: boolea
       splitLine: {
         lineStyle: { type: 'dashed' },
       },
-      axisLabel: { formatter: (value: number) => `${value}%` },
+      axisLabel: {
+        formatter: (value: number) => `${value}%`,
+      },
     },
     series: [
       {
@@ -278,7 +320,8 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[], isDark: boolea
         symbolSize: 6,
         label: {
           show: true,
-          position: 'bottom',
+          position: 'top',
+          distance: 10,
           formatter: (params: unknown) => {
             const item = params as { value?: unknown };
             return formatarPorcentagem(Number(item.value ?? 0), 1);
@@ -304,17 +347,20 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[], isDark: boolea
 function buildDrilldownOption(dados: PerformanceDrilldownPoint[], nivel: PerformanceDrilldownNivel, isDark: boolean): EChartsOption {
   const tokens = getEchartsThemeTokens(isDark);
   const labels = dados.map((item) => item.nome);
-  const axisRotate = labels.some((label) => label.length > 14) ? 24 : 0;
+  const axisRotate = labels.some((label) => label.length > 14) ? 18 : 0;
   return buildBaseBarOption(isDark, {
     legend: { top: 0 },
-    grid: { top: 42, right: 12, bottom: 14, left: 40, containLabel: true },
+    grid: { top: 48, right: '3%', bottom: 62, left: '3%', containLabel: true },
     tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
-      data: labels.map((item) => truncateLabel(item, 14)),
+      data: labels,
       axisLabel: {
         interval: 0,
         rotate: axisRotate,
+        hideOverlap: true,
+        margin: 14,
+        formatter: (value: string) => wrapAxisLabel(value, 12),
       },
     },
     yAxis: { type: 'value' },
@@ -393,14 +439,25 @@ function kpiGridSpan(label: string): string {
     : 'xl:col-span-1';
 }
 
-function kpiValorClassName(label: string): string | undefined {
+function kpiValorToneClassName(tone?: GoalTone): string {
+  if (tone === 'positive') return 'text-positive';
+  if (tone === 'warning') return 'text-warning';
+  if (tone === 'negative') return 'text-negative';
+  return '';
+}
+
+function kpiValorClassName(label: string, tone?: GoalTone): string | undefined {
+  const toneClassName = kpiValorToneClassName(tone);
   if (label === 'Valor NF sem Comprovante') {
-    return 'text-[clamp(1rem,1.2vw,1.35rem)] font-bold whitespace-nowrap';
+    return `text-[clamp(1rem,1.2vw,1.35rem)] font-bold whitespace-nowrap ${toneClassName}`.trim();
   }
-  if (label === 'Comprovante Anexado' || label === 'Performance') {
-    return 'text-xl font-bold truncate';
+  if (label === 'Comprovante Anexado') {
+    return `text-2xl font-bold truncate ${toneClassName}`.trim();
   }
-  return undefined;
+  if (label === 'Performance') {
+    return `text-xl font-bold truncate ${toneClassName}`.trim();
+  }
+  return toneClassName ? `text-2xl font-bold truncate ${toneClassName}` : undefined;
 }
 
 function DrilldownActions({
@@ -793,10 +850,8 @@ export default function PerformancePage() {
                 <KpiCard
                   label={kpi.label}
                   valor={kpi.valor}
-                  valorClassName={kpiValorClassName(kpi.label)}
+                  valorClassName={kpiValorClassName(kpi.label, kpi.tone)}
                   helperText={kpi.helperText}
-                  tone={kpi.tone}
-                  helperTone={kpi.tone}
                 />
               </TooltipKpi>
             </div>
