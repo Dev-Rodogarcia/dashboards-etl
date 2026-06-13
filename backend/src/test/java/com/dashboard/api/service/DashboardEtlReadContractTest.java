@@ -25,7 +25,7 @@ class DashboardEtlReadContractTest {
             entry("VisaoFretesEntity.java", "fato_fretes_faturamento"),
             entry("VisaoInventarioEntity.java", "vw_inventario_powerbi"),
             entry("VisaoLocalizacaoCargasEntity.java", "vw_localizacao_cargas_powerbi"),
-            entry("VisaoManifestosEntity.java", "vw_manifestos_powerbi"),
+            entry("VisaoManifestosEntity.java", "vw_fato_manifestos_dash"),
             entry("VisaoMonitoramentoEntity.java", "vw_bi_monitoramento"),
             entry("VisaoSinistrosEntity.java", "vw_sinistros_powerbi")
     );

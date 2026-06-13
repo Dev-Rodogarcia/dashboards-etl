@@ -28,7 +28,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRepository {
 
-    private static final String MANIFESTOS_VIEW = "dbo.vw_manifestos_powerbi";
+    private static final String MANIFESTOS_VIEW = "dbo.vw_fato_manifestos_dash";
 
     private static final GaugeMetricDTO GAUGE_ZERADO = new GaugeMetricDTO(
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO
@@ -477,14 +477,14 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         List<String> nomes = jdbcTemplate.queryForList("""
                 SELECT name
                 FROM sys.dm_exec_describe_first_result_set(
-                    N'SELECT TOP (0) * FROM dbo.vw_manifestos_powerbi',
+                    N'SELECT TOP (0) * FROM %s',
                     NULL,
                     0
                 )
                 WHERE error_number IS NULL
                   AND is_hidden = 0
                 ORDER BY column_ordinal
-                """, new MapSqlParameterSource(), String.class);
+                """.formatted(MANIFESTOS_VIEW), new MapSqlParameterSource(), String.class);
         return new ManifestosViewColumns(nomes);
     }
 

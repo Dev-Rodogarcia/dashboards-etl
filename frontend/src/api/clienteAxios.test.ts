@@ -1,74 +1,184 @@
 import { describe, expect, it, vi } from 'vitest';
 import { tratarErroRespostaApi, type RetryableRequestConfig } from './clienteAxios';
 import { SessaoExpiradaError } from '../utils/authSession';
+import type { LoginResponse } from '../types/auth';
 
-function criarErro401(config?: RetryableRequestConfig) {
+function criarConfig(url: string): RetryableRequestConfig {
+  return {
+    url,
+    headers: {},
+  } as RetryableRequestConfig;
+}
+
+function criarErro401(config?: RetryableRequestConfig): {
+  response: { status: number };
+  config?: RetryableRequestConfig;
+} {
   return {
     response: { status: 401 },
     config,
   };
 }
 
+function criarLoginResponse(token = 'token-renovado'): LoginResponse {
+  return {
+    token,
+    exigeTrocaSenha: false,
+    sessaoExpiraEm: '2026-06-13T18:00:00.000Z',
+    usuario: {
+      id: 'usuario-1',
+      nome: 'Usuario Teste',
+      email: 'usuario@teste.local',
+      papel: 'USER',
+      setor: {
+        id: 'setor-1',
+        nome: 'Operacao',
+      },
+      permissoesEfetivas: {} as LoginResponse['usuario']['permissoesEfetivas'],
+      filiaisPermitidasEfetivas: [],
+      exigeTrocaSenha: false,
+    },
+  };
+}
+
 describe('tratarErroRespostaApi', () => {
-  it('desloga imediatamente quando um endpoint protegido retorna 401', async () => {
+  it('renova a sessao e reexecuta endpoint protegido apos 401', async () => {
     const limparSessao = vi.fn();
     const revogarSessaoRemota = vi.fn().mockResolvedValue(undefined);
-    const redirecionar = vi.fn();
+    const renovarSessao = vi.fn().mockResolvedValue(criarLoginResponse('token-novo'));
+    const resultado = { ok: true };
+    const reexecutarRequisicao = vi.fn().mockResolvedValue(resultado);
+    const config = criarConfig('/api/painel/coletas');
 
-    await expect(tratarErroRespostaApi(criarErro401({
-      url: '/api/painel/coletas',
-      headers: {},
-    } as RetryableRequestConfig), {
+    await expect(tratarErroRespostaApi(criarErro401(config), {
       limparSessao,
       revogarSessaoRemota,
-      obterPathAtual: () => '/coletas',
-      redirecionar,
+      renovarSessao,
+      reexecutarRequisicao,
+    })).resolves.toBe(resultado);
+
+    expect(renovarSessao).toHaveBeenCalledTimes(1);
+    expect(reexecutarRequisicao).toHaveBeenCalledWith(config);
+    expect(config._retry).toBe(true);
+    expect(config.headers.Authorization).toBe('Bearer token-novo');
+    expect(limparSessao).not.toHaveBeenCalled();
+    expect(revogarSessaoRemota).not.toHaveBeenCalled();
+  });
+
+  it('enfileira requisicoes 401 enquanto o refresh esta em andamento', async () => {
+    const limparSessao = vi.fn();
+    const revogarSessaoRemota = vi.fn().mockResolvedValue(undefined);
+    let resolverRefresh!: (value: LoginResponse) => void;
+    const renovarSessao = vi.fn(() => new Promise<LoginResponse>((resolve) => {
+      resolverRefresh = resolve;
+    }));
+    const reexecutarRequisicao = vi.fn((config: RetryableRequestConfig) => Promise.resolve({
+      url: config.url,
+    }));
+    const primeiraConfig = criarConfig('/api/painel/coletas');
+    const segundaConfig = criarConfig('/api/painel/fretes');
+
+    const primeira = tratarErroRespostaApi(criarErro401(primeiraConfig), {
+      limparSessao,
+      revogarSessaoRemota,
+      renovarSessao,
+      reexecutarRequisicao,
+    });
+    const segunda = tratarErroRespostaApi(criarErro401(segundaConfig), {
+      limparSessao,
+      revogarSessaoRemota,
+      renovarSessao,
+      reexecutarRequisicao,
+    });
+
+    expect(renovarSessao).toHaveBeenCalledTimes(1);
+
+    resolverRefresh(criarLoginResponse('token-fila'));
+
+    await expect(Promise.all([primeira, segunda])).resolves.toEqual([
+      { url: '/api/painel/coletas' },
+      { url: '/api/painel/fretes' },
+    ]);
+
+    expect(reexecutarRequisicao).toHaveBeenCalledTimes(2);
+    expect(primeiraConfig.headers.Authorization).toBe('Bearer token-fila');
+    expect(segundaConfig.headers.Authorization).toBe('Bearer token-fila');
+    expect(limparSessao).not.toHaveBeenCalled();
+    expect(revogarSessaoRemota).not.toHaveBeenCalled();
+  });
+
+  it.each(['/api/auth/login', '/api/auth/refresh', '/api/auth/logout'])(
+    'propaga 401 de %s sem acionar refresh',
+    async (url) => {
+      const limparSessao = vi.fn();
+      const revogarSessaoRemota = vi.fn();
+      const renovarSessao = vi.fn();
+      const reexecutarRequisicao = vi.fn();
+      const erro = criarErro401(criarConfig(url));
+
+      await expect(tratarErroRespostaApi(erro, {
+        limparSessao,
+        revogarSessaoRemota,
+        renovarSessao,
+        reexecutarRequisicao,
+      })).rejects.toBe(erro);
+
+      expect(renovarSessao).not.toHaveBeenCalled();
+      expect(reexecutarRequisicao).not.toHaveBeenCalled();
+      expect(limparSessao).not.toHaveBeenCalled();
+      expect(revogarSessaoRemota).not.toHaveBeenCalled();
+    },
+  );
+
+  it('limpa sessao quando /api/auth/me retorna 401 sem tentar refresh', async () => {
+    const limparSessao = vi.fn();
+    const revogarSessaoRemota = vi.fn();
+    const renovarSessao = vi.fn();
+    const reexecutarRequisicao = vi.fn();
+
+    await expect(tratarErroRespostaApi(criarErro401(criarConfig('/api/auth/me')), {
+      limparSessao,
+      revogarSessaoRemota,
+      renovarSessao,
+      reexecutarRequisicao,
     })).rejects.toBeInstanceOf(SessaoExpiradaError);
 
     expect(limparSessao).toHaveBeenCalledTimes(1);
     expect(revogarSessaoRemota).toHaveBeenCalledTimes(1);
-    expect(redirecionar).toHaveBeenCalledWith('/login');
+    expect(renovarSessao).not.toHaveBeenCalled();
+    expect(reexecutarRequisicao).not.toHaveBeenCalled();
   });
 
-  it('nao redireciona quando o 401 vem do login', async () => {
+  it('desloga e rejeita quando o refresh falha', async () => {
     const limparSessao = vi.fn();
-    const revogarSessaoRemota = vi.fn();
-    const redirecionar = vi.fn();
-    const erro = criarErro401({
-      url: '/api/auth/login',
-      headers: {},
-    } as RetryableRequestConfig);
+    const revogarSessaoRemota = vi.fn().mockResolvedValue(undefined);
+    const erroRefresh = new SessaoExpiradaError();
+    const renovarSessao = vi.fn().mockRejectedValue(erroRefresh);
+    const reexecutarRequisicao = vi.fn();
 
-    await expect(tratarErroRespostaApi(erro, {
+    await expect(tratarErroRespostaApi(criarErro401(criarConfig('/api/painel/coletas')), {
       limparSessao,
       revogarSessaoRemota,
-      obterPathAtual: () => '/login',
-      redirecionar,
-    })).rejects.toBe(erro);
+      renovarSessao,
+      reexecutarRequisicao,
+    })).rejects.toBe(erroRefresh);
 
-    expect(limparSessao).not.toHaveBeenCalled();
-    expect(revogarSessaoRemota).not.toHaveBeenCalled();
-    expect(redirecionar).not.toHaveBeenCalled();
+    expect(limparSessao).toHaveBeenCalledTimes(1);
+    expect(revogarSessaoRemota).toHaveBeenCalledTimes(1);
+    expect(reexecutarRequisicao).not.toHaveBeenCalled();
   });
 
-  it('redireciona 403 para acesso negado sem limpar sessao', async () => {
+  it('propaga 403 sem limpar sessao', async () => {
     const limparSessao = vi.fn();
-    const redirecionar = vi.fn();
     const erro = {
       response: { status: 403 },
-      config: {
-        url: '/api/painel/coletas',
-        headers: {},
-      } as RetryableRequestConfig,
+      config: criarConfig('/api/painel/coletas'),
     };
 
     await expect(tratarErroRespostaApi(erro, {
       limparSessao,
-      obterPathAtual: () => '/coletas',
-      redirecionar,
     })).rejects.toBe(erro);
 
     expect(limparSessao).not.toHaveBeenCalled();
-    expect(redirecionar).toHaveBeenCalledWith('/acesso-negado');
   });
 });

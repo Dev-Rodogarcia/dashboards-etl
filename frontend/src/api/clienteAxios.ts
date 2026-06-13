@@ -26,6 +26,8 @@ const clienteAxios = axios.create({
 });
 
 let refreshEmAndamento: Promise<LoginResponse> | null = null;
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value?: unknown) => void; reject: (reason?: any) => void }> = [];
 let ultimoAlertaInfraestrutura: { chave: string; timestamp: number } | null = null;
 const API_STATUS_ALERT_COOLDOWN_MS = 5000;
 
@@ -66,11 +68,23 @@ export async function renovarSessao(): Promise<LoginResponse> {
   return refreshEmAndamento;
 }
 
+function processQueue(error: Error | null, token: string | null = null): void {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+      return;
+    }
+
+    resolve(token);
+  });
+  failedQueue = [];
+}
+
 interface TratamentoErroRespostaDeps {
   limparSessao: () => void;
   revogarSessaoRemota?: () => Promise<void>;
-  obterPathAtual: () => string;
-  redirecionar: (path: string) => void;
+  renovarSessao?: () => Promise<LoginResponse>;
+  reexecutarRequisicao?: (config: RetryableRequestConfig) => Promise<unknown>;
 }
 
 function obterUrlRequisicao(config?: RetryableRequestConfig): string {
@@ -81,11 +95,13 @@ function ehEndpointAuth(url: string): boolean {
   return url.includes('/api/auth/login') || url.includes('/api/auth/refresh') || url.includes('/api/auth/logout');
 }
 
-function encerrarSessaoLocal(deps: Pick<TratamentoErroRespostaDeps, 'limparSessao' | 'obterPathAtual' | 'redirecionar'>): void {
+function ehEndpointSessaoAtual(url: string): boolean {
+  return url.includes('/api/auth/me');
+}
+
+function encerrarSessaoLocal(deps: Pick<TratamentoErroRespostaDeps, 'limparSessao'>, error?: unknown): SessaoExpiradaError {
   deps.limparSessao();
-  if (deps.obterPathAtual() !== '/login') {
-    deps.redirecionar('/login');
-  }
+  return new SessaoExpiradaError(error);
 }
 
 async function revogarSessaoRemota(): Promise<void> {
@@ -111,7 +127,7 @@ async function revogarSessaoRemota(): Promise<void> {
       },
     );
   } catch {
-    // A sessao local ja foi encerrada; falha remota nao deve impedir o redirecionamento.
+    // A sessao local ja foi encerrada; falha remota nao deve impedir a limpeza do contexto.
   }
 }
 
@@ -150,6 +166,51 @@ function notificarErroInfraestrutura(status?: number): void {
   window.dispatchEvent(new CustomEvent<ApiStatusAlertDetail>(API_STATUS_ALERT_EVENT, { detail: alerta }));
 }
 
+function aplicarAccessToken(config: RetryableRequestConfig, token: string | null): void {
+  if (!token) {
+    return;
+  }
+
+  config.headers.Authorization = `Bearer ${token}`;
+}
+
+function pausarRequisicaoDuranteRefresh(originalRequest: RetryableRequestConfig, deps: TratamentoErroRespostaDeps): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    failedQueue.push({ resolve, reject });
+  }).then((token) => {
+    aplicarAccessToken(originalRequest, typeof token === 'string' ? token : null);
+    return (deps.reexecutarRequisicao ?? clienteAxios)(originalRequest);
+  });
+}
+
+async function retentarAposRenovarSessao(
+  originalRequest: RetryableRequestConfig,
+  deps: TratamentoErroRespostaDeps,
+): Promise<unknown> {
+  originalRequest._retry = true;
+
+  if (isRefreshing) {
+    return pausarRequisicaoDuranteRefresh(originalRequest, deps);
+  }
+
+  isRefreshing = true;
+
+  try {
+    const sessaoRenovada = await (deps.renovarSessao ?? renovarSessao)();
+    processQueue(null, sessaoRenovada.token);
+    aplicarAccessToken(originalRequest, sessaoRenovada.token);
+    return (deps.reexecutarRequisicao ?? clienteAxios)(originalRequest);
+  } catch (refreshError) {
+    const erroSessao = normalizarErroSessao(refreshError);
+    processQueue(erroSessao);
+    void deps.revogarSessaoRemota?.();
+    deps.limparSessao();
+    return Promise.reject(erroSessao);
+  } finally {
+    isRefreshing = false;
+  }
+}
+
 export async function tratarErroRespostaApi(
   error: unknown,
   deps: TratamentoErroRespostaDeps,
@@ -164,16 +225,22 @@ export async function tratarErroRespostaApi(
 
   notificarErroInfraestrutura(status);
 
-  if (status === 401 && !ehEndpointAuth(url)) {
-    void deps.revogarSessaoRemota?.();
-    encerrarSessaoLocal(deps);
-    return Promise.reject(new SessaoExpiradaError(error));
+  if (status === 401 && ehEndpointAuth(url)) {
+    return Promise.reject(error);
   }
 
-  if (status === 403) {
-    if (deps.obterPathAtual() !== '/acesso-negado') {
-      deps.redirecionar('/acesso-negado');
+  if (status === 401 && ehEndpointSessaoAtual(url)) {
+    void deps.revogarSessaoRemota?.();
+    return Promise.reject(encerrarSessaoLocal(deps, error));
+  }
+
+  if (status === 401) {
+    if (!originalRequest || originalRequest._retry) {
+      void deps.revogarSessaoRemota?.();
+      return Promise.reject(encerrarSessaoLocal(deps, error));
     }
+
+    return retentarAposRenovarSessao(originalRequest, deps);
   }
 
   return Promise.reject(error);
@@ -184,10 +251,6 @@ clienteAxios.interceptors.response.use(
   (error) => tratarErroRespostaApi(error, {
     limparSessao,
     revogarSessaoRemota,
-    obterPathAtual: () => window.location.pathname,
-    redirecionar: (path) => {
-      window.location.href = path;
-    },
   }),
 );
 

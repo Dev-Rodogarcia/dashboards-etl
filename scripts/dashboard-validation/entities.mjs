@@ -422,7 +422,7 @@ FROM base`,
       cte: `
 WITH base AS (
     SELECT *
-    FROM dbo.vw_manifestos_powerbi
+    FROM dbo.vw_fato_manifestos_dash
     WHERE [Data criação] >= @DataInicioOffset
       AND [Data criação] < @DataFimExclusivoOffset
 )`,
@@ -656,7 +656,7 @@ manifestos AS (
                 THEN [Total peso taxado] * 100.0 / [Capacidade Lotação Kg]
             END
         ) AS DECIMAL(10, 2)) AS ocupacao_peso_media_pct
-    FROM dbo.vw_manifestos_powerbi
+    FROM dbo.vw_fato_manifestos_dash
     WHERE [Data criação] >= @DataInicioOffset
       AND [Data criação] < @DataFimExclusivoOffset
 )`,

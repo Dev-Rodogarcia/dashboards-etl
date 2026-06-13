@@ -48,6 +48,18 @@ class DashboardEtlWrappersMigrationSqlTest {
         assertThat(MOJIBAKE_PATTERN.matcher(sql).find()).isFalse();
     }
 
+    @Test
+    void migrationV029DevePublicarSynonymDaFatoManifestos() throws IOException {
+        String sql = lerMigration("V029__sincronizar_fato_manifestos_etl.sql");
+
+        assertThat(sql).contains("DROP VIEW dbo.vw_fato_manifestos_dash");
+        assertThat(sql).contains("DROP SYNONYM dbo.vw_fato_manifestos_dash");
+        assertThat(sql).contains("CREATE SYNONYM dbo.vw_fato_manifestos_dash FOR ETL_SISTEMA.dbo.vw_fato_manifestos_dash");
+        assertThat(sql).doesNotContain("CREATE OR ALTER VIEW");
+        assertThat(sql).doesNotContain("SELECT * FROM ETL_SISTEMA");
+        assertThat(MOJIBAKE_PATTERN.matcher(sql).find()).isFalse();
+    }
+
     private String lerMigration(String arquivo) throws IOException {
         return lerSql(Path.of("..", "database", "migrations", arquivo));
     }

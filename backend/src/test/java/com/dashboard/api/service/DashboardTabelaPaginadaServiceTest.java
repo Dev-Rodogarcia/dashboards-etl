@@ -88,7 +88,7 @@ class DashboardTabelaPaginadaServiceTest {
 
         ManifestoResumoDTO manifesto = service.buscarManifestos(filtroPadrao(), 1, 10).conteudo().get(0);
 
-        assertThat(jdbcTemplate.sqls().get(1)).contains("SELECT * FROM [vw_manifestos_powerbi] base");
+        assertThat(jdbcTemplate.sqls().get(1)).contains("SELECT * FROM [vw_fato_manifestos_dash] base");
         assertThat(manifesto.receitaTotalTransportada()).isEqualByComparingTo("1000.25");
         assertThat(manifesto.capacidadeKg()).isEqualByComparingTo("12000.50");
         assertThat(manifesto.itensFinalizados()).isEqualTo(8);

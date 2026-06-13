@@ -50,7 +50,7 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
                     TRY_CONVERT(INT, [Itens/Total]) AS itens_total,
                     TRY_CONVERT(INT, [Itens/Finalizados]) AS itens_finalizados,
                     TRY_CONVERT(datetime2, [Data de extracao]) AS data_extracao
-                FROM dbo.vw_manifestos_powerbi
+                FROM dbo.vw_fato_manifestos_dash
             ),
             filtrados AS (
                 SELECT *

@@ -64,7 +64,7 @@ public enum DashboardExportDefinition {
     MANIFESTOS(
             "manifestos",
             "manifestos",
-            "[vw_manifestos_powerbi]",
+            "[vw_fato_manifestos_dash]",
             DateMode.OFFSET_DATE_TIME,
             "[Data criação]",
             List.of("[Filial]"),

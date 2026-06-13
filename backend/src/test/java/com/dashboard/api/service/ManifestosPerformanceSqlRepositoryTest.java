@@ -73,12 +73,12 @@ class ManifestosPerformanceSqlRepositoryTest {
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql)
                         .contains("COALESCE([Receita Total Transportada], 0) AS receita_total")
-                        .contains("FROM dbo.vw_manifestos_powerbi")
+                        .contains("FROM dbo.vw_fato_manifestos_dash")
                         .doesNotContain("COALESCE([Fretes/Total], 0) AS receita_total"));
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql)
                         .contains("sys.dm_exec_describe_first_result_set")
-                        .contains("N'SELECT TOP (0) * FROM dbo.vw_manifestos_powerbi'"));
+                        .contains("N'SELECT TOP (0) * FROM dbo.vw_fato_manifestos_dash'"));
     }
 
     @Test
@@ -145,7 +145,7 @@ class ManifestosPerformanceSqlRepositoryTest {
         assertThat(jdbcTemplate.sqls)
                 .noneSatisfy(sql -> assertThat(sql).contains("sp_refreshview"));
         assertThat(jdbcTemplate.sqls)
-                .anySatisfy(sql -> assertThat(sql).contains("FROM dbo.vw_manifestos_powerbi"));
+                .anySatisfy(sql -> assertThat(sql).contains("FROM dbo.vw_fato_manifestos_dash"));
         assertThat(jdbcTemplate.sqls)
                 .noneSatisfy(sql -> assertThat(sql).contains("ETL_SISTEMA"));
         assertThat(jdbcTemplate.consultasColunas).isEqualTo(2);

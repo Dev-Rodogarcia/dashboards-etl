@@ -11,7 +11,7 @@ import org.hibernate.annotations.Immutable;
 
 @Entity
 @Immutable
-@Table(name = "vw_manifestos_powerbi")
+@Table(name = "vw_fato_manifestos_dash")
 public class VisaoManifestosEntity {
 
     @EmbeddedId
