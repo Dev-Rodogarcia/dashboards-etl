@@ -161,7 +161,7 @@ export default function ManifestosPage() {
   const canManageManifestosGoals = canAccess('can_manage_kpi_goals');
   const dadosPerformance = performance.data;
   const statusSazonal = useMemo(() => dadosPerformance?.statusSazonal ?? EMPTY_ARRAY, [dadosPerformance?.statusSazonal]);
-  const custosMotorista = useMemo(() => dadosPerformance?.custosMotorista ?? EMPTY_ARRAY, [dadosPerformance?.custosMotorista]);
+  const custosContrato = useMemo(() => dadosPerformance?.custosContrato ?? EMPTY_ARRAY, [dadosPerformance?.custosContrato]);
   const tiposVeiculo = useMemo(() => dadosPerformance?.tiposVeiculo ?? EMPTY_ARRAY, [dadosPerformance?.tiposVeiculo]);
   const tabelaConteudo = useMemo<ManifestoTabelaRow[]>(
     () => (tabela.data?.conteudo ?? EMPTY_ARRAY).map((row) => ({
@@ -209,7 +209,7 @@ export default function ManifestosPage() {
     pendente: item.pendente,
   })), [statusSazonal]);
 
-  const custosMotoristaOption: EChartsOption = useMemo(() => buildBaseDonutOption(isDark, {
+  const custosContratoOption: EChartsOption = useMemo(() => buildBaseDonutOption(isDark, {
     tooltip: {
       trigger: 'item',
       formatter: (params: unknown) => {
@@ -225,10 +225,10 @@ export default function ManifestosPage() {
       {
         name: 'Custos',
         type: 'pie',
-        data: custosMotorista.map((item) => ({ name: item.tipo, value: item.custo })),
+        data: custosContrato.map((item) => ({ name: item.tipoContrato, value: item.custoTotal })),
       },
     ],
-  }), [custosMotorista, isDark]);
+  }), [custosContrato, isDark]);
 
   const tiposVeiculoOption: EChartsOption = useMemo(() => buildBaseBarOption(isDark, {
     tooltip: { trigger: 'axis' },
@@ -392,10 +392,10 @@ export default function ManifestosPage() {
           isLoading={performance.isLoading}
         />
         <ChartWrapper
-          titulo="Custos por Tipo de Motorista"
-          option={custosMotoristaOption}
+          titulo={KpiDictionary.manifestos.custosPorContrato.titulo}
+          option={custosContratoOption}
           isLoading={performance.isLoading}
-          isEmpty={custosMotorista.length === 0}
+          isEmpty={custosContrato.length === 0}
         />
         <ChartWrapper
           titulo="Tipo de Veículos Utilizados"

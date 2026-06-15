@@ -3,7 +3,7 @@ package com.dashboard.api.repository;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCustosEvolucaoDTO.CustoDiarioDTO;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO;
-import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.CustoMotoristaDTO;
+import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.CustoContratoDTO;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.GaugeMetricDTO;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.KpisManifestosDTO;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.StatusSazonalDTO;
@@ -81,7 +81,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                 gauges.aproveitamento(),
                 gauges.efetividade(),
                 buscarStatusSazonal(ctx, nivel, ano, mes),
-                buscarCustosMotorista(ctx),
+                buscarCustosContrato(ctx),
                 buscarTiposVeiculo(ctx),
                 null
         );
@@ -187,22 +187,22 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         ));
     }
 
-    private List<CustoMotoristaDTO> buscarCustosMotorista(QueryContext ctx) {
+    private List<CustoContratoDTO> buscarCustosContrato(QueryContext ctx) {
         String sql = ctx.baseCte() + """
                 SELECT
-                    tipo_motorista AS tipo,
-                    COALESCE(SUM(custo_total), 0) AS custo
+                    tipo_contrato,
+                    COALESCE(SUM(custo_total), 0) AS custo_total
                 FROM manifestos
                 WHERE 1 = 1
                 """ + ctx.where() + """
-                GROUP BY tipo_motorista
+                GROUP BY tipo_contrato
                 HAVING COALESCE(SUM(custo_total), 0) > 0
-                ORDER BY custo DESC, tipo_motorista
+                ORDER BY custo_total DESC, tipo_contrato
                 """;
 
-        return jdbcTemplate.query(sql, ctx.params(), (rs, rowNum) -> new CustoMotoristaDTO(
-                rs.getString("tipo"),
-                escala(rs.getBigDecimal("custo"), 2)
+        return jdbcTemplate.query(sql, ctx.params(), (rs, rowNum) -> new CustoContratoDTO(
+                rs.getString("tipo_contrato"),
+                escala(rs.getBigDecimal("custo_total"), 2)
         ));
     }
 
@@ -677,6 +677,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                     && existe("Veículo/Placa")
                     && existe("Tipo Veículo")
                     && existe("Tipo Motorista")
+                    && existe("Tipo de contrato")
                     && existe("Proprietário/Documento")
                     && existe("KM Total")
                     && existe("Custo total")

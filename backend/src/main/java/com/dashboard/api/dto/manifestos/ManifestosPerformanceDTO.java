@@ -10,7 +10,7 @@ public record ManifestosPerformanceDTO(
         GaugeMetricDTO aproveitamento,
         GaugeMetricDTO efetividade,
         List<StatusSazonalDTO> statusSazonal,
-        List<CustoMotoristaDTO> custosMotorista,
+        List<CustoContratoDTO> custosContrato,
         List<TipoVeiculoDTO> tiposVeiculo,
         ManifestosCustosEvolucaoDTO custosEvolucao
 ) {
@@ -44,9 +44,9 @@ public record ManifestosPerformanceDTO(
     ) {
     }
 
-    public record CustoMotoristaDTO(
-            String tipo,
-            BigDecimal custo
+    public record CustoContratoDTO(
+            String tipoContrato,
+            BigDecimal custoTotal
     ) {
     }
 

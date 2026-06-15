@@ -57,9 +57,15 @@ class ManifestosPerformanceSqlRepositoryTest {
                         .contains("GROUP BY GROUPING SETS ((classificacao_bucket), ())")
                         .doesNotContain("UNION ALL"));
         assertThat(jdbcTemplate.sqls)
-                .anySatisfy(sql -> assertThat(sql).contains("tipo_motorista AS tipo"));
+                .anySatisfy(sql -> assertThat(sql)
+                        .contains("tipo_contrato")
+                        .contains("COALESCE(SUM(custo_total), 0) AS custo_total")
+                        .contains("GROUP BY tipo_contrato")
+                        .doesNotContain("tipo_motorista AS tipo"));
         assertThat(jdbcTemplate.sqls)
-                .anySatisfy(sql -> assertThat(sql).contains("[Tipo Motorista]"));
+                .anySatisfy(sql -> assertThat(sql)
+                        .contains("[Tipo de contrato]")
+                        .contains("AS tipo_contrato"));
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql).contains("COUNT(DISTINCT numero) AS quantidade"));
         assertThat(jdbcTemplate.sqls)
@@ -231,6 +237,7 @@ class ManifestosPerformanceSqlRepositoryTest {
                 "Veículo/Placa",
                 "Tipo Veículo",
                 "Tipo Motorista",
+                "Tipo de contrato",
                 "Proprietário/Documento",
                 "KM Total",
                 "Custo total",

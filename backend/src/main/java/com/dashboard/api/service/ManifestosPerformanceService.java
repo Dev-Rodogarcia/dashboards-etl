@@ -33,7 +33,7 @@ public class ManifestosPerformanceService {
                 performance.aproveitamento(),
                 performance.efetividade(),
                 performance.statusSazonal(),
-                performance.custosMotorista(),
+                performance.custosContrato(),
                 performance.tiposVeiculo(),
                 costGoalService.calcular(filtro, performance.kpis().custoTotal())
         );

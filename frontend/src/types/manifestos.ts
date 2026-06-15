@@ -86,7 +86,7 @@ export interface PerformanceVeiculosDados {
   aproveitamento: GaugeMetric;
   efetividade: GaugeMetric;
   statusSazonal: Array<{ data: string; encerrado: number; emTransito: number; pendente: number }>;
-  custosMotorista: Array<{ tipo: string; custo: number }>;
+  custosContrato: Array<{ tipoContrato: string; custoTotal: number }>;
   tiposVeiculo: Array<{ tipo: string; quantidade: number }>;
   custosEvolucao: ManifestosCustosEvolucao;
 }
