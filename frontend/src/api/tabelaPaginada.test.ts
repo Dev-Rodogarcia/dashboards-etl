@@ -62,13 +62,15 @@ describe('tabelaPaginada', () => {
     const resultado = await buscarTabelaPaginada('/api/painel/manifestos/tabela/paginada', {
       dataInicio: '2026-06-01',
       dataFim: '2026-06-12',
-    }, 2, 50);
+    }, 2, 50, undefined, 'percentualRemuneracao', 'desc');
 
     const params = clienteMock.get.mock.calls[0][1].params as URLSearchParams;
     expect(params.get('pagina')).toBe('2');
     expect(params.get('tamanhoPagina')).toBe('50');
     expect(params.get('page')).toBe('1');
     expect(params.get('size')).toBe('50');
+    expect(params.get('sort')).toBe('percentualRemuneracao');
+    expect(params.get('order')).toBe('desc');
     expect(resultado.conteudo).toHaveLength(50);
     expect(resultado.tamanhoPagina).toBe(50);
   });

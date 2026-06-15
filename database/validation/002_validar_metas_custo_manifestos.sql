@@ -18,6 +18,9 @@ IF COL_LENGTH(N'acesso.manifestos_cost_goals', N'created_at') IS NULL
 IF COL_LENGTH(N'acesso.manifestos_cost_goals', N'updated_at') IS NULL
     THROW 50285, 'Coluna updated_at nao encontrada em acesso.manifestos_cost_goals.', 1;
 
+IF COL_LENGTH(N'acesso.manifestos_cost_goals', N'updated_by_user_id') IS NULL
+    THROW 50290, 'Coluna updated_by_user_id nao encontrada em acesso.manifestos_cost_goals.', 1;
+
 IF NOT EXISTS (
     SELECT 1
     FROM sys.check_constraints

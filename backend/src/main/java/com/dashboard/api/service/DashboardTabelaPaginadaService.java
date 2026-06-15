@@ -17,6 +17,7 @@ import com.dashboard.api.util.ConsultaFiltroUtils;
 import com.dashboard.api.util.ConsultaLimiteUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,31 @@ public class DashboardTabelaPaginadaService {
     private static final int TAMANHO_PADRAO = 10;
     private static final int TAMANHO_MAXIMO = 100;
     private static final int TAMANHO_MAXIMO_TABELA_LEGADA = 200;
+    private static final Map<String, ManifestosSortDefinition> MANIFESTOS_SORT_FIELDS = Map.ofEntries(
+            Map.entry("numero", new ManifestosSortDefinition("[Número]", null)),
+            Map.entry("status", new ManifestosSortDefinition("[Status]", null)),
+            Map.entry("filial", new ManifestosSortDefinition("[Filial]", null)),
+            Map.entry("motorista", new ManifestosSortDefinition("[Motorista]", null)),
+            Map.entry("veiculoPlaca", new ManifestosSortDefinition("[Veículo/Placa]", null)),
+            Map.entry("dataCriacao", new ManifestosSortDefinition("[Data criação]", null)),
+            Map.entry("totalPesoTaxado", new ManifestosSortDefinition("[Total peso taxado]", null)),
+            Map.entry("totalM3", new ManifestosSortDefinition("[Total M3]", null)),
+            Map.entry("custoTotal", new ManifestosSortDefinition("[Custo total]", null)),
+            Map.entry("receitaTotalTransportada", new ManifestosSortDefinition("[Receita Total Transportada]", null)),
+            Map.entry("kmTotal", new ManifestosSortDefinition("[KM Total]", null)),
+            Map.entry("percentualRemuneracao", new ManifestosSortDefinition(
+                    "[Custo total] / NULLIF([Receita Total Transportada], 0)",
+                    "[Receita Total Transportada] > 0 AND [Custo total] IS NOT NULL"
+            )),
+            Map.entry("percentualAproveitamento", new ManifestosSortDefinition(
+                    "[Total peso taxado] / NULLIF([Capacidade Lotação Kg], 0)",
+                    "[Capacidade Lotação Kg] > 0 AND [Total peso taxado] IS NOT NULL"
+            )),
+            Map.entry("percentualEfetividade", new ManifestosSortDefinition(
+                    "CONVERT(DECIMAL(19, 6), [Itens/Finalizados]) / NULLIF([Itens/Total], 0)",
+                    "[Itens/Total] > 0 AND [Itens/Finalizados] IS NOT NULL"
+            ))
+    );
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final DashboardExportSqlBuilder sqlBuilder;
@@ -72,7 +98,24 @@ public class DashboardTabelaPaginadaService {
     }
 
     public PaginaDTO<ManifestoResumoDTO> buscarManifestos(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
-        return buscarPagina(DashboardExportDefinition.MANIFESTOS, filtro, pagina, tamanhoPagina, this::mapearManifesto);
+        return buscarManifestos(filtro, pagina, tamanhoPagina, null, null);
+    }
+
+    public PaginaDTO<ManifestoResumoDTO> buscarManifestos(
+            FiltroConsultaDTO filtro,
+            int pagina,
+            int tamanhoPagina,
+            String sortField,
+            String sortDirection
+    ) {
+        return buscarPagina(
+                DashboardExportDefinition.MANIFESTOS,
+                filtro,
+                pagina,
+                tamanhoPagina,
+                this::mapearManifesto,
+                manifestosOrderBy(sortField, sortDirection)
+        );
     }
 
     public PaginaDTO<CotacaoResumoDTO> buscarCotacoes(FiltroConsultaDTO filtro, int pagina, int tamanhoPagina) {
@@ -106,12 +149,24 @@ public class DashboardTabelaPaginadaService {
             int tamanhoSolicitado,
             Function<Map<String, Object>, T> mapper
     ) {
+        return buscarPagina(definition, filtro, paginaSolicitada, tamanhoSolicitado, mapper, definition.orderBy());
+    }
+
+    private <T> PaginaDTO<T> buscarPagina(
+            DashboardExportDefinition definition,
+            FiltroConsultaDTO filtro,
+            int paginaSolicitada,
+            int tamanhoSolicitado,
+            Function<Map<String, Object>, T> mapper,
+            List<String> orderBy
+    ) {
         PaginaDTO<Map<String, Object>> pagina = buscarPaginaBruta(
                 definition,
                 filtro,
                 paginaSolicitada,
                 tamanhoSolicitado,
-                TAMANHO_MAXIMO
+                TAMANHO_MAXIMO,
+                orderBy
         );
         return copiarPagina(pagina, pagina.conteudo().stream().map(mapper).toList());
     }
@@ -127,7 +182,8 @@ public class DashboardTabelaPaginadaService {
                 filtro,
                 PAGINA_PADRAO,
                 limite,
-                TAMANHO_MAXIMO_TABELA_LEGADA
+                TAMANHO_MAXIMO_TABELA_LEGADA,
+                definition.orderBy()
         ).conteudo().stream().map(mapper).toList();
     }
 
@@ -136,7 +192,8 @@ public class DashboardTabelaPaginadaService {
             FiltroConsultaDTO filtro,
             int paginaSolicitada,
             int tamanhoSolicitado,
-            int tamanhoMaximo
+            int tamanhoMaximo,
+            List<String> orderBy
     ) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
 
@@ -150,7 +207,13 @@ public class DashboardTabelaPaginadaService {
         MapSqlParameterSource countParams = Objects.requireNonNull(countQuery.params(), "countParams");
         Long total = jdbcTemplate.queryForObject(countSql, countParams, Long.class);
 
-        DashboardExportSqlBuilder.ExportSql selectQuery = sqlBuilder.buildSelect(definition, filtro, escopo, Set.of());
+        DashboardExportSqlBuilder.ExportSql selectQuery = sqlBuilder.buildSelect(
+                definition,
+                filtro,
+                escopo,
+                Set.of(),
+                orderBy
+        );
         MapSqlParameterSource params = Objects.requireNonNull(selectQuery.params(), "selectParams");
         params.addValue("offsetTabela", offset);
         params.addValue("tamanhoTabela", tamanho);
@@ -162,6 +225,31 @@ public class DashboardTabelaPaginadaService {
         int totalPaginas = totalSeguro == 0 ? 0 : (int) Math.ceil(totalSeguro / (double) tamanho);
 
         return new PaginaDTO<>(conteudo, totalSeguro, totalPaginas, pagina, tamanho);
+    }
+
+    private List<String> manifestosOrderBy(String sortField, String sortDirection) {
+        if (sortField == null) {
+            return DashboardExportDefinition.MANIFESTOS.orderBy();
+        }
+
+        ManifestosSortDefinition sortDefinition = MANIFESTOS_SORT_FIELDS.get(sortField);
+        if (sortDefinition == null) {
+            return DashboardExportDefinition.MANIFESTOS.orderBy();
+        }
+
+        String direction = "desc".equalsIgnoreCase(sortDirection) ? "DESC" : "ASC";
+        List<String> orderBy = new ArrayList<>();
+        if (sortDefinition.validCondition() != null) {
+            orderBy.add("CASE WHEN " + sortDefinition.validCondition() + " THEN 0 ELSE 1 END ASC");
+        }
+        orderBy.add(sortDefinition.expression() + " " + direction);
+        if (!"dataCriacao".equals(sortField)) {
+            orderBy.add("[Data criação] DESC");
+        }
+        if (!"numero".equals(sortField)) {
+            orderBy.add("[Número] DESC");
+        }
+        return List.copyOf(orderBy);
     }
 
     private <T> PaginaDTO<T> copiarPagina(PaginaDTO<?> origem, List<T> conteudo) {
@@ -270,6 +358,9 @@ public class DashboardTabelaPaginadaService {
                 inteiro(row, "Itens/Finalizados"),
                 inteiro(row, "Itens/Total")
         );
+    }
+
+    private record ManifestosSortDefinition(String expression, String validCondition) {
     }
 
     private CotacaoResumoDTO mapearCotacao(Map<String, Object> row) {

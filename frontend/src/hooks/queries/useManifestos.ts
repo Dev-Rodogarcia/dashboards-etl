@@ -88,11 +88,20 @@ export function useManifestosTabelaPaginada(
   pagina: number,
   tamanhoPagina: number,
   filtrosTabela?: TableApiFilters,
+  sortField?: string,
+  sortDirection?: 'asc' | 'desc',
 ) {
   return useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
-    queryKey: [...QUERY_KEY, 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
-    queryFn: () => buscarManifestosTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
+    queryKey: [...QUERY_KEY, 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela, sortField, sortDirection],
+    queryFn: () => buscarManifestosTabelaPaginada(
+      filtro,
+      pagina,
+      tamanhoPagina,
+      filtrosTabela,
+      sortField,
+      sortDirection,
+    ),
     placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
     retry: 1,

@@ -137,7 +137,7 @@ export default function FilterBar({
       </button>
 
       {actions ? (
-        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden p-1">
           {actions}
         </div>
       ) : null}

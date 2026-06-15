@@ -35,8 +35,18 @@ public class DashboardExportSqlBuilder {
             EscopoFilialService.EscopoFilial escopo,
             Set<String> filtrosIgnorados
     ) {
+        return buildSelect(definition, filtro, escopo, filtrosIgnorados, definition.orderBy());
+    }
+
+    public ExportSql buildSelect(
+            DashboardExportDefinition definition,
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            Set<String> filtrosIgnorados,
+            List<String> orderByColumns
+    ) {
         SqlParts parts = buildBase(definition, filtro, escopo, filtrosIgnorados);
-        String orderBy = definition.orderBy().isEmpty() ? "" : " ORDER BY " + String.join(", ", definition.orderBy());
+        String orderBy = orderByColumns.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderByColumns);
 
         if (definition.dedupConfig() == null) {
             return new ExportSql("SELECT * FROM " + parts.sourceSql() + " base WHERE " + parts.where() + orderBy, parts.params());

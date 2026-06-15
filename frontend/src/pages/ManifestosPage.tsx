@@ -10,7 +10,10 @@ import ManifestosGaugeCard from '../components/domain/manifestos/ManifestosGauge
 import ManifestosKpiGrid from '../components/domain/manifestos/ManifestosKpiGrid';
 import ManifestosTrend from '../components/domain/manifestos/ManifestosTrend';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
-import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
+import AnalyticalDataTable, {
+  type ColunaTabelaAnalitica,
+  type SortDirection,
+} from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
@@ -47,6 +50,11 @@ type ManifestoTabelaRow = ManifestoResumoRow & {
   percentualAproveitamento: number | null;
   percentualEfetividade: number | null;
 };
+
+interface ManifestosTableSort {
+  field: keyof ManifestoTabelaRow & string;
+  direction: SortDirection;
+}
 
 function calcularPercentual(
   numerador: number | null | undefined,
@@ -108,6 +116,7 @@ function numeroParam(valor: string | null): number | null {
 export default function ManifestosPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const [isMetasPanelOpen, setIsMetasPanelOpen] = useState(false);
+  const [tableSort, setTableSort] = useState<ManifestosTableSort | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const { isDark } = useEchartsTheme();
   const { canAccess } = usePermissions();
@@ -150,7 +159,14 @@ export default function ManifestosPage() {
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoResetKey = useMemo(() => JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }), [filtro, filtrosTabela.resetKey]);
   const paginacaoTabela = useTabelaPaginadaState(paginacaoResetKey);
-  const tabela = useManifestosTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
+  const tabela = useManifestosTabelaPaginada(
+    filtro,
+    paginacaoTabela.pagina,
+    paginacaoTabela.tamanhoPagina,
+    filtrosTabela.apiFilters,
+    tableSort?.field,
+    tableSort?.direction,
+  );
 
   usePageHeader({
     title: 'Manifestos - Performance de Veículos',
@@ -263,7 +279,7 @@ export default function ManifestosPage() {
     { chave: 'totalPesoTaxado', label: 'Peso', formato: (valor) => formatarPeso(Number(valor ?? 0)) },
     { chave: 'totalM3', label: 'M3', formato: (valor) => formatarNumero(Number(valor ?? 0), 2) },
     { chave: 'custoTotal', label: 'Custo', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
-    { chave: 'valorFrete', label: 'Valor Frete', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
+    { chave: 'receitaTotalTransportada', label: 'Receita Total', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
     { chave: 'kmTotal', label: 'KM', formato: (valor) => formatarNumero(Number(valor ?? 0), 0) },
     {
       chave: 'percentualRemuneracao',
@@ -430,6 +446,9 @@ export default function ManifestosPage() {
         tamanhoPagina={paginacaoTabela.tamanhoPagina}
         onPaginaChange={paginacaoTabela.setPagina}
         onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+        sortField={tableSort?.field}
+        sortDirection={tableSort?.direction}
+        onSortChange={(field, direction) => setTableSort({ field, direction })}
       />
     </div>
   );

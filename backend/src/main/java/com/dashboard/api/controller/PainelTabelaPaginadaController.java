@@ -78,9 +78,18 @@ public class PainelTabelaPaginadaController {
             @RequestParam LocalDate dataFim,
             @RequestParam(defaultValue = "1") int pagina,
             @RequestParam(defaultValue = "10") int tamanhoPagina,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String order,
+            @RequestParam(required = false) String direction,
             @RequestParam MultiValueMap<String, String> params
     ) {
-        return ResponseEntity.ok(tabelaPaginadaService.buscarManifestos(filtro(dataInicio, dataFim, params), pagina, tamanhoPagina));
+        return ResponseEntity.ok(tabelaPaginadaService.buscarManifestos(
+                filtro(dataInicio, dataFim, params),
+                pagina,
+                tamanhoPagina,
+                sort,
+                order != null ? order : direction
+        ));
     }
 
     @GetMapping("/cotacoes/tabela/paginada")

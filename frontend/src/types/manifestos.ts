@@ -150,6 +150,7 @@ export interface ManifestosCostGoalConfig {
   mes: number;
   costGoal: number;
   updatedAt: string | null;
+  updatedByName: string | null;
   configurado: boolean;
   mensagem: string | null;
 }

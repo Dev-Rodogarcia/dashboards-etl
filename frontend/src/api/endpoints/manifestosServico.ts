@@ -98,8 +98,18 @@ export async function buscarManifestosTabelaPaginada(
   pagina: number,
   tamanhoPagina: number,
   filtrosTabela?: TableApiFilters,
+  sortField?: string,
+  sortDirection?: 'asc' | 'desc',
 ): Promise<PaginacaoResponse<ManifestoResumoRow>> {
-  return buscarTabelaPaginada('/api/painel/manifestos/tabela/paginada', filtro, pagina, tamanhoPagina, filtrosTabela);
+  return buscarTabelaPaginada(
+    '/api/painel/manifestos/tabela/paginada',
+    filtro,
+    pagina,
+    tamanhoPagina,
+    filtrosTabela,
+    sortField,
+    sortDirection,
+  );
 }
 
 export async function exportarManifestosCsv(filtro: ManifestosFiltro, filtrosTabela?: TableApiFilters): Promise<void> {

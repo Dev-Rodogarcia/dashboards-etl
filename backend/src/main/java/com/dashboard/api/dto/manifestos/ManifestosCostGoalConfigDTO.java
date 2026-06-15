@@ -10,6 +10,7 @@ public record ManifestosCostGoalConfigDTO(
         int mes,
         BigDecimal costGoal,
         Instant updatedAt,
+        String updatedByName,
         boolean configurado,
         String mensagem
 ) {
@@ -20,6 +21,7 @@ public record ManifestosCostGoalConfigDTO(
                 entity.getYearMonth().getMonthValue(),
                 entity.getCostGoal(),
                 entity.getUpdatedAt(),
+                entity.getUpdatedByUser() != null ? entity.getUpdatedByUser().getNome() : null,
                 true,
                 null
         );
@@ -31,6 +33,7 @@ public record ManifestosCostGoalConfigDTO(
                 ano,
                 mes,
                 BigDecimal.ZERO,
+                null,
                 null,
                 false,
                 mensagem

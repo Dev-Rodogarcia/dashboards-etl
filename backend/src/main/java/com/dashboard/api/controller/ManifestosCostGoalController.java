@@ -3,7 +3,9 @@ package com.dashboard.api.controller;
 import com.dashboard.api.dto.manifestos.ManifestosCostGoalConfigDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCostGoalConfigRequestDTO;
 import com.dashboard.api.model.acesso.ManifestosCostGoalEntity;
+import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.repository.acesso.ManifestosCostGoalRepository;
+import com.dashboard.api.repository.acesso.UsuarioRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -11,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,9 +31,11 @@ public class ManifestosCostGoalController {
     private static final String GLOBAL_BRANCH_ID = "GLOBAL";
 
     private final ManifestosCostGoalRepository repository;
+    private final UsuarioRepository usuarioRepository;
 
-    public ManifestosCostGoalController(ManifestosCostGoalRepository repository) {
+    public ManifestosCostGoalController(ManifestosCostGoalRepository repository, UsuarioRepository usuarioRepository) {
         this.repository = repository;
+        this.usuarioRepository = usuarioRepository;
     }
 
     @GetMapping
@@ -59,18 +64,21 @@ public class ManifestosCostGoalController {
     @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
     @Transactional
     public ResponseEntity<ManifestosCostGoalConfigDTO> salvar(
-            @RequestBody ManifestosCostGoalConfigRequestDTO request
+            @RequestBody ManifestosCostGoalConfigRequestDTO request,
+            Authentication authentication
     ) {
         Objects.requireNonNull(request, "Dados da meta são obrigatórios.");
         LocalDate competencia = competencia(request.ano(), request.mes());
         String branchId = normalizarBranchId(request.branchId());
         BigDecimal costGoal = normalizarMeta(request.costGoal());
+        UsuarioEntity usuario = usuarioAutenticado(authentication);
 
         ManifestosCostGoalEntity entity = buscarExistente(branchId, competencia)
                 .orElseGet(ManifestosCostGoalEntity::new);
         entity.setBranchId(branchId);
         entity.setYearMonth(competencia);
         entity.setCostGoal(costGoal);
+        entity.setUpdatedByUser(usuario);
 
         return ResponseEntity.ok(ManifestosCostGoalConfigDTO.from(repository.saveAndFlush(entity)));
     }
@@ -124,5 +132,13 @@ public class ManifestosCostGoalController {
             throw new IllegalArgumentException("Meta mensal de custo não pode ser negativa.");
         }
         return normalized;
+    }
+
+    private UsuarioEntity usuarioAutenticado(Authentication authentication) {
+        String email = authentication != null && authentication.getName() != null
+                ? authentication.getName()
+                : "";
+        return usuarioRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário autenticado não encontrado."));
     }
 }

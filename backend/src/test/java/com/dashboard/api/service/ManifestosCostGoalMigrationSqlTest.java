@@ -29,6 +29,21 @@ class ManifestosCostGoalMigrationSqlTest {
     }
 
     @Test
+    void migrationV045AdicionaAutorDaUltimaAlteracao() throws IOException {
+        String sql = lerSql(Path.of(
+                "..",
+                "database",
+                "migrations",
+                "V045__adicionar_autor_metas_manifestos.sql"
+        ));
+
+        assertThat(sql)
+                .contains("ALTER TABLE acesso.manifestos_cost_goals")
+                .contains("ADD updated_by_user_id BIGINT NULL")
+                .doesNotContain("ETL_SISTEMA");
+    }
+
+    @Test
     void validacaoDeSchemaCobreTabelaEIndices() throws IOException {
         String sql = lerSql(Path.of(
                 "..",
@@ -39,6 +54,7 @@ class ManifestosCostGoalMigrationSqlTest {
 
         assertThat(sql)
                 .contains("acesso.manifestos_cost_goals")
+                .contains("updated_by_user_id")
                 .contains("UX_manifestos_cost_goals_branch_period")
                 .contains("UX_manifestos_cost_goals_global_period");
     }

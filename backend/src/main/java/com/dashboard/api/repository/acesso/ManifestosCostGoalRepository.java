@@ -17,6 +17,7 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
     @Query("""
             SELECT g
             FROM ManifestosCostGoalEntity g
+            LEFT JOIN FETCH g.updatedByUser
             WHERE g.yearMonth = :yearMonth
             ORDER BY CASE WHEN g.branchId IS NULL THEN 0 ELSE 1 END, g.branchId
             """)
@@ -25,6 +26,7 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
     @Query("""
             SELECT g
             FROM ManifestosCostGoalEntity g
+            LEFT JOIN FETCH g.updatedByUser
             WHERE g.branchId IS NULL
               AND g.yearMonth = :yearMonth
             """)

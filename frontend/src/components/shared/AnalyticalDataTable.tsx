@@ -13,6 +13,8 @@ export type ColunaTabelaAnalitica<T> = ColunaTabela<T> & {
   filtroTabela?: TableFilterField;
 };
 
+export type SortDirection = 'asc' | 'desc';
+
 type ItemPaginacao = number | 'ellipsis-start' | 'ellipsis-end';
 
 function formatarInteiro(valor: number): string {
@@ -40,6 +42,9 @@ interface AnalyticalDataTableProps<T> {
   tamanhoPagina: number;
   onPaginaChange: (pagina: number) => void;
   onTamanhoPaginaChange: (tamanhoPagina: number) => void;
+  sortField?: keyof T & string | null;
+  sortDirection?: SortDirection;
+  onSortChange?: (sortField: keyof T & string, sortDirection: SortDirection) => void;
   error?: unknown;
   errorFallbackMessage?: string;
 }
@@ -497,12 +502,12 @@ export default function AnalyticalDataTable<T>({
   tamanhoPagina,
   onPaginaChange,
   onTamanhoPaginaChange,
+  sortField,
+  sortDirection = 'asc',
+  onSortChange,
   error,
   errorFallbackMessage = 'Erro ao carregar tabela analítica.',
 }: AnalyticalDataTableProps<T>) {
-  const [ordenarPor, setOrdenarPor] = useState<string | null>(null);
-  const [direcao, setDirecao] = useState<'asc' | 'desc'>('asc');
-  const colunaOrdenada = colunas.find((coluna) => coluna.chave === ordenarPor);
   const hasError = Boolean(error);
   const isUpdating = Boolean(isFetching && !isLoading);
   const totalReal = totalRegistros ?? dados.length;
@@ -516,28 +521,6 @@ export default function AnalyticalDataTable<T>({
   const statusOptionsEfetivas = statusOptions ?? [];
   const larguraMinimaTabela = calcularLarguraMinimaTabela(colunas);
 
-  const dadosOrdenados = useMemo(() => {
-    if (!ordenarPor || !colunaOrdenada || colunaOrdenada.ordenavel === false) {
-      return dados;
-    }
-
-    return [...dados].sort((a, b) => {
-      const va = a[ordenarPor as keyof T];
-      const vb = b[ordenarPor as keyof T];
-
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-
-      const valorA = typeof va === 'number' ? va : String(va).toLowerCase();
-      const valorB = typeof vb === 'number' ? vb : String(vb).toLowerCase();
-
-      if (valorA < valorB) return direcao === 'asc' ? -1 : 1;
-      if (valorA > valorB) return direcao === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [colunaOrdenada, dados, direcao, ordenarPor]);
-
   const itensPaginacao = useMemo(() => buildPaginationItems(paginaSegura, totalPaginas), [paginaSegura, totalPaginas]);
 
   function alterarTamanhoPagina(proximoTamanho: number) {
@@ -549,16 +532,12 @@ export default function AnalyticalDataTable<T>({
   }
 
   function handleSort(chave: string, ordenavel = true) {
-    if (!ordenavel) {
+    if (!ordenavel || !onSortChange) {
       return;
     }
 
-    if (ordenarPor === chave) {
-      setDirecao((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setOrdenarPor(chave);
-      setDirecao('asc');
-    }
+    const proximaDirecao = sortField === chave && sortDirection === 'asc' ? 'desc' : 'asc';
+    onSortChange(chave as keyof T & string, proximaDirecao);
     onPaginaChange(1);
   }
 
@@ -658,28 +637,31 @@ export default function AnalyticalDataTable<T>({
         <table className="w-max text-sm" style={{ minWidth: `max(100%, ${larguraMinimaTabela}px)` }}>
           <thead>
             <tr className="h-10 border-b" style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
-              {colunas.map((col) => (
-                <th
-                  key={col.chave}
-                  onClick={() => handleSort(col.chave, col.ordenavel !== false)}
-                  className={`h-10 px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap select-none ${
-                    col.ordenavel === false ? 'cursor-default' : 'cursor-pointer'
-                  } ${col.fixo ? 'sticky left-0 z-10' : ''}`}
-                  style={{
-                    color: 'var(--color-text-muted)',
-                    backgroundColor: col.fixo ? 'var(--color-bg)' : undefined,
-                    ...getColumnSizingStyle(col.largura),
-                  }}
-                >
-                  <span className="flex items-center gap-1">
-                    <span>{col.label}</span>
-                    {col.tooltip ? <TableHeaderTooltip label={col.label} content={col.tooltip} /> : null}
-                    {col.ordenavel !== false && ordenarPor === col.chave && (
-                      <span className="shrink-0">{direcao === 'asc' ? '↑' : '↓'}</span>
-                    )}
-                  </span>
-                </th>
-              ))}
+              {colunas.map((col) => {
+                const colunaOrdenavel = Boolean(onSortChange) && col.ordenavel !== false;
+                return (
+                  <th
+                    key={col.chave}
+                    onClick={() => handleSort(col.chave, colunaOrdenavel)}
+                    className={`h-10 px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap select-none ${
+                      colunaOrdenavel ? 'cursor-pointer' : 'cursor-default'
+                    } ${col.fixo ? 'sticky left-0 z-10' : ''}`}
+                    style={{
+                      color: 'var(--color-text-muted)',
+                      backgroundColor: col.fixo ? 'var(--color-bg)' : undefined,
+                      ...getColumnSizingStyle(col.largura),
+                    }}
+                  >
+                    <span className="flex items-center gap-1">
+                      <span>{col.label}</span>
+                      {col.tooltip ? <TableHeaderTooltip label={col.label} content={col.tooltip} /> : null}
+                      {colunaOrdenavel && sortField === col.chave && (
+                        <span className="shrink-0">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </span>
+                  </th>
+                );
+              })}
             </tr>
             <tr className="h-12 border-b" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
               {colunas.map((col) => (
@@ -711,7 +693,7 @@ export default function AnalyticalDataTable<T>({
                   <MensagemErro mensagem={getApiErrorMessage(error, errorFallbackMessage)} tipo={getTipoErro(error)} />
                 </td>
               </tr>
-            ) : dadosOrdenados.length === 0 ? (
+            ) : dados.length === 0 ? (
               <tr>
                 <td
                   colSpan={colunas.length}
@@ -722,7 +704,7 @@ export default function AnalyticalDataTable<T>({
                 </td>
               </tr>
             ) : (
-              dadosOrdenados.map((row, index) => (
+              dados.map((row, index) => (
                 <tr
                   key={`${String(row[chaveLinha])}-${index}`}
                   className="border-b transition-colors"

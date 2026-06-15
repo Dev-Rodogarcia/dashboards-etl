@@ -260,7 +260,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
                         </span>
                       </div>
                       <p className="mt-1 text-xs" style={{ color: 'var(--color-text-subtle)' }}>
-                        Última atualização: {config.updatedAt ? formatarDataHora(config.updatedAt) : '—'}
+                        Última atualização: {config.updatedAt ? formatarDataHora(config.updatedAt) : '—'} · {config.updatedByName ?? 'Usuário não identificado'}
                       </p>
                     </div>
                     <button

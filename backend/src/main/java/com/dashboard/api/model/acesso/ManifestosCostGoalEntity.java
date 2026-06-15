@@ -2,9 +2,12 @@ package com.dashboard.api.model.acesso;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -28,6 +31,10 @@ public class ManifestosCostGoalEntity {
 
     @Column(name = "cost_goal", nullable = false, precision = 18, scale = 2)
     private BigDecimal costGoal;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "updated_by_user_id")
+    private UsuarioEntity updatedByUser;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -81,6 +88,14 @@ public class ManifestosCostGoalEntity {
 
     public void setCostGoal(BigDecimal costGoal) {
         this.costGoal = costGoal;
+    }
+
+    public UsuarioEntity getUpdatedByUser() {
+        return updatedByUser;
+    }
+
+    public void setUpdatedByUser(UsuarioEntity updatedByUser) {
+        this.updatedByUser = updatedByUser;
     }
 
     public Instant getCreatedAt() {

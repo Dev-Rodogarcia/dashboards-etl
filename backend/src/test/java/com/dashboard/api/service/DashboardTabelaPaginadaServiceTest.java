@@ -95,6 +95,50 @@ class DashboardTabelaPaginadaServiceTest {
         assertThat(manifesto.itensTotal()).isEqualTo(10);
     }
 
+    @Test
+    void buscarManifestosDeveOrdenarPercentualRemuneracaoGlobalmenteNoSql() {
+        CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate(List.of(linha("Número", 62848L)));
+        DashboardTabelaPaginadaService service = service(jdbcTemplate);
+
+        service.buscarManifestos(filtroPadrao(), 2, 10, "percentualRemuneracao", "desc");
+
+        assertThat(jdbcTemplate.sqls().get(1))
+                .contains("CASE WHEN [Receita Total Transportada] > 0 AND [Custo total] IS NOT NULL THEN 0 ELSE 1 END ASC")
+                .contains("[Custo total] / NULLIF([Receita Total Transportada], 0) DESC")
+                .contains("[Data criação] DESC")
+                .contains("[Número] DESC")
+                .contains("OFFSET :offsetTabela ROWS FETCH NEXT :tamanhoTabela ROWS ONLY");
+        assertThat(jdbcTemplate.params().get(1).getValue("offsetTabela")).isEqualTo(10L);
+    }
+
+    @Test
+    void buscarManifestosDeveOrdenarAproveitamentoEEfetividadeGlobalmenteNoSql() {
+        CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate(List.of(linha("Número", 62848L)));
+        DashboardTabelaPaginadaService service = service(jdbcTemplate);
+
+        service.buscarManifestos(filtroPadrao(), 1, 10, "percentualAproveitamento", "asc");
+        service.buscarManifestos(filtroPadrao(), 1, 10, "percentualEfetividade", "desc");
+
+        assertThat(jdbcTemplate.sqls().get(1))
+                .contains("CASE WHEN [Capacidade Lotação Kg] > 0 AND [Total peso taxado] IS NOT NULL THEN 0 ELSE 1 END ASC")
+                .contains("[Total peso taxado] / NULLIF([Capacidade Lotação Kg], 0) ASC");
+        assertThat(jdbcTemplate.sqls().get(3))
+                .contains("CASE WHEN [Itens/Total] > 0 AND [Itens/Finalizados] IS NOT NULL THEN 0 ELSE 1 END ASC")
+                .contains("CONVERT(DECIMAL(19, 6), [Itens/Finalizados]) / NULLIF([Itens/Total], 0) DESC");
+    }
+
+    @Test
+    void buscarManifestosDeveIgnorarCampoDeOrdenacaoForaDaWhitelist() {
+        CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate(List.of(linha("Número", 62848L)));
+        DashboardTabelaPaginadaService service = service(jdbcTemplate);
+
+        service.buscarManifestos(filtroPadrao(), 1, 10, "numero DESC; DROP TABLE x", "desc");
+
+        assertThat(jdbcTemplate.sqls().get(1))
+                .contains("ORDER BY [Data criação] DESC, [Número] DESC")
+                .doesNotContain("DROP TABLE");
+    }
+
     private static DashboardTabelaPaginadaService service(NamedParameterJdbcTemplate jdbcTemplate) {
         return new DashboardTabelaPaginadaService(
                 jdbcTemplate,

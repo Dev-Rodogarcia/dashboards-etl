@@ -50,6 +50,8 @@ export async function buscarTabelaPaginada<T, F extends FiltroBase>(
   pagina: number,
   tamanhoPagina: number,
   filtrosTabela?: TableApiFilters,
+  sortField?: string,
+  sortDirection?: 'asc' | 'desc',
 ): Promise<PaginacaoResponse<T>> {
   const params = montarQueryParams(filtro);
   aplicarFiltrosTabelaParams(params, filtrosTabela);
@@ -57,6 +59,10 @@ export async function buscarTabelaPaginada<T, F extends FiltroBase>(
   params.set('size', String(tamanhoPagina));
   params.set('pagina', String(pagina));
   params.set('tamanhoPagina', String(tamanhoPagina));
+  if (sortField && sortDirection) {
+    params.set('sort', sortField);
+    params.set('order', sortDirection);
+  }
 
   const { data } = await clienteAxios.get<PaginacaoBackendResponse<T>>(url, { params });
   return normalizarPaginacaoResponse(data, pagina, tamanhoPagina);

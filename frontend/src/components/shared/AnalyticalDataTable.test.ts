@@ -119,4 +119,15 @@ describe('AnalyticalDataTable', () => {
     expect(html).toContain('<select disabled=""');
     expect(html).toContain('role="status"');
   });
+
+  it('exibe somente a ordenacao remota controlada', () => {
+    const html = renderTabela({
+      sortField: 'valor',
+      sortDirection: 'desc',
+      onSortChange: () => undefined,
+    });
+
+    expect(html).toContain('cursor-pointer');
+    expect(html).toContain('↓');
+  });
 });
