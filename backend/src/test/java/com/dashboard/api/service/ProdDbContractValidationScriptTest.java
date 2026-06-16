@@ -19,6 +19,8 @@ class ProdDbContractValidationScriptTest {
         assertThat(script).contains("o.type IN (N'V', N'SN')");
         assertThat(script).contains("FROM sys.dm_exec_describe_first_result_set(");
         assertThat(script).contains("N'SELECT TOP (0) * FROM dbo.vw_localizacao_cargas_powerbi'");
+        assertThat(script).contains("ProdDbContractValidator.java");
+        assertThat(script).doesNotContain("SQLCMD.EXE");
         assertThat(script).doesNotContain("OBJECT_ID(N'dbo.vw_localizacao_cargas_powerbi', N'V')");
         assertThat(script).doesNotContain("FROM sys.columns");
     }

@@ -18,6 +18,7 @@ Este diretório contém a automação que compara os KPIs do SQL Server com os v
 - API dev local disponível em `http://localhost:5011`
 - SQL Server acessível com as credenciais de `backend/.env`
 - `backend/.env` preenchido com `DB_URL`, `DB_USER`, `DB_PASSWORD` e `JWT_SECRET`
+- Java no `PATH` e driver `mssql-jdbc` disponível no repositório Maven local
 - Pelo menos um usuário ativo em `acesso.usuarios`
 
 ### Como rodar

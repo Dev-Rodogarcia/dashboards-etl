@@ -24,6 +24,33 @@ function Resolve-SqlDatabase {
     return 'DASHBOARDS'
 }
 
+function Resolve-MssqlJdbcJar {
+    $candidates = @()
+    if (-not [string]::IsNullOrWhiteSpace($env:MAVEN_REPO_LOCAL)) {
+        $candidates += $env:MAVEN_REPO_LOCAL
+    }
+    if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+        $candidates += (Join-Path $env:USERPROFILE '.m2\repository')
+    }
+    $candidates += 'C:\Users\suporte\.m2\repository'
+
+    foreach ($root in $candidates | Select-Object -Unique) {
+        $driverRoot = Join-Path $root 'com\microsoft\sqlserver\mssql-jdbc'
+        if (-not (Test-Path -LiteralPath $driverRoot)) {
+            continue
+        }
+
+        $jar = Get-ChildItem -LiteralPath $driverRoot -Recurse -Filter 'mssql-jdbc-*.jar' -File -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+        if ($jar) {
+            return $jar.FullName
+        }
+    }
+
+    return $null
+}
+
 if ([string]::IsNullOrWhiteSpace($env:DB_URL)) {
     Write-Host '[ERRO] DB_URL nao definido em dashboards\.env.'
     exit 1
@@ -36,6 +63,7 @@ if ([string]::IsNullOrWhiteSpace($env:DB_USER) -or [string]::IsNullOrWhiteSpace(
 
 $server = Resolve-SqlServer -DbUrl $env:DB_URL
 $database = Resolve-SqlDatabase -DbUrl $env:DB_URL
+Write-Host "[INFO] Validando contrato via JDBC: servidor=$server banco=$database"
 
 $query = @'
 SET NOCOUNT ON;
@@ -162,20 +190,31 @@ END;
 PRINT '[OK] Contrato de localizacao de cargas validado.';
 '@
 
-$args = @(
-    '-S', $server,
-    '-d', $database,
-    '-U', $env:DB_USER,
-    '-P', $env:DB_PASSWORD,
-    '-C',
-    '-b',
-    '-Q', $query
-)
+$validator = Join-Path $PSScriptRoot 'ProdDbContractValidator.java'
+if (-not (Test-Path -LiteralPath $validator)) {
+    Write-Host "[ERRO] Validador Java nao encontrado: $validator"
+    exit 1
+}
 
-$output = & SQLCMD.EXE @args 2>&1
-$exitCode = $LASTEXITCODE
-$output | ForEach-Object { Write-Host $_ }
+$jdbcJar = Resolve-MssqlJdbcJar
+if ([string]::IsNullOrWhiteSpace($jdbcJar)) {
+    Write-Host '[ERRO] Driver mssql-jdbc nao encontrado no repositório Maven local.'
+    exit 1
+}
 
-if ($exitCode -ne 0) {
-    exit $exitCode
+if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
+    Write-Host '[ERRO] Java nao encontrado no PATH.'
+    exit 1
+}
+
+$env:DASHBOARD_CONTRACT_QUERY = $query
+try {
+    $output = & java --class-path $jdbcJar $validator 2>&1
+    $exitCode = $LASTEXITCODE
+    $output | ForEach-Object { Write-Host $_ }
+    if ($exitCode -ne 0) {
+        exit $exitCode
+    }
+} finally {
+    Remove-Item Env:DASHBOARD_CONTRACT_QUERY -ErrorAction SilentlyContinue
 }

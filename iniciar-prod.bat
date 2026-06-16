@@ -507,13 +507,6 @@ exit /b 0
 
 :validate_prod_database_contract
 echo [INFO] Validando contrato das views de producao...
-where SQLCMD.EXE >nul 2>nul
-if errorlevel 1 (
-    echo [ERRO] SQLCMD.EXE nao encontrado no PATH.
-    echo        Instale as ferramentas de linha de comando do SQL Server para validar producao.
-    exit /b 1
-)
-
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT_DIR%\scripts\validate-prod-db-contract.ps1"
 exit /b %ERRORLEVEL%
 

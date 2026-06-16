@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ENTITIES } from './dashboard-validation/entities.mjs';
 
@@ -88,20 +88,62 @@ function sqlConnectionFromEnv(env, overrides) {
   };
 }
 
-function runSqlQuery(connection, query) {
-  const args = [
-    '-S', connection.server,
-    '-d', connection.database,
-    '-U', connection.user,
-    '-P', connection.password,
-    '-C',
-    '-w', '65535',
-    '-y', '0',
-    '-Q', query,
-  ];
+function walkFiles(rootDir) {
+  const files = [];
+  if (!rootDir || !existsSync(rootDir)) {
+    return files;
+  }
+  for (const entry of readdirSync(rootDir)) {
+    const fullPath = path.join(rootDir, entry);
+    const stats = statSync(fullPath);
+    if (stats.isDirectory()) {
+      files.push(...walkFiles(fullPath));
+    } else {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
 
-  const rawOutput = execFileSync('SQLCMD.EXE', args, {
+function resolveMssqlJdbcJar() {
+  const roots = [
+    process.env.MAVEN_REPO_LOCAL,
+    process.env.USERPROFILE ? path.join(process.env.USERPROFILE, '.m2', 'repository') : null,
+    'C:\\Users\\suporte\\.m2\\repository',
+  ].filter(Boolean);
+
+  for (const root of [...new Set(roots)]) {
+    const driverRoot = path.join(root, 'com', 'microsoft', 'sqlserver', 'mssql-jdbc');
+    const jars = walkFiles(driverRoot)
+      .filter((file) => /mssql-jdbc-.*\.jar$/u.test(path.basename(file)))
+      .sort((left, right) => statSync(right).mtimeMs - statSync(left).mtimeMs);
+    if (jars.length > 0) {
+      return jars[0];
+    }
+  }
+
+  throw new Error('Driver mssql-jdbc nao encontrado no repositorio Maven local.');
+}
+
+function jdbcUrlFromConnection(connection) {
+  const server = connection.server.replace(/,(\d+)$/u, ':$1');
+  return `jdbc:sqlserver://${server};databaseName=${connection.database};encrypt=true;trustServerCertificate=true;`;
+}
+
+function runSqlQuery(connection, query) {
+  const rawOutput = execFileSync('java', [
+    '--class-path',
+    resolveMssqlJdbcJar(),
+    path.join(ROOT_DIR, 'scripts', 'JdbcJsonQueryRunner.java'),
+  ], {
     cwd: ROOT_DIR,
+    env: {
+      ...process.env,
+      DB_URL: jdbcUrlFromConnection(connection),
+      DB_USER: connection.user,
+      DB_PASSWORD: connection.password,
+      DASHBOARD_SQL_QUERY: query,
+    },
     encoding: 'utf8',
   });
   const output = rawOutput.trim();
@@ -543,12 +585,13 @@ async function main() {
     dataFim: args.dataFim ?? '2026-03-31',
   };
   const apiBaseUrl = args.apiBaseUrl ?? 'http://localhost:5011';
-  const apiUserEmail = resolveApiUserEmail(connection, args.apiUserEmail);
-  const jwtSecret = args.jwtSecret ?? env.JWT_SECRET;
 
   if (!connection.user || !connection.password) {
     throw new Error('Credenciais de banco não encontradas em backend/.env ou .env da raiz.');
   }
+
+  const apiUserEmail = resolveApiUserEmail(connection, args.apiUserEmail);
+  const jwtSecret = args.jwtSecret ?? env.JWT_SECRET;
 
   if (!jwtSecret) {
     throw new Error('JWT_SECRET não encontrado em backend/.env ou .env da raiz.');
