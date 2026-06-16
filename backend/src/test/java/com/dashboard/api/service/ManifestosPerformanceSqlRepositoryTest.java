@@ -67,7 +67,7 @@ class ManifestosPerformanceSqlRepositoryTest {
                         .contains("[Tipo de contrato]")
                         .contains("AS tipo_contrato"));
         assertThat(jdbcTemplate.sqls)
-                .anySatisfy(sql -> assertThat(sql).contains("COUNT(DISTINCT numero) AS quantidade"));
+                .anySatisfy(sql -> assertThat(sql).contains("COUNT(DISTINCT sequence_code) AS quantidade"));
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql)
                         .contains("COALESCE(SUM(custo_total), 0) AS custo_real")
@@ -134,10 +134,12 @@ class ManifestosPerformanceSqlRepositoryTest {
         repository.buscarPerformance(filtro, "dia", null, null);
 
         assertThat(jdbcTemplate.sqls)
-                .anySatisfy(sql -> assertThat(sql).contains("AND numero = :numeroManifesto"));
+                .anySatisfy(sql -> assertThat(sql).contains("AND sequence_code = :numeroManifesto"));
+        assertThat(jdbcTemplate.sqls)
+                .allSatisfy(sql -> assertThat(sql).doesNotContain(":numeroManifestoGROUP"));
         assertThat(jdbcTemplate.parametros)
                 .filteredOn(params -> params.hasValue("numeroManifesto"))
-                .anySatisfy(params -> assertThat(params.getValue("numeroManifesto")).isEqualTo("62848"));
+                .anySatisfy(params -> assertThat(params.getValue("numeroManifesto")).isEqualTo(62848L));
     }
 
     @Test
@@ -160,6 +162,7 @@ class ManifestosPerformanceSqlRepositoryTest {
         assertThat(jdbcTemplate.sqls)
                 .allSatisfy(sql -> assertThat(sql)
                         .doesNotContain("AND numero = :numeroManifesto")
+                        .doesNotContain("AND sequence_code = :numeroManifesto")
                         .doesNotContain("AND 1 = 0"));
         assertThat(jdbcTemplate.parametros)
                 .allSatisfy(params -> assertThat(params.hasValue("numeroManifesto")).isFalse());

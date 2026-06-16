@@ -210,7 +210,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         String sql = ctx.baseCte() + """
                 SELECT
                     tipo_veiculo AS tipo,
-                    COUNT(DISTINCT numero) AS quantidade
+                    COUNT(DISTINCT sequence_code) AS quantidade
                 FROM manifestos
                 WHERE 1 = 1
                 """ + ctx.where() + """
@@ -298,7 +298,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "status", "status_norm", filtro.valores("status"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "motoristas", "motorista", filtro.valores("motoristas"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "veiculos", "veiculo_placa", filtro.valores("veiculos"));
-        adicionarFiltroNumero(ctx.whereBuilder(), ctx.params(), "numeroManifesto", "numero", filtro.valores("numeroManifesto"));
+        adicionarFiltroNumero(ctx.whereBuilder(), ctx.params(), "numeroManifesto", "sequence_code", filtro.valores("numeroManifesto"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tiposCarga", "tipo_carga", filtro.valores("tiposCarga"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tiposContrato", "tipo_contrato", filtro.valores("tiposContrato"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tipoMotorista", "tipo_motorista", filtro.valores("tipoMotorista"));
@@ -345,8 +345,8 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
             String campo,
             Collection<String> valores
     ) {
-        String numero = primeiroValor(valores);
-        if (numero == null || !numero.matches("\\d+")) {
+        Long numero = parseLongOrNull(primeiroValor(valores));
+        if (numero == null) {
             return;
         }
 
@@ -354,7 +354,8 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         where.append("\n AND ")
                 .append(campo)
                 .append(" = :")
-                .append(chave);
+                .append(chave)
+                .append(" ");
     }
 
     private static String primeiroValor(Collection<String> valores) {
@@ -366,6 +367,17 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                 .map(String::trim)
                 .findFirst()
                 .orElse(null);
+    }
+
+    private static Long parseLongOrNull(String valor) {
+        if (valor == null || !valor.matches("\\d+")) {
+            return null;
+        }
+        try {
+            return Long.parseLong(valor);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private static List<String> normalizar(Collection<String> valores) {
@@ -525,7 +537,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         return """
                 WITH manifestos AS (
                     SELECT
-                        [Número] AS numero,
+                        [Número] AS sequence_code,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), ''), N'Sem filial') AS filial,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Motorista]))), ''), N'Sem motorista') AS motorista,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Veículo/Placa]))), ''), N'Sem veículo') AS veiculo_placa,
