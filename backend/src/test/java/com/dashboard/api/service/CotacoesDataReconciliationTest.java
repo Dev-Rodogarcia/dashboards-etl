@@ -161,7 +161,6 @@ public class CotacoesDataReconciliationTest {
                 """);
     }
 
-    @SuppressWarnings("unused")
     public static BigDecimal tryConvert(String tipoSql, String valor) {
         if (tipoSql == null || valor == null || !tipoSql.toLowerCase().startsWith("decimal")) {
             return null;
@@ -183,12 +182,10 @@ public class CotacoesDataReconciliationTest {
         }
     }
 
-    @SuppressWarnings("unused")
     public static String decimalType(int precision, int scale) {
         return "DECIMAL(" + precision + "," + scale + ")";
     }
 
-    @SuppressWarnings("unused")
     public static String nchar(int codigo) {
         return String.valueOf((char) codigo);
     }

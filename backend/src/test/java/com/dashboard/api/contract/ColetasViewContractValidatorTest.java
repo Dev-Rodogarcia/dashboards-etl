@@ -18,7 +18,7 @@ class ColetasViewContractValidatorTest {
     private JdbcOperations jdbcTemplate;
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void validarSolicitacaoNativaAceitaTipoDate() {
         when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class))).thenReturn("date");
 
@@ -28,7 +28,7 @@ class ColetasViewContractValidatorTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void validarSolicitacaoNativaRejeitaTexto() {
         when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class))).thenReturn("nvarchar");
 

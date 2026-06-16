@@ -1,6 +1,5 @@
 package com.dashboard.api.service.acesso;
 
-import com.dashboard.api.contract.acesso.UsuarioDependenciaCleanup;
 import com.dashboard.api.dto.acesso.UsuarioRequestDTO;
 import com.dashboard.api.model.acesso.PapelEntity;
 import com.dashboard.api.model.acesso.PermissaoEntity;
@@ -59,8 +58,6 @@ class GestaoUsuarioServiceTest {
     @Mock private SetorPermissaoTemplateRepository templateRepository;
     @Mock private AuditLogRepository auditLogRepository;
     @Mock private RefreshTokenSessionRepository refreshTokenSessionRepository;
-    @Mock private UsuarioDependenciaCleanup dependenciaCleanupService;
-
     private GestaoUsuarioService service;
     private PermissaoResolverService permissaoResolver;
     private AuditService auditService;
@@ -99,7 +96,6 @@ class GestaoUsuarioServiceTest {
                 auditService,
                 politicaSenhaService,
                 refreshTokenService,
-                dependenciaCleanupService,
                 usuarioSupremo,
                 new StubEscopoFiliaisUsuarioStore()
         );
@@ -383,7 +379,6 @@ class GestaoUsuarioServiceTest {
 
         assertThrows(AccessDeniedException.class, () -> service.excluirUsuarioDefinitivamente(2L));
 
-        verify(dependenciaCleanupService, never()).limparDependencias(2L);
         verify(usuarioRepository, never()).delete(alvo);
     }
 
@@ -410,7 +405,6 @@ class GestaoUsuarioServiceTest {
 
         assertThrows(AccessDeniedException.class, () -> service.excluirUsuarioDefinitivamente(1L));
 
-        verify(dependenciaCleanupService, never()).limparDependencias(1L);
     }
 
     private ContextoAtualizacao prepararContextoAtualizacao(String papelSolicitadoNome) {

@@ -424,35 +424,6 @@ public class DashboardExportSqlBuilder {
         where.add("(" + String.join(" OR ", predicados) + ")");
     }
 
-    private void adicionarFiltroFilialFlexivel(
-            List<String> where,
-            MapSqlParameterSource params,
-            String paramName,
-            String codigoParamName,
-            List<String> colunas,
-            Collection<String> valores
-    ) {
-        List<String> normalizados = normalizar(valores);
-        if (normalizados.isEmpty()) {
-            return;
-        }
-
-        params.addValue(paramName, normalizados);
-        List<String> predicados = new ArrayList<>(colunas.stream()
-                .map(coluna -> normalizarSql(coluna) + " IN (:" + paramName + ")")
-                .toList());
-
-        List<String> codigos = codigosFiliais(normalizados);
-        if (!codigos.isEmpty()) {
-            params.addValue(codigoParamName, codigos);
-            predicados.addAll(colunas.stream()
-                    .map(coluna -> codigoFilialSql(coluna) + " IN (:" + codigoParamName + ")")
-                    .toList());
-        }
-
-        where.add("(" + String.join(" OR ", predicados) + ")");
-    }
-
     private void adicionarStatusProcesso(
             List<String> where,
             FiltroConsultaDTO filtro,
@@ -1245,10 +1216,6 @@ public class DashboardExportSqlBuilder {
 
     private String normalizarSql(String coluna) {
         return coluna;
-    }
-
-    private String codigoFilialSql(String coluna) {
-        return "LEFT(" + coluna + ", 3)";
     }
 
     private List<String> normalizar(Collection<String> valores) {

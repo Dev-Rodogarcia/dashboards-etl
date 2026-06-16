@@ -32,7 +32,7 @@ class ColetasAgregadosSqlRepositoryTest {
     private NamedParameterJdbcOperations jdbcTemplate;
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarOverviewDeveDeduplicarEAgregarNoSql() {
         when(jdbcTemplate.queryForObject(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(new ColetasOverviewDTO(
@@ -72,7 +72,7 @@ class ColetasAgregadosSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarRegioesOrigemDeveAgregarColetasEPesoTaxado() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of());
@@ -97,7 +97,7 @@ class ColetasAgregadosSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarStatusDistribuicaoDeveAgruparStatusNoSql() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of());
@@ -123,7 +123,7 @@ class ColetasAgregadosSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarSlaPorFilialDeveAgruparFinalizadasPorFilialNoSql() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of());

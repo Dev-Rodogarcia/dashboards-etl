@@ -38,7 +38,7 @@ class FaturasPorClienteSqlRepositoryTest {
     private NamedParameterJdbcOperations jdbcTemplate;
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarOverviewDeveAgregarFatoNoSqlComPeriodoSargable() {
         when(jdbcTemplate.queryForObject(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(new FaturasPorClienteOverviewDTO(
@@ -74,7 +74,7 @@ class FaturasPorClienteSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarOverviewDeveConverterSnapshotUtcParaHorarioOperacional() throws Exception {
         when(jdbcTemplate.queryForObject(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenAnswer(invocation -> {
@@ -128,7 +128,7 @@ class FaturasPorClienteSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarMensalDeveAgruparPorMesReferenciaNoSql() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of(new FaturasPorClienteMensalDTO("2026-03", BigDecimal.ZERO, 0)));

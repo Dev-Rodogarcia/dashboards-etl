@@ -234,10 +234,6 @@ public class EtlSaudeSqlRepository {
         return data != null ? data.toLocalDate().toString() : null;
     }
 
-    private String timestamp(Timestamp timestamp) {
-        return timestamp != null ? timestamp.toLocalDateTime().toString() : null;
-    }
-
     private LocalDateTime localDateTime(Timestamp timestamp) {
         return timestamp != null ? timestamp.toLocalDateTime() : null;
     }

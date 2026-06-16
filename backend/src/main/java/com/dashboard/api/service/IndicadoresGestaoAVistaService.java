@@ -7,7 +7,6 @@ import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
 import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.model.VisaoHorariosCorteEntity;
 import com.dashboard.api.repository.HorariosCorteRasterDataSource;
-import com.dashboard.api.repository.VisaoHorariosCorteRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.ConsultaLimiteUtils;
 import java.math.BigDecimal;
@@ -29,20 +28,17 @@ public class IndicadoresGestaoAVistaService {
 
     private final ValidadorPeriodoService validadorPeriodo;
     private final HorariosCorteRasterDataSource rasterSqlRepository;
-    private final VisaoHorariosCorteRepository repository;
     private final EscopoFilialService escopoFilialService;
     private final HorarioCorteFilialMapperService filialMapperService;
 
     public IndicadoresGestaoAVistaService(
             ValidadorPeriodoService validadorPeriodo,
             HorariosCorteRasterDataSource rasterSqlRepository,
-            VisaoHorariosCorteRepository repository,
             EscopoFilialService escopoFilialService,
             HorarioCorteFilialMapperService filialMapperService
     ) {
         this.validadorPeriodo = validadorPeriodo;
         this.rasterSqlRepository = rasterSqlRepository;
-        this.repository = repository;
         this.escopoFilialService = escopoFilialService;
         this.filialMapperService = filialMapperService;
     }

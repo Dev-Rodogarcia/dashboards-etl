@@ -263,7 +263,6 @@ class ManifestosPerformanceSqlRepositoryTest {
         private final List<SqlParameterSource> parametros = new ArrayList<>();
         private int consultasColunas;
         private List<String> colunasManifestos = colunasManifestosValidas();
-        private SqlParameterSource ultimoParametro;
 
         private CapturandoNamedParameterJdbcTemplate() {
             super(new JdbcTemplate());
@@ -282,7 +281,6 @@ class ManifestosPerformanceSqlRepositoryTest {
         @Override
         public Map<String, Object> queryForMap(String sql, SqlParameterSource paramSource) {
             sqls.add(sql);
-            ultimoParametro = paramSource;
             parametros.add(paramSource);
             return Map.of(
                     "updated_at", "2026-05-24T10:00:00",
@@ -301,7 +299,6 @@ class ManifestosPerformanceSqlRepositoryTest {
         @Override
         public <T> List<T> query(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper) {
             sqls.add(sql);
-            ultimoParametro = paramSource;
             parametros.add(paramSource);
             return List.of();
         }

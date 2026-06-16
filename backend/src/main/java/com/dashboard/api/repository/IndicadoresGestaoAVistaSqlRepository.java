@@ -1,53 +1,28 @@
 package com.dashboard.api.repository;
 
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.FiltroConsultaDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasRowDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasSeriePointDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.indicadoresgestao.IndenizacaoMercadoriasRowDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.indicadoresgestao.IndenizacaoMercadoriasSeriePointDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaRowDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaSeriePointDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRowDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresSeriePointDTO;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import com.dashboard.api.util.TemporalJsonUtils;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.math.BigDecimal;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.math.RoundingMode;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.sql.ResultSet;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.sql.SQLException;
-import com.dashboard.api.util.JanelaOffsetDateTime;
-import java.time.LocalDate;
-import com.dashboard.api.util.JanelaOffsetDateTime;
-import java.time.LocalDateTime;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.Collection;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.List;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.Locale;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import java.util.Set;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import com.dashboard.api.util.JanelaOffsetDateTime;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -55,7 +30,6 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     private static final String STATUS_CANCELADO = "cancelado";
     private static final String PERFORMANCE_EM_ABERTO = "EM ABERTO";
-    private static final String CLASSIFICACAO_GERAL = "Geral";
     private static final BigDecimal VALOR_MINIMO_OPERACIONAL = new BigDecimal("0.01");
     private static final List<String> DOCUMENTOS_FILIAIS_OPERACIONAIS = List.of(
             "51863654000180",
@@ -781,18 +755,6 @@ public class IndicadoresGestaoAVistaSqlRepository {
         return new QueryContext(params);
     }
 
-    private QueryContext contextoOffset(
-            FiltroConsultaDTO filtro,
-            EscopoFilialService.EscopoFilial escopo,
-            boolean coletores
-    ) {
-        JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(filtro.dataInicio(), filtro.dataFim());
-        MapSqlParameterSource params = paramsComuns(filtro, escopo, coletores)
-                .addValue("inicioOffset", janela.inicioInclusivo())
-                .addValue("fimOffset", janela.fimExclusivo());
-        return new QueryContext(params);
-    }
-
     private QueryContext contextoIndenizacao(
             FiltroConsultaDTO filtro,
             EscopoFilialService.EscopoFilial escopo
@@ -953,12 +915,6 @@ public class IndicadoresGestaoAVistaSqlRepository {
     private long count(String sql, MapSqlParameterSource params) {
         Long total = jdbcTemplate.queryForObject(sql, params, Long.class);
         return total != null ? total : 0L;
-    }
-
-    private static String documentoNormalizadoSql(String coluna) {
-        return "NULLIF(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), "
-                + coluna
-                + ")))), N'.', N''), N'/', N''), N'-', N''), N' ', N''), CHAR(9), N''), N'')";
     }
 
     private static Integer inteiroOuNulo(ResultSet rs, String coluna) throws SQLException {

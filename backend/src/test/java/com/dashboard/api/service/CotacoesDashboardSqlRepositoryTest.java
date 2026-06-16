@@ -31,7 +31,7 @@ class CotacoesDashboardSqlRepositoryTest {
     private NamedParameterJdbcOperations jdbcTemplate;
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarOverviewDeveCalcularReprovacaoPercentualNoSqlSemTruncarInteiros() {
         when(jdbcTemplate.queryForObject(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(new CotacoesOverviewDTO(
@@ -72,7 +72,7 @@ class CotacoesDashboardSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarResumoPorClienteDeveGerarGroupByComTop40OrdenadoPorVolumeEAplicarFiltros() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of());
@@ -119,7 +119,7 @@ class CotacoesDashboardSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarResumoPorUsuarioDeveAgruparPorChavePublicadaERotuloLegivel() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of());

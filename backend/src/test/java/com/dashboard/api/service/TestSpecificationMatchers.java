@@ -8,7 +8,7 @@ final class TestSpecificationMatchers {
     private TestSpecificationMatchers() {
     }
 
-    @SuppressWarnings({"unchecked", "null"})
+    @SuppressWarnings("unchecked")
     @NonNull
     static <T> Specification<T> anySpecification() {
         return (Specification<T>) org.mockito.ArgumentMatchers.any(Specification.class);

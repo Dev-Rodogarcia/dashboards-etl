@@ -1206,11 +1206,6 @@ public class PerformanceDashboardSqlRepository {
         return "COALESCE(" + String.join(", ", expressoes) + ")";
     }
 
-    private static String texto(Map<String, Object> row, String chave) {
-        Object valor = row.get(chave);
-        return valor == null ? null : String.valueOf(valor);
-    }
-
     private static String updatedAt(Map<String, Object> row, String chave) {
         Object valor = row.get(chave);
         if (valor instanceof Timestamp timestamp) {

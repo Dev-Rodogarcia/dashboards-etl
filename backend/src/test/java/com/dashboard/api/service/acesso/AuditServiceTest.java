@@ -49,7 +49,6 @@ class AuditServiceTest {
         assertThat(auditLog.getUserAgent()).isEqualTo("JUnit");
     }
 
-    @SuppressWarnings("null")
     @NonNull
     private static <T> T captureNonNull(ArgumentCaptor<T> captor) {
         return captor.capture();

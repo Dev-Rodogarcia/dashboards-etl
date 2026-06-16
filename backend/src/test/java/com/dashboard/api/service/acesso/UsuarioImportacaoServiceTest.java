@@ -1,6 +1,5 @@
 package com.dashboard.api.service.acesso;
 
-import com.dashboard.api.contract.acesso.UsuarioDependenciaCleanup;
 import com.dashboard.api.dto.acesso.UsuarioAcessoDTO;
 import com.dashboard.api.dto.acesso.UsuarioImportacaoLoteRequestDTO;
 import com.dashboard.api.dto.acesso.UsuarioImportacaoSetorResolucaoDTO;
@@ -250,7 +249,6 @@ class UsuarioImportacaoServiceTest {
                     new AuditService(mock(AuditLogRepository.class), new IpClienteResolver(false)),
                     new PoliticaSenhaService(),
                     new RefreshTokenService(mock(RefreshTokenSessionRepository.class), 24),
-                    mock(UsuarioDependenciaCleanup.class),
                     new UsuarioSupremo("supremo@empresa.com", "Senha@123456", "Supremo", "desenvolvedor", 1000, false),
                     new StubEscopoFiliaisUsuarioStore()
             );

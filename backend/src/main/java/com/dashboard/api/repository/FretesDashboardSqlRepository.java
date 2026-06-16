@@ -26,7 +26,6 @@ public class FretesDashboardSqlRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final EscopoFilialService escopoFilialService;
-    private volatile FretesViewColumns fretesViewColumns;
 
     public FretesDashboardSqlRepository(
             NamedParameterJdbcTemplate jdbcTemplate,
@@ -38,7 +37,7 @@ public class FretesDashboardSqlRepository {
 
     public List<VisaoFretesEntity> buscarRegistros(FiltroConsultaDTO filtro) {
         QueryContext ctx = criarContexto(filtro);
-        String sql = baseSql(ctx.colunas()) + """
+        String sql = baseSql() + """
                 SELECT *
                 FROM fretes
                 WHERE data_referencia_periodo >= :dataInicio
@@ -56,8 +55,7 @@ public class FretesDashboardSqlRepository {
                 new MapSqlParameterSource(Map.of(
                         "dataInicio", filtro.dataInicio(),
                         "dataFim", filtro.dataFim().plusDays(1)
-                )),
-                carregarColunasFretes()
+                ))
         );
 
         aplicarEscopo(ctx);
@@ -100,30 +98,7 @@ public class FretesDashboardSqlRepository {
         where.append("\n AND LOWER(").append(campo).append(") IN (:").append(chave).append(")");
     }
 
-    private FretesViewColumns carregarColunasFretes() {
-        FretesViewColumns cached = fretesViewColumns;
-        if (cached != null) {
-            return cached;
-        }
-
-        List<String> nomes = jdbcTemplate.queryForList("""
-                SELECT name
-                FROM sys.dm_exec_describe_first_result_set(
-                    N'SELECT TOP (0) * FROM dbo.fato_fretes_faturamento',
-                    NULL,
-                    0
-                )
-                WHERE error_number IS NULL
-                  AND is_hidden = 0
-                ORDER BY column_ordinal
-                """, new MapSqlParameterSource(), String.class);
-
-        FretesViewColumns carregadas = new FretesViewColumns(nomes);
-        fretesViewColumns = carregadas;
-        return carregadas;
-    }
-
-    private static String baseSql(FretesViewColumns colunas) {
+    private static String baseSql() {
         return """
                 WITH fretes AS (
                     SELECT
@@ -203,101 +178,6 @@ public class FretesDashboardSqlRepository {
         );
     }
 
-    private static String textoNullableSql(FretesViewColumns colunas, String... nomes) {
-        List<String> expressoes = List.of(nomes).stream()
-                .filter(colunas::existe)
-                .map(FretesDashboardSqlRepository::textoColunaSql)
-                .toList();
-        return coalesceOuNull(expressoes);
-    }
-
-    private static String textoColunaSql(String nome) {
-        return "NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [" + nome + "]))), '')";
-    }
-
-    private static String decimalSql(FretesViewColumns colunas, String... nomes) {
-        List<String> expressoes = List.of(nomes).stream()
-                .filter(colunas::existe)
-                .map(nome -> "TRY_CONVERT(DECIMAL(18, 2), REPLACE(CONVERT(NVARCHAR(100), [" + nome + "]), ',', '.'))")
-                .toList();
-        return coalesceOuNull(expressoes);
-    }
-
-    private static String inteiroSql(FretesViewColumns colunas, String... nomes) {
-        List<String> expressoes = List.of(nomes).stream()
-                .filter(colunas::existe)
-                .map(nome -> "TRY_CONVERT(INT, [" + nome + "])")
-                .toList();
-        return coalesceOuNull(expressoes);
-    }
-
-    private static String inteiroLongoSql(FretesViewColumns colunas, String... nomes) {
-        List<String> expressoes = List.of(nomes).stream()
-                .filter(colunas::existe)
-                .map(nome -> "TRY_CONVERT(BIGINT, [" + nome + "])")
-                .toList();
-        return coalesceOuNull(expressoes);
-    }
-
-    private static String dataSql(FretesViewColumns colunas, String... nomes) {
-        List<String> expressoes = List.of(nomes).stream()
-                .filter(colunas::existe)
-                .map(nome -> "TRY_CONVERT(date, CONVERT(NVARCHAR(64), [" + nome + "]))")
-                .toList();
-        return coalesceOuNull(expressoes);
-    }
-
-    private static String dataHoraSql(FretesViewColumns colunas, String... nomes) {
-        List<String> expressoes = List.of(nomes).stream()
-                .filter(colunas::existe)
-                .map(nome -> "TRY_CONVERT(datetime2, CONVERT(NVARCHAR(64), [" + nome + "]))")
-                .toList();
-        return coalesceOuNull(expressoes);
-    }
-
-    private static String boolSql(FretesViewColumns colunas, String nome) {
-        if (!colunas.existe(nome)) {
-            return "0";
-        }
-        return """
-                CASE
-                    WHEN TRY_CONVERT(bit, [%s]) = 1 THEN 1
-                    WHEN UPPER(LTRIM(RTRIM(CONVERT(NVARCHAR(20), [%s])))) IN (N'SIM', N'TRUE', N'1') THEN 1
-                    ELSE 0
-                END
-                """.formatted(nome, nome);
-    }
-
-    private static String elegivelFaturamentoSql(
-            FretesViewColumns colunas,
-            String cortesiaSql,
-            String classificacaoSql
-    ) {
-        if (colunas.existe("is_elegivel_faturamento")) {
-            return boolSql(colunas, "is_elegivel_faturamento");
-        }
-
-        String classificacaoNormalizada = "UPPER(COALESCE(" + classificacaoSql + ", N''))";
-        return """
-                CASE
-                    WHEN (%s) = 1 THEN 0
-                    WHEN %s LIKE N'%%BLOQUEIO%%'
-                         AND (%s LIKE N'%%ANULA%%' OR %s LIKE N'%%ISOLAMENTO%%') THEN 0
-                    ELSE 1
-                END
-                """.formatted(cortesiaSql, classificacaoNormalizada, classificacaoNormalizada, classificacaoNormalizada);
-    }
-
-    private static String coalesceOuNull(List<String> expressoes) {
-        if (expressoes.isEmpty()) {
-            return "NULL";
-        }
-        if (expressoes.size() == 1) {
-            return expressoes.get(0);
-        }
-        return "COALESCE(" + String.join(", ", expressoes) + ")";
-    }
-
     private static List<String> normalizar(Collection<String> valores) {
         if (valores == null) {
             return List.of();
@@ -359,17 +239,10 @@ public class FretesDashboardSqlRepository {
 
     private record QueryContext(
             StringBuilder whereBuilder,
-            MapSqlParameterSource params,
-            FretesViewColumns colunas
+            MapSqlParameterSource params
     ) {
         String where() {
             return whereBuilder.toString();
-        }
-    }
-
-    private record FretesViewColumns(List<String> nomes) {
-        boolean existe(String nome) {
-            return nomes.stream().anyMatch(existente -> existente.equalsIgnoreCase(nome));
         }
     }
 }

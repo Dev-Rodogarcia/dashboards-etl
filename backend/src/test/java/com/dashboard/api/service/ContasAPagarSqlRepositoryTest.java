@@ -30,7 +30,7 @@ class ContasAPagarSqlRepositoryTest {
     private NamedParameterJdbcOperations jdbcTemplate;
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarOverviewDeveAgregarNoSqlComFiltroDeDataSargable() {
         when(jdbcTemplate.queryForObject(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(new ContasAPagarOverviewDTO(
@@ -64,7 +64,7 @@ class ContasAPagarSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarSerieDeveAgruparPorMesNoSql() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(java.util.List.of());

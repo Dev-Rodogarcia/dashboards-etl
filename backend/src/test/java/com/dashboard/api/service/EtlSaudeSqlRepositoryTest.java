@@ -29,7 +29,7 @@ class EtlSaudeSqlRepositoryTest {
     private NamedParameterJdbcOperations jdbcTemplate;
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarOverviewDeveAgregarMetricasNoSqlServer() {
         when(jdbcTemplate.queryForObject(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(new EtlSaudeOverviewDTO("2026-03-23T09:00:00", 0.0, 0, 0, 0, 0.0));
@@ -52,7 +52,7 @@ class EtlSaudeSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarSerieDeveAgruparPorDataNoSqlServer() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of());
@@ -72,7 +72,7 @@ class EtlSaudeSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarGraficosDeveAgruparCategoriasErroNoSqlServer() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of());
@@ -90,7 +90,7 @@ class EtlSaudeSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void buscarTabelaDeveAplicarTravaSqlEmLogExtracoes() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of());
@@ -116,7 +116,7 @@ class EtlSaudeSqlRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void totalTabelaDeveContarLogExtracoes() {
         when(jdbcTemplate.queryForObject(anyString(), any(MapSqlParameterSource.class), any(Class.class)))
                 .thenReturn(123L);

@@ -7,38 +7,27 @@ import com.dashboard.api.dto.tracking.TrackingDashboardDTO;
 import com.dashboard.api.dto.tracking.TrackingOverviewDTO;
 import com.dashboard.api.dto.tracking.TrackingPrevisaoVencidaFilialDTO;
 import com.dashboard.api.dto.tracking.TrackingTimelinePointDTO;
-import com.dashboard.api.model.VisaoLocalizacaoCargasEntity;
 import com.dashboard.api.repository.TrackingSqlRepository;
 import com.dashboard.api.repository.VisaoLocalizacaoCargasRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
-import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.Mock;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TrackingServiceTest {
@@ -341,10 +330,6 @@ class TrackingServiceTest {
             ), List.of());
         }
 
-        protected CapturandoNamedParameterJdbcTemplate(List<String> colunas) {
-            this(colunas, List.of());
-        }
-
         protected CapturandoNamedParameterJdbcTemplate(List<String> colunas, List<Map<String, Object>> linhas) {
             super(new JdbcTemplate());
             this.colunas = colunas;
@@ -390,32 +375,8 @@ class TrackingServiceTest {
         }
     }
 
-    private static final class LinhasTrackingNamedParameterJdbcTemplate extends CapturandoNamedParameterJdbcTemplate {
-        private LinhasTrackingNamedParameterJdbcTemplate() {
-            super(List.of(), List.of(linha()));
-        }
-
-        private static Map<String, Object> linha() {
-            Map<String, Object> row = new java.util.LinkedHashMap<>();
-            row.put("N° Minuta", 1L);
-            row.put("Data do frete", LocalDateTime.of(2026, 5, 20, 10, 0));
-            row.put("Volumes", 2);
-            row.put("Peso Taxado", "10,5");
-            row.put("Valor NF", "1000,00");
-            row.put("Valor Frete", "150,00");
-            row.put("Filial Atual", "CPQ - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA");
-            row.put("Região Destino", "Interior");
-            row.put("Responsável pela Região de Destino", "CPQ - Interior");
-            row.put("Status Carga", "Pendente");
-            row.put("Previsão Entrega/Previsão de entrega", LocalDateTime.of(2026, 5, 19, 8, 0));
-            row.put("Data de extracao", LocalDateTime.of(2026, 5, 23, 12, 0));
-            return row;
-        }
-    }
-
     private static final class FakeTrackingSqlRepository extends TrackingSqlRepository {
         private FiltroConsultaDTO overviewFiltro;
-        private FiltroConsultaDTO serieFiltro;
         private FiltroConsultaDTO graficosFiltro;
         private FiltroConsultaDTO dashboardFiltro;
         private TrackingOverviewDTO overview = new TrackingOverviewDTO(
@@ -443,7 +404,6 @@ class TrackingServiceTest {
 
         @Override
         public List<TrackingTimelinePointDTO> buscarSerie(FiltroConsultaDTO filtro) {
-            this.serieFiltro = filtro;
             return serie;
         }
 
@@ -460,48 +420,4 @@ class TrackingServiceTest {
         }
     }
 
-    private static VisaoLocalizacaoCargasEntity carga(Long numeroMinuta, String statusCarga, int diasPrevisao) {
-        return carga(numeroMinuta, statusCarga, diasPrevisao, null);
-    }
-
-    private static VisaoLocalizacaoCargasEntity carga(Long numeroMinuta, String statusCarga, int diasPrevisao, String filialAtual) {
-        return cargaComPrevisao(numeroMinuta, statusCarga, OffsetDateTime.now().plusDays(diasPrevisao), filialAtual);
-    }
-
-    private static VisaoLocalizacaoCargasEntity cargaComPrevisao(
-            Long numeroMinuta,
-            String statusCarga,
-            OffsetDateTime previsaoEntrega
-    ) {
-        return cargaComPrevisao(numeroMinuta, statusCarga, previsaoEntrega, null);
-    }
-
-    private static VisaoLocalizacaoCargasEntity cargaComPrevisao(
-            Long numeroMinuta,
-            String statusCarga,
-            OffsetDateTime previsaoEntrega,
-            String filialAtual
-    ) {
-        VisaoLocalizacaoCargasEntity entity = Objects.requireNonNull(novaInstancia(VisaoLocalizacaoCargasEntity.class));
-        ReflectionTestUtils.setField(entity, "sequenceNumber", numeroMinuta);
-        ReflectionTestUtils.setField(entity, "statusCarga", statusCarga);
-        ReflectionTestUtils.setField(entity, "filialAtual", filialAtual);
-        ReflectionTestUtils.setField(entity, "previsaoEntrega", previsaoEntrega);
-        ReflectionTestUtils.setField(entity, "dataFrete", OffsetDateTime.of(2026, 3, 20, 10, 0, 0, 0, ZoneOffset.UTC));
-        ReflectionTestUtils.setField(entity, "valorFrete", new BigDecimal("100.00"));
-        ReflectionTestUtils.setField(entity, "pesoTaxado", "10");
-        ReflectionTestUtils.setField(entity, "regiaoDestino", "Sudeste");
-        ReflectionTestUtils.setField(entity, "dataExtracao", LocalDateTime.of(2026, 3, 23, 12, 0));
-        return entity;
-    }
-
-    private static <T> T novaInstancia(Class<T> type) {
-        try {
-            Constructor<T> constructor = type.getDeclaredConstructor();
-            constructor.setAccessible(true);
-            return constructor.newInstance();
-        } catch (ReflectiveOperationException ex) {
-            throw new IllegalStateException("Nao foi possivel instanciar " + type.getSimpleName(), ex);
-        }
-    }
 }

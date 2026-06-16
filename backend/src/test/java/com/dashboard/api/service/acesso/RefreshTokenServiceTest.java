@@ -164,7 +164,6 @@ class RefreshTokenServiceTest {
         }
     }
 
-    @SuppressWarnings("null")
     @NonNull
     private static <T> T anyNonNull(Class<T> type) {
         return org.mockito.ArgumentMatchers.any(type);

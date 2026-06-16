@@ -6,7 +6,6 @@ import com.dashboard.api.dto.indicadoresgestao.HorariosCorteOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
 import com.dashboard.api.model.VisaoHorariosCorteEntity;
 import com.dashboard.api.repository.HorariosCorteRasterDataSource;
-import com.dashboard.api.repository.VisaoHorariosCorteRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -30,9 +29,6 @@ import static org.mockito.Mockito.when;
 class IndicadoresGestaoAVistaServiceTest {
 
     @Mock
-    private VisaoHorariosCorteRepository repository;
-
-    @Mock
     private HorariosCorteRasterDataSource rasterSqlRepository;
 
     private EscopoFilialServiceStub escopoFilialService;
@@ -44,7 +40,7 @@ class IndicadoresGestaoAVistaServiceTest {
     void setUp() {
         escopoFilialService = new EscopoFilialServiceStub();
         filialMapperService = new StubHorarioCorteFilialMapperService();
-        service = new IndicadoresGestaoAVistaService(new ValidadorPeriodoService(), rasterSqlRepository, repository, escopoFilialService, filialMapperService);
+        service = new IndicadoresGestaoAVistaService(new ValidadorPeriodoService(), rasterSqlRepository, escopoFilialService, filialMapperService);
     }
 
     @Test

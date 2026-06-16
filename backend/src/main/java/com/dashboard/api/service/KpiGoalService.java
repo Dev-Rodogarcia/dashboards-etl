@@ -349,10 +349,6 @@ public class KpiGoalService {
         return INDICATOR_ORDER;
     }
 
-    private Map<String, BigDecimal> buscarMetasGlobaisEfetivas() {
-        return buscarMetasGlobaisEfetivas(normalizarCompetencia((LocalDate) null));
-    }
-
     private Map<String, BigDecimal> buscarMetasGlobaisEfetivas(LocalDate competencia) {
         LocalDate competenciaNormalizada = normalizarCompetencia(competencia);
         Map<String, BigDecimal> result = defaultGoals();

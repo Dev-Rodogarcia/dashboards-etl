@@ -2,7 +2,6 @@ package com.dashboard.api.service.acesso;
 
 import com.dashboard.api.model.acesso.*;
 import com.dashboard.api.repository.acesso.*;
-import com.dashboard.api.service.acesso.PasswordHashService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;

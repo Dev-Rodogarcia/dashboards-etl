@@ -142,7 +142,6 @@ class AutenticacaoServiceTest {
         return usuario;
     }
 
-    @SuppressWarnings("null")
     @NonNull
     private static <T> T anyNonNull(Class<T> type) {
         return any(type);

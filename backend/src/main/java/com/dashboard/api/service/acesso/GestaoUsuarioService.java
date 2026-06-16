@@ -1,6 +1,5 @@
 package com.dashboard.api.service.acesso;
 
-import com.dashboard.api.contract.acesso.UsuarioDependenciaCleanup;
 import com.dashboard.api.dto.acesso.PapelDTO;
 import com.dashboard.api.dto.acesso.UsuarioAcessoDTO;
 import com.dashboard.api.dto.acesso.UsuarioRequestDTO;
@@ -50,7 +49,6 @@ public class GestaoUsuarioService {
     private final AuditService auditService;
     private final PoliticaSenhaService politicaSenhaService;
     private final RefreshTokenService refreshTokenService;
-    private final UsuarioDependenciaCleanup dependenciaCleanupService;
     private final UsuarioSupremo usuarioSupremo;
     private final EscopoFiliaisUsuarioStore escopoFiliaisUsuarioStore;
 
@@ -67,7 +65,6 @@ public class GestaoUsuarioService {
             AuditService auditService,
             PoliticaSenhaService politicaSenhaService,
             RefreshTokenService refreshTokenService,
-            UsuarioDependenciaCleanup dependenciaCleanupService,
             UsuarioSupremo usuarioSupremo,
             EscopoFiliaisUsuarioStore escopoFiliaisUsuarioStore
     ) {
@@ -83,7 +80,6 @@ public class GestaoUsuarioService {
         this.auditService = auditService;
         this.politicaSenhaService = politicaSenhaService;
         this.refreshTokenService = refreshTokenService;
-        this.dependenciaCleanupService = dependenciaCleanupService;
         this.usuarioSupremo = usuarioSupremo;
         this.escopoFiliaisUsuarioStore = escopoFiliaisUsuarioStore;
     }
@@ -624,10 +620,4 @@ public class GestaoUsuarioService {
         return Objects.requireNonNull(email, "email é obrigatório.").trim().toLowerCase();
     }
 
-    private String escapeJson(String valor) {
-        if (valor == null) {
-            return "";
-        }
-        return valor.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
 }
