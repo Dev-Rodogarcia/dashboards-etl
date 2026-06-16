@@ -83,8 +83,15 @@ function calcularPercentualRemuneracao(
     || receita == null
     || !Number.isFinite(custo)
     || !Number.isFinite(receita)
-    || receita <= 0
   ) {
+    return null;
+  }
+
+  if (receita === 0) {
+    return custo > 0 ? 100 : null;
+  }
+
+  if (receita < 0) {
     return null;
   }
 

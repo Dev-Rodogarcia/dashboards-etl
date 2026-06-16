@@ -44,6 +44,27 @@ class ManifestosCostGoalMigrationSqlTest {
     }
 
     @Test
+    void migrationV046AdicionaTipoContratoNasMetasDeManifestos() throws IOException {
+        String sql = lerSql(Path.of(
+                "..",
+                "database",
+                "migrations",
+                "V046__adicionar_tipo_contrato_metas_manifestos.sql"
+        ));
+
+        assertThat(sql)
+                .contains("ADD contract_type NVARCHAR(100) NULL")
+                .contains("ADD contract_type_key NVARCHAR(100) NULL")
+                .contains("contract_type = N'Geral'")
+                .contains("ALTER COLUMN contract_type_key NVARCHAR(100) NOT NULL")
+                .contains("DROP INDEX UX_manifestos_cost_goals_branch_period")
+                .contains("DROP INDEX UX_manifestos_cost_goals_global_period")
+                .contains("UX_manifestos_cost_goals_branch_period_contract")
+                .contains("UX_manifestos_cost_goals_global_period_contract")
+                .doesNotContain("ETL_SISTEMA");
+    }
+
+    @Test
     void validacaoDeSchemaCobreTabelaEIndices() throws IOException {
         String sql = lerSql(Path.of(
                 "..",
@@ -55,8 +76,9 @@ class ManifestosCostGoalMigrationSqlTest {
         assertThat(sql)
                 .contains("acesso.manifestos_cost_goals")
                 .contains("updated_by_user_id")
-                .contains("UX_manifestos_cost_goals_branch_period")
-                .contains("UX_manifestos_cost_goals_global_period");
+                .contains("contract_type_key")
+                .contains("UX_manifestos_cost_goals_branch_period_contract")
+                .contains("UX_manifestos_cost_goals_global_period_contract");
     }
 
     private String lerSql(Path path) throws IOException {

@@ -70,9 +70,14 @@ export async function salvarManifestosMeta(payload: ManifestosCostGoalPayload): 
   return data;
 }
 
-export async function removerManifestosMeta(branchId: string, ano: number, mes: number): Promise<void> {
+export async function removerManifestosMeta(
+  branchId: string,
+  ano: number,
+  mes: number,
+  contractTypeKey?: string,
+): Promise<void> {
   await clienteAxios.delete('/api/painel/manifestos/metas', {
-    params: { branchId, ano, mes },
+    params: { branchId, ano, mes, contractTypeKey },
   });
 }
 

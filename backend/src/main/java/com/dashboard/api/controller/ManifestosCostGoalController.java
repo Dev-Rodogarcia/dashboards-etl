@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,6 +30,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class ManifestosCostGoalController {
 
     private static final String GLOBAL_BRANCH_ID = "GLOBAL";
+    private static final String DEFAULT_CONTRACT_TYPE = "Geral";
+    private static final String DEFAULT_CONTRACT_TYPE_KEY = "geral";
 
     private final ManifestosCostGoalRepository repository;
     private final UsuarioRepository usuarioRepository;
@@ -70,13 +73,16 @@ public class ManifestosCostGoalController {
         Objects.requireNonNull(request, "Dados da meta são obrigatórios.");
         LocalDate competencia = competencia(request.ano(), request.mes());
         String branchId = normalizarBranchId(request.branchId());
+        ContractType contrato = normalizarContrato(request.contractType(), request.contractTypeKey());
         BigDecimal costGoal = normalizarMeta(request.costGoal());
         UsuarioEntity usuario = usuarioAutenticado(authentication);
 
-        ManifestosCostGoalEntity entity = buscarExistente(branchId, competencia)
+        ManifestosCostGoalEntity entity = buscarExistente(branchId, competencia, contrato.key())
                 .orElseGet(ManifestosCostGoalEntity::new);
         entity.setBranchId(branchId);
         entity.setYearMonth(competencia);
+        entity.setContractType(contrato.label());
+        entity.setContractTypeKey(contrato.key());
         entity.setCostGoal(costGoal);
         entity.setUpdatedByUser(usuario);
 
@@ -88,20 +94,26 @@ public class ManifestosCostGoalController {
     @Transactional
     public ResponseEntity<Void> remover(
             @RequestParam(required = false) String branchId,
+            @RequestParam(required = false) String contractTypeKey,
             @RequestParam int ano,
             @RequestParam int mes
     ) {
         LocalDate competencia = competencia(ano, mes);
         String normalizedBranchId = normalizarBranchId(branchId);
-        buscarExistente(normalizedBranchId, competencia).ifPresent(repository::delete);
+        ContractType contrato = normalizarContrato(null, contractTypeKey);
+        buscarExistente(normalizedBranchId, competencia, contrato.key()).ifPresent(repository::delete);
         return ResponseEntity.noContent().build();
     }
 
-    private java.util.Optional<ManifestosCostGoalEntity> buscarExistente(String branchId, LocalDate competencia) {
+    private java.util.Optional<ManifestosCostGoalEntity> buscarExistente(
+            String branchId,
+            LocalDate competencia,
+            String contractTypeKey
+    ) {
         if (branchId == null) {
-            return repository.findGlobalByYearMonth(competencia);
+            return repository.findGlobalByYearMonthAndContractTypeKey(competencia, contractTypeKey);
         }
-        return repository.findByBranchIdAndYearMonth(branchId, competencia);
+        return repository.findByBranchIdAndYearMonthAndContractTypeKey(branchId, competencia, contractTypeKey);
     }
 
     private LocalDate competencia(int ano, int mes) {
@@ -125,6 +137,42 @@ public class ManifestosCostGoalController {
         return normalized;
     }
 
+    private ContractType normalizarContrato(String contractType, String contractTypeKey) {
+        String key = contractTypeKey == null || contractTypeKey.isBlank()
+                ? normalizarContractTypeKey(contractType)
+                : contractTypeKey.trim().toLowerCase(Locale.ROOT);
+        if (key.isBlank()) {
+            key = DEFAULT_CONTRACT_TYPE_KEY;
+        }
+        String label = contractType == null || contractType.isBlank()
+                ? labelContrato(key)
+                : contractType.trim();
+        if (label.length() > 100) {
+            throw new IllegalArgumentException("Tipo de contrato da meta excede 100 caracteres.");
+        }
+        if (key.length() > 100) {
+            throw new IllegalArgumentException("Chave do tipo de contrato da meta excede 100 caracteres.");
+        }
+        return new ContractType(label, key);
+    }
+
+    private String normalizarContractTypeKey(String contractType) {
+        if (contractType == null || contractType.isBlank()) {
+            return DEFAULT_CONTRACT_TYPE_KEY;
+        }
+        return contractType.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String labelContrato(String contractTypeKey) {
+        return switch (contractTypeKey) {
+            case "frota" -> "Frota";
+            case "agregado" -> "Agregado";
+            case "terceiro" -> "Terceiro";
+            case "frota + px" -> "Frota + PX";
+            default -> DEFAULT_CONTRACT_TYPE_KEY.equals(contractTypeKey) ? DEFAULT_CONTRACT_TYPE : contractTypeKey;
+        };
+    }
+
     private BigDecimal normalizarMeta(BigDecimal costGoal) {
         BigDecimal normalized = Objects.requireNonNullElse(costGoal, BigDecimal.ZERO)
                 .setScale(2, RoundingMode.HALF_UP);
@@ -140,5 +188,8 @@ public class ManifestosCostGoalController {
                 : "";
         return usuarioRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário autenticado não encontrado."));
+    }
+
+    private record ContractType(String label, String key) {
     }
 }

@@ -65,7 +65,9 @@ class ManifestosPerformanceSqlRepositoryTest {
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql)
                         .contains("[Tipo de contrato]")
-                        .contains("AS tipo_contrato"));
+                        .contains("AS tipo_contrato")
+                        .contains("[Tipo de contrato key]")
+                        .contains("AS tipo_contrato_key"));
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql).contains("COUNT(DISTINCT sequence_code) AS quantidade"));
         assertThat(jdbcTemplate.sqls)
@@ -140,6 +142,33 @@ class ManifestosPerformanceSqlRepositoryTest {
         assertThat(jdbcTemplate.parametros)
                 .filteredOn(params -> params.hasValue("numeroManifesto"))
                 .anySatisfy(params -> assertThat(params.getValue("numeroManifesto")).isEqualTo(62848L));
+    }
+
+    @Test
+    void buscarPerformanceFiltraTipoContratoPelaKeyPublicadaNaView() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        ManifestosPerformanceSqlRepository repository = new ManifestosPerformanceSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal(),
+                PeriodoOffsetDateTimeHelper.padrao()
+        );
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 24),
+                Map.of("tiposContrato", List.of("Frota + PX"))
+        );
+
+        repository.buscarPerformance(filtro, "dia", null, null);
+
+        assertThat(jdbcTemplate.sqls)
+                .anySatisfy(sql -> assertThat(sql)
+                        .contains("tipo_contrato_key COLLATE Latin1_General_CI_AI IN (:tiposContrato)")
+                        .doesNotContain("tipo_contrato COLLATE Latin1_General_CI_AI IN (:tiposContrato)"));
+        assertThat(jdbcTemplate.parametros)
+                .filteredOn(params -> params.hasValue("tiposContrato"))
+                .anySatisfy(params -> assertThat(params.getValue("tiposContrato"))
+                        .isEqualTo(List.of("frota + px")));
     }
 
     @Test
@@ -290,6 +319,7 @@ class ManifestosPerformanceSqlRepositoryTest {
                 "Tipo Veículo",
                 "Tipo Motorista",
                 "Tipo de contrato",
+                "Tipo de contrato key",
                 "Proprietário/Documento",
                 "KM Total",
                 "Custo total",

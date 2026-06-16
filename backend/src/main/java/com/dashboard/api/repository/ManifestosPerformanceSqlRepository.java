@@ -300,7 +300,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "veiculos", "veiculo_placa", filtro.valores("veiculos"));
         adicionarFiltroNumero(ctx.whereBuilder(), ctx.params(), "numeroManifesto", "sequence_code", filtro.valores("numeroManifesto"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tiposCarga", "tipo_carga", filtro.valores("tiposCarga"));
-        adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tiposContrato", "tipo_contrato", filtro.valores("tiposContrato"));
+        adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tiposContrato", "tipo_contrato_key", filtro.valores("tiposContrato"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tipoMotorista", "tipo_motorista", filtro.valores("tipoMotorista"));
         return ctx;
     }
@@ -545,6 +545,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                         %s AS tipo_motorista,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Tipo de carga]))), ''), N'Sem tipo') AS tipo_carga,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Tipo de contrato]))), ''), N'Sem tipo') AS tipo_contrato,
+                        COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Tipo de contrato key]))), ''), N'sem tipo') AS tipo_contrato_key,
                         CASE
                             WHEN LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) COLLATE Latin1_General_CI_AI IN (N'encerrado', N'closed') THEN N'Encerrado'
                             WHEN LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) COLLATE Latin1_General_CI_AI IN (N'em trânsito', N'em transito', N'in_transit') THEN N'Em Trânsito'
@@ -721,6 +722,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                     && existe("Tipo Veículo")
                     && existe("Tipo Motorista")
                     && existe("Tipo de contrato")
+                    && existe("Tipo de contrato key")
                     && existe("Proprietário/Documento")
                     && existe("KM Total")
                     && existe("Custo total")

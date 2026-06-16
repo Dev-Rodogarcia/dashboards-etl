@@ -103,8 +103,8 @@ class DashboardTabelaPaginadaServiceTest {
         service.buscarManifestos(filtroPadrao(), 2, 10, "percentualRemuneracao", "desc");
 
         assertThat(jdbcTemplate.sqls().get(1))
-                .contains("CASE WHEN [Receita Total Transportada] > 0 AND [Custo total] IS NOT NULL THEN 0 ELSE 1 END ASC")
-                .contains("CASE WHEN [Receita Total Transportada] BETWEEN 0.01 AND 5.00 THEN 1 ELSE ([Custo total] / NULLIF([Receita Total Transportada], 0)) END DESC")
+                .contains("CASE WHEN (([Receita Total Transportada] > 0) OR ([Receita Total Transportada] = 0 AND [Custo total] > 0)) AND [Custo total] IS NOT NULL THEN 0 ELSE 1 END ASC")
+                .contains("CASE WHEN [Receita Total Transportada] BETWEEN 0.01 AND 5.00 THEN 1 WHEN [Receita Total Transportada] = 0 AND [Custo total] > 0 THEN 1 ELSE ([Custo total] / NULLIF([Receita Total Transportada], 0)) END DESC")
                 .contains("[Data criação] DESC")
                 .contains("[Número] DESC")
                 .contains("OFFSET :offsetTabela ROWS FETCH NEXT :tamanhoTabela ROWS ONLY");

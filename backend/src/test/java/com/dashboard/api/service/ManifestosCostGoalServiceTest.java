@@ -21,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -54,7 +55,12 @@ class ManifestosCostGoalServiceTest {
                 new CustoDiarioDTO("2026-05-19", new BigDecimal("600000.00"))
         );
         stubCalendarioECustos(filtro, serie);
-        when(goalRepository.aggregateGlobalOrBranches(INICIO_MAIO, LocalDate.of(2026, 6, 1)))
+        when(goalRepository.aggregateGlobalOrBranches(
+                INICIO_MAIO,
+                LocalDate.of(2026, 6, 1),
+                List.of("__all_contract_types__"),
+                0
+        ))
                 .thenReturn(aggregate("8400000.00", 1));
 
         ManifestosCustosEvolucaoDTO resultado = service.calcular(
@@ -82,7 +88,12 @@ class ManifestosCostGoalServiceTest {
     void travaLimiteDiarioDinamicoEmZeroQuandoOrcamentoEstaEstourado() {
         FiltroConsultaDTO filtro = new FiltroConsultaDTO(INICIO_MAIO, FIM_MAIO, Map.of());
         stubCalendarioECustos(filtro, List.of());
-        when(goalRepository.aggregateGlobalOrBranches(INICIO_MAIO, LocalDate.of(2026, 6, 1)))
+        when(goalRepository.aggregateGlobalOrBranches(
+                INICIO_MAIO,
+                LocalDate.of(2026, 6, 1),
+                List.of("__all_contract_types__"),
+                0
+        ))
                 .thenReturn(aggregate("299000.00", 1));
 
         ManifestosCustosEvolucaoDTO resultado = service.calcular(
@@ -105,7 +116,9 @@ class ManifestosCostGoalServiceTest {
         when(goalRepository.aggregateByBranches(
                 INICIO_MAIO,
                 LocalDate.of(2026, 6, 1),
-                List.of("rec", "spo")
+                List.of("rec", "spo"),
+                List.of("__all_contract_types__"),
+                0
         )).thenReturn(aggregate("3000000.00", 2));
 
         ManifestosCustosEvolucaoDTO resultado = service.calcular(
@@ -114,7 +127,32 @@ class ManifestosCostGoalServiceTest {
         );
 
         assertThat(resultado.orcamentoCusto()).isEqualByComparingTo("3000000.00");
-        verify(goalRepository, never()).aggregateGlobalOrBranches(any(), any());
+        verify(goalRepository, never()).aggregateGlobalOrBranches(any(), any(), any(), anyInt());
+    }
+
+    @Test
+    void aplicaFiltroDeTipoContratoNaMeta() {
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                INICIO_MAIO,
+                FIM_MAIO,
+                Map.of("tiposContrato", List.of("Frota + PX"))
+        );
+        stubCalendarioECustos(filtro, List.of());
+        when(goalRepository.aggregateGlobalOrBranches(
+                INICIO_MAIO,
+                LocalDate.of(2026, 6, 1),
+                List.of("frota + px"),
+                1
+        )).thenReturn(aggregate("1200000.00", 1));
+
+        ManifestosCustosEvolucaoDTO resultado = service.calcular(
+                filtro,
+                new BigDecimal("300000.00")
+        );
+
+        assertThat(resultado.orcamentoAplicavel()).isTrue();
+        assertThat(resultado.orcamentoConfigurado()).isTrue();
+        assertThat(resultado.orcamentoCusto()).isEqualByComparingTo("1200000.00");
     }
 
     @Test
@@ -147,7 +185,12 @@ class ManifestosCostGoalServiceTest {
     void metaAusenteNaoProduzSaldoOrcamentarioArtificial() {
         FiltroConsultaDTO filtro = new FiltroConsultaDTO(INICIO_MAIO, FIM_MAIO, Map.of());
         stubCalendarioECustos(filtro, List.of());
-        when(goalRepository.aggregateGlobalOrBranches(INICIO_MAIO, LocalDate.of(2026, 6, 1)))
+        when(goalRepository.aggregateGlobalOrBranches(
+                INICIO_MAIO,
+                LocalDate.of(2026, 6, 1),
+                List.of("__all_contract_types__"),
+                0
+        ))
                 .thenReturn(aggregate("0.00", 0));
 
         ManifestosCustosEvolucaoDTO resultado = service.calcular(

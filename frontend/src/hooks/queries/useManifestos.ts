@@ -131,7 +131,12 @@ export function useSaveManifestosMeta() {
 export function useDeleteManifestosMeta() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ branchId, ano, mes }: { branchId: string; ano: number; mes: number }) => removerManifestosMeta(branchId, ano, mes),
+    mutationFn: ({ branchId, ano, mes, contractTypeKey }: {
+      branchId: string;
+      ano: number;
+      mes: number;
+      contractTypeKey?: string;
+    }) => removerManifestosMeta(branchId, ano, mes, contractTypeKey),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },

@@ -37,7 +37,6 @@ public class ManifestosCostGoalService {
             "veiculos",
             "numeroManifesto",
             "tiposCarga",
-            "tiposContrato",
             "tipoMotorista"
     );
 
@@ -112,11 +111,18 @@ public class ManifestosCostGoalService {
         }
 
         GoalAggregateProjection aggregate = aplicabilidade.usarMetaGlobal()
-                ? goalRepository.aggregateGlobalOrBranches(inicioCompetencia, fimCompetenciaExclusivo)
+                ? goalRepository.aggregateGlobalOrBranches(
+                        inicioCompetencia,
+                        fimCompetenciaExclusivo,
+                        aplicabilidade.contractTypeKeys(),
+                        aplicabilidade.contractTypeFilterActive()
+                )
                 : goalRepository.aggregateByBranches(
                         inicioCompetencia,
                         fimCompetenciaExclusivo,
-                        aplicabilidade.filiais()
+                        aplicabilidade.filiais(),
+                        aplicabilidade.contractTypeKeys(),
+                        aplicabilidade.contractTypeFilterActive()
         );
         BigDecimal orcamentoCusto = moeda(aggregate == null ? null : aggregate.getCostGoal());
         boolean configurado = aggregate != null && aggregate.getConfiguredGoals() > 0;
@@ -225,9 +231,10 @@ public class ManifestosCostGoalService {
             );
         }
 
+        List<String> contractTypeKeys = normalizar(filtro.valores("tiposContrato"));
         List<String> filiaisSelecionadas = normalizar(filtro.valores("filiais"));
         if (escopo.acessoTotal() && filiaisSelecionadas.isEmpty()) {
-            return AplicabilidadeOrcamento.global();
+            return AplicabilidadeOrcamento.global(contractTypeKeys);
         }
 
         List<String> filiaisPermitidas = escopo.acessoTotal()
@@ -241,7 +248,7 @@ public class ManifestosCostGoalService {
                     "Orçamento indisponível porque as filiais selecionadas estão fora do escopo autorizado."
             );
         }
-        return AplicabilidadeOrcamento.porFiliais(filiaisPermitidas);
+        return AplicabilidadeOrcamento.porFiliais(filiaisPermitidas, contractTypeKeys);
     }
 
     private List<String> intersecao(Collection<String> selecionadas, Collection<String> permitidas) {
@@ -349,18 +356,41 @@ public class ManifestosCostGoalService {
             boolean aplicavel,
             boolean usarMetaGlobal,
             List<String> filiais,
+            List<String> contractTypeKeys,
             String observacao
     ) {
-        static AplicabilidadeOrcamento global() {
-            return new AplicabilidadeOrcamento(true, true, List.of(), null);
+        static AplicabilidadeOrcamento global(List<String> contractTypeKeys) {
+            return new AplicabilidadeOrcamento(
+                    true,
+                    true,
+                    List.of(),
+                    filtroContrato(contractTypeKeys),
+                    null
+            );
         }
 
-        static AplicabilidadeOrcamento porFiliais(List<String> filiais) {
-            return new AplicabilidadeOrcamento(true, false, filiais, null);
+        static AplicabilidadeOrcamento porFiliais(List<String> filiais, List<String> contractTypeKeys) {
+            return new AplicabilidadeOrcamento(
+                    true,
+                    false,
+                    filiais,
+                    filtroContrato(contractTypeKeys),
+                    null
+            );
         }
 
         static AplicabilidadeOrcamento indisponivel(String observacao) {
-            return new AplicabilidadeOrcamento(false, false, List.of(), observacao);
+            return new AplicabilidadeOrcamento(false, false, List.of(), List.of("__all_contract_types__"), observacao);
+        }
+
+        int contractTypeFilterActive() {
+            return contractTypeKeys.size() == 1 && "__all_contract_types__".equals(contractTypeKeys.get(0)) ? 0 : 1;
+        }
+
+        private static List<String> filtroContrato(List<String> contractTypeKeys) {
+            return contractTypeKeys == null || contractTypeKeys.isEmpty()
+                    ? List.of("__all_contract_types__")
+                    : contractTypeKeys;
         }
     }
 }

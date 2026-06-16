@@ -12,14 +12,18 @@ import org.springframework.data.repository.query.Param;
 
 public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCostGoalEntity, Long> {
 
-    Optional<ManifestosCostGoalEntity> findByBranchIdAndYearMonth(String branchId, LocalDate yearMonth);
+    Optional<ManifestosCostGoalEntity> findByBranchIdAndYearMonthAndContractTypeKey(
+            String branchId,
+            LocalDate yearMonth,
+            String contractTypeKey
+    );
 
     @Query("""
             SELECT g
             FROM ManifestosCostGoalEntity g
             LEFT JOIN FETCH g.updatedByUser
             WHERE g.yearMonth = :yearMonth
-            ORDER BY CASE WHEN g.branchId IS NULL THEN 0 ELSE 1 END, g.branchId
+            ORDER BY CASE WHEN g.branchId IS NULL THEN 0 ELSE 1 END, g.branchId, g.contractType
             """)
     List<ManifestosCostGoalEntity> findAllByYearMonthOrdered(@Param("yearMonth") LocalDate yearMonth);
 
@@ -29,8 +33,12 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
             LEFT JOIN FETCH g.updatedByUser
             WHERE g.branchId IS NULL
               AND g.yearMonth = :yearMonth
+              AND g.contractTypeKey = :contractTypeKey
             """)
-    Optional<ManifestosCostGoalEntity> findGlobalByYearMonth(@Param("yearMonth") LocalDate yearMonth);
+    Optional<ManifestosCostGoalEntity> findGlobalByYearMonthAndContractTypeKey(
+            @Param("yearMonth") LocalDate yearMonth,
+            @Param("contractTypeKey") String contractTypeKey
+    );
 
     @Query(value = """
             WITH metas_por_competencia AS (
@@ -38,17 +46,18 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
                     year_month,
                     CASE
                         WHEN MAX(CASE WHEN branch_id IS NULL THEN 1 ELSE 0 END) = 1
-                        THEN MAX(CASE WHEN branch_id IS NULL THEN cost_goal END)
+                        THEN SUM(CASE WHEN branch_id IS NULL THEN cost_goal ELSE 0 END)
                         ELSE SUM(CASE WHEN branch_id IS NOT NULL THEN cost_goal ELSE 0 END)
                     END AS cost_goal,
                     CASE
                         WHEN MAX(CASE WHEN branch_id IS NULL THEN 1 ELSE 0 END) = 1
-                        THEN CAST(1 AS BIGINT)
+                        THEN COUNT_BIG(CASE WHEN branch_id IS NULL THEN 1 END)
                         ELSE COUNT_BIG(CASE WHEN branch_id IS NOT NULL THEN 1 END)
                     END AS configured_goals
                 FROM acesso.manifestos_cost_goals
                 WHERE year_month >= :inicioCompetencia
                   AND year_month < :fimCompetencia
+                  AND (:contractTypeFilterActive = 0 OR contract_type_key IN (:contractTypeKeys))
                 GROUP BY year_month
             )
             SELECT
@@ -58,7 +67,9 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
             """, nativeQuery = true)
     GoalAggregateProjection aggregateGlobalOrBranches(
             @Param("inicioCompetencia") LocalDate inicioCompetencia,
-            @Param("fimCompetencia") LocalDate fimCompetencia
+            @Param("fimCompetencia") LocalDate fimCompetencia,
+            @Param("contractTypeKeys") Collection<String> contractTypeKeys,
+            @Param("contractTypeFilterActive") int contractTypeFilterActive
     );
 
     @Query(value = """
@@ -69,11 +80,14 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
             WHERE year_month >= :inicioCompetencia
               AND year_month < :fimCompetencia
               AND branch_id COLLATE Latin1_General_CI_AI IN (:branchIds)
+              AND (:contractTypeFilterActive = 0 OR contract_type_key IN (:contractTypeKeys))
             """, nativeQuery = true)
     GoalAggregateProjection aggregateByBranches(
             @Param("inicioCompetencia") LocalDate inicioCompetencia,
             @Param("fimCompetencia") LocalDate fimCompetencia,
-            @Param("branchIds") Collection<String> branchIds
+            @Param("branchIds") Collection<String> branchIds,
+            @Param("contractTypeKeys") Collection<String> contractTypeKeys,
+            @Param("contractTypeFilterActive") int contractTypeFilterActive
     );
 
     interface GoalAggregateProjection {

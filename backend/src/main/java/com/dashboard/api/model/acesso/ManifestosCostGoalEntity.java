@@ -29,6 +29,12 @@ public class ManifestosCostGoalEntity {
     @Column(name = "year_month", nullable = false)
     private LocalDate yearMonth;
 
+    @Column(name = "contract_type", length = 100)
+    private String contractType;
+
+    @Column(name = "contract_type_key", nullable = false, length = 100)
+    private String contractTypeKey;
+
     @Column(name = "cost_goal", nullable = false, precision = 18, scale = 2)
     private BigDecimal costGoal;
 
@@ -80,6 +86,22 @@ public class ManifestosCostGoalEntity {
 
     public void setYearMonth(LocalDate yearMonth) {
         this.yearMonth = yearMonth;
+    }
+
+    public String getContractType() {
+        return contractType;
+    }
+
+    public void setContractType(String contractType) {
+        this.contractType = contractType;
+    }
+
+    public String getContractTypeKey() {
+        return contractTypeKey;
+    }
+
+    public void setContractTypeKey(String contractTypeKey) {
+        this.contractTypeKey = contractTypeKey;
     }
 
     public BigDecimal getCostGoal() {

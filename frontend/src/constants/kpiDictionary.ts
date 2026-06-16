@@ -151,9 +151,9 @@ export const KpiDictionary = {
       titulo: 'Orçamento de Custo',
       descricao: 'Orçamento mensal de custo operacional aplicável às competências e filiais selecionadas.',
       calculo:
-        'Soma dos Orçamentos Mensais. Sem filtro de filial, a meta global prevalece; com filtro ou escopo restrito, são somadas as metas das filiais aplicáveis.',
+        'Soma dos Orçamentos Mensais por filial e tipo de contrato. Sem filtro de filial, a meta global prevalece; com filtro ou escopo restrito, são somadas as metas das filiais aplicáveis.',
       observacao:
-        'O orçamento não é comparado quando existem filtros de status, motorista, veículo, tipo de carga, contrato ou tipo de motorista.',
+        'O orçamento não é comparado quando existem filtros de status, motorista, veículo, tipo de carga ou tipo de motorista.',
     },
     custoReal: {
       titulo: 'Custo Real',
@@ -224,7 +224,7 @@ export const KpiDictionary = {
         titulo: 'Remuneração na Listagem',
         descricao: 'Relação entre custo e receita no nível do manifesto.',
         calculo:
-          'Quando a Receita Total Transportada está entre R$ 0,01 e R$ 5,00, o manifesto retorna 100%; nos demais casos, Custo Total ÷ Receita Total Transportada × 100.',
+          'Quando a Receita Total Transportada é R$ 0,00 e o Custo Total é maior que R$ 0,00, ou quando a receita está entre R$ 0,01 e R$ 5,00, o manifesto retorna 100%. Quando custo e receita são R$ 0,00, fica sem percentual. Nos demais casos, Custo Total ÷ Receita Total Transportada × 100.',
         observacao: percentualSemBase,
       },
       geral: {

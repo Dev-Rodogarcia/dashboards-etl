@@ -31,6 +31,13 @@ const MONTHS = [
   { value: 11, label: 'Novembro' },
   { value: 12, label: 'Dezembro' },
 ];
+const CONTRACT_TYPE_OPTIONS = [
+  { value: 'geral', label: 'Geral' },
+  { value: 'frota', label: 'Frota' },
+  { value: 'agregado', label: 'Agregado' },
+  { value: 'terceiro', label: 'Terceiro' },
+  { value: 'frota + px', label: 'Frota + PX' },
+];
 const FOCUS_RING_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
 
 function normalizeCurrency(value: string) {
@@ -59,11 +66,20 @@ function getCurrentPeriod() {
   };
 }
 
+function getConfigContractTypeKey(config: ManifestosCostGoalConfig) {
+  return config.contractTypeKey ?? 'geral';
+}
+
+function getConfigContractTypeLabel(config: ManifestosCostGoalConfig) {
+  return config.contractType ?? CONTRACT_TYPE_OPTIONS.find((option) => option.value === getConfigContractTypeKey(config))?.label ?? 'Geral';
+}
+
 export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPanelProps) {
   const periodoAtual = useMemo(() => getCurrentPeriod(), []);
   const [ano, setAno] = useState(periodoAtual.ano);
   const [mes, setMes] = useState(periodoAtual.mes);
   const [branchId, setBranchId] = useState(GLOBAL_BRANCH_ID);
+  const [contractTypeKey, setContractTypeKey] = useState('geral');
   const [costGoalDraft, setCostGoalDraft] = useState<string | null>(null);
 
   const filiais = useFiliais();
@@ -81,9 +97,19 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
     () => configs.find((item) => item.configurado === false)?.mensagem ?? null,
     [configs],
   );
+  const contractTypeOptions = useMemo(() => {
+    const options = new Map(CONTRACT_TYPE_OPTIONS.map((option) => [option.value, option]));
+    configsCadastradas.forEach((config) => {
+      const key = getConfigContractTypeKey(config);
+      if (!options.has(key)) {
+        options.set(key, { value: key, label: getConfigContractTypeLabel(config) });
+      }
+    });
+    return Array.from(options.values());
+  }, [configsCadastradas]);
   const configAtual = useMemo(
-    () => configsCadastradas.find((item) => item.branchId === branchId) ?? null,
-    [branchId, configsCadastradas],
+    () => configsCadastradas.find((item) => item.branchId === branchId && getConfigContractTypeKey(item) === contractTypeKey) ?? null,
+    [branchId, contractTypeKey, configsCadastradas],
   );
   const selectableBranches = useMemo(
     () => [
@@ -101,6 +127,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
     const current = new Date().getFullYear();
     return Array.from({ length: 7 }, (_, index) => current - 2 + index);
   }, []);
+  const selectedContractType = contractTypeOptions.find((option) => option.value === contractTypeKey) ?? CONTRACT_TYPE_OPTIONS[0];
   const costGoalValue = costGoalDraft ?? String(configAtual?.costGoal ?? 0);
 
   if (!open) {
@@ -111,6 +138,8 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
     event.preventDefault();
     await salvarMeta.mutateAsync({
       branchId,
+      contractType: selectedContractType.label,
+      contractTypeKey: selectedContractType.value,
       ano,
       mes,
       costGoal: normalizeCurrency(costGoalValue),
@@ -121,10 +150,11 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
   async function handleRemove(config: ManifestosCostGoalConfig) {
     await removerMeta.mutateAsync({
       branchId: config.branchId,
+      contractTypeKey: getConfigContractTypeKey(config),
       ano: config.ano,
       mes: config.mes,
     });
-    if (config.branchId === branchId) {
+    if (config.branchId === branchId && getConfigContractTypeKey(config) === contractTypeKey) {
       setCostGoalDraft(null);
     }
   }
@@ -141,7 +171,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
             Gerenciar Orçamento de Custo Operacional
           </h2>
           <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
-            Metas mensais de custo operacional por filial.
+            Metas mensais de custo operacional por filial e tipo de contrato.
           </p>
         </div>
         {metas.isLoading ? (
@@ -169,7 +199,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
             </p>
           ) : null}
 
-          <form onSubmit={handleSubmit} className="grid gap-4 rounded-2xl border p-4 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]" style={{ borderColor: 'var(--color-border)' }}>
+          <form onSubmit={handleSubmit} className="grid gap-4 rounded-2xl border p-4 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto]" style={{ borderColor: 'var(--color-border)' }}>
             <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
               Ano
               <select
@@ -215,6 +245,22 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
               </select>
             </label>
             <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
+              Tipo de Contrato
+              <select
+                value={contractTypeKey}
+                onChange={(event) => {
+                  setContractTypeKey(event.target.value);
+                  setCostGoalDraft(null);
+                }}
+                className={`h-11 rounded-xl border px-3 text-sm ${FOCUS_RING_CLASS}`}
+                style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+              >
+                {contractTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
               Meta Mensal
               <input
                 type="text"
@@ -251,10 +297,13 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
                 </p>
               ) : (
                 configsCadastradas.map((config) => (
-                  <div key={`${config.branchId}-${config.ano}-${config.mes}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
+                  <div key={`${config.branchId}-${config.ano}-${config.mes}-${getConfigContractTypeKey(config)}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{config.branchId}</span>
+                        <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
+                          {getConfigContractTypeLabel(config)}
+                        </span>
                         <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
                           Meta Mensal {formatarMoeda(config.costGoal)}
                         </span>
