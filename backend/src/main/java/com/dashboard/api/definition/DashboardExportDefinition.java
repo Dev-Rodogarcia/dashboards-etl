@@ -73,6 +73,7 @@ public enum DashboardExportDefinition {
                     "status", List.of("[Status]"),
                     "motoristas", List.of("[Motorista]"),
                     "veiculos", List.of("[Veículo/Placa]"),
+                    "numeroManifesto", List.of("[Número]"),
                     "tiposCarga", List.of("[Tipo de carga]"),
                     "tiposContrato", List.of("[Tipo de contrato]")
             ),

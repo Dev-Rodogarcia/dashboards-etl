@@ -60,7 +60,7 @@ function getCurrentPeriod() {
 }
 
 export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPanelProps) {
-  const periodoAtual = useMemo(getCurrentPeriod, []);
+  const periodoAtual = useMemo(() => getCurrentPeriod(), []);
   const [ano, setAno] = useState(periodoAtual.ano);
   const [mes, setMes] = useState(periodoAtual.mes);
   const [branchId, setBranchId] = useState(GLOBAL_BRANCH_ID);

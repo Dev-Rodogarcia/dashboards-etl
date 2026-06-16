@@ -220,6 +220,13 @@ export const KpiDictionary = {
       observacao: 'Quando a quilometragem total é zero, o indicador retorna zero.',
     },
     remuneracao: {
+      tabela: {
+        titulo: 'Remuneração na Listagem',
+        descricao: 'Relação entre custo e receita no nível do manifesto.',
+        calculo:
+          'Quando a Receita Total Transportada está entre R$ 0,01 e R$ 5,00, o manifesto retorna 100%; nos demais casos, Custo Total ÷ Receita Total Transportada × 100.',
+        observacao: percentualSemBase,
+      },
       geral: {
         titulo: 'Remuneração Geral',
         descricao: 'Relação entre o custo dos manifestos e a receita transportada.',

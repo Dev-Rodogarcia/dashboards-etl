@@ -139,6 +139,7 @@ export interface ManifestosFiltro {
   status?: string[];
   motoristas?: string[];
   veiculos?: string[];
+  numeroManifesto?: string;
   tiposCarga?: string[];
   tiposContrato?: string[];
   tipoMotorista?: string[];

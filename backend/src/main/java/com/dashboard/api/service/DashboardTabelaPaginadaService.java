@@ -47,7 +47,7 @@ public class DashboardTabelaPaginadaService {
             Map.entry("receitaTotalTransportada", new ManifestosSortDefinition("[Receita Total Transportada]", null)),
             Map.entry("kmTotal", new ManifestosSortDefinition("[KM Total]", null)),
             Map.entry("percentualRemuneracao", new ManifestosSortDefinition(
-                    "[Custo total] / NULLIF([Receita Total Transportada], 0)",
+                    "CASE WHEN [Receita Total Transportada] BETWEEN 0.01 AND 5.00 THEN 1 ELSE ([Custo total] / NULLIF([Receita Total Transportada], 0)) END",
                     "[Receita Total Transportada] > 0 AND [Custo total] IS NOT NULL"
             )),
             Map.entry("percentualAproveitamento", new ManifestosSortDefinition(

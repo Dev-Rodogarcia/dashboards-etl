@@ -44,6 +44,7 @@ const CORES_GAUGE_MANIFESTOS = {
 } as const;
 const EMPTY_ARRAY: never[] = [];
 const KPI_BADGE_BASE_CLASS = 'inline-flex min-w-[68px] items-center justify-center rounded-md px-2 py-1 text-xs font-semibold tabular-nums';
+const TIPOS_CONTRATO_OPTIONS = ['Agregado', 'Terceiro', 'Frota', 'Frota + PX'];
 
 type ManifestoTabelaRow = ManifestoResumoRow & {
   percentualRemuneracao: number | null;
@@ -71,6 +72,27 @@ function calcularPercentual(
   }
 
   return (numerador / denominador) * 100;
+}
+
+function calcularPercentualRemuneracao(
+  custo: number | null | undefined,
+  receita: number | null | undefined,
+): number | null {
+  if (
+    custo == null
+    || receita == null
+    || !Number.isFinite(custo)
+    || !Number.isFinite(receita)
+    || receita <= 0
+  ) {
+    return null;
+  }
+
+  if (receita >= 0.01 && receita <= 5) {
+    return 100;
+  }
+
+  return (custo / receita) * 100;
 }
 
 function renderPercentualBadge(percentual: number | null, classeCor: string) {
@@ -113,6 +135,10 @@ function numeroParam(valor: string | null): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizarNumeroManifestoInput(valor: string): string {
+  return valor.replace(/\D/g, '');
+}
+
 export default function ManifestosPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const [isMetasPanelOpen, setIsMetasPanelOpen] = useState(false);
@@ -126,6 +152,7 @@ export default function ManifestosPage() {
   const nivelTemporal = normalizarNivel(searchParams.get(NIVEL_PARAM));
   const anoTemporal = numeroParam(searchParams.get(ANO_PARAM));
   const mesTemporal = numeroParam(searchParams.get(MES_PARAM));
+  const numeroManifestoFiltro = filtros.numeroManifesto?.[0] ?? '';
 
   const filtro: ManifestosFiltro = useMemo(() => ({
     dataInicio,
@@ -134,6 +161,7 @@ export default function ManifestosPage() {
     status: filtros.status,
     motoristas: filtros.motoristas,
     veiculos: filtros.veiculos,
+    numeroManifesto: numeroManifestoFiltro || undefined,
     tiposCarga: filtros.tiposCarga,
     tiposContrato: filtros.tiposContrato,
     tipoMotorista: filtros.tipoMotorista,
@@ -147,13 +175,16 @@ export default function ManifestosPage() {
     filtros.tiposCarga,
     filtros.tiposContrato,
     filtros.veiculos,
+    numeroManifestoFiltro,
   ]);
 
   const activeFilters: ActiveFilter[] = useMemo(() => [
+    { label: 'Manifesto', count: numeroManifestoFiltro ? 1 : 0, onRemove: () => setFiltro('numeroManifesto', []) },
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
     { label: 'Motoristas', count: filtros.motoristas?.length ?? 0, onRemove: () => setFiltro('motoristas', []) },
     { label: 'Veículos', count: filtros.veiculos?.length ?? 0, onRemove: () => setFiltro('veiculos', []) },
-  ], [filtros.filiais, filtros.motoristas, filtros.veiculos, setFiltro]);
+    { label: 'Tipos de contrato', count: filtros.tiposContrato?.length ?? 0, onRemove: () => setFiltro('tiposContrato', []) },
+  ], [filtros.filiais, filtros.motoristas, filtros.tiposContrato, filtros.veiculos, numeroManifestoFiltro, setFiltro]);
 
   const performance = useManifestosPerformance(filtro, nivelTemporal, anoTemporal, mesTemporal);
   const filtrosTabela = useAnalyticalTableFilters();
@@ -182,7 +213,7 @@ export default function ManifestosPage() {
   const tabelaConteudo = useMemo<ManifestoTabelaRow[]>(
     () => (tabela.data?.conteudo ?? EMPTY_ARRAY).map((row) => ({
       ...row,
-      percentualRemuneracao: calcularPercentual(row.custoTotal, row.receitaTotalTransportada),
+      percentualRemuneracao: calcularPercentualRemuneracao(row.custoTotal, row.receitaTotalTransportada),
       percentualAproveitamento: calcularPercentual(row.totalPesoTaxado, row.capacidadeKg),
       percentualEfetividade: calcularPercentual(row.itensFinalizados, row.itensTotal),
     })),
@@ -284,9 +315,9 @@ export default function ManifestosPage() {
     {
       chave: 'percentualRemuneracao',
       label: '% Remuneração',
-      tooltip: KpiDictionary.manifestos.remuneracao.geral.calculo,
+      tooltip: KpiDictionary.manifestos.remuneracao.tabela.calculo,
       formato: (_, row) => {
-        const percentual = calcularPercentual(row.custoTotal, row.receitaTotalTransportada);
+        const percentual = calcularPercentualRemuneracao(row.custoTotal, row.receitaTotalTransportada);
         return renderPercentualBadge(percentual, percentual == null ? '' : classeRemuneracao(percentual));
       },
     },
@@ -336,6 +367,32 @@ export default function ManifestosPage() {
           onDataFimChange={setDataFim}
           onRangeChange={setDataRange}
         />
+        <div className="flex w-full min-w-[148px] flex-col gap-1 self-end justify-self-start md:w-auto">
+          <label
+            htmlFor="manifestos-numero"
+            className="flex min-h-4 items-center gap-1.5 text-xs font-medium leading-4"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            Manifesto
+          </label>
+          <input
+            id="manifestos-numero"
+            type="text"
+            inputMode="numeric"
+            placeholder="Nº Manifesto"
+            value={numeroManifestoFiltro}
+            onChange={(e) => {
+              const numero = normalizarNumeroManifestoInput(e.target.value);
+              setFiltro('numeroManifesto', numero ? [numero] : []);
+            }}
+            className="h-10 w-full rounded-lg border px-3 text-sm font-medium shadow-sm transition-all duration-150 hover:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] md:w-[148px]"
+            style={{
+              backgroundColor: 'var(--color-card)',
+              borderColor: 'var(--color-border)',
+              color: 'var(--color-text)',
+            }}
+          />
+        </div>
         <AsyncMultiSelect
           label="Filiais"
           opcoes={filiais.data ?? EMPTY_ARRAY}
@@ -356,6 +413,12 @@ export default function ManifestosPage() {
           selecionados={filtros.veiculos ?? []}
           onChange={(valores) => setFiltro('veiculos', valores)}
           isLoading={veiculos.isLoading}
+        />
+        <AsyncMultiSelect
+          label="Tipos de Contrato"
+          opcoes={TIPOS_CONTRATO_OPTIONS}
+          selecionados={filtros.tiposContrato ?? []}
+          onChange={(valores) => setFiltro('tiposContrato', valores)}
         />
       </FilterBar>
 

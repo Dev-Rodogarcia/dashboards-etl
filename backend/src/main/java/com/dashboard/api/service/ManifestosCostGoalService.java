@@ -35,6 +35,7 @@ public class ManifestosCostGoalService {
             "status",
             "motoristas",
             "veiculos",
+            "numeroManifesto",
             "tiposCarga",
             "tiposContrato",
             "tipoMotorista"

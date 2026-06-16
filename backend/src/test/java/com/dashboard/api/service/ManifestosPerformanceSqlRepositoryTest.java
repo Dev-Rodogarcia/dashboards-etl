@@ -117,6 +117,55 @@ class ManifestosPerformanceSqlRepositoryTest {
     }
 
     @Test
+    void buscarPerformanceFiltraPorNumeroManifestoNoSql() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        ManifestosPerformanceSqlRepository repository = new ManifestosPerformanceSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal(),
+                PeriodoOffsetDateTimeHelper.padrao()
+        );
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 24),
+                Map.of("numeroManifesto", List.of("62848"))
+        );
+
+        repository.buscarPerformance(filtro, "dia", null, null);
+
+        assertThat(jdbcTemplate.sqls)
+                .anySatisfy(sql -> assertThat(sql).contains("AND numero = :numeroManifesto"));
+        assertThat(jdbcTemplate.parametros)
+                .filteredOn(params -> params.hasValue("numeroManifesto"))
+                .anySatisfy(params -> assertThat(params.getValue("numeroManifesto")).isEqualTo("62848"));
+    }
+
+    @Test
+    void buscarPerformanceIgnoraNumeroManifestoInvalido() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        ManifestosPerformanceSqlRepository repository = new ManifestosPerformanceSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal(),
+                PeriodoOffsetDateTimeHelper.padrao()
+        );
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 24),
+                Map.of("numeroManifesto", List.of("62848A"))
+        );
+
+        repository.buscarPerformance(filtro, "dia", null, null);
+
+        assertThat(jdbcTemplate.sqls)
+                .allSatisfy(sql -> assertThat(sql)
+                        .doesNotContain("AND numero = :numeroManifesto")
+                        .doesNotContain("AND 1 = 0"));
+        assertThat(jdbcTemplate.parametros)
+                .allSatisfy(params -> assertThat(params.hasValue("numeroManifesto")).isFalse());
+    }
+
+    @Test
     void buscarPerformanceConsomeSynonymLocalDeManifestosSemRefreshView() {
         CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
         jdbcTemplate.colunasManifestos = List.of(

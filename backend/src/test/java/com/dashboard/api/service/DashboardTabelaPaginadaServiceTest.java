@@ -104,11 +104,49 @@ class DashboardTabelaPaginadaServiceTest {
 
         assertThat(jdbcTemplate.sqls().get(1))
                 .contains("CASE WHEN [Receita Total Transportada] > 0 AND [Custo total] IS NOT NULL THEN 0 ELSE 1 END ASC")
-                .contains("[Custo total] / NULLIF([Receita Total Transportada], 0) DESC")
+                .contains("CASE WHEN [Receita Total Transportada] BETWEEN 0.01 AND 5.00 THEN 1 ELSE ([Custo total] / NULLIF([Receita Total Transportada], 0)) END DESC")
                 .contains("[Data criação] DESC")
                 .contains("[Número] DESC")
                 .contains("OFFSET :offsetTabela ROWS FETCH NEXT :tamanhoTabela ROWS ONLY");
         assertThat(jdbcTemplate.params().get(1).getValue("offsetTabela")).isEqualTo(10L);
+    }
+
+    @Test
+    void buscarManifestosDeveFiltrarPorNumeroManifestoNoSql() {
+        CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate(List.of(linha("Número", 62848L)));
+        DashboardTabelaPaginadaService service = service(jdbcTemplate);
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                LocalDate.of(2026, 3, 1),
+                LocalDate.of(2026, 3, 31),
+                Map.of("numeroManifesto", List.of("62848"))
+        );
+
+        service.buscarManifestos(filtro, 1, 10);
+
+        assertThat(jdbcTemplate.sqls().get(0)).contains("[Número] = :filtro_numeroManifesto");
+        assertThat(jdbcTemplate.sqls().get(1)).contains("[Número] = :filtro_numeroManifesto");
+        assertThat(jdbcTemplate.params().get(1).getValue("filtro_numeroManifesto")).isEqualTo(62848L);
+    }
+
+    @Test
+    void buscarManifestosDeveIgnorarNumeroManifestoInvalido() {
+        CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate(List.of(linha("Número", 62848L)));
+        DashboardTabelaPaginadaService service = service(jdbcTemplate);
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                LocalDate.of(2026, 3, 1),
+                LocalDate.of(2026, 3, 31),
+                Map.of("numeroManifesto", List.of("62848A"))
+        );
+
+        service.buscarManifestos(filtro, 1, 10);
+
+        assertThat(jdbcTemplate.sqls().get(0))
+                .doesNotContain("[Número] = :filtro_numeroManifesto")
+                .doesNotContain("1 = 0");
+        assertThat(jdbcTemplate.sqls().get(1))
+                .doesNotContain("[Número] = :filtro_numeroManifesto")
+                .doesNotContain("1 = 0");
+        assertThat(jdbcTemplate.params().get(1).hasValue("filtro_numeroManifesto")).isFalse();
     }
 
     @Test

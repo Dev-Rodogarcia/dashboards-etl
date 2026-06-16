@@ -75,6 +75,27 @@ describe('tabelaPaginada', () => {
     expect(resultado.tamanhoPagina).toBe(50);
   });
 
+  it('omite filtros escalares vazios na query string', async () => {
+    clienteMock.get.mockResolvedValue({
+      data: {
+        conteudo: [],
+        totalElementos: 0,
+        totalPaginas: 0,
+        paginaAtual: 1,
+        tamanhoPagina: 10,
+      },
+    });
+
+    await buscarTabelaPaginada('/api/painel/manifestos/tabela/paginada', {
+      dataInicio: '2026-06-01',
+      dataFim: '2026-06-12',
+      numeroManifesto: '',
+    }, 1, 10);
+
+    const params = clienteMock.get.mock.calls[0][1].params as URLSearchParams;
+    expect(params.has('f.numeroManifesto')).toBe(false);
+  });
+
   it('mantem o DTO paginado antigo quando o backend ainda usa campos em portugues', () => {
     expect(normalizarPaginacaoResponse({
       conteudo: [{ id: 7 }],

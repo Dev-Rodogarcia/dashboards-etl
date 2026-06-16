@@ -122,7 +122,10 @@ class ManifestosCostGoalServiceTest {
         FiltroConsultaDTO filtro = new FiltroConsultaDTO(
                 INICIO_MAIO,
                 FIM_MAIO,
-                Map.of("motoristas", List.of("Motorista A"))
+                Map.of(
+                        "motoristas", List.of("Motorista A"),
+                        "numeroManifesto", List.of("62848")
+                )
         );
         stubCalendarioECustos(filtro, List.of());
 
@@ -134,6 +137,7 @@ class ManifestosCostGoalServiceTest {
         assertThat(resultado.orcamentoAplicavel()).isFalse();
         assertThat(resultado.orcamentoConfigurado()).isFalse();
         assertThat(resultado.observacao()).contains("motoristas");
+        assertThat(resultado.observacao()).contains("numeroManifesto");
         assertThat(resultado.orcamentoCusto()).isZero();
         assertThat(resultado.tendenciaCusto()).isEqualByComparingTo("4600000.00");
         verifyNoInteractions(goalRepository);

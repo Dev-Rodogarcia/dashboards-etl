@@ -343,6 +343,11 @@ public class DashboardExportSqlBuilder {
                 continue;
             }
 
+            if (definition == DashboardExportDefinition.MANIFESTOS && "numeroManifesto".equals(chave)) {
+                adicionarFiltroNumeroManifesto(where, params, filtro.valores(chave));
+                continue;
+            }
+
             if (definition == DashboardExportDefinition.TRACKING && chave.startsWith("filial")) {
                 String paramName = "filtro_" + chave;
                 adicionarFiltroFilialFlexivelTracking(
@@ -373,6 +378,21 @@ public class DashboardExportSqlBuilder {
                         .toList()) + ")");
             }
         }
+    }
+
+    private void adicionarFiltroNumeroManifesto(
+            List<String> where,
+            MapSqlParameterSource params,
+            Collection<String> valores
+    ) {
+        String termo = primeiroValor(valores);
+        Long numero = parseLongOrNull(termo);
+        if (numero == null) {
+            return;
+        }
+
+        params.addValue("filtro_numeroManifesto", numero);
+        where.add("[Número] = :filtro_numeroManifesto");
     }
 
     private void adicionarFiltroFilialFlexivelTracking(

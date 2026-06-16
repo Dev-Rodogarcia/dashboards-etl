@@ -18,7 +18,10 @@ export function montarQueryParams<T extends { dataInicio: string; dataFim: strin
       continue;
     }
 
-    params.set(`f.${chave}`, String(valor));
+    const texto = String(valor).trim();
+    if (texto) {
+      params.set(`f.${chave}`, texto);
+    }
   }
 
   return params;

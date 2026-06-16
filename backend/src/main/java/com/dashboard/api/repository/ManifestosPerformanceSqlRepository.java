@@ -298,6 +298,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "status", "status_norm", filtro.valores("status"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "motoristas", "motorista", filtro.valores("motoristas"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "veiculos", "veiculo_placa", filtro.valores("veiculos"));
+        adicionarFiltroNumero(ctx.whereBuilder(), ctx.params(), "numeroManifesto", "numero", filtro.valores("numeroManifesto"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tiposCarga", "tipo_carga", filtro.valores("tiposCarga"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tiposContrato", "tipo_contrato", filtro.valores("tiposContrato"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tipoMotorista", "tipo_motorista", filtro.valores("tipoMotorista"));
@@ -335,6 +336,36 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                 .append(" COLLATE Latin1_General_CI_AI IN (:")
                 .append(chave)
                 .append(")");
+    }
+
+    private static void adicionarFiltroNumero(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String chave,
+            String campo,
+            Collection<String> valores
+    ) {
+        String numero = primeiroValor(valores);
+        if (numero == null || !numero.matches("\\d+")) {
+            return;
+        }
+
+        params.addValue(chave, numero);
+        where.append("\n AND ")
+                .append(campo)
+                .append(" = :")
+                .append(chave);
+    }
+
+    private static String primeiroValor(Collection<String> valores) {
+        if (valores == null) {
+            return null;
+        }
+        return valores.stream()
+                .filter(valor -> valor != null && !valor.isBlank())
+                .map(String::trim)
+                .findFirst()
+                .orElse(null);
     }
 
     private static List<String> normalizar(Collection<String> valores) {
