@@ -18,6 +18,9 @@ const periodoColetas =
 const periodoManifestos =
   'O período considera a competência operacional do manifesto: data de saída; quando a saída não existe, usa a data de criação.';
 
+const regraTipoContratoManifestos =
+  'Veículos de propriedade da DALGA e LM Transportes são reclassificados como Frota + PX. Casos sem motorista informado recebem fallback para Terceiro ou Frota + PX dependendo da tração.';
+
 const periodoPerformance =
   'O período considera a previsão de entrega. Cada minuta aparece uma única vez, priorizando o registro finalizado e mais recente.';
 
@@ -145,7 +148,7 @@ export const KpiDictionary = {
       titulo: 'Custos por Tipo de Contrato',
       descricao: 'Mede a representatividade financeira e o custo total das operações de transporte segmentadas pela classificação unificada de contrato.',
       calculo: 'Soma do Custo Total, agrupada pela classificação unificada de Tipo de Contrato na fato materializada.',
-      observacao: periodoManifestos,
+      observacao: `${periodoManifestos} ${regraTipoContratoManifestos}`,
     },
     orcamentoCusto: {
       titulo: 'Orçamento de Custo',
