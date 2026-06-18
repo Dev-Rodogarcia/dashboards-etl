@@ -120,6 +120,7 @@ export default function ManifestosTrend({ dados, nivel, onNivelChange, onPointCl
   return (
     <ChartWrapper
       titulo="Status de Manifestos por dia, mês e ano"
+      chartKey="manifestosStatusTemporal"
       option={option}
       actions={nivelActions}
       onEvents={chartEvents}

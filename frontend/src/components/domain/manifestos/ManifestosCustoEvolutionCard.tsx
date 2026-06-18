@@ -140,6 +140,7 @@ export default function ManifestosCustoEvolutionCard({
   return (
     <ChartCard
       titulo="Evolução do Custo Real x Meta Diária Base"
+      chartKey="manifestosCustoEvolucao"
       actions={metaIndisponivel ? (
         <span
           className="max-w-44 truncate text-xs font-semibold"

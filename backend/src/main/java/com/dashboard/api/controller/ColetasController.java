@@ -3,6 +3,7 @@ package com.dashboard.api.controller;
 import com.dashboard.api.dto.coletas.ColetaResumoDTO;
 import com.dashboard.api.dto.coletas.ColetasChartsDTO;
 import com.dashboard.api.dto.coletas.ColetasCidadeOrigemDTO;
+import com.dashboard.api.dto.coletas.ColetasHistoricoPerformanceDTO;
 import com.dashboard.api.dto.coletas.ColetasOverviewDTO;
 import com.dashboard.api.dto.coletas.ColetasTrendPointDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
@@ -55,6 +56,18 @@ public class ColetasController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(coletasService.buscarGraficos(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
+    @GetMapping("/graficos/historico-performance")
+    public ResponseEntity<List<ColetasHistoricoPerformanceDTO>> historicoPerformance(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "dias") String periodo,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(coletasService.buscarHistoricoPerformance(
+                FiltroRequestMapper.from(dataInicio, dataFim, params),
+                periodo
+        ));
     }
 
     @GetMapping("/graficos/cidades")

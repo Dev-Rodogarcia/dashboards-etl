@@ -61,6 +61,7 @@ export default function FretesClienteRanking({ dados, isLoading }: FretesCliente
   return (
     <ChartWrapper
       titulo="Top Clientes por Receita"
+      chartKey="fretesTopClientes"
       option={option}
       isLoading={isLoading}
       isEmpty={dados.length === 0}

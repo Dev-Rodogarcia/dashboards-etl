@@ -930,6 +930,7 @@ export default function IndicadoresGestaoAVistaPage() {
         ]}
         chartTitle={performanceRanking.length <= 1 ? 'Comparativo contra meta' : 'Piores filiais performance por pontualidade'}
         chartOption={performanceChartOption}
+        chartKey="gestaoPerformanceRanking"
         chartLoading={performanceSerie.isLoading}
         chartEmpty={performanceRanking.length === 0}
         chartError={performanceSerie.isError ? getApiErrorMessage(performanceSerie.error, 'Erro ao carregar gráfico.') : null}
@@ -966,6 +967,7 @@ export default function IndicadoresGestaoAVistaPage() {
         ]}
         chartTitle={coletoresRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais com menor utilização'}
         chartOption={coletoresChartOption}
+        chartKey="gestaoColetoresRanking"
         chartLoading={coletoresRankingQuery.isLoading}
         chartEmpty={coletoresRanking.length === 0}
         chartError={coletoresRankingQuery.isError ? getApiErrorMessage(coletoresRankingQuery.error, 'Erro ao carregar gráfico.') : null}
@@ -1002,6 +1004,7 @@ export default function IndicadoresGestaoAVistaPage() {
         ]}
         chartTitle={cubagemRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais com menor cubagem por minuta'}
         chartOption={cubagemChartOption}
+        chartKey="gestaoCubagemRanking"
         chartLoading={cubagemSerie.isLoading}
         chartEmpty={cubagemRanking.length === 0}
         chartError={cubagemSerie.isError ? getApiErrorMessage(cubagemSerie.error, 'Erro ao carregar gráfico.') : null}
@@ -1038,6 +1041,7 @@ export default function IndicadoresGestaoAVistaPage() {
         ]}
         chartTitle={indenizacaoRanking.length <= 1 ? 'Comparativo contra limite' : 'Filiais com maior impacto por abertura de sinistro'}
         chartOption={indenizacaoChartOption}
+        chartKey="gestaoIndenizacaoRanking"
         chartLoading={indenizacaoSerie.isLoading}
         chartEmpty={indenizacaoRanking.length === 0}
         chartError={indenizacaoSerie.isError ? getApiErrorMessage(indenizacaoSerie.error, 'Erro ao carregar gráfico.') : null}
@@ -1074,6 +1078,7 @@ export default function IndicadoresGestaoAVistaPage() {
         ]}
         chartTitle={horariosRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais com menor pontualidade de saída'}
         chartOption={horariosChartOption}
+        chartKey="gestaoHorariosRanking"
         chartLoading={horariosSerie.isLoading}
         chartEmpty={horariosRanking.length === 0}
         chartError={horariosSerie.isError ? getApiErrorMessage(horariosSerie.error, 'Erro ao carregar gráfico.') : null}

@@ -15,6 +15,7 @@ import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import TooltipKpi from '../components/shared/TooltipKpi';
 import MensagemErro from '../components/ui/MensagemErro';
+import type { ChartDictionaryKey } from '../constants/chartDictionary';
 import { KpiDictionary } from '../constants/kpiDictionary';
 import { exportarFaturamentoCsv } from '../api/endpoints/faturamentoServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
@@ -658,6 +659,7 @@ function buildEvolutionOption(
 }
 
 function FaturamentoEvolutionCard({
+  chartKey,
   dados,
   isLoading,
   drillLevel,
@@ -669,6 +671,7 @@ function FaturamentoEvolutionCard({
   faturamentoFaltante,
   metaDiariaDinamica,
 }: {
+  chartKey?: ChartDictionaryKey;
   dados: FaturamentoTrendPoint[];
   isLoading?: boolean;
   drillLevel: PeriodDrillLevel;
@@ -697,6 +700,7 @@ function FaturamentoEvolutionCard({
   return (
     <ChartCard
       titulo="Evolução do Faturamento"
+      chartKey={chartKey}
       actions={<DrillControls level={drillLevel} onChange={onDrillLevelChange} />}
       isLoading={isLoading}
       isEmpty={dados.length === 0}
@@ -1211,6 +1215,7 @@ export default function FaturamentoPage() {
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-12">
         <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-5`}>
           <FaturamentoEvolutionCard
+            chartKey="evolucaoFaturamento"
             dados={serie.data ?? []}
             isLoading={serie.isLoading}
             drillLevel={periodDrillLevel}
@@ -1226,6 +1231,7 @@ export default function FaturamentoPage() {
         <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-3`}>
           <ChartWrapper
             titulo="Faturamento por Classificação (FTL/LTL/PTL)"
+            chartKey="faturamentoClassificacao"
             className="h-full"
             option={classificacaoOption}
             isLoading={graficos.isLoading}
@@ -1242,6 +1248,7 @@ export default function FaturamentoPage() {
         <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-4`}>
           <ChartWrapper
             titulo="Faturamento por Responsável pela Região de Destino"
+            chartKey="faturamentoResponsavel"
             actions={(
               <ResponsavelActions
                 drillLevel={responsavelDrillLevel}
@@ -1272,6 +1279,7 @@ export default function FaturamentoPage() {
         <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-3`}>
           <ChartWrapper
             titulo="Participação de Clientes no Faturamento"
+            chartKey="faturamentoParticipacaoClientes"
             className="h-full"
             option={participacaoClientesOption}
             isLoading={topClientes.isLoading || overview.isLoading}
@@ -1295,6 +1303,7 @@ export default function FaturamentoPage() {
         <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-4`}>
           <ChartWrapper
             titulo="Faturamento por Rota"
+            chartKey="faturamentoRota"
             actions={(
               <RouteDrillControls
                 level={routeDrillLevel}

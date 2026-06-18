@@ -54,6 +54,7 @@ export default function FretesReceitaTrend({ dados, isLoading }: FretesReceitaTr
   return (
     <ChartWrapper
       titulo="Receita por Dia"
+      chartKey="fretesReceitaDia"
       option={option}
       isLoading={isLoading}
       isEmpty={dados.length === 0}

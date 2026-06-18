@@ -6,6 +6,7 @@ import com.dashboard.api.dto.coletas.ColetasAgingBucketDTO;
 import com.dashboard.api.dto.coletas.ColetasChartsDTO;
 import com.dashboard.api.dto.coletas.ColetasCidadeOrigemDTO;
 import com.dashboard.api.dto.coletas.ColetasHistoricoPerformanceDTO;
+import com.dashboard.api.dto.coletas.ColetasHistoricoPeriodo;
 import com.dashboard.api.dto.coletas.ColetasOverviewDTO;
 import com.dashboard.api.dto.coletas.ColetasRegiaoOrigemDTO;
 import com.dashboard.api.dto.coletas.ColetasStatusDistribuicaoDTO;
@@ -71,14 +72,34 @@ public class ColetasService {
         contractValidator.validarSolicitacaoNativa();
 
         List<ColetasStatusDistribuicaoDTO> statusDistribuicao = agregadosSqlRepository.buscarStatusDistribuicao(filtro);
-        List<ColetasHistoricoPerformanceDTO> historicoPerformance = agregadosSqlRepository.buscarHistoricoPerformance(filtro);
         List<ColetasRegiaoOrigemDTO> regioesOrigem = agregadosSqlRepository.buscarRegioesOrigem(filtro);
         List<ColetasAgingBucketDTO> agingAbertas = agregadosSqlRepository.buscarAgingAbertas(
                 filtro,
                 periodoOffsetDateTimeHelper.hoje()
         );
 
-        return new ColetasChartsDTO(statusDistribuicao, historicoPerformance, regioesOrigem, agingAbertas);
+        return new ColetasChartsDTO(statusDistribuicao, List.of(), regioesOrigem, agingAbertas);
+    }
+
+    public List<ColetasHistoricoPerformanceDTO> buscarHistoricoPerformance(FiltroConsultaDTO filtro, String periodo) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        contractValidator.validarSolicitacaoNativa();
+
+        ColetasHistoricoPeriodo periodoHistorico = ColetasHistoricoPeriodo.from(periodo);
+        LocalDate dataReferencia = periodoOffsetDateTimeHelper.hoje();
+        LocalDate historicoDataInicio = periodoHistorico.usaJanelaRelativa()
+                ? periodoHistorico.inicioJanela(dataReferencia)
+                : filtro.dataInicio();
+        LocalDate historicoDataFim = periodoHistorico.usaJanelaRelativa()
+                ? dataReferencia
+                : filtro.dataFim();
+
+        return agregadosSqlRepository.buscarHistoricoPerformance(
+                filtro,
+                periodoHistorico,
+                historicoDataInicio,
+                historicoDataFim
+        );
     }
 
     public List<ColetasCidadeOrigemDTO> buscarCidadesPorRegiao(FiltroConsultaDTO filtro, String regiao) {

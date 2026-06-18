@@ -189,13 +189,13 @@ export default function FaturasPorClientePage() {
       {overview.data && <FaturasPorClienteKpiGrid overview={overview.data} />}
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <ChartWrapper titulo="Valor Faturado por Mês" option={mensalOption} isLoading={mensal.isLoading} isEmpty={(mensal.data ?? []).length === 0} />
-        <ChartWrapper titulo="Aging Operacional" option={agingOption} isLoading={aging.isLoading} isEmpty={(aging.data ?? []).length === 0} />
+        <ChartWrapper titulo="Valor Faturado por Mês" chartKey="faturasMensal" option={mensalOption} isLoading={mensal.isLoading} isEmpty={(mensal.data ?? []).length === 0} />
+        <ChartWrapper titulo="Aging Operacional" chartKey="faturasAging" option={agingOption} isLoading={aging.isLoading} isEmpty={(aging.data ?? []).length === 0} />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <ChartWrapper titulo="Top Clientes por Valor Faturado" option={topClientesOption} isLoading={topClientes.isLoading} isEmpty={(topClientes.data ?? []).length === 0} />
-        <ChartWrapper titulo="Status do Processo" option={statusOption} isLoading={statusProcesso.isLoading} isEmpty={(statusProcesso.data ?? []).length === 0} />
+        <ChartWrapper titulo="Top Clientes por Valor Faturado" chartKey="faturasTopClientes" option={topClientesOption} isLoading={topClientes.isLoading} isEmpty={(topClientes.data ?? []).length === 0} />
+        <ChartWrapper titulo="Status do Processo" chartKey="faturasStatusProcesso" option={statusOption} isLoading={statusProcesso.isLoading} isEmpty={(statusProcesso.data ?? []).length === 0} />
       </div>
 
       <div className="mb-3 flex justify-end">

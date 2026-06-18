@@ -255,6 +255,7 @@ export default function EtlSaudePage() {
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ChartWrapper
           titulo="Taxas de Sucesso/Falha por Dia"
+          chartKey="etlTaxasDiarias"
           option={taxasOption}
           isLoading={serie.isLoading}
           isEmpty={serieDados.length === 0}
@@ -263,6 +264,7 @@ export default function EtlSaudePage() {
         />
         <ChartWrapper
           titulo="Volumetria de Registros por Dia"
+          chartKey="etlVolumeDiario"
           option={volumeOption}
           isLoading={serie.isLoading}
           isEmpty={serieDados.length === 0}

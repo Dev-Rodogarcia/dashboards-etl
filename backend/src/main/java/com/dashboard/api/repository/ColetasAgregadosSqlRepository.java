@@ -5,6 +5,7 @@ import com.dashboard.api.definition.DashboardExportDefinition;
 import com.dashboard.api.dto.coletas.ColetasAgingBucketDTO;
 import com.dashboard.api.dto.coletas.ColetasCidadeOrigemDTO;
 import com.dashboard.api.dto.coletas.ColetasHistoricoPerformanceDTO;
+import com.dashboard.api.dto.coletas.ColetasHistoricoPeriodo;
 import com.dashboard.api.dto.coletas.ColetasOverviewDTO;
 import com.dashboard.api.dto.coletas.ColetasRegiaoOrigemDTO;
 import com.dashboard.api.dto.coletas.ColetasStatusDistribuicaoDTO;
@@ -168,7 +169,31 @@ public class ColetasAgregadosSqlRepository {
     }
 
     public List<ColetasHistoricoPerformanceDTO> buscarHistoricoPerformance(FiltroConsultaDTO filtro) {
-        DashboardExportSqlBuilder.ExportSql source = source(filtro);
+        return buscarHistoricoPerformance(filtro, ColetasHistoricoPeriodo.DIAS, filtro.dataInicio(), filtro.dataFim());
+    }
+
+    public List<ColetasHistoricoPerformanceDTO> buscarHistoricoPerformance(
+            FiltroConsultaDTO filtro,
+            ColetasHistoricoPeriodo periodo
+    ) {
+        return buscarHistoricoPerformance(filtro, periodo, filtro.dataInicio(), filtro.dataFim());
+    }
+
+    public List<ColetasHistoricoPerformanceDTO> buscarHistoricoPerformance(
+            FiltroConsultaDTO filtro,
+            ColetasHistoricoPeriodo periodo,
+            LocalDate historicoDataInicio,
+            LocalDate historicoDataFim
+    ) {
+        DashboardExportSqlBuilder.ExportSql source = sourceHistoricoPerformance(
+                filtro,
+                historicoDataInicio,
+                historicoDataFim
+        );
+        ColetasHistoricoPeriodo periodoSeguro = periodo != null ? periodo : ColetasHistoricoPeriodo.DIAS;
+        String expressaoAgrupamento = periodoSeguro.mensal()
+                ? "CAST(DATEADD(month, DATEDIFF(month, 0, data_solicitacao), 0) AS date)"
+                : "data_solicitacao";
         String sql = baseDeduplicadaSql(source) + """
                 , desempenho AS (
                     SELECT
@@ -191,31 +216,31 @@ public class ColetasAgregadosSqlRepository {
                 ),
                 agregado AS (
                     SELECT
-                        data_solicitacao,
+                        %s AS data_bucket,
                         COUNT_BIG(1) AS finalizadas,
                         SUM(no_prazo) AS no_prazo,
                         SUM(fora_do_prazo) AS fora_do_prazo
                     FROM desempenho
-                    GROUP BY data_solicitacao
+                    GROUP BY %s
                 )
                 SELECT
-                    data_solicitacao,
-                    CAST(COALESCE(CAST(no_prazo AS FLOAT) * 100.0 / NULLIF(no_prazo + fora_do_prazo, 0), 0) AS DECIMAL(19,2)) AS performance_percentual,
-                    CAST(100.0 AS DECIMAL(19,2)) AS meta_percentual,
+                    data_bucket AS [date],
+                    CAST(COALESCE(CAST(no_prazo AS FLOAT) * 100.0 / NULLIF(no_prazo + fora_do_prazo, 0), 0) AS DECIMAL(19,2)) AS performancePercentual,
+                    CAST(100.0 AS DECIMAL(19,2)) AS metaPercentual,
                     finalizadas,
-                    no_prazo,
-                    fora_do_prazo
+                    no_prazo AS noPrazo,
+                    fora_do_prazo AS foraDoPrazo
                 FROM agregado
-                ORDER BY data_solicitacao
-                """;
+                ORDER BY data_bucket
+                """.formatted(expressaoAgrupamento, expressaoAgrupamento);
 
         return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new ColetasHistoricoPerformanceDTO(
-                data(rs.getDate("data_solicitacao")),
-                percentual(rs.getBigDecimal("performance_percentual")),
-                percentual(rs.getBigDecimal("meta_percentual")),
+                data(rs.getDate("date")),
+                percentual(rs.getBigDecimal("performancePercentual")),
+                percentual(rs.getBigDecimal("metaPercentual")),
                 rs.getLong("finalizadas"),
-                rs.getLong("no_prazo"),
-                rs.getLong("fora_do_prazo")
+                rs.getLong("noPrazo"),
+                rs.getLong("foraDoPrazo")
         ));
     }
 
@@ -359,6 +384,26 @@ public class ColetasAgregadosSqlRepository {
                 escopoFilialService.escopoAtual(),
                 Set.of()
         );
+    }
+
+    private DashboardExportSqlBuilder.ExportSql sourceHistoricoPerformance(
+            FiltroConsultaDTO filtro,
+            LocalDate historicoDataInicio,
+            LocalDate historicoDataFim
+    ) {
+        DashboardExportSqlBuilder.ExportSql source = sqlBuilder.buildFilteredSourceWithoutPeriod(
+                DashboardExportDefinition.COLETAS,
+                filtro,
+                escopoFilialService.escopoAtual(),
+                Set.of()
+        );
+        MapSqlParameterSource params = copiarParams(source);
+        params.addValue("historicoDataInicio", historicoDataInicio);
+        params.addValue("historicoDataFimExclusivo", historicoDataFim.plusDays(1));
+        String sql = source.sql()
+                + " AND [Solicitacao] >= :historicoDataInicio"
+                + " AND [Solicitacao] < :historicoDataFimExclusivo";
+        return new DashboardExportSqlBuilder.ExportSql(sql, params);
     }
 
     private String baseDeduplicadaSql(DashboardExportSqlBuilder.ExportSql source) {

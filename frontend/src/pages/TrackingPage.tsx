@@ -468,8 +468,8 @@ export default function TrackingPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.18fr)_minmax(360px,0.82fr)]">
         <MatrizRegiaoDestino linhas={matriz} statusSelecionados={filtros.statusCarga ?? []} onToggleStatus={alternarStatus} />
         <div className="grid grid-cols-1 gap-6">
-          <ChartWrapper titulo="Distribuição de Status" option={statusOption} isLoading={dashboard.isLoading} isEmpty={statusData.length === 0} altura={290} />
-          <ChartWrapper titulo="Valor por Região de Destino" option={valorRegiaoOption} isLoading={dashboard.isLoading} isEmpty={valorRegiao.length === 0} altura={290} />
+          <ChartWrapper titulo="Distribuição de Status" chartKey="trackingStatus" option={statusOption} isLoading={dashboard.isLoading} isEmpty={statusData.length === 0} altura={290} />
+          <ChartWrapper titulo="Valor por Região de Destino" chartKey="trackingValorRegiao" option={valorRegiaoOption} isLoading={dashboard.isLoading} isEmpty={valorRegiao.length === 0} altura={290} />
         </div>
       </div>
 

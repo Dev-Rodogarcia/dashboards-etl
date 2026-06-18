@@ -851,6 +851,7 @@ function FunilComercialCard({
   return (
     <ChartCard
       titulo="Funil Comercial"
+      chartKey="cotacoesFunil"
       actions={(
         <div className="flex flex-wrap justify-end gap-1">
           <MetricToggle metric={metric} onChange={onMetricChange} />
@@ -944,6 +945,7 @@ function TaxasConversaoCard({
   return (
     <ChartCard
       titulo="Taxas de Conversão"
+      chartKey="cotacoesTaxasConversao"
       actions={(
         <div className="flex flex-wrap items-center justify-end gap-2">
           <ConversionPeriodoActions periodoMeses={periodoMeses} onPeriodoChange={onPeriodoChange} />
@@ -1210,6 +1212,7 @@ export default function CotacoesPage() {
             <div className="min-h-0 xl:col-span-6">
               <ChartWrapper
                 titulo="Cotações por Dia, Mês e Ano"
+                chartKey="cotacoesSerie"
                 option={serieOption}
                 actions={<PeriodControls level={serieDrillLevel} onChange={setSerieDrillLevel as (level: never) => void} />}
                 isLoading={serie.isLoading}
@@ -1248,6 +1251,7 @@ export default function CotacoesPage() {
             <div className="min-h-0 xl:col-span-4">
               <ChartWrapper
                 titulo="Trechos Mais Valiosos"
+                chartKey="cotacoesTrechos"
                 option={trechosOption}
                 actions={(
                   <div className="flex flex-wrap items-center justify-end gap-2">
@@ -1277,6 +1281,7 @@ export default function CotacoesPage() {
             <div className="min-h-0 xl:col-span-3">
               <ChartWrapper
                 titulo="Motivos de Perda"
+                chartKey="cotacoesMotivosPerda"
                 option={motivosOption}
                 actions={<DrillBreadcrumb levels={PERDA_LEVELS} level={perdaDrillLevel} color={CORES.aviso} onChange={setPerdaDrillLevel} />}
                 onEvents={{

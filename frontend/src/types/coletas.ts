@@ -56,6 +56,8 @@ export interface ColetasHistoricoPerformance {
   foraDoPrazo: number;
 }
 
+export type ColetasHistoricoPeriodo = 'dias' | '3meses' | '6meses' | '1ano';
+
 export interface ColetasRegiaoOrigem {
   regiao: string;
   totalColetas: number;

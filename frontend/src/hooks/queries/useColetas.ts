@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import {
   buscarColetasCidadesOrigem,
   buscarColetasGraficos,
+  buscarColetasHistoricoPerformance,
   buscarColetasOverview,
   buscarColetasSerie,
   buscarColetasTabela,
   buscarColetasTabelaPaginada,
   buscarColetasTabelaTotal,
 } from '../../api/endpoints/coletasServico';
-import type { ColetasFiltro } from '../../types/coletas';
+import type { ColetasFiltro, ColetasHistoricoPeriodo } from '../../types/coletas';
 import type { TableApiFilters } from '../../types/tableFilters';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
@@ -39,6 +40,19 @@ export function useColetasGraficos(filtro: ColetasFiltro) {
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['coletas', 'graficos', filtro],
     queryFn: () => buscarColetasGraficos(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useColetasHistoricoPerformance(
+  filtro: ColetasFiltro,
+  historicoPeriodo: ColetasHistoricoPeriodo = 'dias',
+) {
+  return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
+    queryKey: ['coletas', 'graficos', 'historico-performance', filtro, historicoPeriodo],
+    queryFn: () => buscarColetasHistoricoPerformance(filtro, historicoPeriodo),
     staleTime: STALE_TIME,
     retry: 1,
   });

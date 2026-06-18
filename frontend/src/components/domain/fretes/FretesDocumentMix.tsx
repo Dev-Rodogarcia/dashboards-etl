@@ -45,6 +45,7 @@ export default function FretesDocumentMix({ dados, isLoading }: FretesDocumentMi
   return (
     <ChartWrapper
       titulo="Mix Documental"
+      chartKey="fretesMixDocumental"
       option={option}
       isLoading={isLoading}
       isEmpty={dados.length === 0}

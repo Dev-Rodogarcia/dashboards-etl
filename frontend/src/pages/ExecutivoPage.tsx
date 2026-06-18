@@ -353,6 +353,7 @@ export default function ExecutivoPage() {
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ChartWrapper
           titulo="Tendência Financeira"
+          chartKey="executivoTendenciaFinanceira"
           option={financeiroOption}
           isLoading={serie.isLoading}
           isEmpty={serieDados.length === 0}
@@ -361,6 +362,7 @@ export default function ExecutivoPage() {
         />
         <ChartWrapper
           titulo="Faturamento x Backlog Mensal"
+          chartKey="executivoFaturamentoBacklog"
           option={backlogOption}
           isLoading={serie.isLoading}
           isEmpty={serieDados.length === 0}

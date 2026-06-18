@@ -277,7 +277,7 @@ function buildHistoricoOption(dados: PerformanceHistoricoPoint[], isDark: boolea
         fontWeight: 500,
       },
     },
-    grid: { top: 52, right: '4%', bottom: '10%', left: '3%', containLabel: true },
+    grid: { top: 52, right: '2%', bottom: '10%', left: '2%', containLabel: true },
     tooltip: {
       trigger: 'axis',
       formatter: (params: unknown) => {
@@ -863,6 +863,7 @@ export default function PerformancePage() {
         <div className="h-[25rem] min-h-0">
           <ChartWrapper
             titulo="Entregas por dia, mês e ano"
+            chartKey="performanceSerieTemporal"
             option={serieTemporalOption}
             actions={<TemporalActions nivel={nivelTemporal} onNivelChange={alterarNivelTemporal} />}
             onEvents={{
@@ -882,6 +883,7 @@ export default function PerformancePage() {
         <div className="h-[25rem] min-h-0">
           <ChartWrapper
             titulo="Distribuição por Status"
+            chartKey="performanceStatus"
             option={statusOption}
             isLoading={status.isLoading}
             isEmpty={statusData.length === 0}
@@ -894,6 +896,7 @@ export default function PerformancePage() {
         <div className="h-[25rem] min-h-0">
           <ChartWrapper
             titulo="Histórico de Performance"
+            chartKey="performanceHistorico"
             option={historicoOption}
             actions={(
               <HistoricoPeriodoActions
@@ -915,6 +918,7 @@ export default function PerformancePage() {
         <div className="h-[26rem] min-h-0">
           <ChartWrapper
             titulo="Performance por responsável, região e cidade"
+            chartKey="performanceDrilldown"
             actions={(
               <DrilldownActions
                 nivel={drillNivel}
@@ -938,6 +942,7 @@ export default function PerformancePage() {
         <div className="h-[26rem] min-h-0">
           <ChartWrapper
             titulo="Entregas em aberto"
+            chartKey="performanceAging"
             option={agingOption}
             isLoading={aging.isLoading}
             isEmpty={agingData.length === 0}

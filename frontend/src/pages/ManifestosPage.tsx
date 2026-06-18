@@ -490,12 +490,14 @@ export default function ManifestosPage() {
         />
         <ChartWrapper
           titulo={KpiDictionary.manifestos.custosPorContrato.titulo}
+          chartKey="manifestosCustosContrato"
           option={custosContratoOption}
           isLoading={performance.isLoading}
           isEmpty={custosContrato.length === 0}
         />
         <ChartWrapper
           titulo="Tipo de Veículos Utilizados"
+          chartKey="manifestosTiposVeiculo"
           option={tiposVeiculoOption}
           isLoading={performance.isLoading}
           isEmpty={tiposVeiculo.length === 0}

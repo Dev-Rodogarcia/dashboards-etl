@@ -77,6 +77,7 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
   return (
     <ChartWrapper
       titulo="Coletas por dia, mês e ano"
+      chartKey="coletasSerie"
       option={option}
       isLoading={isLoading}
       isEmpty={dados.length === 0}

@@ -8,6 +8,7 @@ import KpiCard from '../shared/KpiCard';
 import KpiGrid from '../shared/KpiGrid';
 import TooltipKpi from '../shared/TooltipKpi';
 import MensagemErro from '../ui/MensagemErro';
+import type { ChartDictionaryKey } from '../../constants/chartDictionary';
 import type { KpiDefinition } from '../../constants/kpiDictionary';
 import { getApiErrorMessage, getTipoErro } from '../../utils/apiError';
 import { getGoalToneStyle, type GoalTone } from '../../utils/indicadoresGestaoVistaUi';
@@ -49,6 +50,7 @@ interface IndicadoresGestaoSectionProps<T> {
   }>;
   chartTitle: string;
   chartOption: EChartsOption;
+  chartKey?: ChartDictionaryKey;
   chartLoading: boolean;
   chartEmpty: boolean;
   chartError?: string | null;
@@ -81,6 +83,7 @@ export default function IndicadoresGestaoSection<T>({
   kpis,
   chartTitle,
   chartOption,
+  chartKey,
   chartLoading,
   chartEmpty,
   chartError,
@@ -167,6 +170,7 @@ export default function IndicadoresGestaoSection<T>({
         <ChartWrapper
           titulo={chartTitle}
           option={chartOption}
+          chartKey={chartKey}
           isLoading={chartLoading}
           isEmpty={chartEmpty}
           erro={chartError}

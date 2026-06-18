@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.builder.DashboardExportSqlBuilder;
+import com.dashboard.api.dto.coletas.ColetasHistoricoPeriodo;
 import com.dashboard.api.dto.coletas.ColetasOverviewDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.repository.ColetasAgregadosSqlRepository;
@@ -167,20 +168,75 @@ class ColetasAgregadosSqlRepositoryTest {
         );
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
-        verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
+        ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), paramsCaptor.capture(), any(RowMapper.class));
 
         assertThat(sqlCaptor.getValue())
                 .contains("CAST([Solicitacao] AS date) AS data_solicitacao")
+                .contains("[Solicitacao] >= :historicoDataInicio")
+                .contains("[Solicitacao] < :historicoDataFimExclusivo")
                 .contains("status_normalizado IN (N'finalizada', N'coletada')")
                 .contains("SUM(no_prazo) AS no_prazo")
                 .contains("SUM(fora_do_prazo) AS fora_do_prazo")
-                .contains("CAST(COALESCE(CAST(no_prazo AS FLOAT) * 100.0 / NULLIF(no_prazo + fora_do_prazo, 0), 0) AS DECIMAL(19,2)) AS performance_percentual")
-                .contains("CAST(100.0 AS DECIMAL(19,2)) AS meta_percentual")
+                .contains("data_bucket AS [date]")
+                .contains("CAST(COALESCE(CAST(no_prazo AS FLOAT) * 100.0 / NULLIF(no_prazo + fora_do_prazo, 0), 0) AS DECIMAL(19,2)) AS performancePercentual")
+                .contains("CAST(100.0 AS DECIMAL(19,2)) AS metaPercentual")
+                .contains("no_prazo AS noPrazo")
+                .contains("fora_do_prazo AS foraDoPrazo")
                 .contains("GROUP BY data_solicitacao")
-                .contains("ORDER BY data_solicitacao")
+                .contains("ORDER BY data_bucket")
                 .doesNotContain("SELECT TOP (8)")
                 .doesNotContain("GROUP BY NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), N'')")
+                .doesNotContain("AS performance_percentual")
+                .doesNotContain("AS meta_percentual")
+                .doesNotContain("[Solicitacao] >= :dataInicio")
+                .doesNotContain("[Solicitacao] < :dataFimExclusivo")
                 .doesNotContain("TRY_CONVERT(date, [Solicitacao])");
+        assertThat(paramsCaptor.getValue().getValue("historicoDataInicio")).isEqualTo(LocalDate.of(2026, 4, 1));
+        assertThat(paramsCaptor.getValue().getValue("historicoDataFimExclusivo")).isEqualTo(LocalDate.of(2026, 5, 1));
+        assertThat(paramsCaptor.getValue().getValues()).doesNotContainKeys("dataInicio", "dataFimExclusivo");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void buscarHistoricoPerformanceMensalDeveTruncarDataParaInicioDoMesNoSql() {
+        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(List.of());
+
+        ColetasAgregadosSqlRepository repository = new ColetasAgregadosSqlRepository(
+                jdbcTemplate,
+                new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao()),
+                escopoSemRestricao()
+        );
+
+        repository.buscarHistoricoPerformance(
+                new FiltroConsultaDTO(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 18), Map.of()),
+                ColetasHistoricoPeriodo.SEIS_MESES,
+                LocalDate.of(2026, 1, 1),
+                LocalDate.of(2026, 6, 18)
+        );
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), paramsCaptor.capture(), any(RowMapper.class));
+
+        assertThat(sqlCaptor.getValue())
+                .contains("CAST([Solicitacao] AS date) AS data_solicitacao")
+                .contains("CAST(DATEADD(month, DATEDIFF(month, 0, data_solicitacao), 0) AS date) AS data_bucket")
+                .contains("GROUP BY CAST(DATEADD(month, DATEDIFF(month, 0, data_solicitacao), 0) AS date)")
+                .contains("ORDER BY data_bucket")
+                .contains("data_bucket AS [date]")
+                .contains("AS performancePercentual")
+                .contains("AS metaPercentual")
+                .contains("[Solicitacao] >= :historicoDataInicio")
+                .contains("[Solicitacao] < :historicoDataFimExclusivo")
+                .doesNotContain("[Solicitacao] >= :dataInicio")
+                .doesNotContain("[Solicitacao] < :dataFimExclusivo")
+                .doesNotContain("FORMAT(")
+                .doesNotContain("TRY_CONVERT(date, [Solicitacao])");
+        assertThat(paramsCaptor.getValue().getValue("historicoDataInicio")).isEqualTo(LocalDate.of(2026, 1, 1));
+        assertThat(paramsCaptor.getValue().getValue("historicoDataFimExclusivo")).isEqualTo(LocalDate.of(2026, 6, 19));
+        assertThat(paramsCaptor.getValue().getValues()).doesNotContainKeys("dataInicio", "dataFimExclusivo");
     }
 
     @Test

@@ -156,16 +156,38 @@ public class DashboardExportSqlBuilder {
         return new ExportSql("FROM " + parts.sourceSql() + " base WHERE " + parts.where(), parts.params());
     }
 
+    public ExportSql buildFilteredSourceWithoutPeriod(
+            DashboardExportDefinition definition,
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            Set<String> filtrosIgnorados
+    ) {
+        SqlParts parts = buildBase(definition, filtro, escopo, filtrosIgnorados, false);
+        return new ExportSql("FROM " + parts.sourceSql() + " base WHERE " + parts.where(), parts.params());
+    }
+
     private SqlParts buildBase(
             DashboardExportDefinition definition,
             FiltroConsultaDTO filtro,
             EscopoFilialService.EscopoFilial escopo,
             Set<String> filtrosIgnorados
     ) {
+        return buildBase(definition, filtro, escopo, filtrosIgnorados, true);
+    }
+
+    private SqlParts buildBase(
+            DashboardExportDefinition definition,
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            Set<String> filtrosIgnorados,
+            boolean incluirPeriodo
+    ) {
         MapSqlParameterSource params = new MapSqlParameterSource();
         List<String> where = new ArrayList<>();
 
-        adicionarPeriodo(where, params, definition, filtro.dataInicio(), filtro.dataFim());
+        if (incluirPeriodo) {
+            adicionarPeriodo(where, params, definition, filtro.dataInicio(), filtro.dataFim());
+        }
         adicionarPredicadosObrigatorios(where, definition);
         adicionarEscopo(where, params, definition, escopo);
         adicionarFiltros(where, params, definition, filtro, filtrosIgnorados);

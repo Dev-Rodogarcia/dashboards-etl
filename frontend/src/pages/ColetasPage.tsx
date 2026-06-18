@@ -17,10 +17,10 @@ import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useClientes, useFiliais, useUsuarios } from '../hooks/queries/useDimensoes';
-import { useColetasCidadesOrigem, useColetasGraficos, useColetasOverview, useColetasSerie, useColetasTabelaPaginada } from '../hooks/queries/useColetas';
+import { useColetasCidadesOrigem, useColetasGraficos, useColetasHistoricoPerformance, useColetasOverview, useColetasSerie, useColetasTabelaPaginada } from '../hooks/queries/useColetas';
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
-import type { ColetaResumoRow, ColetasFiltro } from '../types/coletas';
+import type { ColetaResumoRow, ColetasFiltro, ColetasHistoricoPerformance, ColetasHistoricoPeriodo } from '../types/coletas';
 import { CORES } from '../utils/chartColors';
 import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarMoeda, formatarPeso, formatarPorcentagem } from '../utils/formatadores';
@@ -28,6 +28,12 @@ import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 const AGING_BUCKETS = ['0-2 dias', '3-5 dias', '6-10 dias', '11+ dias'] as const;
 const ORIGEM_LIMITES = [5, 10, 15] as const;
+const HISTORICO_PERIODOS: Array<{ valor: ColetasHistoricoPeriodo; label: string }> = [
+  { valor: 'dias', label: 'Dias' },
+  { valor: '3meses', label: '3 meses' },
+  { valor: '6meses', label: '6 meses' },
+  { valor: '1ano', label: '1 ano' },
+];
 const EMPTY_ARRAY: never[] = [];
 
 function formatarDiaMesLabel(value: string): string {
@@ -38,12 +44,68 @@ function formatarDiaMesLabel(value: string): string {
   return `${day}/${month}`;
 }
 
+function formatarMesAnoLabel(value: string): string {
+  const [year, month] = value.split('-');
+  if (!year || !month) {
+    return value;
+  }
+  const data = new Date(Number(year), Number(month) - 1, 1);
+  if (Number.isNaN(data.getTime())) {
+    return value;
+  }
+  const mes = new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(data).replace('.', '');
+  return `${mes}/${year.slice(-2)}`;
+}
+
+function normalizeHistoricoPeriodo(value: string): ColetasHistoricoPeriodo {
+  if (value === '3meses' || value === '6meses' || value === '1ano') {
+    return value;
+  }
+  return 'dias';
+}
+
+function formatarHistoricoLabel(value: string, periodo: ColetasHistoricoPeriodo): string {
+  return periodo === 'dias' ? formatarDiaMesLabel(value) : formatarMesAnoLabel(value);
+}
+
+function HistoricoPeriodoActions({
+  periodo,
+  onPeriodoChange,
+}: {
+  periodo: ColetasHistoricoPeriodo;
+  onPeriodoChange: (periodo: ColetasHistoricoPeriodo) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="sr-only">Período do histórico de coletas</span>
+      <select
+        aria-label="Período do histórico de coletas"
+        value={periodo}
+        onChange={(event) => onPeriodoChange(normalizeHistoricoPeriodo(event.target.value))}
+        className="h-8 rounded-md border px-2 text-xs font-semibold outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
+        style={{
+          backgroundColor: 'var(--color-card)',
+          borderColor: 'var(--color-border)',
+          color: 'var(--color-text)',
+        }}
+      >
+        {HISTORICO_PERIODOS.map((item) => (
+          <option key={item.valor} value={item.valor}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export default function ColetasPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const { isDark } = useEchartsTheme();
   const [regiaoSelecionada, setRegiaoSelecionada] = useState<string | null>(null);
   const [regiaoEmFoco, setRegiaoEmFoco] = useState<string | null>(null);
   const [origemLimite, setOrigemLimite] = useState<(typeof ORIGEM_LIMITES)[number]>(10);
+  const [historicoPeriodo, setHistoricoPeriodo] = useState<ColetasHistoricoPeriodo>('dias');
   const filiais = useFiliais();
   const clientes = useClientes();
   const usuarios = useUsuarios();
@@ -67,6 +129,7 @@ export default function ColetasPage() {
   const overview = useColetasOverview(filtro);
   const serie = useColetasSerie(filtro);
   const graficos = useColetasGraficos(filtro);
+  const historicoPerformanceQuery = useColetasHistoricoPerformance(filtro, historicoPeriodo);
   const cidadesOrigem = useColetasCidadesOrigem(filtro, regiaoSelecionada);
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoResetKey = useMemo(() => JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }), [filtro, filtrosTabela.resetKey]);
@@ -80,7 +143,17 @@ export default function ColetasPage() {
   });
 
   const statusData = graficos.data?.statusDistribuicao ?? EMPTY_ARRAY;
-  const historicoPerformance = graficos.data?.historicoPerformance ?? EMPTY_ARRAY;
+  const historicoPerformanceResponse = historicoPerformanceQuery.data;
+  const historicoPerformance = useMemo<ColetasHistoricoPerformance[]>(() => (
+    (historicoPerformanceResponse ?? EMPTY_ARRAY).map((item) => ({
+      date: item.date,
+      performancePercentual: item.performancePercentual,
+      metaPercentual: item.metaPercentual,
+      finalizadas: item.finalizadas,
+      noPrazo: item.noPrazo,
+      foraDoPrazo: item.foraDoPrazo,
+    }))
+  ), [historicoPerformanceResponse]);
   const regioesOrigem = graficos.data?.regioesOrigem ?? EMPTY_ARRAY;
   const cidadesOrigemData = cidadesOrigem.data ?? EMPTY_ARRAY;
   const serieData = serie.data ?? EMPTY_ARRAY;
@@ -165,7 +238,7 @@ export default function ColetasPage() {
             : [];
 
           return [
-            `<strong>${formatarDiaMesLabel(name)}</strong>`,
+            `<strong>${formatarHistoricoLabel(name, historicoPeriodo)}</strong>`,
             ...entries.map((item) => `${item.marker ?? ''}${item.seriesName}: ${formatarPorcentagem(Number(item.value ?? 0), 2)}`),
             ...metricas,
           ].join('<br/>');
@@ -176,7 +249,7 @@ export default function ColetasPage() {
         boundaryGap: false,
         data: historicoPerformance.map((item) => item.date),
         axisLabel: {
-          formatter: formatarDiaMesLabel,
+          formatter: (value: string) => formatarHistoricoLabel(value, historicoPeriodo),
           fontWeight: 600,
           interval: 0,
           hideOverlap: true,
@@ -202,7 +275,7 @@ export default function ColetasPage() {
           symbol: 'circle',
           symbolSize: 6,
           label: {
-            show: historicoPerformance.length <= 12,
+            show: true,
             position: 'top',
             distance: 10,
             formatter: (params: unknown) => {
@@ -225,7 +298,7 @@ export default function ColetasPage() {
         },
       ],
     });
-  }, [historicoPerformance, isDark]);
+  }, [historicoPerformance, historicoPeriodo, isDark]);
 
   const origemOption: EChartsOption = useMemo(() => {
     const tokens = getEchartsThemeTokens(isDark);
@@ -478,13 +551,22 @@ export default function ColetasPage() {
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
         <ColetasTrend dados={serieData} isLoading={serie.isLoading} />
-        <ChartWrapper titulo="Distribuição por Status" option={statusOption} isLoading={graficos.isLoading} isEmpty={statusData.length === 0} />
-        <ChartWrapper titulo="Histórico da Performance" option={historicoPerformanceOption} isLoading={graficos.isLoading} isEmpty={historicoPerformance.length === 0} />
+        <ChartWrapper titulo="Distribuição por Status" chartKey="coletasStatus" option={statusOption} isLoading={graficos.isLoading} isEmpty={statusData.length === 0} />
+        <ChartWrapper
+          titulo="Histórico da Performance"
+          chartKey="coletasHistoricoPerformance"
+          option={historicoPerformanceOption}
+          actions={<HistoricoPeriodoActions periodo={historicoPeriodo} onPeriodoChange={setHistoricoPeriodo} />}
+          isLoading={historicoPerformanceQuery.isLoading}
+          isEmpty={historicoPerformance.length === 0}
+          erro={historicoPerformanceQuery.isError ? getApiErrorMessage(historicoPerformanceQuery.error, 'Erro ao carregar histórico de performance de coletas.') : null}
+        />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ChartWrapper
           titulo="Coletas por Região de Origem e Cidade"
+          chartKey="coletasOrigem"
           option={origemOption}
           actions={origemActions}
           onEvents={origemEvents}
@@ -492,7 +574,7 @@ export default function ColetasPage() {
           isEmpty={origemData.length === 0}
           emptyMessage={regiaoSelecionada ? 'Nenhuma cidade encontrada para a região selecionada.' : 'Nenhuma região encontrada para o período selecionado.'}
         />
-        <ChartWrapper titulo="Coletas em aberto" option={agingOption} isLoading={graficos.isLoading} isEmpty={false} altura={300} />
+        <ChartWrapper titulo="Coletas em aberto" chartKey="coletasAging" option={agingOption} isLoading={graficos.isLoading} isEmpty={false} altura={300} />
       </div>
 
       <div className="mb-3 flex justify-end">

@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import ChartCard from '../shared/ChartCard';
+import type { ChartDictionaryKey } from '../../constants/chartDictionary';
 import { useEchartsTheme } from './useEchartsTheme';
 
 const ECHARTS_CANVAS_OPTS = { renderer: 'canvas' as const };
@@ -55,6 +56,7 @@ interface ChartWrapperProps {
   erro?: string | null;
   altura?: number | string;
   className?: string;
+  chartKey?: ChartDictionaryKey;
 }
 
 function ChartWrapperInner({
@@ -68,6 +70,7 @@ function ChartWrapperInner({
   erro,
   altura = 300,
   className,
+  chartKey,
 }: ChartWrapperProps) {
   const { baseOption } = useEchartsTheme();
 
@@ -87,7 +90,7 @@ function ChartWrapperInner({
   }), [altura]);
 
   return (
-    <ChartCard titulo={titulo} actions={actions} isLoading={isLoading} isEmpty={isEmpty} emptyMessage={emptyMessage} erro={erro} className={className}>
+    <ChartCard titulo={titulo} actions={actions} isLoading={isLoading} isEmpty={isEmpty} emptyMessage={emptyMessage} erro={erro} className={className} chartKey={chartKey}>
       <div className="h-full min-h-0" style={chartStyle}>
         <ReactECharts
           option={mergedOption}
