@@ -350,7 +350,7 @@ function buildDrilldownOption(dados: PerformanceDrilldownPoint[], nivel: Perform
   const axisRotate = labels.some((label) => label.length > 14) ? 18 : 0;
   return buildBaseBarOption(isDark, {
     legend: { top: 0 },
-    grid: { top: 48, right: '3%', bottom: 62, left: '3%', containLabel: true },
+    grid: { top: 48, right: '3%', bottom: 0, left: '3%', containLabel: true },
     tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
