@@ -71,6 +71,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                 escala(decimal(overview, "custo_total"), 2),
                 escala(decimal(overview, "custo_por_kg"), 2),
                 escala(decimal(overview, "custo_por_km"), 2),
+                escala(decimal(overview, "receita_por_kg"), 2),
                 escala(decimal(overview, "receita_por_km"), 2)
         );
 
@@ -245,6 +246,11 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                         ELSE 0
                     END AS custo_por_km,
                     CASE
+                        WHEN COALESCE(SUM(peso_taxado), 0) > 0
+                        THEN COALESCE(SUM(receita_total), 0) / NULLIF(SUM(peso_taxado), 0)
+                        ELSE 0
+                    END AS receita_por_kg,
+                    CASE
                         WHEN COALESCE(SUM(km_total), 0) > 0
                         THEN COALESCE(SUM(receita_total), 0) / NULLIF(SUM(km_total), 0)
                         ELSE 0
@@ -299,6 +305,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "motoristas", "motorista", filtro.valores("motoristas"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "veiculos", "veiculo_placa", filtro.valores("veiculos"));
         adicionarFiltroNumero(ctx.whereBuilder(), ctx.params(), "numeroManifesto", "sequence_code", filtro.valores("numeroManifesto"));
+        adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "classificacoes", "[Classificação]", filtro.valores("classificacoes"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tiposCarga", "tipo_carga", filtro.valores("tiposCarga"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tiposContrato", "tipo_contrato_key", filtro.valores("tiposContrato"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "tipoMotorista", "tipo_motorista", filtro.valores("tipoMotorista"));
@@ -546,6 +553,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Tipo de carga]))), ''), N'Sem tipo') AS tipo_carga,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Tipo de contrato]))), ''), N'Sem tipo') AS tipo_contrato,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Tipo de contrato key]))), ''), N'sem tipo') AS tipo_contrato_key,
+                        COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Classificação]))), ''), N'Sem classificação') AS [Classificação],
                         CASE
                             WHEN LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) COLLATE Latin1_General_CI_AI IN (N'encerrado', N'closed') THEN N'Encerrado'
                             WHEN LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) COLLATE Latin1_General_CI_AI IN (N'em trânsito', N'em transito', N'in_transit') THEN N'Em Trânsito'

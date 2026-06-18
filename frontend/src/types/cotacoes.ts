@@ -109,4 +109,7 @@ export interface CotacoesFiltro {
   statusConversao?: string[];
   tabelas?: string[];
   usuarios?: string[];
+  classificacoes?: string[];
+  origens?: string[];
+  destinos?: string[];
 }

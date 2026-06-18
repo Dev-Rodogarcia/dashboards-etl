@@ -3,6 +3,7 @@ import { montarQueryParams } from './queryParams';
 import type { FaturamentoFiltro } from '../../types/faturamento';
 import type { CotacoesFiltro } from '../../types/cotacoes';
 import type { FretesFiltro } from '../../types/fretes';
+import type { ManifestosFiltro } from '../../types/manifestos';
 import type { PerformanceFiltro } from '../../types/performance';
 
 export interface VeiculoDim {
@@ -69,6 +70,13 @@ export async function buscarVeiculos(): Promise<VeiculoDim[]> {
   return data;
 }
 
+export async function buscarManifestosClassificacoes(filtro: ManifestosFiltro): Promise<string[]> {
+  const { data } = await clienteAxios.get<string[]>('/api/dimensoes/manifestos/classificacoes', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
 export async function buscarPlanoContas(): Promise<PlanoContasDim[]> {
   const { data } = await clienteAxios.get<PlanoContasDim[]>('/api/dimensoes/planocontas');
   return data;
@@ -120,6 +128,27 @@ export async function buscarFaturamentoResponsaveis(filtro: FaturamentoFiltro): 
 
 export async function buscarCotacoesUsuarios(filtro: CotacoesFiltro): Promise<DimensaoOpcao[]> {
   const { data } = await clienteAxios.get<DimensaoOpcao[]>('/api/dimensoes/cotacoes/usuarios', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarCotacoesClassificacoes(filtro: CotacoesFiltro): Promise<DimensaoOpcao[]> {
+  const { data } = await clienteAxios.get<DimensaoOpcao[]>('/api/dimensoes/cotacoes/classificacoes', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarCotacoesOrigens(filtro: CotacoesFiltro): Promise<DimensaoOpcao[]> {
+  const { data } = await clienteAxios.get<DimensaoOpcao[]>('/api/dimensoes/cotacoes/origens', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarCotacoesDestinos(filtro: CotacoesFiltro): Promise<DimensaoOpcao[]> {
+  const { data } = await clienteAxios.get<DimensaoOpcao[]>('/api/dimensoes/cotacoes/destinos', {
     params: montarQueryParams(filtro),
   });
   return data;

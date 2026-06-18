@@ -24,6 +24,7 @@ public record ManifestosPerformanceDTO(
             BigDecimal custoTotal,
             BigDecimal custoPorKg,
             BigDecimal custoPorKm,
+            BigDecimal receitaPorKg,
             BigDecimal receitaPorKm
     ) {
     }

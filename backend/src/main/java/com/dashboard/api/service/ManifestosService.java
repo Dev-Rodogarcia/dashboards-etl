@@ -194,6 +194,7 @@ public class ManifestosService {
                 DashboardQueryFilters.of(filtro.valores("status")),
                 DashboardQueryFilters.of(filtro.valores("motoristas")),
                 DashboardQueryFilters.of(filtro.valores("veiculos")),
+                DashboardQueryFilters.of(filtro.valores("classificacoes")),
                 DashboardQueryFilters.of(filtro.valores("tiposCarga")),
                 DashboardQueryFilters.of(filtro.valores("tiposContrato"))
         );
@@ -207,6 +208,7 @@ public class ManifestosService {
                 consulta.status().valores(), consulta.status().vazio(),
                 consulta.motoristas().valores(), consulta.motoristas().vazio(),
                 consulta.veiculos().valores(), consulta.veiculos().vazio(),
+                consulta.classificacoes().valores(), consulta.classificacoes().vazio(),
                 consulta.tiposCarga().valores(), consulta.tiposCarga().vazio(),
                 consulta.tiposContrato().valores(), consulta.tiposContrato().vazio()
         );
@@ -222,6 +224,7 @@ public class ManifestosService {
                 consulta.status().valores(), consulta.status().vazio(),
                 consulta.motoristas().valores(), consulta.motoristas().vazio(),
                 consulta.veiculos().valores(), consulta.veiculos().vazio(),
+                consulta.classificacoes().valores(), consulta.classificacoes().vazio(),
                 consulta.tiposCarga().valores(), consulta.tiposCarga().vazio(),
                 consulta.tiposContrato().valores(), consulta.tiposContrato().vazio()
         );
@@ -238,6 +241,7 @@ public class ManifestosService {
                 consulta.status().valores(), consulta.status().vazio(),
                 consulta.motoristas().valores(), consulta.motoristas().vazio(),
                 consulta.veiculos().valores(), consulta.veiculos().vazio(),
+                consulta.classificacoes().valores(), consulta.classificacoes().vazio(),
                 consulta.tiposCarga().valores(), consulta.tiposCarga().vazio(),
                 consulta.tiposContrato().valores(), consulta.tiposContrato().vazio(),
                 limite
@@ -254,6 +258,7 @@ public class ManifestosService {
                 consulta.status().valores(), consulta.status().vazio(),
                 consulta.motoristas().valores(), consulta.motoristas().vazio(),
                 consulta.veiculos().valores(), consulta.veiculos().vazio(),
+                consulta.classificacoes().valores(), consulta.classificacoes().vazio(),
                 consulta.tiposCarga().valores(), consulta.tiposCarga().vazio(),
                 consulta.tiposContrato().valores(), consulta.tiposContrato().vazio()
         );
@@ -269,6 +274,7 @@ public class ManifestosService {
                 consulta.status().valores(), consulta.status().vazio(),
                 consulta.motoristas().valores(), consulta.motoristas().vazio(),
                 consulta.veiculos().valores(), consulta.veiculos().vazio(),
+                consulta.classificacoes().valores(), consulta.classificacoes().vazio(),
                 consulta.tiposCarga().valores(), consulta.tiposCarga().vazio(),
                 consulta.tiposContrato().valores(), consulta.tiposContrato().vazio()
         );
@@ -284,6 +290,7 @@ public class ManifestosService {
                 consulta.status().valores(), consulta.status().vazio(),
                 consulta.motoristas().valores(), consulta.motoristas().vazio(),
                 consulta.veiculos().valores(), consulta.veiculos().vazio(),
+                consulta.classificacoes().valores(), consulta.classificacoes().vazio(),
                 consulta.tiposCarga().valores(), consulta.tiposCarga().vazio(),
                 consulta.tiposContrato().valores(), consulta.tiposContrato().vazio()
         );
@@ -299,6 +306,7 @@ public class ManifestosService {
                 consulta.status().valores(), consulta.status().vazio(),
                 consulta.motoristas().valores(), consulta.motoristas().vazio(),
                 consulta.veiculos().valores(), consulta.veiculos().vazio(),
+                consulta.classificacoes().valores(), consulta.classificacoes().vazio(),
                 consulta.tiposCarga().valores(), consulta.tiposCarga().vazio(),
                 consulta.tiposContrato().valores(), consulta.tiposContrato().vazio()
         );
@@ -312,6 +320,7 @@ public class ManifestosService {
             DashboardQueryFilters.ParametroLista status,
             DashboardQueryFilters.ParametroLista motoristas,
             DashboardQueryFilters.ParametroLista veiculos,
+            DashboardQueryFilters.ParametroLista classificacoes,
             DashboardQueryFilters.ParametroLista tiposCarga,
             DashboardQueryFilters.ParametroLista tiposContrato
     ) {

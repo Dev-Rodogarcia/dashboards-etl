@@ -24,7 +24,7 @@ import { exportarManifestosCsv } from '../api/endpoints/manifestosServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
-import { useFiliais, useMotoristas, useVeiculos } from '../hooks/queries/useDimensoes';
+import { useFiliais, useManifestosClassificacoes, useMotoristas, useVeiculos } from '../hooks/queries/useDimensoes';
 import { useManifestosPerformance, useManifestosTabelaPaginada } from '../hooks/queries/useManifestos';
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { usePermissions } from '../hooks/usePermissions';
@@ -169,12 +169,14 @@ export default function ManifestosPage() {
     motoristas: filtros.motoristas,
     veiculos: filtros.veiculos,
     numeroManifesto: numeroManifestoFiltro || undefined,
+    classificacoes: filtros.classificacoes,
     tiposCarga: filtros.tiposCarga,
     tiposContrato: filtros.tiposContrato,
     tipoMotorista: filtros.tipoMotorista,
   }), [
     dataFim,
     dataInicio,
+    filtros.classificacoes,
     filtros.filiais,
     filtros.motoristas,
     filtros.status,
@@ -188,11 +190,13 @@ export default function ManifestosPage() {
   const activeFilters: ActiveFilter[] = useMemo(() => [
     { label: 'Manifesto', count: numeroManifestoFiltro ? 1 : 0, onRemove: () => setFiltro('numeroManifesto', []) },
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Classificação', count: filtros.classificacoes?.length ?? 0, onRemove: () => setFiltro('classificacoes', []) },
     { label: 'Motoristas', count: filtros.motoristas?.length ?? 0, onRemove: () => setFiltro('motoristas', []) },
     { label: 'Veículos', count: filtros.veiculos?.length ?? 0, onRemove: () => setFiltro('veiculos', []) },
     { label: 'Tipos de contrato', count: filtros.tiposContrato?.length ?? 0, onRemove: () => setFiltro('tiposContrato', []) },
-  ], [filtros.filiais, filtros.motoristas, filtros.tiposContrato, filtros.veiculos, numeroManifestoFiltro, setFiltro]);
+  ], [filtros.classificacoes, filtros.filiais, filtros.motoristas, filtros.tiposContrato, filtros.veiculos, numeroManifestoFiltro, setFiltro]);
 
+  const classificacoes = useManifestosClassificacoes(filtro);
   const performance = useManifestosPerformance(filtro, nivelTemporal, anoTemporal, mesTemporal);
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoResetKey = useMemo(() => JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }), [filtro, filtrosTabela.resetKey]);
@@ -313,7 +317,7 @@ export default function ManifestosPage() {
     { chave: 'filial', label: 'Filial' },
     { chave: 'motorista', label: 'Motorista' },
     { chave: 'veiculoPlaca', label: 'Veículo', filtroTabela: 'placa' },
-    { chave: 'dataCriacao', label: 'Criação' },
+    { chave: 'dataCriacao', label: 'Competência' },
     { chave: 'totalPesoTaxado', label: 'Peso', formato: (valor) => formatarPeso(Number(valor ?? 0)) },
     { chave: 'totalM3', label: 'M3', formato: (valor) => formatarNumero(Number(valor ?? 0), 2) },
     { chave: 'custoTotal', label: 'Custo', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
@@ -406,6 +410,13 @@ export default function ManifestosPage() {
           selecionados={filtros.filiais ?? []}
           onChange={(valores) => setFiltro('filiais', valores)}
           isLoading={filiais.isLoading}
+        />
+        <AsyncMultiSelect
+          label="Classificação"
+          opcoes={classificacoes.data ?? EMPTY_ARRAY}
+          selecionados={filtros.classificacoes ?? []}
+          onChange={(valores) => setFiltro('classificacoes', valores)}
+          isLoading={classificacoes.isLoading}
         />
         <AsyncMultiSelect
           label="Motoristas"

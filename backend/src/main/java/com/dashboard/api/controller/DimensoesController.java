@@ -156,6 +156,54 @@ public class DimensoesController {
         return dashboardExportService.listarUsuariosCotacoes(filtro);
     }
 
+    @GetMapping("/cotacoes/classificacoes")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('cotacoes')")
+    public List<DimensaoOpcaoDTO> cotacoesClassificacoes(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        log.info("GET /api/dimensoes/cotacoes/classificacoes - periodo: {} a {}", dataInicio, dataFim);
+        FiltroConsultaDTO filtro = FiltroRequestMapper.from(dataInicio, dataFim, params);
+        return dashboardExportService.listarClassificacoesCotacoes(filtro);
+    }
+
+    @GetMapping("/cotacoes/origens")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('cotacoes')")
+    public List<DimensaoOpcaoDTO> cotacoesOrigens(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        log.info("GET /api/dimensoes/cotacoes/origens - periodo: {} a {}", dataInicio, dataFim);
+        FiltroConsultaDTO filtro = FiltroRequestMapper.from(dataInicio, dataFim, params);
+        return dashboardExportService.listarOrigensCotacoes(filtro);
+    }
+
+    @GetMapping("/cotacoes/destinos")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('cotacoes')")
+    public List<DimensaoOpcaoDTO> cotacoesDestinos(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        log.info("GET /api/dimensoes/cotacoes/destinos - periodo: {} a {}", dataInicio, dataFim);
+        FiltroConsultaDTO filtro = FiltroRequestMapper.from(dataInicio, dataFim, params);
+        return dashboardExportService.listarDestinosCotacoes(filtro);
+    }
+
+    @GetMapping("/manifestos/classificacoes")
+    @PreAuthorize("@acessoSeguranca.podeAcessar('manifestos')")
+    public List<String> manifestosClassificacoes(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        log.info("GET /api/dimensoes/manifestos/classificacoes - periodo: {} a {}", dataInicio, dataFim);
+        FiltroConsultaDTO filtro = FiltroRequestMapper.from(dataInicio, dataFim, params);
+        return dashboardExportService.listarClassificacoesManifestos(filtro);
+    }
+
     @GetMapping("/fretes/status")
     @PreAuthorize("@acessoSeguranca.podeAcessar('fretes')")
     public List<String> fretesStatus(

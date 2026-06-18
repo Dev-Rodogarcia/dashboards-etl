@@ -121,6 +121,57 @@ public class DashboardExportService {
         ));
     }
 
+    public List<DimensaoOpcaoDTO> listarClassificacoesCotacoes(FiltroConsultaDTO filtro) {
+        return listarOpcoesCotacoes(filtro, "[Tipo de operação]", "classificacoes");
+    }
+
+    public List<DimensaoOpcaoDTO> listarOrigensCotacoes(FiltroConsultaDTO filtro) {
+        return listarOpcoesCotacoes(filtro, "[Origem]", "origens");
+    }
+
+    public List<DimensaoOpcaoDTO> listarDestinosCotacoes(FiltroConsultaDTO filtro) {
+        return listarOpcoesCotacoes(filtro, "[Destino]", "destinos");
+    }
+
+    public List<String> listarClassificacoesManifestos(FiltroConsultaDTO filtro) {
+        validadorPeriodoService.validar(filtro.dataInicio(), filtro.dataFim());
+        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        DashboardExportSqlBuilder.ExportSql query = sqlBuilder.buildDistinct(
+                DashboardExportDefinition.MANIFESTOS,
+                "[Classificação]",
+                filtro,
+                escopo,
+                Set.of("classificacoes")
+        );
+        String sql = Objects.requireNonNull(query.sql(), "sql");
+        MapSqlParameterSource params = Objects.requireNonNull(query.params(), "params");
+        return jdbcTemplate.queryForList(sql, params, String.class);
+    }
+
+    private List<DimensaoOpcaoDTO> listarOpcoesCotacoes(
+            FiltroConsultaDTO filtro,
+            String coluna,
+            String filtroIgnorado
+    ) {
+        validadorPeriodoService.validar(filtro.dataInicio(), filtro.dataFim());
+        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
+        String expressao = "NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), %s))), '')".formatted(coluna);
+        DashboardExportSqlBuilder.ExportSql query = sqlBuilder.buildDistinctOptions(
+                DashboardExportDefinition.COTACOES,
+                expressao,
+                expressao,
+                filtro,
+                escopo,
+                Set.of(filtroIgnorado)
+        );
+        String sql = Objects.requireNonNull(query.sql(), "sql");
+        MapSqlParameterSource params = Objects.requireNonNull(query.params(), "params");
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new DimensaoOpcaoDTO(
+                rs.getString("value"),
+                rs.getString("label")
+        ));
+    }
+
     public ResponseEntity<StreamingResponseBody> exportarBeans(
             String nomeArquivoBase,
             FiltroConsultaDTO filtro,

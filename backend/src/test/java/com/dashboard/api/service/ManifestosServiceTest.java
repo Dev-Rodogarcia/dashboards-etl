@@ -43,7 +43,8 @@ class ManifestosServiceTest {
     void buscarOverviewDeveUsarAgregadoSqlPreservandoLinhasComMesmoNumero() {
         when(repository.buscarOverviewAgregado(
                 any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
-                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt()
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
+                anyList(), anyInt()
         )).thenReturn(overview());
 
         ManifestosOverviewDTO overview = service.buscarOverview(filtroPadrao());
@@ -62,7 +63,8 @@ class ManifestosServiceTest {
     void buscarTabelaDevePreservarIdentificadoresUnicosParaLinhasComMesmoNumero() {
         when(repository.buscarTabelaPaginada(
                 any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
-                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyInt()
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
+                anyList(), anyInt(), anyInt()
         )).thenReturn(List.of(
                 resumo(62848L, "62848_MDFE_4380"),
                 resumo(62848L, "62848_MDFE_4381")

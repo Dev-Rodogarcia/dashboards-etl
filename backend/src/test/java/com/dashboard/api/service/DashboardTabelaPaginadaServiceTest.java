@@ -129,6 +129,24 @@ class DashboardTabelaPaginadaServiceTest {
     }
 
     @Test
+    void buscarManifestosDeveFiltrarPorClassificacaoNoSql() {
+        CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate(List.of(linha("Número", 62848L)));
+        DashboardTabelaPaginadaService service = service(jdbcTemplate);
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                LocalDate.of(2026, 3, 1),
+                LocalDate.of(2026, 3, 31),
+                Map.of("classificacoes", List.of("Distribuição", "Transferência"))
+        );
+
+        service.buscarManifestos(filtro, 1, 10);
+
+        assertThat(jdbcTemplate.sqls().get(0)).contains("[Classificação] IN (:filtro_classificacoes)");
+        assertThat(jdbcTemplate.sqls().get(1)).contains("[Classificação] IN (:filtro_classificacoes)");
+        assertThat(jdbcTemplate.params().get(1).getValue("filtro_classificacoes"))
+                .isEqualTo(List.of("distribuição", "transferência"));
+    }
+
+    @Test
     void buscarManifestosDeveIgnorarNumeroManifestoInvalido() {
         CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate(List.of(linha("Número", 62848L)));
         DashboardTabelaPaginadaService service = service(jdbcTemplate);

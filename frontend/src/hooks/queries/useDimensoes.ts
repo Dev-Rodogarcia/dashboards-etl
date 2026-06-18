@@ -6,9 +6,13 @@ import {
   buscarFaturasPorClienteClientesCnpj,
   buscarMotoristas,
   buscarVeiculos,
+  buscarManifestosClassificacoes,
   buscarPlanoContas,
   buscarUsuarios,
   buscarCotacoesUsuarios,
+  buscarCotacoesClassificacoes,
+  buscarCotacoesOrigens,
+  buscarCotacoesDestinos,
   buscarFaturamentoStatus,
   buscarFaturamentoResponsaveis,
   buscarFretesStatus,
@@ -19,6 +23,7 @@ import {
 import type { FaturamentoFiltro } from '../../types/faturamento';
 import type { CotacoesFiltro } from '../../types/cotacoes';
 import type { FretesFiltro } from '../../types/fretes';
+import type { ManifestosFiltro } from '../../types/manifestos';
 import type { PerformanceFiltro } from '../../types/performance';
 
 const STALE_TIME = 30 * 60 * 1000; // 30 minutos
@@ -81,6 +86,16 @@ export function useVeiculos() {
   return useQuery({
     queryKey: ['dim', 'veiculos'],
     queryFn: buscarVeiculos,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+    retry: 1,
+  });
+}
+
+export function useManifestosClassificacoes(filtro: ManifestosFiltro) {
+  return useQuery({
+    queryKey: ['dim', 'manifestos', 'classificacoes', filtro],
+    queryFn: () => buscarManifestosClassificacoes(filtro),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
     retry: 1,
@@ -172,6 +187,36 @@ export function useCotacoesUsuarios(filtro: CotacoesFiltro) {
     queryKey: ['dim', 'cotacoes', 'usuarios', filtro],
     queryFn: () => buscarCotacoesUsuarios(filtro),
     staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+    retry: 1,
+  });
+}
+
+export function useCotacoesClassificacoes(filtro: CotacoesFiltro) {
+  return useQuery({
+    queryKey: ['dim', 'cotacoes', 'classificacoes', filtro],
+    queryFn: () => buscarCotacoesClassificacoes(filtro),
+    staleTime: Infinity,
+    gcTime: GC_TIME,
+    retry: 1,
+  });
+}
+
+export function useCotacoesOrigens(filtro: CotacoesFiltro) {
+  return useQuery({
+    queryKey: ['dim', 'cotacoes', 'origens', filtro],
+    queryFn: () => buscarCotacoesOrigens(filtro),
+    staleTime: Infinity,
+    gcTime: GC_TIME,
+    retry: 1,
+  });
+}
+
+export function useCotacoesDestinos(filtro: CotacoesFiltro) {
+  return useQuery({
+    queryKey: ['dim', 'cotacoes', 'destinos', filtro],
+    queryFn: () => buscarCotacoesDestinos(filtro),
+    staleTime: Infinity,
     gcTime: GC_TIME,
     retry: 1,
   });

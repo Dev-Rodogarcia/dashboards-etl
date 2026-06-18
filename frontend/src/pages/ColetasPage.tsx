@@ -23,12 +23,20 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type { ColetaResumoRow, ColetasFiltro } from '../types/coletas';
 import { CORES } from '../utils/chartColors';
 import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
-import { formatarMoeda, formatarPeso } from '../utils/formatadores';
+import { formatarMoeda, formatarPeso, formatarPorcentagem } from '../utils/formatadores';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 const AGING_BUCKETS = ['0-2 dias', '3-5 dias', '6-10 dias', '11+ dias'] as const;
 const ORIGEM_LIMITES = [5, 10, 15] as const;
 const EMPTY_ARRAY: never[] = [];
+
+function formatarDiaMesLabel(value: string): string {
+  const [, month, day] = value.split('-');
+  if (!month || !day) {
+    return value;
+  }
+  return `${day}/${month}`;
+}
 
 export default function ColetasPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
@@ -72,7 +80,7 @@ export default function ColetasPage() {
   });
 
   const statusData = graficos.data?.statusDistribuicao ?? EMPTY_ARRAY;
-  const slaPorFilial = graficos.data?.slaPorFilial ?? EMPTY_ARRAY;
+  const historicoPerformance = graficos.data?.historicoPerformance ?? EMPTY_ARRAY;
   const regioesOrigem = graficos.data?.regioesOrigem ?? EMPTY_ARRAY;
   const cidadesOrigemData = cidadesOrigem.data ?? EMPTY_ARRAY;
   const serieData = serie.data ?? EMPTY_ARRAY;
@@ -123,34 +131,101 @@ export default function ColetasPage() {
     });
   }, [isDark, statusData]);
 
-  const slaOption: EChartsOption = useMemo(() => {
+  const historicoPerformanceOption: EChartsOption = useMemo(() => {
     const tokens = getEchartsThemeTokens(isDark);
+    const percentuais = historicoPerformance.flatMap((item) => [item.performancePercentual, item.metaPercentual]);
+    const menor = percentuais.length > 0 ? Math.min(...percentuais) : 0;
+    const maior = percentuais.length > 0 ? Math.max(...percentuais) : 100;
+    const yMin = Math.max(0, Math.floor(menor - 3));
+    const yMax = Math.min(100, Math.ceil(maior + 3));
 
-    return buildBaseBarOption(isDark, {
-      grid: { top: 20, right: 18, bottom: 24, left: 10, containLabel: true },
-      xAxis: { type: 'value', max: 100 },
-      yAxis: {
-        type: 'category',
-        data: slaPorFilial.map((item) => item.filial).reverse(),
-        axisLabel: {
-          formatter: (value: string) => value.length > 18 ? value.slice(0, 18) + '…' : value,
+    return buildBaseLineOption(isDark, {
+      title: {
+        text: 'Histórico da Performance de Coletas',
+        left: 8,
+        top: 8,
+        textStyle: {
+          fontSize: 12,
+          fontWeight: 500,
         },
       },
+      grid: { top: 52, right: '4%', bottom: '10%', left: '3%', containLabel: true },
       tooltip: {
         trigger: 'axis',
         formatter: (params: unknown) => {
-          const p = (params as { name: string; value: number }[])[0];
-          return `${p.name}<br/>${p.value.toFixed(1)}%`;
+          const entries = params as { marker?: string; seriesName: string; value: number; name: string; dataIndex?: number }[];
+          const name = entries[0]?.name ?? '';
+          const ponto = historicoPerformance[entries[0]?.dataIndex ?? -1];
+          const metricas = ponto
+            ? [
+                `Finalizadas: ${ponto.finalizadas.toLocaleString('pt-BR')}`,
+                `No prazo: ${ponto.noPrazo.toLocaleString('pt-BR')}`,
+                `Fora do prazo: ${ponto.foraDoPrazo.toLocaleString('pt-BR')}`,
+              ]
+            : [];
+
+          return [
+            `<strong>${formatarDiaMesLabel(name)}</strong>`,
+            ...entries.map((item) => `${item.marker ?? ''}${item.seriesName}: ${formatarPorcentagem(Number(item.value ?? 0), 2)}`),
+            ...metricas,
+          ].join('<br/>');
         },
       },
-      series: [{
-        type: 'bar',
-        data: slaPorFilial.map((item) => item.slaPct).reverse(),
-        barMaxWidth: 16,
-        itemStyle: { color: tokens.palette[2], borderRadius: [0, 4, 4, 0] },
-      }],
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: historicoPerformance.map((item) => item.date),
+        axisLabel: {
+          formatter: formatarDiaMesLabel,
+          fontWeight: 600,
+          interval: 0,
+          hideOverlap: true,
+        },
+      },
+      yAxis: {
+        type: 'value',
+        min: yMin,
+        max: yMax <= yMin ? yMin + 10 : yMax,
+        splitLine: {
+          lineStyle: { type: 'dashed' },
+        },
+        axisLabel: {
+          formatter: (value: number) => `${value}%`,
+        },
+      },
+      series: [
+        {
+          name: 'Performance',
+          type: 'line',
+          smooth: true,
+          data: historicoPerformance.map((item) => item.performancePercentual),
+          symbol: 'circle',
+          symbolSize: 6,
+          label: {
+            show: historicoPerformance.length <= 12,
+            position: 'top',
+            distance: 10,
+            formatter: (params: unknown) => {
+              const item = params as { value?: unknown };
+              return formatarPorcentagem(Number(item.value ?? 0), 1);
+            },
+            fontSize: 10,
+            fontWeight: 700,
+          },
+          lineStyle: { width: 3, color: tokens.palette[0] },
+          itemStyle: { color: tokens.palette[0] },
+        },
+        {
+          name: 'Meta',
+          type: 'line',
+          data: historicoPerformance.map((item) => item.metaPercentual),
+          symbol: 'none',
+          lineStyle: { width: 2, type: 'dashed', color: tokens.mutedTextColor },
+          itemStyle: { color: tokens.mutedTextColor },
+        },
+      ],
     });
-  }, [isDark, slaPorFilial]);
+  }, [historicoPerformance, isDark]);
 
   const origemOption: EChartsOption = useMemo(() => {
     const tokens = getEchartsThemeTokens(isDark);
@@ -404,7 +479,7 @@ export default function ColetasPage() {
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
         <ColetasTrend dados={serieData} isLoading={serie.isLoading} />
         <ChartWrapper titulo="Distribuição por Status" option={statusOption} isLoading={graficos.isLoading} isEmpty={statusData.length === 0} />
-        <ChartWrapper titulo="SLA por Filial" option={slaOption} isLoading={graficos.isLoading} isEmpty={slaPorFilial.length === 0} />
+        <ChartWrapper titulo="Histórico da Performance" option={historicoPerformanceOption} isLoading={graficos.isLoading} isEmpty={historicoPerformance.length === 0} />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">

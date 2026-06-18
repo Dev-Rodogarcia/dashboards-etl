@@ -442,11 +442,11 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
 
     @Query(value = FRETES_FILTRADOS_SQL + """
             SELECT
-                COALESCE(responsavel_regiao_destino, filial_emissora, filial_nome, N'Responsável não informado') AS nome,
+                COALESCE(responsavel_regiao_destino, N'Responsável não informado') AS nome,
                 COALESCE(SUM(valor_total), 0) AS receita,
                 CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretes
             FROM filtrados
-            GROUP BY COALESCE(responsavel_regiao_destino, filial_emissora, filial_nome, N'Responsável não informado')
+            GROUP BY COALESCE(responsavel_regiao_destino, N'Responsável não informado')
             HAVING COALESCE(SUM(valor_total), 0) <> 0
                 OR COALESCE(SUM(subtotal), 0) <> 0
             ORDER BY receita DESC, nome

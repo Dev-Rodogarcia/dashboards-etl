@@ -27,7 +27,7 @@ const clienteAxios = axios.create({
 
 let refreshEmAndamento: Promise<LoginResponse> | null = null;
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: (value?: unknown) => void; reject: (reason?: any) => void }> = [];
+let failedQueue: Array<{ resolve: (value?: unknown) => void; reject: (reason?: unknown) => void }> = [];
 let ultimoAlertaInfraestrutura: { chave: string; timestamp: number } | null = null;
 const API_STATUS_ALERT_COOLDOWN_MS = 5000;
 

@@ -41,6 +41,7 @@ class ManifestosPerformanceSqlRepositoryTest {
         assertThat(dto.kpis().totalManifestos()).isEqualTo(12);
         assertThat(dto.kpis().custoPorKg()).isEqualByComparingTo("0.10");
         assertThat(dto.kpis().custoPorKm()).isEqualByComparingTo("4.00");
+        assertThat(dto.kpis().receitaPorKg()).isEqualByComparingTo("0.19");
         assertThat(dto.kpis().receitaPorKm()).isEqualByComparingTo("7.50");
 
         assertThat(jdbcTemplate.sqls)
@@ -48,6 +49,7 @@ class ManifestosPerformanceSqlRepositoryTest {
                         .contains("COUNT_BIG(1) AS total_manifestos")
                         .contains("SUM(CASE WHEN status_norm = N'Pendente'")
                         .contains("NULLIF(SUM(peso_taxado), 0)")
+                        .contains("AS receita_por_kg")
                         .contains("NULLIF(SUM(km_total), 0)"));
         assertThat(jdbcTemplate.sqls)
                 .anySatisfy(sql -> assertThat(sql)
@@ -87,6 +89,32 @@ class ManifestosPerformanceSqlRepositoryTest {
                 .anySatisfy(sql -> assertThat(sql)
                         .contains("sys.dm_exec_describe_first_result_set")
                         .contains("N'SELECT TOP (0) * FROM dbo.vw_fato_manifestos_dash'"));
+    }
+
+    @Test
+    void buscarPerformanceFiltraPorClassificacaoNoSql() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        ManifestosPerformanceSqlRepository repository = new ManifestosPerformanceSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal(),
+                PeriodoOffsetDateTimeHelper.padrao()
+        );
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 24),
+                Map.of("classificacoes", List.of("Transferência"))
+        );
+
+        repository.buscarPerformance(filtro, "dia", null, null);
+
+        assertThat(jdbcTemplate.sqls)
+                .anySatisfy(sql -> assertThat(sql)
+                        .contains("[Classificação] COLLATE Latin1_General_CI_AI IN (:classificacoes)"));
+        assertThat(jdbcTemplate.parametros)
+                .filteredOn(params -> params.hasValue("classificacoes"))
+                .anySatisfy(params -> assertThat(params.getValue("classificacoes"))
+                        .isEqualTo(List.of("transferência")));
     }
 
     @Test
@@ -282,17 +310,18 @@ class ManifestosPerformanceSqlRepositoryTest {
         public Map<String, Object> queryForMap(String sql, SqlParameterSource paramSource) {
             sqls.add(sql);
             parametros.add(paramSource);
-            return Map.of(
-                    "updated_at", "2026-05-24T10:00:00",
-                    "total_manifestos", 12L,
-                    "em_transito", 3L,
-                    "pendentes", 2L,
-                    "encerrados", 7L,
-                    "km_total", new BigDecimal("100.00"),
-                    "custo_total", new BigDecimal("400.00"),
-                    "custo_por_kg", new BigDecimal("0.10"),
-                    "custo_por_km", new BigDecimal("4.00"),
-                    "receita_por_km", new BigDecimal("7.50")
+            return Map.ofEntries(
+                    Map.entry("updated_at", "2026-05-24T10:00:00"),
+                    Map.entry("total_manifestos", 12L),
+                    Map.entry("em_transito", 3L),
+                    Map.entry("pendentes", 2L),
+                    Map.entry("encerrados", 7L),
+                    Map.entry("km_total", new BigDecimal("100.00")),
+                    Map.entry("custo_total", new BigDecimal("400.00")),
+                    Map.entry("custo_por_kg", new BigDecimal("0.10")),
+                    Map.entry("custo_por_km", new BigDecimal("4.00")),
+                    Map.entry("receita_por_kg", new BigDecimal("0.19")),
+                    Map.entry("receita_por_km", new BigDecimal("7.50"))
             );
         }
 

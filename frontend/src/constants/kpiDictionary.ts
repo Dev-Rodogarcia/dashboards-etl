@@ -16,7 +16,7 @@ const periodoColetas =
   'O período considera a data de solicitação. Solicitações repetidas são consolidadas pelo identificador, preservando a versão mais recente.';
 
 const periodoManifestos =
-  'O período considera a data de criação do manifesto.';
+  'O período considera a competência operacional do manifesto: data de saída; quando a saída não existe, usa a data de criação.';
 
 const periodoPerformance =
   'O período considera a previsão de entrega. Cada minuta aparece uma única vez, priorizando o registro finalizado e mais recente.';
@@ -211,6 +211,13 @@ export const KpiDictionary = {
       descricao: 'Custo médio ponderado por quilômetro percorrido.',
       calculo: 'Custo Total ÷ Quilometragem Total.',
       observacao: 'Quando a quilometragem total é zero, o indicador retorna zero.',
+    },
+    receitaPorKg: {
+      titulo: 'Receita por KG',
+      descricao: 'Receita transportada média por quilograma taxado.',
+      calculo:
+        'Receita Total Transportada (Frete Total + Receita de Coleta (Minuta de Coleta Vinculada)) ÷ Peso Taxado Total.',
+      observacao: 'Quando o peso taxado total é zero, o indicador retorna zero.',
     },
     receitaPorKm: {
       titulo: 'Receita por Quilômetro',

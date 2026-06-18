@@ -47,10 +47,13 @@ export interface ColetasStatusDistribuicao {
   total: number;
 }
 
-export interface ColetasSlaPorFilial {
-  filial: string;
-  slaPct: number;
-  total: number;
+export interface ColetasHistoricoPerformance {
+  date: string;
+  performancePercentual: number;
+  metaPercentual: number;
+  finalizadas: number;
+  noPrazo: number;
+  foraDoPrazo: number;
 }
 
 export interface ColetasRegiaoOrigem {
@@ -72,7 +75,7 @@ export interface ColetasAgingBucket {
 
 export interface ColetasCharts {
   statusDistribuicao: ColetasStatusDistribuicao[];
-  slaPorFilial: ColetasSlaPorFilial[];
+  historicoPerformance: ColetasHistoricoPerformance[];
   regioesOrigem: ColetasRegiaoOrigem[];
   agingAbertas: ColetasAgingBucket[];
 }

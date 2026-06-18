@@ -46,6 +46,7 @@ export interface KPIsManifestos {
   custoTotal: number;
   custoPorKg: number;
   custoPorKm: number;
+  receitaPorKg: number | null;
   receitaPorKm: number;
 }
 
@@ -140,6 +141,7 @@ export interface ManifestosFiltro {
   motoristas?: string[];
   veiculos?: string[];
   numeroManifesto?: string;
+  classificacoes?: string[];
   tiposCarga?: string[];
   tiposContrato?: string[];
   tipoMotorista?: string[];

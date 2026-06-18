@@ -22,6 +22,7 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status]))), '') AS status,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status]))), '')) AS status_normalizado,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Classificação]))), '') AS classificacao,
+                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Classificação]))), '')) AS classificacao_normalizada,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '') AS filial,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial_normalizada,
                     [Data criação] AS data_criacao,
@@ -62,6 +63,7 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
                   AND (:statusVazio = 1 OR status_normalizado IN (:status))
                   AND (:motoristasVazio = 1 OR motorista_normalizado IN (:motoristas))
                   AND (:veiculosVazio = 1 OR veiculo_placa_normalizado IN (:veiculos))
+                  AND (:classificacoesVazio = 1 OR classificacao_normalizada IN (:classificacoes))
                   AND (:tiposCargaVazio = 1 OR tipo_carga_normalizado IN (:tiposCarga))
                   AND (:tiposContratoVazio = 1 OR tipo_contrato_normalizado IN (:tiposContrato))
             )
@@ -96,6 +98,8 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
             @Param("motoristasVazio") int motoristasVazio,
             @Param("veiculos") List<String> veiculos,
             @Param("veiculosVazio") int veiculosVazio,
+            @Param("classificacoes") List<String> classificacoes,
+            @Param("classificacoesVazio") int classificacoesVazio,
             @Param("tiposCarga") List<String> tiposCarga,
             @Param("tiposCargaVazio") int tiposCargaVazio,
             @Param("tiposContrato") List<String> tiposContrato,
@@ -127,6 +131,8 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
             @Param("motoristasVazio") int motoristasVazio,
             @Param("veiculos") List<String> veiculos,
             @Param("veiculosVazio") int veiculosVazio,
+            @Param("classificacoes") List<String> classificacoes,
+            @Param("classificacoesVazio") int classificacoesVazio,
             @Param("tiposCarga") List<String> tiposCarga,
             @Param("tiposCargaVazio") int tiposCargaVazio,
             @Param("tiposContrato") List<String> tiposContrato,
@@ -174,6 +180,8 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
             @Param("motoristasVazio") int motoristasVazio,
             @Param("veiculos") List<String> veiculos,
             @Param("veiculosVazio") int veiculosVazio,
+            @Param("classificacoes") List<String> classificacoes,
+            @Param("classificacoesVazio") int classificacoesVazio,
             @Param("tiposCarga") List<String> tiposCarga,
             @Param("tiposCargaVazio") int tiposCargaVazio,
             @Param("tiposContrato") List<String> tiposContrato,
@@ -202,6 +210,8 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
             @Param("motoristasVazio") int motoristasVazio,
             @Param("veiculos") List<String> veiculos,
             @Param("veiculosVazio") int veiculosVazio,
+            @Param("classificacoes") List<String> classificacoes,
+            @Param("classificacoesVazio") int classificacoesVazio,
             @Param("tiposCarga") List<String> tiposCarga,
             @Param("tiposCargaVazio") int tiposCargaVazio,
             @Param("tiposContrato") List<String> tiposContrato,
@@ -232,6 +242,8 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
             @Param("motoristasVazio") int motoristasVazio,
             @Param("veiculos") List<String> veiculos,
             @Param("veiculosVazio") int veiculosVazio,
+            @Param("classificacoes") List<String> classificacoes,
+            @Param("classificacoesVazio") int classificacoesVazio,
             @Param("tiposCarga") List<String> tiposCarga,
             @Param("tiposCargaVazio") int tiposCargaVazio,
             @Param("tiposContrato") List<String> tiposContrato,
@@ -279,6 +291,8 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
             @Param("motoristasVazio") int motoristasVazio,
             @Param("veiculos") List<String> veiculos,
             @Param("veiculosVazio") int veiculosVazio,
+            @Param("classificacoes") List<String> classificacoes,
+            @Param("classificacoesVazio") int classificacoesVazio,
             @Param("tiposCarga") List<String> tiposCarga,
             @Param("tiposCargaVazio") int tiposCargaVazio,
             @Param("tiposContrato") List<String> tiposContrato,
@@ -307,6 +321,8 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
             @Param("motoristasVazio") int motoristasVazio,
             @Param("veiculos") List<String> veiculos,
             @Param("veiculosVazio") int veiculosVazio,
+            @Param("classificacoes") List<String> classificacoes,
+            @Param("classificacoesVazio") int classificacoesVazio,
             @Param("tiposCarga") List<String> tiposCarga,
             @Param("tiposCargaVazio") int tiposCargaVazio,
             @Param("tiposContrato") List<String> tiposContrato,

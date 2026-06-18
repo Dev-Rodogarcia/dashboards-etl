@@ -74,6 +74,7 @@ public enum DashboardExportDefinition {
                     "motoristas", List.of("[Motorista]"),
                     "veiculos", List.of("[Veículo/Placa]"),
                     "numeroManifesto", List.of("[Número]"),
+                    "classificacoes", List.of("[Classificação]"),
                     "tiposCarga", List.of("[Tipo de carga]"),
                     "tiposContrato", List.of("[Tipo de contrato]")
             ),
@@ -94,7 +95,10 @@ public enum DashboardExportDefinition {
                     "ufDestino", List.of("[UF Destino]"),
                     "statusConversao", List.of("[Status Conversão]"),
                     "tabelas", List.of("[Tabela]"),
-                    "usuarios", List.of("[Usuario Key]")
+                    "usuarios", List.of("[Usuario Key]"),
+                    "classificacoes", List.of("[Tipo de operação]"),
+                    "origens", List.of("[Origem]"),
+                    "destinos", List.of("[Destino]")
             ),
             List.of("[Data Cotação] DESC", "[N° Cotação] DESC"),
             null

@@ -36,14 +36,15 @@ export default function ManifestosKpiGrid({ kpis, isLoading }: ManifestosKpiGrid
         { definition: KpiDictionary.manifestos.custoTotal, label: 'Custo Total', valor: formatarMoeda(kpis.custoTotal), size: 'wide' },
         { definition: KpiDictionary.manifestos.custoPorKg, label: 'Custo/KG', valor: formatarMoeda(kpis.custoPorKg), size: 'compact' },
         { definition: KpiDictionary.manifestos.custoPorKm, label: 'Custo/KM', valor: formatarMoeda(kpis.custoPorKm), size: 'compact' },
+        { definition: KpiDictionary.manifestos.receitaPorKg, label: 'Receita/KG', valor: formatarMoeda(kpis.receitaPorKg ?? 0), size: 'compact' },
         { definition: KpiDictionary.manifestos.receitaPorKm, label: 'Receita/KM', valor: formatarMoeda(kpis.receitaPorKm), size: 'compact' },
       ]
     : [];
 
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-10">
+    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-11">
       {isLoading
-        ? Array.from({ length: 9 }, (_, index) => <KpiSkeleton key={index} />)
+        ? Array.from({ length: 10 }, (_, index) => <KpiSkeleton key={index} />)
         : cards.map((card) => {
           const compact = card.size === 'compact';
           const className = card.size === 'wide'

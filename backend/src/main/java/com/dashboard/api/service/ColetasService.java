@@ -5,9 +5,9 @@ import com.dashboard.api.dto.coletas.ColetaResumoDTO;
 import com.dashboard.api.dto.coletas.ColetasAgingBucketDTO;
 import com.dashboard.api.dto.coletas.ColetasChartsDTO;
 import com.dashboard.api.dto.coletas.ColetasCidadeOrigemDTO;
+import com.dashboard.api.dto.coletas.ColetasHistoricoPerformanceDTO;
 import com.dashboard.api.dto.coletas.ColetasOverviewDTO;
 import com.dashboard.api.dto.coletas.ColetasRegiaoOrigemDTO;
-import com.dashboard.api.dto.coletas.ColetasSlaPorFilialDTO;
 import com.dashboard.api.dto.coletas.ColetasStatusDistribuicaoDTO;
 import com.dashboard.api.dto.coletas.ColetasTrendPointDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
@@ -71,14 +71,14 @@ public class ColetasService {
         contractValidator.validarSolicitacaoNativa();
 
         List<ColetasStatusDistribuicaoDTO> statusDistribuicao = agregadosSqlRepository.buscarStatusDistribuicao(filtro);
-        List<ColetasSlaPorFilialDTO> slaPorFilial = agregadosSqlRepository.buscarSlaPorFilial(filtro);
+        List<ColetasHistoricoPerformanceDTO> historicoPerformance = agregadosSqlRepository.buscarHistoricoPerformance(filtro);
         List<ColetasRegiaoOrigemDTO> regioesOrigem = agregadosSqlRepository.buscarRegioesOrigem(filtro);
         List<ColetasAgingBucketDTO> agingAbertas = agregadosSqlRepository.buscarAgingAbertas(
                 filtro,
                 periodoOffsetDateTimeHelper.hoje()
         );
 
-        return new ColetasChartsDTO(statusDistribuicao, slaPorFilial, regioesOrigem, agingAbertas);
+        return new ColetasChartsDTO(statusDistribuicao, historicoPerformance, regioesOrigem, agingAbertas);
     }
 
     public List<ColetasCidadeOrigemDTO> buscarCidadesPorRegiao(FiltroConsultaDTO filtro, String regiao) {

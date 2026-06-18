@@ -4,9 +4,9 @@ import com.dashboard.api.builder.DashboardExportSqlBuilder;
 import com.dashboard.api.definition.DashboardExportDefinition;
 import com.dashboard.api.dto.coletas.ColetasAgingBucketDTO;
 import com.dashboard.api.dto.coletas.ColetasCidadeOrigemDTO;
+import com.dashboard.api.dto.coletas.ColetasHistoricoPerformanceDTO;
 import com.dashboard.api.dto.coletas.ColetasOverviewDTO;
 import com.dashboard.api.dto.coletas.ColetasRegiaoOrigemDTO;
-import com.dashboard.api.dto.coletas.ColetasSlaPorFilialDTO;
 import com.dashboard.api.dto.coletas.ColetasStatusDistribuicaoDTO;
 import com.dashboard.api.dto.coletas.ColetasTrendPointDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
@@ -167,33 +167,55 @@ public class ColetasAgregadosSqlRepository {
         ));
     }
 
-    public List<ColetasSlaPorFilialDTO> buscarSlaPorFilial(FiltroConsultaDTO filtro) {
+    public List<ColetasHistoricoPerformanceDTO> buscarHistoricoPerformance(FiltroConsultaDTO filtro) {
         DashboardExportSqlBuilder.ExportSql source = source(filtro);
-        String filialSql = "NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), N'')";
         String sql = baseDeduplicadaSql(source) + """
-                SELECT TOP (8)
-                    %s AS filial,
-                    CAST(COALESCE(
-                        SUM(CASE
+                , desempenho AS (
+                    SELECT
+                        CAST([Solicitacao] AS date) AS data_solicitacao,
+                        CASE
                             WHEN [Finalizacao] IS NOT NULL
                              AND [Agendamento] IS NOT NULL
                              AND [Finalizacao] <= [Agendamento]
                             THEN 1 ELSE 0
-                        END) * 100.0 / NULLIF(COUNT(1), 0),
-                        0
-                    ) AS DECIMAL(19,2)) AS sla_pct,
-                    COUNT(1) AS total
-                FROM base_metricas
-                WHERE status_normalizado IN (N'finalizada', N'coletada')
-                  AND %s IS NOT NULL
-                GROUP BY %s
-                ORDER BY sla_pct DESC, filial
-                """.formatted(filialSql, filialSql, filialSql);
+                        END AS no_prazo,
+                        CASE
+                            WHEN [Finalizacao] IS NULL
+                              OR [Agendamento] IS NULL
+                              OR [Finalizacao] > [Agendamento]
+                            THEN 1 ELSE 0
+                        END AS fora_do_prazo
+                    FROM base_metricas
+                    WHERE [Solicitacao] IS NOT NULL
+                      AND status_normalizado IN (N'finalizada', N'coletada')
+                ),
+                agregado AS (
+                    SELECT
+                        data_solicitacao,
+                        COUNT_BIG(1) AS finalizadas,
+                        SUM(no_prazo) AS no_prazo,
+                        SUM(fora_do_prazo) AS fora_do_prazo
+                    FROM desempenho
+                    GROUP BY data_solicitacao
+                )
+                SELECT
+                    data_solicitacao,
+                    CAST(COALESCE(CAST(no_prazo AS FLOAT) * 100.0 / NULLIF(no_prazo + fora_do_prazo, 0), 0) AS DECIMAL(19,2)) AS performance_percentual,
+                    CAST(100.0 AS DECIMAL(19,2)) AS meta_percentual,
+                    finalizadas,
+                    no_prazo,
+                    fora_do_prazo
+                FROM agregado
+                ORDER BY data_solicitacao
+                """;
 
-        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new ColetasSlaPorFilialDTO(
-                rs.getString("filial"),
-                percentual(rs.getBigDecimal("sla_pct")),
-                rs.getInt("total")
+        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new ColetasHistoricoPerformanceDTO(
+                data(rs.getDate("data_solicitacao")),
+                percentual(rs.getBigDecimal("performance_percentual")),
+                percentual(rs.getBigDecimal("meta_percentual")),
+                rs.getLong("finalizadas"),
+                rs.getLong("no_prazo"),
+                rs.getLong("fora_do_prazo")
         ));
     }
 

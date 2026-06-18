@@ -63,13 +63,7 @@ class DashboardExportServiceTest {
     @Test
     void listarUsuariosCotacoesUsaUsuarioKeyComoValorEUsuarioComoLabelPreferencial() {
         CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate();
-        DashboardExportService serviceComJdbc = new DashboardExportService(
-                jdbcTemplate,
-                new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao()),
-                new CsvExportWriter(),
-                new ValidadorPeriodoService(),
-                escopoComAcessoTotal()
-        );
+        DashboardExportService serviceComJdbc = serviceComJdbc(jdbcTemplate);
 
         List<DimensaoOpcaoDTO> usuarios = serviceComJdbc.listarUsuariosCotacoes(filtro());
 
@@ -85,11 +79,70 @@ class DashboardExportServiceTest {
                 .isLessThan(jdbcTemplate.ultimoSql.indexOf("[Solicitante]"));
     }
 
+    @Test
+    void listarClassificacoesCotacoesUsaTipoOperacaoEIgnoraFiltroAtual() {
+        CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate();
+        DashboardExportService serviceComJdbc = serviceComJdbc(jdbcTemplate);
+
+        List<DimensaoOpcaoDTO> opcoes = serviceComJdbc.listarClassificacoesCotacoes(filtroCotacoesComDimensoes());
+
+        assertThat(opcoes).singleElement().satisfies(opcao -> {
+            assertThat(opcao.value()).isNotBlank();
+            assertThat(opcao.label()).isNotBlank();
+        });
+        assertThat(jdbcTemplate.ultimoSql)
+                .contains("[Tipo de operação]")
+                .contains("FROM [vw_cotacoes_powerbi] base")
+                .doesNotContain(":filtro_classificacoes")
+                .contains(":filtro_origens")
+                .contains(":filtro_destinos");
+        assertThat(jdbcTemplate.ultimoParamSource.hasValue("filtro_classificacoes")).isFalse();
+        assertThat(jdbcTemplate.ultimoParamSource.hasValue("filtro_origens")).isTrue();
+        assertThat(jdbcTemplate.ultimoParamSource.hasValue("filtro_destinos")).isTrue();
+    }
+
+    @Test
+    void listarOrigensCotacoesUsaOrigemEIgnoraFiltroAtual() {
+        CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate();
+        DashboardExportService serviceComJdbc = serviceComJdbc(jdbcTemplate);
+
+        serviceComJdbc.listarOrigensCotacoes(filtroCotacoesComDimensoes());
+
+        assertThat(jdbcTemplate.ultimoSql)
+                .contains("[Origem]")
+                .contains("FROM [vw_cotacoes_powerbi] base")
+                .doesNotContain(":filtro_origens")
+                .contains(":filtro_classificacoes")
+                .contains(":filtro_destinos");
+        assertThat(jdbcTemplate.ultimoParamSource.hasValue("filtro_origens")).isFalse();
+        assertThat(jdbcTemplate.ultimoParamSource.hasValue("filtro_classificacoes")).isTrue();
+        assertThat(jdbcTemplate.ultimoParamSource.hasValue("filtro_destinos")).isTrue();
+    }
+
+    @Test
+    void listarDestinosCotacoesUsaDestinoEIgnoraFiltroAtual() {
+        CapturandoJdbcTemplate jdbcTemplate = new CapturandoJdbcTemplate();
+        DashboardExportService serviceComJdbc = serviceComJdbc(jdbcTemplate);
+
+        serviceComJdbc.listarDestinosCotacoes(filtroCotacoesComDimensoes());
+
+        assertThat(jdbcTemplate.ultimoSql)
+                .contains("[Destino]")
+                .contains("FROM [vw_cotacoes_powerbi] base")
+                .doesNotContain(":filtro_destinos")
+                .contains(":filtro_classificacoes")
+                .contains(":filtro_origens");
+        assertThat(jdbcTemplate.ultimoParamSource.hasValue("filtro_destinos")).isFalse();
+        assertThat(jdbcTemplate.ultimoParamSource.hasValue("filtro_classificacoes")).isTrue();
+        assertThat(jdbcTemplate.ultimoParamSource.hasValue("filtro_origens")).isTrue();
+    }
+
     private record LinhaCsv(String filial, int total) {
     }
 
     private static final class CapturandoJdbcTemplate extends NamedParameterJdbcTemplate {
         private String ultimoSql;
+        private SqlParameterSource ultimoParamSource;
 
         private CapturandoJdbcTemplate() {
             super(new JdbcTemplate());
@@ -99,6 +152,7 @@ class DashboardExportServiceTest {
         @SuppressWarnings("unchecked")
         public <T> List<T> query(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper) {
             this.ultimoSql = sql;
+            this.ultimoParamSource = paramSource;
             return (List<T>) List.of(new DimensaoOpcaoDTO(
                     "gabriele souza - comercial (mtz)",
                     "Gabriele Souza - Comercial (MTZ)"
@@ -106,8 +160,30 @@ class DashboardExportServiceTest {
         }
     }
 
+    private static DashboardExportService serviceComJdbc(CapturandoJdbcTemplate jdbcTemplate) {
+        return new DashboardExportService(
+                jdbcTemplate,
+                new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao()),
+                new CsvExportWriter(),
+                new ValidadorPeriodoService(),
+                escopoComAcessoTotal()
+        );
+    }
+
     private static FiltroConsultaDTO filtro() {
         return new FiltroConsultaDTO(LocalDate.of(2026, 3, 17), LocalDate.of(2026, 4, 16), Map.of());
+    }
+
+    private static FiltroConsultaDTO filtroCotacoesComDimensoes() {
+        return new FiltroConsultaDTO(
+                LocalDate.of(2026, 3, 17),
+                LocalDate.of(2026, 4, 16),
+                Map.of(
+                        "classificacoes", List.of("FTL"),
+                        "origens", List.of("Guarulhos - SP"),
+                        "destinos", List.of("Recife - PE")
+                )
+        );
     }
 
     private static EscopoFilialService escopoComAcessoTotal() {

@@ -1000,7 +1000,7 @@ public class DashboardExportSqlBuilder {
                     List.of("[Filial Destino]", "[Região Destino]")
             );
             case MANIFESTOS -> new TableFilterColumns(
-                    List.of("[Motorista]", "[Veículo/Placa]", "[Status]"),
+                    List.of("[Motorista]", "[Veículo/Placa]", "[Status]", "[Classificação]"),
                     List.of("[Número]", "[Identificador Único]"),
                     List.of("[Veículo/Placa]"),
                     List.of("[Status]"),
@@ -1086,6 +1086,7 @@ public class DashboardExportSqlBuilder {
             case MANIFESTOS -> {
                 put(colunas, "numero", codigo("[Número]"));
                 put(colunas, "status", status("[Status]"));
+                put(colunas, "classificacao", texto("[Classificação]"));
                 put(colunas, "filial", texto("[Filial]"));
                 put(colunas, "motorista", texto("[Motorista]"));
                 put(colunas, "veiculoPlaca", codigo("[Veículo/Placa]"));

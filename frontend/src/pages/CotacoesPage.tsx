@@ -18,7 +18,14 @@ import { exportarCotacoesCsv } from '../api/endpoints/cotacoesServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
-import { useClientes, useCotacoesUsuarios, useFiliais } from '../hooks/queries/useDimensoes';
+import {
+  useClientes,
+  useCotacoesClassificacoes,
+  useCotacoesDestinos,
+  useCotacoesOrigens,
+  useCotacoesUsuarios,
+  useFiliais,
+} from '../hooks/queries/useDimensoes';
 import {
   useCotacoesGraficos,
   useCotacoesOverview,
@@ -1032,7 +1039,20 @@ export default function CotacoesPage() {
     clientes: filtros.clientes,
     statusConversao: filtros.statusConversao,
     usuarios: filtros.usuarios,
-  }), [dataFim, dataInicio, filtros.clientes, filtros.filiais, filtros.statusConversao, filtros.usuarios]);
+    classificacoes: filtros.classificacoes,
+    origens: filtros.origens,
+    destinos: filtros.destinos,
+  }), [
+    dataFim,
+    dataInicio,
+    filtros.classificacoes,
+    filtros.clientes,
+    filtros.destinos,
+    filtros.filiais,
+    filtros.origens,
+    filtros.statusConversao,
+    filtros.usuarios,
+  ]);
 
   const conversionFiltro: CotacoesFiltro = useMemo(() => ({
     dataInicio: primeiroDiaMesesAtrasLocal(conversionPeriodoMeses - 1),
@@ -1041,15 +1061,33 @@ export default function CotacoesPage() {
     clientes: filtros.clientes,
     statusConversao: filtros.statusConversao,
     usuarios: filtros.usuarios,
-  }), [conversionPeriodoMeses, filtros.clientes, filtros.filiais, filtros.statusConversao, filtros.usuarios]);
+    classificacoes: filtros.classificacoes,
+    origens: filtros.origens,
+    destinos: filtros.destinos,
+  }), [
+    conversionPeriodoMeses,
+    filtros.classificacoes,
+    filtros.clientes,
+    filtros.destinos,
+    filtros.filiais,
+    filtros.origens,
+    filtros.statusConversao,
+    filtros.usuarios,
+  ]);
 
   const usuariosCotacoes = useCotacoesUsuarios(filtro);
+  const classificacoesCotacoes = useCotacoesClassificacoes(filtro);
+  const origensCotacoes = useCotacoesOrigens(filtro);
+  const destinosCotacoes = useCotacoesDestinos(filtro);
 
   const activeFilters: ActiveFilter[] = [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
     { label: 'Clientes', count: filtros.clientes?.length ?? 0, onRemove: () => setFiltro('clientes', []) },
     { label: 'Status', count: filtros.statusConversao?.length ?? 0, onRemove: () => setFiltro('statusConversao', []) },
     { label: 'Usuário', count: filtros.usuarios?.length ?? 0, onRemove: () => setFiltro('usuarios', []) },
+    { label: 'Classificação', count: filtros.classificacoes?.length ?? 0, onRemove: () => setFiltro('classificacoes', []) },
+    { label: 'Origem', count: filtros.origens?.length ?? 0, onRemove: () => setFiltro('origens', []) },
+    { label: 'Destino', count: filtros.destinos?.length ?? 0, onRemove: () => setFiltro('destinos', []) },
   ];
 
   const overview = useCotacoesOverview(filtro);
@@ -1157,6 +1195,9 @@ export default function CotacoesPage() {
         <AsyncMultiSelect label="Filiais" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />
         <AsyncMultiSelect label="Clientes" opcoes={clientes.data ?? []} selecionados={filtros.clientes ?? []} onChange={(valores) => setFiltro('clientes', valores)} isLoading={clientes.isLoading} />
         <AsyncMultiSelect label="Status" opcoes={['Convertida', 'Reprovada', 'Pendente']} selecionados={filtros.statusConversao ?? []} onChange={(valores) => setFiltro('statusConversao', valores)} />
+        <AsyncMultiSelect label="Classificação" opcoes={classificacoesCotacoes.data ?? []} selecionados={filtros.classificacoes ?? []} onChange={(valores) => setFiltro('classificacoes', valores)} isLoading={classificacoesCotacoes.isLoading} />
+        <AsyncMultiSelect label="Cidade Origem" opcoes={origensCotacoes.data ?? []} selecionados={filtros.origens ?? []} onChange={(valores) => setFiltro('origens', valores)} isLoading={origensCotacoes.isLoading} />
+        <AsyncMultiSelect label="Cidade Destino" opcoes={destinosCotacoes.data ?? []} selecionados={filtros.destinos ?? []} onChange={(valores) => setFiltro('destinos', valores)} isLoading={destinosCotacoes.isLoading} />
         <AsyncMultiSelect label="Usuário" opcoes={usuariosCotacoes.data ?? []} selecionados={filtros.usuarios ?? []} onChange={(valores) => setFiltro('usuarios', valores)} isLoading={usuariosCotacoes.isLoading} />
       </FilterBar>
 

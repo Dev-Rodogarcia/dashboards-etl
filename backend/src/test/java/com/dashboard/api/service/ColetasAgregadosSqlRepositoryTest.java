@@ -124,7 +124,7 @@ class ColetasAgregadosSqlRepositoryTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void buscarSlaPorFilialDeveAgruparFinalizadasPorFilialNoSql() {
+    void buscarSerieTemporalDevePreservarSerieDeVolumeNoSql() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of());
 
@@ -134,7 +134,7 @@ class ColetasAgregadosSqlRepositoryTest {
                 escopoSemRestricao()
         );
 
-        repository.buscarSlaPorFilial(
+        repository.buscarSerieTemporal(
                 new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
         );
 
@@ -142,10 +142,44 @@ class ColetasAgregadosSqlRepositoryTest {
         verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
 
         assertThat(sqlCaptor.getValue())
-                .contains("SELECT TOP (8)")
-                .contains("WHERE status_normalizado IN (N'finalizada', N'coletada')")
-                .contains("GROUP BY NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), N'')")
-                .contains("ORDER BY sla_pct DESC, filial")
+                .contains("COUNT(1) AS total_coletas")
+                .contains("SUM(CASE WHEN status_normalizado IN (N'finalizada', N'coletada') THEN 1 ELSE 0 END) AS finalizadas")
+                .contains("GROUP BY data_solicitacao")
+                .doesNotContain("performance_percentual")
+                .doesNotContain("meta_percentual")
+                .doesNotContain("TRY_CONVERT(date, [Solicitacao])");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void buscarHistoricoPerformanceDeveAgruparPorDataSolicitacaoNoSql() {
+        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(List.of());
+
+        ColetasAgregadosSqlRepository repository = new ColetasAgregadosSqlRepository(
+                jdbcTemplate,
+                new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao()),
+                escopoSemRestricao()
+        );
+
+        repository.buscarHistoricoPerformance(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of())
+        );
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
+
+        assertThat(sqlCaptor.getValue())
+                .contains("CAST([Solicitacao] AS date) AS data_solicitacao")
+                .contains("status_normalizado IN (N'finalizada', N'coletada')")
+                .contains("SUM(no_prazo) AS no_prazo")
+                .contains("SUM(fora_do_prazo) AS fora_do_prazo")
+                .contains("CAST(COALESCE(CAST(no_prazo AS FLOAT) * 100.0 / NULLIF(no_prazo + fora_do_prazo, 0), 0) AS DECIMAL(19,2)) AS performance_percentual")
+                .contains("CAST(100.0 AS DECIMAL(19,2)) AS meta_percentual")
+                .contains("GROUP BY data_solicitacao")
+                .contains("ORDER BY data_solicitacao")
+                .doesNotContain("SELECT TOP (8)")
+                .doesNotContain("GROUP BY NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), N'')")
                 .doesNotContain("TRY_CONVERT(date, [Solicitacao])");
     }
 
