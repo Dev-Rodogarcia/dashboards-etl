@@ -49,7 +49,7 @@ export const chartDictionary = {
     calculoTecnico:
       "COUNT(1); SUM(CASE WHEN status_normalizado IN (N'finalizada', N'coletada') THEN 1 ELSE 0 END); SUM(CASE WHEN status_normalizado = N'cancelada' THEN 1 ELSE 0 END); SUM(CASE WHEN status_normalizado = N'em tratativa' THEN 1 ELSE 0 END)",
     calculoNegocio:
-      'Conta cada coleta deduplicada do dia e distribui esse total pelas situações operacionais, permitindo enxergar demanda, conclusão, cancelamento e pendência na mesma linha do tempo.',
+      'Conta cada coleta deduplicada do dia e distribui esse total pelas situações operacionais, permitindo enxergar demanda, conclusão, cancelamento e pendência na mesma linha do tempo. O gráfico inclui uma linha tracejada de marcação dinâmica (markLine) que exibe a média aritmética do total de coletas do período selecionado.',
     agrupamento: 'GROUP BY data_solicitacao',
   },
   coletasStatus: {

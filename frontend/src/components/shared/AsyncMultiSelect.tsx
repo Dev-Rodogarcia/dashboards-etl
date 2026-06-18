@@ -1,4 +1,5 @@
 import { useId, useMemo, useState } from 'react';
+import { Check, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
 export interface AsyncMultiSelectOpcao {
@@ -83,6 +84,16 @@ export default function AsyncMultiSelect({
     ));
   }, [busca, opcoesEfetivas]);
 
+  const valoresDisponiveis = useMemo(() => opcoesFiltradas.map((opcao) => opcao.value), [opcoesFiltradas]);
+  const temOpcoesDisponiveis = valoresDisponiveis.length > 0;
+  const todasDisponiveisSelecionadas = temOpcoesDisponiveis
+    && valoresDisponiveis.every((valor) => selecionados.includes(valor));
+
+  function selecionarTodosDisponiveis() {
+    if (!temOpcoesDisponiveis || todasDisponiveisSelecionadas) return;
+    onChange(Array.from(new Set([...selecionados, ...valoresDisponiveis])));
+  }
+
   function alternar(valor: string) {
     const proximos = selecionados.includes(valor)
       ? selecionados.filter((v) => v !== valor)
@@ -158,25 +169,50 @@ export default function AsyncMultiSelect({
         />
 
         {/* Linha de controle */}
-        <div className="mb-2 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={limparSelecao}
-            className="cursor-pointer text-xs font-medium transition-opacity hover:opacity-70 active:scale-95"
-            style={{ color: 'var(--color-primary)' }}
-          >
-            Limpar seleção
-          </button>
-          {isLoading && (
-            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              Carregando…
-            </span>
-          )}
-          {!isLoading && temSelecao && (
-            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {selecionados.length} selecionado(s)
-            </span>
-          )}
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={selecionarTodosDisponiveis}
+              disabled={!temOpcoesDisponiveis || todasDisponiveisSelecionadas}
+              className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[11px] font-medium
+                         transition-all hover:opacity-80 active:scale-95 disabled:cursor-not-allowed
+                         disabled:opacity-45 disabled:active:scale-100"
+              style={{
+                backgroundColor: 'rgba(33, 71, 138, 0.08)',
+                borderColor: 'rgba(33, 71, 138, 0.24)',
+                color: 'var(--color-primary)',
+              }}
+            >
+              <Check size={13} aria-hidden="true" />
+              <span>Selecionar todos</span>
+            </button>
+            <button
+              type="button"
+              onClick={limparSelecao}
+              disabled={!temSelecao}
+              className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[11px] font-medium
+                         transition-all hover:bg-[var(--color-bg)] hover:opacity-80 active:scale-95
+                         disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+            >
+              <X size={13} aria-hidden="true" />
+              <span>Desmarcar todos</span>
+            </button>
+          </div>
+
+          <div className="min-h-4">
+            {isLoading && (
+              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                Carregando…
+              </span>
+            )}
+            {!isLoading && temSelecao && (
+              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                {selecionados.length} selecionado(s)
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Lista */}

@@ -198,8 +198,11 @@ export default function ColetasPage() {
       yAxis: { type: 'value' },
       series: [{
         type: 'bar',
-        data: statusData.map((item) => item.total),
-        itemStyle: { color: tokens.palette[0] },
+        data: statusData.map((item, index) => ({
+          name: item.status,
+          value: item.total,
+          itemStyle: { color: tokens.palette[index % tokens.palette.length] },
+        })),
       }],
     });
   }, [isDark, statusData]);
@@ -485,6 +488,7 @@ export default function ColetasPage() {
 
   const agingOption: EChartsOption = useMemo(() => {
     const tokens = getEchartsThemeTokens(isDark);
+    const agingColors = [tokens.palette[2], tokens.palette[8], tokens.palette[1], tokens.palette[3]];
 
     return buildBaseBarOption(isDark, {
       grid: { top: 22, right: 18, bottom: 32, left: 34, containLabel: true },
@@ -492,9 +496,12 @@ export default function ColetasPage() {
       yAxis: { type: 'value' },
       series: [{
         type: 'bar',
-        data: aging.map((item) => item.total),
+        data: aging.map((item, index) => ({
+          name: item.faixa,
+          value: item.total,
+          itemStyle: { color: agingColors[index % agingColors.length] },
+        })),
         barMaxWidth: 72,
-        itemStyle: { color: tokens.palette[8] },
       }],
     });
   }, [aging, isDark]);

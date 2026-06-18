@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Funnel, Loader2, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Check, Funnel, Loader2, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import type { ColunaTabela } from './DataTable';
 import TableHeaderTooltip from './TableHeaderTooltip';
@@ -161,6 +161,14 @@ function MultiSelectFilter({
 }) {
   const labelId = useId();
   const opcoesEfetivas = uniqueOptions([...opcoes, ...selecionados]);
+  const temOpcoesDisponiveis = opcoesEfetivas.length > 0;
+  const todasOpcoesSelecionadas = temOpcoesDisponiveis
+    && opcoesEfetivas.every((opcao) => selecionados.includes(opcao));
+
+  function selecionarTodos() {
+    if (!temOpcoesDisponiveis || todasOpcoesSelecionadas) return;
+    onChange(Array.from(new Set([...selecionados, ...opcoesEfetivas])));
+  }
 
   return (
     <Popover>
@@ -189,13 +197,45 @@ function MultiSelectFilter({
           <span className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>
             {label}
           </span>
+          {isLoading && (
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              Carregando...
+            </span>
+          )}
+          {!isLoading && selecionados.length > 0 && (
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              {selecionados.length} selecionado(s)
+            </span>
+          )}
+        </div>
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={selecionarTodos}
+            disabled={!temOpcoesDisponiveis || todasOpcoesSelecionadas}
+            className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[11px] font-medium
+                       transition-all hover:opacity-80 active:scale-95 disabled:cursor-not-allowed
+                       disabled:opacity-45 disabled:active:scale-100"
+            style={{
+              backgroundColor: 'rgba(33, 71, 138, 0.08)',
+              borderColor: 'rgba(33, 71, 138, 0.24)',
+              color: 'var(--color-primary)',
+            }}
+          >
+            <Check size={13} aria-hidden="true" />
+            <span>Selecionar todos</span>
+          </button>
           <button
             type="button"
             onClick={() => onChange([])}
-            className="text-xs font-medium transition-opacity hover:opacity-70"
-            style={{ color: 'var(--color-primary)' }}
+            disabled={selecionados.length === 0}
+            className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[11px] font-medium
+                       transition-all hover:bg-[var(--color-bg)] hover:opacity-80 active:scale-95
+                       disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100"
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
           >
-            Limpar
+            <X size={13} aria-hidden="true" />
+            <span>Desmarcar todos</span>
           </button>
         </div>
         <div className="max-h-56 space-y-0.5 overflow-y-auto">

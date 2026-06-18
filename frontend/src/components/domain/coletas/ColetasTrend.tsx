@@ -4,7 +4,7 @@ import ChartWrapper from '../../charts/ChartWrapper';
 import { useEchartsTheme } from '../../charts/useEchartsTheme';
 import type { ColetasTrendPoint } from '../../../types/coletas';
 import { buildBaseLineOption, getEchartsThemeTokens } from '../../../utils/echartsBuilders';
-import { formatarDataCurta } from '../../../utils/formatadores';
+import { formatarDataCurta, formatarNumero } from '../../../utils/formatadores';
 
 interface ColetasTrendProps {
   dados: ColetasTrendPoint[];
@@ -16,10 +16,20 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
 
   const option: EChartsOption = useMemo(() => {
     const tokens = getEchartsThemeTokens(isDark);
+    const totalColetas = dados.reduce((acc, item) => acc + item.total, 0);
+    const mediaTotal = dados.length > 0 ? totalColetas / dados.length : 0;
+    const mediaTotalFormatada = formatarNumero(mediaTotal, Number.isInteger(mediaTotal) ? 0 : 1);
 
     return buildBaseLineOption(isDark, {
+      legend: {
+        formatter: (name: string) => (name === 'Média do período' ? `${name}: ${mediaTotalFormatada}` : name),
+      },
       tooltip: {
         trigger: 'axis',
+      },
+      grid: {
+        left: 26,
+        right: 26,
       },
       xAxis: {
         type: 'category' as const,
@@ -39,6 +49,13 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
           symbol: 'circle',
           symbolSize: 5,
           smooth: true,
+          markLine: {
+            silent: true,
+            symbol: 'none',
+            data: [{ type: 'average', name: 'Média do período' }],
+            lineStyle: { width: 2, type: 'dashed', color: tokens.mutedTextColor, opacity: 0.38 },
+            label: { show: false },
+          },
         },
         {
           name: 'Finalizadas',
@@ -69,6 +86,17 @@ export default function ColetasTrend({ dados, isLoading }: ColetasTrendProps) {
           symbol: 'circle',
           symbolSize: 5,
           smooth: true,
+        },
+        {
+          name: 'Média do período',
+          type: 'line' as const,
+          data: [],
+          itemStyle: { color: tokens.mutedTextColor, opacity: 0.38 },
+          lineStyle: { width: 2, type: 'dashed', color: tokens.mutedTextColor, opacity: 0.38 },
+          symbol: 'none',
+          smooth: false,
+          silent: true,
+          z: 1,
         },
       ],
     });

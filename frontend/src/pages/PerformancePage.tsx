@@ -396,6 +396,7 @@ function buildDrilldownOption(dados: PerformanceDrilldownPoint[], nivel: Perform
 function buildAgingOption(dados: PerformanceAgingPoint[], isDark: boolean): EChartsOption {
   const tokens = getEchartsThemeTokens(isDark);
   const ordem = ['0-2 dias', '3-5 dias', '6-10 dias', '11+ dias'];
+  const agingColors = [tokens.palette[2], tokens.palette[8], tokens.palette[1], tokens.palette[3]];
   const porBucket = new Map(dados.map((item) => [item.bucket, item.total]));
   return buildBaseBarOption(isDark, {
     grid: { top: 24, right: 18, bottom: 32, left: 34, containLabel: true },
@@ -405,8 +406,11 @@ function buildAgingOption(dados: PerformanceAgingPoint[], isDark: boolean): ECha
     series: [
       {
         type: 'bar',
-        data: ordem.map((bucket) => porBucket.get(bucket) ?? 0),
-        itemStyle: { color: tokens.palette[1] },
+        data: ordem.map((bucket, index) => ({
+          name: bucket,
+          value: porBucket.get(bucket) ?? 0,
+          itemStyle: { color: agingColors[index % agingColors.length] },
+        })),
       },
     ],
   });
