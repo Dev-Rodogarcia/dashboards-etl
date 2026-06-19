@@ -8,7 +8,7 @@ public enum DashboardExportDefinition {
     COLETAS(
             "coletas",
             "coletas",
-            "[vw_coletas_powerbi]",
+            coletasProjection(),
             DateMode.NATIVE_LOCAL_DATE,
             "[Solicitacao]",
             List.of("[Filial]"),
@@ -240,6 +240,23 @@ public enum DashboardExportDefinition {
 
     public boolean temFiltroStatusProcesso() {
         return this == FATURAS_POR_CLIENTE;
+    }
+
+    private static String coletasProjection() {
+        return """
+                (
+                    SELECT
+                        coletas_base.*,
+                        CASE
+                            WHEN coletas_base.[Solicitacao] IS NULL THEN NULL
+                            WHEN LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), coletas_base.[Status])))) IN (N'finalizada', N'coletada', N'cancelada')
+                             AND coletas_base.[Finalizacao] IS NOT NULL
+                                THEN DATEDIFF(day, coletas_base.[Solicitacao], coletas_base.[Finalizacao])
+                            ELSE DATEDIFF(day, coletas_base.[Solicitacao], CONVERT(date, GETDATE()))
+                        END AS [Dias em Aberto]
+                    FROM [vw_coletas_powerbi] coletas_base
+                )
+                """;
     }
 
     private static String trackingProjection() {

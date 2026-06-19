@@ -4,6 +4,7 @@ export interface ColetaResumoRow {
   solicitacao: string | null;
   agendamento: string | null;
   finalizacao: string | null;
+  diasEmAberto: number | null;
   status: string;
   volumes: number | null;
   pesoTaxado: number;

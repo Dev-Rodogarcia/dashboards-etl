@@ -996,7 +996,7 @@ public class DashboardExportSqlBuilder {
         return switch (definition) {
             case COLETAS -> new TableFilterColumns(
                     List.of("[Cliente]", "[Cidade]", "[UF]", "[Região da Coleta]", "[Status]"),
-                    List.of("[ID]", "[Coleta]", "[Numero Manifesto]"),
+                    List.of("[Coleta]", "[Numero Manifesto]"),
                     List.of(),
                     List.of("[Status]"),
                     List.of("[Cliente]"),
@@ -1066,9 +1066,9 @@ public class DashboardExportSqlBuilder {
 
         switch (definition) {
             case COLETAS -> {
-                put(colunas, "id", codigo("[ID]"));
                 put(colunas, "coleta", codigo("[Coleta]"));
                 put(colunas, "solicitacao", data("[Solicitacao]"));
+                put(colunas, "diasEmAberto", numero("[Dias em Aberto]"));
                 put(colunas, "status", status("[Status]"));
                 put(colunas, "filial", texto("[Filial]"));
                 put(colunas, "cliente", texto("[Cliente]"));

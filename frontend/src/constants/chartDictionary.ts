@@ -114,7 +114,7 @@ export const chartDictionary = {
     descricao: 'Compara o custo total dos manifestos por tipo de contrato para apoiar leitura de concentração e eficiência contratual.',
     calculoTecnico: 'COALESCE(SUM(custo_total), 0)',
     calculoNegocio:
-      'Soma o custo dos manifestos dentro de cada tipo de contrato, mostrando quais modalidades concentram maior desembolso operacional. Veículos de propriedade da DALGA e LM Transportes são reclassificados como Frota + PX. Casos sem motorista informado recebem fallback para Terceiro ou Frota + PX dependendo da tração.',
+      'Soma o custo dos manifestos dentro de cada tipo de contrato, mostrando quais modalidades concentram maior desembolso operacional. Veículos de propriedade da LM Transportes são reclassificados como Frota + PX. Casos sem motorista informado recebem fallback para Terceiro ou Frota + PX dependendo da tração.',
     agrupamento: 'GROUP BY tipo_contrato',
   },
   manifestosTiposVeiculo: {

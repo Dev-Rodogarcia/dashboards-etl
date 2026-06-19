@@ -507,9 +507,9 @@ export default function ColetasPage() {
   }, [aging, isDark]);
 
   const colunas: ColunaTabelaAnalitica<ColetaResumoRow>[] = useMemo(() => [
-    { chave: 'id', label: 'ID', fixo: true, filtroTabela: 'codigo' },
-    { chave: 'coleta', label: 'Coleta' },
+    { chave: 'coleta', label: 'Coleta', fixo: true, filtroTabela: 'codigo' },
     { chave: 'solicitacao', label: 'Solicitação' },
+    { chave: 'diasEmAberto', label: 'Dias em Aberto', formato: (valor) => (valor == null ? '—' : Number(valor).toLocaleString('pt-BR')) },
     { chave: 'status', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
     { chave: 'filial', label: 'Filial' },
     { chave: 'cliente', label: 'Cliente', largura: '220px', filtroTabela: 'razaoSocial' },

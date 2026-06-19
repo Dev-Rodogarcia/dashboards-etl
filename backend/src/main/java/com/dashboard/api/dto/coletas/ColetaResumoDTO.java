@@ -8,6 +8,7 @@ public record ColetaResumoDTO(
         String solicitacao,
         String agendamento,
         String finalizacao,
+        Integer diasEmAberto,
         String status,
         Integer volumes,
         BigDecimal pesoTaxado,

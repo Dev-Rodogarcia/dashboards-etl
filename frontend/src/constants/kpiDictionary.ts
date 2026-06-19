@@ -19,7 +19,7 @@ const periodoManifestos =
   'O período considera a competência operacional do manifesto: data de saída; quando a saída não existe, usa a data de criação.';
 
 const regraTipoContratoManifestos =
-  'Veículos de propriedade da DALGA e LM Transportes são reclassificados como Frota + PX. Casos sem motorista informado recebem fallback para Terceiro ou Frota + PX dependendo da tração.';
+  'Veículos de propriedade da LM Transportes são reclassificados como Frota + PX. Casos sem motorista informado recebem fallback para Terceiro ou Frota + PX dependendo da tração.';
 
 const periodoPerformance =
   'O período considera a previsão de entrega. Cada minuta aparece uma única vez, priorizando o registro finalizado e mais recente.';

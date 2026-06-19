@@ -269,6 +269,7 @@ public class DashboardTabelaPaginadaService {
                 texto(row, "Solicitacao"),
                 texto(row, "Agendamento"),
                 texto(row, "Finalizacao"),
+                inteiro(row, "Dias em Aberto"),
                 texto(row, "Status"),
                 inteiro(row, "Volumes"),
                 decimal(row, "Peso Taxado"),
