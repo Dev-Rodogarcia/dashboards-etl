@@ -1,8 +1,8 @@
 SET NOCOUNT ON;
 
-IF DB_NAME() <> N'DASHBOARDS'
+IF DB_NAME() IN (N'ETL_SISTEMA', N'SATELITE_TMS_AUDITORIA', N'master', N'model', N'msdb', N'tempdb')
 BEGIN
-    THROW 51120, 'Execute esta validacao conectado ao banco DASHBOARDS.', 1;
+    THROW 51120, 'Execute esta validacao conectado ao banco proprio do Dashboard.', 1;
 END;
 
 IF COL_LENGTH(N'acesso.usuarios', N'escopo_filiais_tipo') IS NULL

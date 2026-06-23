@@ -786,6 +786,33 @@ export const KpiDictionary = {
     },
   },
 
+  integracoes: {
+    vedacitXml: {
+      titulo: 'VEDACIT XML',
+      descricao: 'Percentual de registros Vedacit com XML enviado com sucesso.',
+      calculo: 'Registros Vedacit com status de dados SUCESSO ÷ Total de registros Vedacit × 100.',
+      observacao:
+        'Indicador calculado pelo microsserviço Satélite a partir da auditoria de integração. ' +
+        percentualSemBase,
+    },
+    vedacitComprovante: {
+      titulo: 'VEDACIT Comprovante',
+      descricao: 'Percentual de registros Vedacit com comprovante enviado com sucesso.',
+      calculo: 'Registros Vedacit com status de canhoto SUCESSO ÷ Total de registros Vedacit × 100.',
+      observacao:
+        'Indicador calculado pelo microsserviço Satélite a partir da auditoria de integração. ' +
+        percentualSemBase,
+    },
+    ppgComprovante: {
+      titulo: 'PPG Comprovante',
+      descricao: 'Percentual de registros PPG com comprovante enviado com sucesso.',
+      calculo: 'Registros PPG com status de canhoto SUCESSO ÷ Total de registros PPG × 100.',
+      observacao:
+        'Indicador calculado pelo microsserviço Satélite a partir da auditoria de integração. ' +
+        percentualSemBase,
+    },
+  },
+
   gestaoAVista: {
     resumo: {
       performanceFretes: {

@@ -1,8 +1,8 @@
 SET NOCOUNT ON;
 
-IF DB_NAME() <> N'DASHBOARDS'
+IF DB_NAME() IN (N'ETL_SISTEMA', N'SATELITE_TMS_AUDITORIA', N'master', N'model', N'msdb', N'tempdb')
 BEGIN
-    THROW 51110, 'Execute este preflight conectado ao banco DASHBOARDS.', 1;
+    THROW 51110, 'Execute este preflight conectado ao banco proprio do Dashboard.', 1;
 END;
 
 SELECT

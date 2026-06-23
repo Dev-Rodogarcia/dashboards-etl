@@ -1,5 +1,8 @@
 app:
   environment: dev
+  integration:
+    satelite:
+      url: ${APP_INTEGRATION_SATELITE_URL:http://localhost:8080}
 
 spring:
   sql:

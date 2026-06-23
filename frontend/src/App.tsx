@@ -21,6 +21,7 @@ const CotacoesPage = lazy(() => import('./pages/CotacoesPage'));
 const IndicadoresGestaoAVistaPage = lazy(() => import('./pages/IndicadoresGestaoAVistaPage'));
 const ExecutivoPage = lazy(() => import('./pages/ExecutivoPage'));
 const EtlSaudePage = lazy(() => import('./pages/EtlSaudePage'));
+const IntegracoesPage = lazy(() => import('./pages/IntegracoesPage'));
 const AdminSetoresPage = lazy(() => import('./pages/AdminSetoresPage'));
 const AdminUsuariosPage = lazy(() => import('./pages/AdminUsuariosPage'));
 
@@ -116,6 +117,10 @@ export default function App() {
 
               <Route element={<RotaProtegida permissao="etlSaude" />}>
                 <Route path="/etl-saude" element={<EtlSaudePage />} />
+              </Route>
+
+              <Route element={<RotaProtegida permissao="integracoes" />}>
+                <Route path="/painel/integracoes" element={<IntegracoesPage />} />
               </Route>
 
               <Route element={<RotaProtegida adminOnly />}>

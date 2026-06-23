@@ -34,6 +34,7 @@ export const DASHBOARD_NAV_ITEMS: NavItem[] = [
   { label: 'Indicadores de Gestão à Vista', path: '/indicadores-gestao-a-vista', permission: 'indicadoresGestaoAVista' },
   { label: 'Executivo', path: '/executivo', permission: 'executivo' },
   { label: 'ETL Saúde', path: '/etl-saude', permission: 'etlSaude' },
+  { label: 'Integrações', path: '/painel/integracoes', permission: 'integracoes' },
 ];
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
@@ -54,6 +55,7 @@ export function createEmptyPermissionMap(): PermissionMap {
     indicadoresGestaoAVista: false,
     executivo: false,
     etlSaude: false,
+    integracoes: false,
     dimensoes: false,
     homeComunicados: false,
     can_manage_kpi_goals: false,
@@ -81,6 +83,7 @@ export function createEmptyPermissionOverrideState(): PermissionOverrideStateMap
     indicadoresGestaoAVista: 'inherit',
     executivo: 'inherit',
     etlSaude: 'inherit',
+    integracoes: 'inherit',
     dimensoes: 'inherit',
     homeComunicados: 'inherit',
     can_manage_kpi_goals: 'inherit',

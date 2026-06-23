@@ -46,6 +46,7 @@ const NAV_ICON_BY_PATH: Record<string, ComponentType<{ size?: number; className?
   '/indicadores-gestao-a-vista': BarChart3,
   '/executivo': Activity,
   '/etl-saude': HeartPulse,
+  '/painel/integracoes': Activity,
   '/admin/setores': Building2,
   '/admin/usuarios': UserCog,
 };

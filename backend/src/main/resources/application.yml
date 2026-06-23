@@ -2,6 +2,11 @@ server:
   address: ${SERVER_ADDRESS:127.0.0.1}
   port: ${SERVER_PORT:5010}
 
+app:
+  integration:
+    satelite:
+      url: ${APP_INTEGRATION_SATELITE_URL:http://localhost:8080}
+
 spring:
   application:
     name: dashboard-api

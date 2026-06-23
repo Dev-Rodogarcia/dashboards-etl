@@ -180,6 +180,9 @@ ehthumbs.db
 backend/storage/*
 !backend/storage/access-control.sample.json
 
+# Configuracao local do executor de migrations
+database/config.bat
+
 # Bancos/arquivos locais
 *.db
 *.sqlite

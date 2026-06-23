@@ -139,6 +139,14 @@ const HOME_DASHBOARD_META: Record<string, HomeDashboardMeta> = {
     accent: '#dc2626',
     priority: 98,
   },
+  '/painel/integracoes': {
+    category: 'Operação',
+    description: 'Auditoria de XML e comprovantes enviados para Vedacit e PPG.',
+    keywords: ['integracoes', 'vedacit', 'ppg', 'xml', 'comprovantes', 'auditoria'],
+    Icon: Activity,
+    accent: '#2563eb',
+    priority: 90,
+  },
 };
 
 export function normalizeText(value: string): string {

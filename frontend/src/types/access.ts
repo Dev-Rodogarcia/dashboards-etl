@@ -10,6 +10,7 @@ export const PERMISSION_KEYS = [
   'indicadoresGestaoAVista',
   'executivo',
   'etlSaude',
+  'integracoes',
   'dimensoes',
   'homeComunicados',
   'can_manage_kpi_goals',
