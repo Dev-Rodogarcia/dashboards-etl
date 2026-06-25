@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import AnalyticalDataTable, { type ColunaTabelaAnalitica } from './AnalyticalDataTable';
 
-type Row = { id: number; status: string; cliente: string; valor: number };
+type Row = { id: number; status: string; cliente: string; valor: number; acao?: string };
 
 const colunas: ColunaTabelaAnalitica<Row>[] = [
   { chave: 'id', label: 'ID', fixo: true, filtroTabela: 'codigo' },
@@ -129,5 +129,17 @@ describe('AnalyticalDataTable', () => {
 
     expect(html).toContain('cursor-pointer');
     expect(html).toContain('↓');
+  });
+
+  it('permite coluna de acao sem filtro por coluna', () => {
+    const html = renderTabela({
+      colunas: [
+        ...colunas,
+        { chave: 'acao', label: 'Acao', ordenavel: false, filtravel: false },
+      ],
+    });
+
+    expect(html).toContain('Acao');
+    expect(html).not.toContain('placeholder="Acao"');
   });
 });

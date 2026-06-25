@@ -21,6 +21,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class IntegracaoSateliteClient {
 
     private static final String ROTA_INTEGRACOES_CLIENTES = "/api/auditoria/integracoes-clientes";
+    private static final String ROTA_IMAGEM_LOG = "/api/auditoria/logs/{id}/imagem";
 
     private final RestTemplate restTemplate;
     private final String sateliteBaseUrl;
@@ -52,6 +53,19 @@ public class IntegracaoSateliteClient {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+        return restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+    }
+
+    public ResponseEntity<String> buscarImagemLog(Long id) {
+        URI uri = UriComponentsBuilder
+                .fromUriString(sateliteBaseUrl + ROTA_IMAGEM_LOG)
+                .buildAndExpand(id)
+                .encode()
+                .toUri();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN, MediaType.ALL));
 
         return restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), String.class);
     }

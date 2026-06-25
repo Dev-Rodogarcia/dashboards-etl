@@ -11,6 +11,7 @@ import { getApiErrorMessage, getTipoErro } from '../../utils/apiError';
 
 export type ColunaTabelaAnalitica<T> = ColunaTabela<T> & {
   filtroTabela?: TableFilterField;
+  filtravel?: boolean;
 };
 
 export type SortDirection = 'asc' | 'desc';
@@ -328,6 +329,10 @@ function normalizarValorMulti(valor: TableColumnFilterValue | undefined): string
     return valor;
   }
   return valor ? [valor] : [];
+}
+
+function deveRenderizarFiltroColuna<T>(coluna: ColunaTabelaAnalitica<T>): boolean {
+  return coluna.filtravel !== false;
 }
 
 function AdvancedFiltersContent({
@@ -713,15 +718,19 @@ export default function AnalyticalDataTable<T>({
                     ...getColumnSizingStyle(col.largura),
                   }}
                 >
-                  <ColumnFilterControl
-                    chaveColuna={col.chave}
-                    label={col.label}
-                    isStatus={col.filtroTabela === 'status'}
-                    filtros={filtros}
-                    statusOptions={statusOptionsEfetivas}
-                    statusOptionsLoading={Boolean(statusOptionsLoading)}
-                    onColumnFilterChange={onColumnFilterChange}
-                  />
+                  {deveRenderizarFiltroColuna(col) ? (
+                    <ColumnFilterControl
+                      chaveColuna={col.chave}
+                      label={col.label}
+                      isStatus={col.filtroTabela === 'status'}
+                      filtros={filtros}
+                      statusOptions={statusOptionsEfetivas}
+                      statusOptionsLoading={Boolean(statusOptionsLoading)}
+                      onColumnFilterChange={onColumnFilterChange}
+                    />
+                  ) : (
+                    <span className="block h-8" aria-hidden="true" />
+                  )}
                 </th>
               ))}
             </tr>
