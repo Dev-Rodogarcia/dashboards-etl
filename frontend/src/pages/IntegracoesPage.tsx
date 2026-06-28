@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { isAxiosError } from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { Eye } from 'lucide-react';
 import AnalyticalDataTable, {
@@ -8,11 +7,12 @@ import AnalyticalDataTable, {
 } from '../components/shared/AnalyticalDataTable';
 import CanhotoImagemModal from '../components/domain/integracoes/CanhotoImagemModal';
 import KpiCard from '../components/shared/KpiCard';
+import TooltipKpi from '../components/shared/TooltipKpi';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
 import {
   buscarIntegracoesAuditoria,
-  buscarImagemCanhotoIntegracao,
+  type IntegracoesEscopo,
   type IntegracaoMetricaConsolidada,
   type IntegracaoPendencia,
 } from '../api/endpoints/integracoesServico';
@@ -25,18 +25,17 @@ import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../utils/pollingUtils';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
 const QUERY_KEY = ['integracoes'];
-const QUERY_KEY_IMAGEM_CANHOTO = [...QUERY_KEY, 'imagem-canhoto'];
 const STATUS_PADRAO = ['SUCESSO', 'ERRO_DESTINO', 'PENDENTE_FOTO'];
 const EMPTY_METRICAS: IntegracaoMetricaConsolidada[] = [];
 const EMPTY_PENDENCIAS: IntegracaoPendencia[] = [];
+const ABAS_INTEGRACOES: { valor: IntegracoesEscopo; label: string }[] = [
+  { valor: 'PENDENCIAS', label: 'Pendências' },
+  { valor: 'SUCESSO', label: 'Integrados com Sucesso' },
+];
 
 interface IntegracoesTableSort {
   field: keyof IntegracaoPendencia & string;
   direction: SortDirection;
-}
-
-function buscarMetrica(metricas: IntegracaoMetricaConsolidada[], sistemaDestino: string) {
-  return metricas.find((item) => item.sistemaDestino.toUpperCase() === sistemaDestino);
 }
 
 function formatarPercentual(valor: number | null | undefined) {
@@ -63,9 +62,32 @@ function renderStatus(valor: unknown) {
   return valor ? <StatusBadge status={String(valor)} /> : '-';
 }
 
+function numeroSeguro(valor: unknown) {
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : 0;
+}
+
+function calcularVolumeTotal(metricas: IntegracaoMetricaConsolidada[]) {
+  return metricas.reduce((total, item) => total + numeroSeguro(item.totalRegistros), 0);
+}
+
+function calcularTaxaSucessoIntegracao(metricas: IntegracaoMetricaConsolidada[]) {
+  const volumeTotal = calcularVolumeTotal(metricas);
+  if (volumeTotal <= 0) {
+    return 0;
+  }
+
+  const sucessoPonderado = metricas.reduce(
+    (total, item) => total + numeroSeguro(item.totalRegistros) * numeroSeguro(item.percentualXmlSucesso),
+    0,
+  );
+  return sucessoPonderado / volumeTotal;
+}
+
 function temIndicadorImagem(item: IntegracaoPendencia) {
   return Boolean(
-    item.possuiImagem
+    item.canhotoReferencia?.trim()
+      || item.possuiImagem
       || item.possuiImagemCanhoto
       || item.possuiImagemPayload
       || item.imagemDisponivel,
@@ -73,23 +95,7 @@ function temIndicadorImagem(item: IntegracaoPendencia) {
 }
 
 function podeVisualizarCanhoto(item: IntegracaoPendencia) {
-  return item.sistemaDestino?.trim().toUpperCase() === 'PPG' || temIndicadorImagem(item);
-}
-
-function isNotFoundError(error: unknown) {
-  return isAxiosError(error) && error.response?.status === 404;
-}
-
-async function buscarImagemCanhotoSegura(id: number) {
-  try {
-    return await buscarImagemCanhotoIntegracao(id);
-  } catch (error) {
-    if (isNotFoundError(error)) {
-      return null;
-    }
-
-    throw error;
-  }
+  return temIndicadorImagem(item) && Boolean(item.canhotoReferencia?.trim());
 }
 
 function criarColunas(
@@ -149,9 +155,10 @@ function criarColunas(
 
 export default function IntegracoesPage() {
   const [pendenciaCanhoto, setPendenciaCanhoto] = useState<IntegracaoPendencia | null>(null);
+  const [abaSelecionada, setAbaSelecionada] = useState<IntegracoesEscopo>('PENDENCIAS');
   const [tableSort, setTableSort] = useState<IntegracoesTableSort | null>(null);
   const filtrosTabela = useAnalyticalTableFilters();
-  const paginacaoTabela = useTabelaPaginadaState(filtrosTabela.resetKey);
+  const paginacaoTabela = useTabelaPaginadaState(`${filtrosTabela.resetKey}:${abaSelecionada}`);
 
   const integracoes = useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
@@ -161,6 +168,7 @@ export default function IntegracoesPage() {
       paginacaoTabela.tamanhoPagina,
       filtrosTabela.apiFilters,
       tableSort,
+      abaSelecionada,
     ],
     queryFn: () => buscarIntegracoesAuditoria(
       paginacaoTabela.pagina,
@@ -168,20 +176,19 @@ export default function IntegracoesPage() {
       filtrosTabela.apiFilters,
       tableSort?.field,
       tableSort?.direction,
+      abaSelecionada,
     ),
-    placeholderData: (previousData) => previousData,
     staleTime: 60 * 1000,
     retry: 1,
   });
 
-  const imagemCanhoto = useQuery({
-    queryKey: [...QUERY_KEY_IMAGEM_CANHOTO, pendenciaCanhoto?.id],
-    queryFn: () => (pendenciaCanhoto ? buscarImagemCanhotoSegura(pendenciaCanhoto.id) : Promise.resolve(null)),
-    enabled: Boolean(pendenciaCanhoto),
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-    refetchOnWindowFocus: false,
-    throwOnError: false,
+  const pendenciasResumo = useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
+    queryKey: [...QUERY_KEY, 'pendencias-resumo', filtrosTabela.apiFilters],
+    queryFn: () => buscarIntegracoesAuditoria(1, 1, filtrosTabela.apiFilters, undefined, undefined, 'PENDENCIAS'),
+    enabled: abaSelecionada === 'SUCESSO',
+    staleTime: 60 * 1000,
+    retry: 1,
   });
 
   const abrirCanhoto = useCallback((item: IntegracaoPendencia) => {
@@ -205,9 +212,15 @@ export default function IntegracoesPage() {
   });
 
   const metricas = integracoes.data?.metricasConsolidadas ?? EMPTY_METRICAS;
-  const vedacit = buscarMetrica(metricas, 'VEDACIT');
-  const ppg = buscarMetrica(metricas, 'PPG');
+  const volumeTotal = calcularVolumeTotal(metricas);
+  const taxaSucessoIntegracao = calcularTaxaSucessoIntegracao(metricas);
+  const totalPendencias = abaSelecionada === 'PENDENCIAS'
+    ? integracoes.data?.pendencias.paginacao.totalElementos
+    : pendenciasResumo.data?.pendencias.paginacao.totalElementos;
   const pendencias = integracoes.data?.pendencias.itens ?? EMPTY_PENDENCIAS;
+  const tituloTabela = abaSelecionada === 'PENDENCIAS'
+    ? 'Pendências operacionais'
+    : 'Integrados com sucesso';
 
   const statusOptions = useMemo(
     () => combinarStatusOptions(
@@ -229,34 +242,67 @@ export default function IntegracoesPage() {
       )}
 
       <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-        <KpiCard
-          label="VEDACIT XML"
-          valor={formatarPercentual(vedacit?.percentualXmlSucesso)}
-          tone={tomPercentual(vedacit?.percentualXmlSucesso)}
-          metaLabel="Registros"
-          metaValue={formatarInteiro(vedacit?.totalRegistros)}
-          progressPct={vedacit?.percentualXmlSucesso ?? null}
-        />
-        <KpiCard
-          label="VEDACIT Comprovante"
-          valor={formatarPercentual(vedacit?.percentualCanhotoSucesso)}
-          tone={tomPercentual(vedacit?.percentualCanhotoSucesso)}
-          metaLabel="Registros"
-          metaValue={formatarInteiro(vedacit?.totalRegistros)}
-          progressPct={vedacit?.percentualCanhotoSucesso ?? null}
-        />
-        <KpiCard
-          label="PPG Comprovante"
-          valor={formatarPercentual(ppg?.percentualCanhotoSucesso)}
-          tone={tomPercentual(ppg?.percentualCanhotoSucesso)}
-          metaLabel="Registros"
-          metaValue={formatarInteiro(ppg?.totalRegistros)}
-          progressPct={ppg?.percentualCanhotoSucesso ?? null}
-        />
+        <TooltipKpi kpiName="taxaSucessoIntegracao">
+          <KpiCard
+            label="Volume Total"
+            valor={formatarInteiro(volumeTotal)}
+            metaLabel="Origem"
+            metaValue="Satélite"
+          />
+        </TooltipKpi>
+        <TooltipKpi kpiName="taxaSucessoIntegracao">
+          <KpiCard
+            label="Taxa de Sucesso"
+            valor={formatarPercentual(taxaSucessoIntegracao)}
+            tone={tomPercentual(taxaSucessoIntegracao)}
+            metaLabel="Base"
+            metaValue="XML"
+            progressPct={taxaSucessoIntegracao}
+          />
+        </TooltipKpi>
+        <TooltipKpi kpiName="taxaSucessoIntegracao">
+          <KpiCard
+            label="Pendências"
+            valor={formatarInteiro(totalPendencias)}
+            tone={numeroSeguro(totalPendencias) > 0 ? 'warning' : 'positive'}
+            metaLabel="Escopo"
+            metaValue="PENDENCIAS"
+          />
+        </TooltipKpi>
+      </div>
+
+      <div
+        role="tablist"
+        aria-label="Escopo da auditoria de integrações"
+        className="mb-4 inline-flex max-w-full overflow-hidden rounded-lg border p-1"
+        style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+      >
+        {ABAS_INTEGRACOES.map((aba) => {
+          const ativa = abaSelecionada === aba.valor;
+          return (
+            <button
+              key={aba.valor}
+              type="button"
+              role="tab"
+              aria-selected={ativa}
+              onClick={() => {
+                setAbaSelecionada(aba.valor);
+                setPendenciaCanhoto(null);
+              }}
+              className="min-h-9 min-w-[132px] whitespace-nowrap rounded-md px-3 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+              style={{
+                backgroundColor: ativa ? 'var(--color-primary)' : 'transparent',
+                color: ativa ? 'white' : 'var(--color-text)',
+              }}
+            >
+              {aba.label}
+            </button>
+          );
+        })}
       </div>
 
       <AnalyticalDataTable
-        titulo="Pendências operacionais"
+        titulo={tituloTabela}
         dados={pendencias}
         colunas={colunas}
         chaveLinha="id"
@@ -271,7 +317,7 @@ export default function IntegracoesPage() {
         isLoading={integracoes.isLoading}
         isFetching={integracoes.isFetching}
         error={integracoes.error}
-        errorFallbackMessage="Erro ao carregar pendências operacionais."
+        errorFallbackMessage={`Erro ao carregar ${tituloTabela.toLowerCase()}.`}
         totalRegistros={integracoes.data?.pendencias.paginacao.totalElementos}
         paginaAtual={paginacaoTabela.pagina}
         tamanhoPagina={paginacaoTabela.tamanhoPagina}
@@ -284,9 +330,6 @@ export default function IntegracoesPage() {
 
       <CanhotoImagemModal
         pendencia={pendenciaCanhoto}
-        imagemSrc={imagemCanhoto.data ?? null}
-        isLoading={imagemCanhoto.isLoading}
-        error={imagemCanhoto.error}
         onClose={fecharCanhoto}
       />
     </div>

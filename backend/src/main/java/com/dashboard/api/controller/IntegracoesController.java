@@ -1,6 +1,6 @@
 package com.dashboard.api.controller;
 
-import com.dashboard.api.client.IntegracaoSateliteClient;
+import com.dashboard.api.service.IntegracoesService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,15 +16,18 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize("@acessoSeguranca.podeAcessar('integracoes')")
 public class IntegracoesController {
 
-    private final IntegracaoSateliteClient integracaoSateliteClient;
+    private final IntegracoesService integracoesService;
 
-    public IntegracoesController(IntegracaoSateliteClient integracaoSateliteClient) {
-        this.integracaoSateliteClient = integracaoSateliteClient;
+    public IntegracoesController(IntegracoesService integracoesService) {
+        this.integracoesService = integracoesService;
     }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> consultarIntegracoes(@RequestParam MultiValueMap<String, String> params) {
-        ResponseEntity<String> respostaSatelite = integracaoSateliteClient.buscarIntegracoesClientes(params);
+    public ResponseEntity<String> consultarIntegracoes(
+            @RequestParam String escopo,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        ResponseEntity<String> respostaSatelite = integracoesService.consultarIntegracoes(params, escopo);
 
         return ResponseEntity
                 .status(respostaSatelite.getStatusCode())
@@ -36,7 +39,7 @@ public class IntegracoesController {
 
     @GetMapping(value = "/logs/{id}/imagem", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_PLAIN_VALUE })
     public ResponseEntity<String> consultarImagemCanhoto(@PathVariable Long id) {
-        ResponseEntity<String> respostaSatelite = integracaoSateliteClient.buscarImagemLog(id);
+        ResponseEntity<String> respostaSatelite = integracoesService.consultarImagemCanhoto(id);
 
         return ResponseEntity
                 .status(respostaSatelite.getStatusCode())

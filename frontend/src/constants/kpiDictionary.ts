@@ -787,6 +787,15 @@ export const KpiDictionary = {
   },
 
   integracoes: {
+    taxaSucessoIntegracao: {
+      titulo: 'Taxa de Sucesso da Integração',
+      descricao:
+        'Percentual de registros integrados com sucesso. Reflete o envio consolidado em relação ao volume total no período selecionado.',
+      calculo: 'Registros integrados com sucesso ÷ Volume total de registros × 100.',
+      observacao:
+        'Indicador calculado pelo microsserviço Satélite a partir da auditoria de integração. ' +
+        percentualSemBase,
+    },
     vedacitXml: {
       titulo: 'VEDACIT XML',
       descricao: 'Percentual de registros Vedacit com XML enviado com sucesso.',

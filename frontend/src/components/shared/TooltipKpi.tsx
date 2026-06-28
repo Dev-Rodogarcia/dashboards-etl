@@ -6,19 +6,52 @@ import {
   type FocusEvent,
   type ReactNode,
 } from 'react';
-import type { KpiDefinition } from '../../constants/kpiDictionary';
+import { KpiDictionary, type KpiDefinition } from '../../constants/kpiDictionary';
 import { Popover, PopoverAnchor, PopoverContent } from '../ui/popover';
 import { getKpiFlexBasis } from './kpiCardLayout';
 
 interface TooltipKpiProps {
-  definition: KpiDefinition;
+  definition?: KpiDefinition;
+  kpiName?: string;
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
 }
 
+function isKpiDefinition(value: unknown): value is KpiDefinition {
+  return Boolean(
+    value
+      && typeof value === 'object'
+      && 'titulo' in value
+      && 'descricao' in value
+      && 'calculo' in value,
+  );
+}
+
+function buscarDefinitionPorNome(kpiName: string | undefined): KpiDefinition | null {
+  if (!kpiName) {
+    return null;
+  }
+
+  const integracoesDefinition = (KpiDictionary.integracoes as Record<string, unknown>)[kpiName];
+  if (isKpiDefinition(integracoesDefinition)) {
+    return integracoesDefinition;
+  }
+
+  const definition = kpiName.split('.').reduce<unknown>((atual, segmento) => {
+    if (!atual || typeof atual !== 'object') {
+      return null;
+    }
+
+    return (atual as Record<string, unknown>)[segmento] ?? null;
+  }, KpiDictionary);
+
+  return isKpiDefinition(definition) ? definition : null;
+}
+
 export default function TooltipKpi({
   definition,
+  kpiName,
   children,
   className = '',
   style,
@@ -33,12 +66,17 @@ export default function TooltipKpi({
   const flexBasis = typeof cardValue === 'string'
     ? getKpiFlexBasis(cardValue)
     : 160;
+  const resolvedDefinition = definition ?? buscarDefinitionPorNome(kpiName);
 
   const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
       setIsFocused(false);
     }
   };
+
+  if (!resolvedDefinition) {
+    return <>{children}</>;
+  }
 
   return (
     <Popover
@@ -91,12 +129,12 @@ export default function TooltipKpi({
         }}
       >
         <div>
-          <p className="text-base font-bold leading-snug">{definition.titulo}</p>
+          <p className="text-base font-bold leading-snug">{resolvedDefinition.titulo}</p>
           <p
             className="mt-1.5 text-sm leading-relaxed"
             style={{ color: 'var(--color-text-subtle)' }}
           >
-            {definition.descricao}
+            {resolvedDefinition.descricao}
           </p>
         </div>
 
@@ -108,11 +146,11 @@ export default function TooltipKpi({
             Cálculo
           </p>
           <p className="mt-1.5 text-sm font-semibold leading-relaxed">
-            {definition.calculo.replaceAll('÷', '/')}
+            {resolvedDefinition.calculo.replaceAll('÷', '/')}
           </p>
         </div>
 
-        {definition.observacao && (
+        {resolvedDefinition.observacao && (
           <div
             className="rounded-xl border px-3 py-2.5"
             style={{
@@ -130,7 +168,7 @@ export default function TooltipKpi({
               className="mt-1.5 text-[13px] leading-relaxed"
               style={{ color: 'var(--color-text-subtle)' }}
             >
-              {definition.observacao}
+              {resolvedDefinition.observacao}
             </p>
           </div>
         )}

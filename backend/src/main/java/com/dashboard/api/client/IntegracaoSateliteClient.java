@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
@@ -43,10 +44,16 @@ public class IntegracaoSateliteClient {
                 .build();
     }
 
-    public ResponseEntity<String> buscarIntegracoesClientes(MultiValueMap<String, String> parametros) {
+    public ResponseEntity<String> buscarIntegracoesClientes(MultiValueMap<String, String> parametros, String escopo) {
+        MultiValueMap<String, String> parametrosSatelite = new LinkedMultiValueMap<>();
+        if (parametros != null) {
+            parametrosSatelite.addAll(parametros);
+        }
+        parametrosSatelite.set("escopo", escopo);
+
         URI uri = UriComponentsBuilder
                 .fromUriString(sateliteBaseUrl + ROTA_INTEGRACOES_CLIENTES)
-                .queryParams(parametros)
+                .queryParams(parametrosSatelite)
                 .build()
                 .encode()
                 .toUri();

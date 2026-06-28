@@ -1,15 +1,10 @@
 import { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { IntegracaoPendencia } from '../../../api/endpoints/integracoesServico';
-import MensagemErro from '../../ui/MensagemErro';
-import { getApiErrorMessage, getTipoErro } from '../../../utils/apiError';
 
 interface CanhotoImagemModalProps {
   pendencia: IntegracaoPendencia | null;
-  imagemSrc?: string | null;
-  isLoading: boolean;
-  error?: unknown;
   onClose: () => void;
 }
 
@@ -21,9 +16,6 @@ function formatarIdentificacao(pendencia: IntegracaoPendencia): string {
 
 export default function CanhotoImagemModal({
   pendencia,
-  imagemSrc,
-  isLoading,
-  error,
   onClose,
 }: CanhotoImagemModalProps) {
   const titleId = useId();
@@ -54,8 +46,11 @@ export default function CanhotoImagemModal({
     return null;
   }
 
-  const hasError = Boolean(error);
   const identificacao = formatarIdentificacao(pendencia);
+  const canhotoReferencia = pendencia.canhotoReferencia?.trim() ?? '';
+  const canhotoMimeType = pendencia.canhotoMimeType?.trim().toLowerCase() ?? '';
+  const isPdf = canhotoMimeType === 'application/pdf'
+    || canhotoReferencia.toLowerCase().startsWith('data:application/pdf');
 
   return createPortal(
     <div
@@ -99,39 +94,37 @@ export default function CanhotoImagemModal({
         </header>
 
         <div className="min-h-[180px] overflow-auto p-4 sm:p-5">
-          {isLoading && (
+          {canhotoReferencia && (
             <div className="flex min-h-[180px] items-center justify-center">
-              <span className="inline-flex items-center gap-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                <Loader2 size={18} className="animate-spin" aria-hidden="true" />
-                Carregando canhoto...
-              </span>
+              {isPdf ? (
+                <object
+                  data={canhotoReferencia}
+                  type="application/pdf"
+                  className="min-h-[70vh] w-full rounded-md border bg-white"
+                  style={{ borderColor: 'var(--color-border)' }}
+                  aria-label={`Canhoto ${identificacao}`}
+                >
+                  <a href={canhotoReferencia} target="_blank" rel="noreferrer">
+                    Abrir PDF do canhoto
+                  </a>
+                </object>
+              ) : (
+                <img
+                  src={canhotoReferencia}
+                  alt={`Canhoto ${identificacao}`}
+                  className="block rounded-md border bg-white"
+                  style={{
+                    maxWidth: '100%',
+                    height: 'auto',
+                    objectFit: 'contain',
+                    borderColor: 'var(--color-border)',
+                  }}
+                />
+              )}
             </div>
           )}
 
-          {!isLoading && hasError && (
-            <MensagemErro
-              mensagem={getApiErrorMessage(error, 'Erro ao carregar imagem do canhoto.')}
-              tipo={getTipoErro(error)}
-            />
-          )}
-
-          {!isLoading && !hasError && imagemSrc && (
-            <div className="flex min-h-[180px] items-center justify-center">
-              <img
-                src={imagemSrc}
-                alt={`Canhoto ${identificacao}`}
-                className="block rounded-md border bg-white"
-                style={{
-                  maxWidth: '100%',
-                  height: 'auto',
-                  objectFit: 'contain',
-                  borderColor: 'var(--color-border)',
-                }}
-              />
-            </div>
-          )}
-
-          {!isLoading && !hasError && !imagemSrc && (
+          {!canhotoReferencia && (
             <div
               className="flex min-h-[180px] items-center justify-center rounded-lg border px-4 py-8 text-center text-sm"
               style={{

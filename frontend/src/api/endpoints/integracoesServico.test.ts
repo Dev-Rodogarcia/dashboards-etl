@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import clienteAxios from '../clienteAxios';
-import { buscarIntegracoesAuditoria, normalizarImagemCanhotoSrc } from './integracoesServico';
+import { buscarIntegracoesAuditoria } from './integracoesServico';
 
 vi.mock('../clienteAxios', () => ({
   default: {
@@ -43,7 +43,7 @@ describe('integracoesServico', () => {
         numeroNf: '456',
         statusCanhoto: ['PENDENTE_FOTO'],
       },
-    }, 'numeroNf', 'desc');
+    }, 'numeroNf', 'desc', 'SUCESSO');
 
     expect(clienteMock.get).toHaveBeenCalledWith('/api/painel/integracoes', {
       params: expect.any(URLSearchParams),
@@ -52,6 +52,7 @@ describe('integracoesServico', () => {
     const params = clienteMock.get.mock.calls[0][1].params as URLSearchParams;
     expect(params.get('pagina')).toBe('1');
     expect(params.get('tamanho')).toBe('20');
+    expect(params.get('escopo')).toBe('SUCESSO');
     expect(params.get('sortField')).toBe('numeroNf');
     expect(params.get('sortDirection')).toBe('desc');
     expect(params.get('f.tabelaBusca')).toBe('PPG');
@@ -61,22 +62,10 @@ describe('integracoesServico', () => {
     expect(params.getAll('f.tabelaColuna.statusCanhoto')).toEqual(['PENDENTE_FOTO']);
   });
 
-  it('prefixa base64 puro como imagem jpeg', () => {
-    expect(normalizarImagemCanhotoSrc('YWJj')).toBe('data:image/jpeg;base64,YWJj');
-  });
+  it('usa pendencias como escopo padrao', async () => {
+    await buscarIntegracoesAuditoria(1, 10);
 
-  it('preserva data URI ja normalizada', () => {
-    expect(normalizarImagemCanhotoSrc('data:image/png;base64,YWJj')).toBe('data:image/png;base64,YWJj');
-  });
-
-  it('extrai imagem de payload JSON com mime PPG', () => {
-    expect(normalizarImagemCanhotoSrc({ foto: 'YWJj', mime: 'data:image/jpeg;base64' })).toBe(
-      'data:image/jpeg;base64,YWJj',
-    );
-  });
-
-  it('retorna null para payload vazio', () => {
-    expect(normalizarImagemCanhotoSrc(null)).toBeNull();
-    expect(normalizarImagemCanhotoSrc({ imagemBase64: null })).toBeNull();
+    const params = clienteMock.get.mock.calls[0][1].params as URLSearchParams;
+    expect(params.get('escopo')).toBe('PENDENCIAS');
   });
 });
