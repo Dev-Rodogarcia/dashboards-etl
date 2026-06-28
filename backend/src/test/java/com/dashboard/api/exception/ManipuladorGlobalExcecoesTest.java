@@ -12,6 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.server.ResponseStatusException;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -55,6 +56,21 @@ class ManipuladorGlobalExcecoesTest {
         RespostaErroPadrao body = Objects.requireNonNull(resposta.getBody());
         assertThat(body.status()).isEqualTo(504);
         assertThat(body.erro()).isEqualTo("Gateway Timeout");
+    }
+
+    @Test
+    void deveRetornar503ParaFalhaDeServicoHttpExterno() {
+        ManipuladorGlobalExcecoes handler = new ManipuladorGlobalExcecoes();
+
+        var resposta = handler.handleExternalHttpFailure(
+                new ResourceAccessException("Connection refused")
+        );
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        RespostaErroPadrao body = Objects.requireNonNull(resposta.getBody());
+        assertThat(body.status()).isEqualTo(503);
+        assertThat(body.erro()).isEqualTo("Service Unavailable");
+        assertThat(body.mensagem()).isEqualTo("Serviço de integração temporariamente indisponível.");
     }
 
     @Test

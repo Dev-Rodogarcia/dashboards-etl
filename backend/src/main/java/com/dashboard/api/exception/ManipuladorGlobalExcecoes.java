@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
@@ -188,6 +189,20 @@ public class ManipuladorGlobalExcecoes {
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
                 "Service Unavailable",
                 "Serviço de dados temporariamente indisponível."
+        );
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(resposta);
+    }
+
+    @ExceptionHandler(RestClientException.class)
+    public ResponseEntity<RespostaErroPadrao> handleExternalHttpFailure(RestClientException ex) {
+        log.error("Falha ao chamar serviço HTTP externo: {}", ex.getMessage(), ex);
+
+        RespostaErroPadrao resposta = new RespostaErroPadrao(
+                LocalDateTime.now(),
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "Service Unavailable",
+                "Serviço de integração temporariamente indisponível."
         );
 
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(resposta);
