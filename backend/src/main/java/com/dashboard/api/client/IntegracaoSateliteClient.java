@@ -22,6 +22,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class IntegracaoSateliteClient {
 
     private static final String ROTA_INTEGRACOES_CLIENTES = "/api/auditoria/integracoes-clientes";
+    private static final String ROTA_EVOLUCAO_DIARIA = "/api/auditoria/integracoes-clientes/evolucao-diaria";
     private static final String ROTA_IMAGEM_LOG = "/api/auditoria/logs/{id}/imagem";
 
     private final RestTemplate restTemplate;
@@ -44,15 +45,41 @@ public class IntegracaoSateliteClient {
                 .build();
     }
 
-    public ResponseEntity<String> buscarIntegracoesClientes(MultiValueMap<String, String> parametros, String escopo) {
+    public ResponseEntity<String> buscarIntegracoesClientes(
+            MultiValueMap<String, String> parametros,
+            String escopo,
+            String dataInicial,
+            String dataFinal
+    ) {
         MultiValueMap<String, String> parametrosSatelite = new LinkedMultiValueMap<>();
         if (parametros != null) {
             parametrosSatelite.addAll(parametros);
         }
         parametrosSatelite.set("escopo", escopo);
+        adicionarParametroOpcional(parametrosSatelite, "dataInicial", dataInicial);
+        adicionarParametroOpcional(parametrosSatelite, "dataFinal", dataFinal);
 
         URI uri = UriComponentsBuilder
                 .fromUriString(sateliteBaseUrl + ROTA_INTEGRACOES_CLIENTES)
+                .queryParams(parametrosSatelite)
+                .build()
+                .encode()
+                .toUri();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+        return restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+    }
+
+    public ResponseEntity<String> buscarEvolucaoDiaria(String dataInicial, String dataFinal, String escopo) {
+        MultiValueMap<String, String> parametrosSatelite = new LinkedMultiValueMap<>();
+        adicionarParametroOpcional(parametrosSatelite, "dataInicial", dataInicial);
+        adicionarParametroOpcional(parametrosSatelite, "dataFinal", dataFinal);
+        adicionarParametroOpcional(parametrosSatelite, "escopo", escopo);
+
+        URI uri = UriComponentsBuilder
+                .fromUriString(sateliteBaseUrl + ROTA_EVOLUCAO_DIARIA)
                 .queryParams(parametrosSatelite)
                 .build()
                 .encode()
@@ -83,5 +110,11 @@ public class IntegracaoSateliteClient {
             throw new IllegalArgumentException("Configure app.integration.satelite.url para habilitar o proxy do Satelite.");
         }
         return url.replaceAll("/+$", "");
+    }
+
+    private void adicionarParametroOpcional(MultiValueMap<String, String> parametros, String nome, String valor) {
+        if (valor != null && !valor.isBlank()) {
+            parametros.set(nome, valor);
+        }
     }
 }

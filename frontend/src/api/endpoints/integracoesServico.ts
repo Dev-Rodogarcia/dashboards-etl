@@ -11,6 +11,13 @@ export interface IntegracaoMetricaConsolidada {
   percentualCanhotoSucesso: number;
 }
 
+export interface IntegracaoEvolucaoDiaria {
+  data: string;
+  total: number;
+  sucessos: number;
+  erros: number;
+}
+
 export interface IntegracaoPendencia {
   id: number;
   sistemaDestino: string;
@@ -57,6 +64,8 @@ export interface IntegracoesAuditoriaResponse {
 export async function buscarIntegracoesAuditoria(
   pagina: number,
   tamanhoPagina: number,
+  dataInicio: string,
+  dataFim: string,
   filtrosTabela?: TableApiFilters,
   sortField?: keyof IntegracaoPendencia & string,
   sortDirection?: 'asc' | 'desc',
@@ -66,6 +75,8 @@ export async function buscarIntegracoesAuditoria(
   params.set('pagina', String(Math.max(0, pagina - 1)));
   params.set('tamanho', String(tamanhoPagina));
   params.set('escopo', escopo);
+  params.set('dataInicial', dataInicio);
+  params.set('dataFinal', dataFim);
   if (sortField) {
     params.set('sortField', sortField);
     params.set('sortDirection', sortDirection === 'desc' ? 'desc' : 'asc');
@@ -73,5 +84,24 @@ export async function buscarIntegracoesAuditoria(
   aplicarFiltrosTabelaParams(params, filtrosTabela);
 
   const { data } = await clienteAxios.get<IntegracoesAuditoriaResponse>('/api/painel/integracoes', { params });
+  return data;
+}
+
+export async function buscarIntegracoesEvolucaoDiaria(
+  dataInicio: string,
+  dataFim: string,
+  escopo?: IntegracoesEscopo,
+): Promise<IntegracaoEvolucaoDiaria[]> {
+  const params = new URLSearchParams();
+  params.set('dataInicial', dataInicio);
+  params.set('dataFinal', dataFim);
+  if (escopo) {
+    params.set('escopo', escopo);
+  }
+
+  const { data } = await clienteAxios.get<IntegracaoEvolucaoDiaria[]>(
+    '/api/painel/integracoes/evolucao-diaria',
+    { params },
+  );
   return data;
 }

@@ -25,9 +25,36 @@ public class IntegracoesController {
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> consultarIntegracoes(
             @RequestParam String escopo,
+            @RequestParam(required = false) String dataInicial,
+            @RequestParam(required = false) String dataFinal,
             @RequestParam MultiValueMap<String, String> params
     ) {
-        ResponseEntity<String> respostaSatelite = integracoesService.consultarIntegracoes(params, escopo);
+        ResponseEntity<String> respostaSatelite = integracoesService.consultarIntegracoes(
+                params,
+                escopo,
+                dataInicial,
+                dataFinal
+        );
+
+        return ResponseEntity
+                .status(respostaSatelite.getStatusCode())
+                .contentType(respostaSatelite.getHeaders().getContentType() != null
+                        ? respostaSatelite.getHeaders().getContentType()
+                        : MediaType.APPLICATION_JSON)
+                .body(respostaSatelite.getBody());
+    }
+
+    @GetMapping(value = "/evolucao-diaria", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> consultarEvolucaoDiaria(
+            @RequestParam(required = false) String dataInicial,
+            @RequestParam(required = false) String dataFinal,
+            @RequestParam(required = false) String escopo
+    ) {
+        ResponseEntity<String> respostaSatelite = integracoesService.consultarEvolucaoDiaria(
+                dataInicial,
+                dataFinal,
+                escopo
+        );
 
         return ResponseEntity
                 .status(respostaSatelite.getStatusCode())

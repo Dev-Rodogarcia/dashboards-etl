@@ -331,6 +331,7 @@ public class ColetasAgregadosSqlRepository {
         params.addValue("dataReferencia", dataReferencia);
         params.addValue("statusPendentes", ColetaStatusPendente.normalizados());
 
+        String sourceSql = source.sql().replace("CONVERT(date, GETDATE())", ":dataReferencia");
         String sql = """
                 WITH base_filtrada AS (
                     SELECT *
@@ -365,7 +366,7 @@ public class ColetasAgregadosSqlRepository {
                 SELECT faixa, COUNT(DISTINCT [Coleta]) AS total
                 FROM aging
                 GROUP BY faixa
-                """.formatted(source.sql());
+                """.formatted(sourceSql);
 
         Map<String, Integer> totais = new LinkedHashMap<>();
         jdbcTemplate.query(sql, params, rs -> {

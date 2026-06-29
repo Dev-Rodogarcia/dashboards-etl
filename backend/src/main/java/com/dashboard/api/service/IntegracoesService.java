@@ -14,8 +14,17 @@ public class IntegracoesService {
         this.integracaoSateliteClient = integracaoSateliteClient;
     }
 
-    public ResponseEntity<String> consultarIntegracoes(MultiValueMap<String, String> params, String escopo) {
-        return integracaoSateliteClient.buscarIntegracoesClientes(params, escopo);
+    public ResponseEntity<String> consultarIntegracoes(
+            MultiValueMap<String, String> params,
+            String escopo,
+            String dataInicial,
+            String dataFinal
+    ) {
+        return integracaoSateliteClient.buscarIntegracoesClientes(params, escopo, dataInicial, dataFinal);
+    }
+
+    public ResponseEntity<String> consultarEvolucaoDiaria(String dataInicial, String dataFinal, String escopo) {
+        return integracaoSateliteClient.buscarEvolucaoDiaria(dataInicial, dataFinal, escopo);
     }
 
     public ResponseEntity<String> consultarImagemCanhoto(Long id) {

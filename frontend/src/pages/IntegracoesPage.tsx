@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import type { EChartsOption } from 'echarts';
 import { Eye } from 'lucide-react';
+import ChartWrapper from '../components/charts/ChartWrapper';
+import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import AnalyticalDataTable, {
   type ColunaTabelaAnalitica,
   type SortDirection,
@@ -8,18 +11,24 @@ import AnalyticalDataTable, {
 import CanhotoImagemModal from '../components/domain/integracoes/CanhotoImagemModal';
 import KpiCard from '../components/shared/KpiCard';
 import TooltipKpi from '../components/shared/TooltipKpi';
+import DateRangePicker from '../components/shared/DateRangePicker';
+import FilterBar from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
 import {
   buscarIntegracoesAuditoria,
+  buscarIntegracoesEvolucaoDiaria,
   type IntegracoesEscopo,
+  type IntegracaoEvolucaoDiaria,
   type IntegracaoMetricaConsolidada,
   type IntegracaoPendencia,
 } from '../api/endpoints/integracoesServico';
+import { useFiltro } from '../contexts/FiltroContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
+import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarDataHora, formatarNumero, formatarPorcentagem } from '../utils/formatadores';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../utils/pollingUtils';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
@@ -28,6 +37,7 @@ const QUERY_KEY = ['integracoes'];
 const STATUS_PADRAO = ['SUCESSO', 'ERRO_DESTINO', 'PENDENTE_FOTO'];
 const EMPTY_METRICAS: IntegracaoMetricaConsolidada[] = [];
 const EMPTY_PENDENCIAS: IntegracaoPendencia[] = [];
+const EMPTY_EVOLUCAO_DIARIA: IntegracaoEvolucaoDiaria[] = [];
 const ABAS_INTEGRACOES: { valor: IntegracoesEscopo; label: string }[] = [
   { valor: 'PENDENCIAS', label: 'Pendências' },
   { valor: 'SUCESSO', label: 'Integrados com Sucesso' },
@@ -71,17 +81,142 @@ function calcularVolumeTotal(metricas: IntegracaoMetricaConsolidada[]) {
   return metricas.reduce((total, item) => total + numeroSeguro(item.totalRegistros), 0);
 }
 
-function calcularTaxaSucessoIntegracao(metricas: IntegracaoMetricaConsolidada[]) {
+function calcularTaxaPonderada(
+  metricas: IntegracaoMetricaConsolidada[],
+  campo: 'percentualXmlSucesso' | 'percentualCanhotoSucesso',
+) {
   const volumeTotal = calcularVolumeTotal(metricas);
   if (volumeTotal <= 0) {
     return 0;
   }
 
   const sucessoPonderado = metricas.reduce(
-    (total, item) => total + numeroSeguro(item.totalRegistros) * numeroSeguro(item.percentualXmlSucesso),
+    (total, item) => total + numeroSeguro(item.totalRegistros) * numeroSeguro(item[campo]),
     0,
   );
   return sucessoPonderado / volumeTotal;
+}
+
+function calcularTotalErros(evolucaoDiaria: IntegracaoEvolucaoDiaria[]) {
+  return evolucaoDiaria.reduce((total, item) => total + numeroSeguro(item.erros), 0);
+}
+
+function formatarDataEixo(valor: string) {
+  const [data] = valor.split('T');
+  const partes = data.split('-');
+  if (partes.length === 3) {
+    return `${partes[2]}/${partes[1]}`;
+  }
+
+  return valor;
+}
+
+function calcularSucessosPorPercentual(totalRegistros: number, percentual: number) {
+  return Math.round(totalRegistros * Math.max(0, Math.min(percentual, 100)) / 100);
+}
+
+function buildSazonalidadeOption(dados: IntegracaoEvolucaoDiaria[], isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
+  const datas = dados.map((item) => formatarDataEixo(item.data));
+
+  return buildBaseLineOption(isDark, {
+    color: [tokens.palette[2], tokens.palette[3]],
+    legend: {
+      top: 0,
+      right: 8,
+      bottom: undefined,
+    },
+    grid: {
+      top: 54,
+      right: 24,
+      bottom: 28,
+      left: 48,
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      data: datas,
+    },
+    yAxis: {
+      type: 'value',
+      name: 'Registros',
+    },
+    series: [
+      {
+        name: 'Sucessos',
+        type: 'line',
+        data: dados.map((item) => numeroSeguro(item.sucessos)),
+        areaStyle: {},
+        itemStyle: { color: tokens.palette[2] },
+        lineStyle: { color: tokens.palette[2] },
+      },
+      {
+        name: 'Erros',
+        type: 'line',
+        data: dados.map((item) => numeroSeguro(item.erros)),
+        areaStyle: {},
+        itemStyle: { color: tokens.palette[3] },
+        lineStyle: { color: tokens.palette[3], type: 'dashed' },
+      },
+    ],
+  });
+}
+
+function buildSaudePorDestinoOption(metricas: IntegracaoMetricaConsolidada[], isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
+  const dados = metricas
+    .map((item) => {
+      const totalRegistros = numeroSeguro(item.totalRegistros);
+      const sucessos = calcularSucessosPorPercentual(totalRegistros, numeroSeguro(item.percentualXmlSucesso));
+
+      return {
+        destino: item.sistemaDestino,
+        sucessos,
+        erros: Math.max(totalRegistros - sucessos, 0),
+      };
+    })
+    .sort((a, b) => (b.sucessos + b.erros) - (a.sucessos + a.erros));
+
+  return buildBaseBarOption(isDark, {
+    color: [tokens.palette[2], tokens.palette[3]],
+    legend: {
+      top: 0,
+      right: 8,
+      bottom: undefined,
+    },
+    grid: {
+      top: 54,
+      right: 24,
+      bottom: 24,
+      left: 76,
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'value',
+      name: 'Registros',
+    },
+    yAxis: {
+      type: 'category',
+      inverse: true,
+      data: dados.map((item) => item.destino),
+    },
+    series: [
+      {
+        name: 'Sucessos',
+        type: 'bar',
+        stack: 'integracoes',
+        data: dados.map((item) => item.sucessos),
+        itemStyle: { color: tokens.palette[2] },
+      },
+      {
+        name: 'Erros',
+        type: 'bar',
+        stack: 'integracoes',
+        data: dados.map((item) => item.erros),
+        itemStyle: { color: tokens.palette[3] },
+      },
+    ],
+  });
 }
 
 function temIndicadorImagem(item: IntegracaoPendencia) {
@@ -153,17 +288,59 @@ function criarColunas(
   ];
 }
 
+function IntegracoesEscopoTabs({
+  abaSelecionada,
+  onChange,
+}: {
+  abaSelecionada: IntegracoesEscopo;
+  onChange: (aba: IntegracoesEscopo) => void;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Escopo da auditoria de integrações"
+      className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto rounded-lg border p-0.5"
+      style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
+    >
+      {ABAS_INTEGRACOES.map((aba) => {
+        const ativa = abaSelecionada === aba.valor;
+        return (
+          <button
+            key={aba.valor}
+            type="button"
+            role="tab"
+            data-state={ativa ? 'active' : 'inactive'}
+            aria-selected={ativa}
+            onClick={() => onChange(aba.valor)}
+            className="inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-md px-3 text-xs font-semibold transition-colors hover:bg-[var(--color-card)] data-[state=active]:shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            style={{
+              backgroundColor: ativa ? 'var(--color-card)' : 'transparent',
+              color: ativa ? 'var(--color-text)' : 'var(--color-text-muted)',
+            }}
+          >
+            {aba.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function IntegracoesPage() {
   const [pendenciaCanhoto, setPendenciaCanhoto] = useState<IntegracaoPendencia | null>(null);
   const [abaSelecionada, setAbaSelecionada] = useState<IntegracoesEscopo>('PENDENCIAS');
   const [tableSort, setTableSort] = useState<IntegracoesTableSort | null>(null);
+  const { dataInicio, dataFim, setDataInicio, setDataFim, setDataRange } = useFiltro();
+  const { isDark } = useEchartsTheme();
   const filtrosTabela = useAnalyticalTableFilters();
-  const paginacaoTabela = useTabelaPaginadaState(`${filtrosTabela.resetKey}:${abaSelecionada}`);
+  const paginacaoTabela = useTabelaPaginadaState(`${filtrosTabela.resetKey}:${abaSelecionada}:${dataInicio}:${dataFim}`);
 
   const integracoes = useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [
       ...QUERY_KEY,
+      dataInicio,
+      dataFim,
       paginacaoTabela.pagina,
       paginacaoTabela.tamanhoPagina,
       filtrosTabela.apiFilters,
@@ -173,6 +350,8 @@ export default function IntegracoesPage() {
     queryFn: () => buscarIntegracoesAuditoria(
       paginacaoTabela.pagina,
       paginacaoTabela.tamanhoPagina,
+      dataInicio,
+      dataFim,
       filtrosTabela.apiFilters,
       tableSort?.field,
       tableSort?.direction,
@@ -182,11 +361,10 @@ export default function IntegracoesPage() {
     retry: 1,
   });
 
-  const pendenciasResumo = useQuery({
+  const evolucaoDiariaQuery = useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
-    queryKey: [...QUERY_KEY, 'pendencias-resumo', filtrosTabela.apiFilters],
-    queryFn: () => buscarIntegracoesAuditoria(1, 1, filtrosTabela.apiFilters, undefined, undefined, 'PENDENCIAS'),
-    enabled: abaSelecionada === 'SUCESSO',
+    queryKey: [...QUERY_KEY, 'evolucao-diaria', dataInicio, dataFim],
+    queryFn: () => buscarIntegracoesEvolucaoDiaria(dataInicio, dataFim),
     staleTime: 60 * 1000,
     retry: 1,
   });
@@ -212,15 +390,23 @@ export default function IntegracoesPage() {
   });
 
   const metricas = integracoes.data?.metricasConsolidadas ?? EMPTY_METRICAS;
+  const evolucaoDiaria = evolucaoDiariaQuery.data ?? EMPTY_EVOLUCAO_DIARIA;
   const volumeTotal = calcularVolumeTotal(metricas);
-  const taxaSucessoIntegracao = calcularTaxaSucessoIntegracao(metricas);
-  const totalPendencias = abaSelecionada === 'PENDENCIAS'
-    ? integracoes.data?.pendencias.paginacao.totalElementos
-    : pendenciasResumo.data?.pendencias.paginacao.totalElementos;
+  const taxaSucessoGlobal = calcularTaxaPonderada(metricas, 'percentualXmlSucesso');
+  const taxaSucessoCanhotos = calcularTaxaPonderada(metricas, 'percentualCanhotoSucesso');
+  const totalPendencias = calcularTotalErros(evolucaoDiaria);
   const pendencias = integracoes.data?.pendencias.itens ?? EMPTY_PENDENCIAS;
   const tituloTabela = abaSelecionada === 'PENDENCIAS'
     ? 'Pendências operacionais'
     : 'Integrados com sucesso';
+  const sazonalidadeOption = useMemo(
+    () => buildSazonalidadeOption(evolucaoDiaria, isDark),
+    [evolucaoDiaria, isDark],
+  );
+  const saudePorDestinoOption = useMemo(
+    () => buildSaudePorDestinoOption(metricas, isDark),
+    [isDark, metricas],
+  );
 
   const statusOptions = useMemo(
     () => combinarStatusOptions(
@@ -232,8 +418,27 @@ export default function IntegracoesPage() {
     [filtrosTabela.filters.status, pendencias],
   );
 
+  const selecionarAba = useCallback((aba: IntegracoesEscopo) => {
+    setAbaSelecionada(aba);
+    setPendenciaCanhoto(null);
+  }, []);
+
   return (
     <div className="w-full">
+      <FilterBar
+        dataInicio={dataInicio}
+        dataFim={dataFim}
+        actions={<IntegracoesEscopoTabs abaSelecionada={abaSelecionada} onChange={selecionarAba} />}
+      >
+        <DateRangePicker
+          dataInicio={dataInicio}
+          dataFim={dataFim}
+          onDataInicioChange={setDataInicio}
+          onDataFimChange={setDataFim}
+          onRangeChange={setDataRange}
+        />
+      </FilterBar>
+
       {integracoes.isError && (
         <MensagemErro
           mensagem={getApiErrorMessage(integracoes.error, 'Erro ao carregar auditoria de integrações.')}
@@ -241,64 +446,78 @@ export default function IntegracoesPage() {
         />
       )}
 
-      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-        <TooltipKpi kpiName="taxaSucessoIntegracao">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <TooltipKpi kpiName="integracoes.volumeOperacional">
           <KpiCard
-            label="Volume Total"
+            label="Volume Operacional"
             valor={formatarInteiro(volumeTotal)}
             metaLabel="Origem"
             metaValue="Satélite"
           />
         </TooltipKpi>
-        <TooltipKpi kpiName="taxaSucessoIntegracao">
+        <TooltipKpi kpiName="integracoes.taxaSucessoGlobal">
           <KpiCard
-            label="Taxa de Sucesso"
-            valor={formatarPercentual(taxaSucessoIntegracao)}
-            tone={tomPercentual(taxaSucessoIntegracao)}
+            label="Sucesso Global"
+            valor={formatarPercentual(taxaSucessoGlobal)}
+            tone={tomPercentual(taxaSucessoGlobal)}
             metaLabel="Base"
             metaValue="XML"
-            progressPct={taxaSucessoIntegracao}
+            progressPct={taxaSucessoGlobal}
           />
         </TooltipKpi>
-        <TooltipKpi kpiName="taxaSucessoIntegracao">
+        <TooltipKpi kpiName="integracoes.taxaSucessoCanhotos">
+          <KpiCard
+            label="Sucesso Canhotos"
+            valor={formatarPercentual(taxaSucessoCanhotos)}
+            tone={tomPercentual(taxaSucessoCanhotos)}
+            metaLabel="Base"
+            metaValue="Canhotos"
+            progressPct={taxaSucessoCanhotos}
+          />
+        </TooltipKpi>
+        <TooltipKpi kpiName="integracoes.pendenciasErros">
           <KpiCard
             label="Pendências"
             valor={formatarInteiro(totalPendencias)}
             tone={numeroSeguro(totalPendencias) > 0 ? 'warning' : 'positive'}
-            metaLabel="Escopo"
-            metaValue="PENDENCIAS"
+            metaLabel="Base"
+            metaValue="Erros"
           />
         </TooltipKpi>
       </div>
 
-      <div
-        role="tablist"
-        aria-label="Escopo da auditoria de integrações"
-        className="mb-4 inline-flex max-w-full overflow-hidden rounded-lg border p-1"
-        style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
-      >
-        {ABAS_INTEGRACOES.map((aba) => {
-          const ativa = abaSelecionada === aba.valor;
-          return (
-            <button
-              key={aba.valor}
-              type="button"
-              role="tab"
-              aria-selected={ativa}
-              onClick={() => {
-                setAbaSelecionada(aba.valor);
-                setPendenciaCanhoto(null);
-              }}
-              className="min-h-9 min-w-[132px] whitespace-nowrap rounded-md px-3 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-              style={{
-                backgroundColor: ativa ? 'var(--color-primary)' : 'transparent',
-                color: ativa ? 'white' : 'var(--color-text)',
-              }}
-            >
-              {aba.label}
-            </button>
-          );
-        })}
+      <div className="mb-4 mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="h-[24rem] w-full">
+          <TooltipKpi kpiName="integracoes.sazonalidade" className="h-full w-full">
+            <ChartWrapper
+              titulo="Sazonalidade de Integrações"
+              option={sazonalidadeOption}
+              isLoading={evolucaoDiariaQuery.isLoading}
+              isEmpty={evolucaoDiaria.length === 0}
+              erro={evolucaoDiariaQuery.isError
+                ? getApiErrorMessage(evolucaoDiariaQuery.error, 'Erro ao carregar evolução diária.')
+                : null}
+              altura={300}
+              className="h-full w-full"
+            />
+          </TooltipKpi>
+        </div>
+
+        <div className="h-[24rem] w-full">
+          <TooltipKpi kpiName="integracoes.saudePorDestino" className="h-full w-full">
+            <ChartWrapper
+              titulo="Saúde por Sistema Destino"
+              option={saudePorDestinoOption}
+              isLoading={integracoes.isLoading}
+              isEmpty={volumeTotal <= 0}
+              erro={integracoes.isError
+                ? getApiErrorMessage(integracoes.error, 'Erro ao carregar saúde por destino.')
+                : null}
+              altura={300}
+              className="h-full w-full"
+            />
+          </TooltipKpi>
+        </div>
       </div>
 
       <AnalyticalDataTable
