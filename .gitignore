@@ -61,6 +61,10 @@
 **/.parcel-cache/
 **/.vite/
 **/.eslintcache
+**/.nyc_output/
+**/playwright-report/
+**/blob-report/
+**/test-results/
 
 # Backend / Java
 **/target/
@@ -74,11 +78,14 @@
 # Logs e temporarios
 **/logs/
 *.log
+*.log.*
 *.out
 *.err
 *.tmp
+*.temp
 *.bak
 *.orig
+*.rej
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -86,12 +93,23 @@ pnpm-debug.log*
 lerna-debug.log*
 *.pid
 *.pid.lock
+*.stackdump
+
+# PM2 / gerenciadores locais de processo
+ecosystem.config.js
+ecosystem.config.cjs
+ecosystem.*.config.js
+ecosystem.*.config.cjs
+pm2*.json
+.pm2/
+dump.pm2
 
 # Dumps e falhas locais
 *.hprof
 *.heapdump
 hs_err_pid*
 replay_pid*
+.attach_pid*
 
 # Bancos locais, backups e relatorios gerados
 **/reports/
