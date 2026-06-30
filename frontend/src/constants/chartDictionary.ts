@@ -42,6 +42,11 @@ const contasPagarBase = {
   cruzamentos: 'Nenhum JOIN; leitura via DashboardExportDefinition.CONTAS_A_PAGAR.',
 } as const;
 
+const integracoesBase = {
+  tabelasOrigem: 'Satélite TMS / endpoints de auditoria de integrações',
+  cruzamentos: 'Sem JOIN no Dashboard; dados consolidados no backend Satélite e repassados pelo proxy /api/painel/integracoes.',
+} as const;
+
 export const chartDictionary = {
   coletasSerie: {
     ...coletasBase,
@@ -325,6 +330,23 @@ export const chartDictionary = {
     calculoNegocio:
       'Conta títulos e soma valor a pagar em cada situação de conciliação, usando "Sem conciliação" quando o campo vem vazio.',
     agrupamento: "GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Conciliado]))), N''), N'Sem conciliação')",
+  },
+
+  integracoesSazonalidade: {
+    ...integracoesBase,
+    descricao: 'Acompanha a evolução diária de sucessos e erros das integrações de XML e comprovantes com os destinos atendidos.',
+    calculoTecnico: 'Leitura do endpoint /api/auditoria/integracoes-clientes/evolucao-diaria no Satélite.',
+    calculoNegocio:
+      'Para cada dia do período filtrado, exibe a quantidade de integrações bem-sucedidas e a quantidade de falhas retornadas pela auditoria operacional.',
+    agrupamento: 'Agrupado por data de processamento no Satélite.',
+  },
+  integracoesSaudeDestino: {
+    ...integracoesBase,
+    descricao: 'Compara o volume de registros integrados e com erro por sistema destino para localizar concentração operacional.',
+    calculoTecnico: 'Leitura das métricas consolidadas do endpoint /api/auditoria/integracoes-clientes no Satélite.',
+    calculoNegocio:
+      'Calcula sucessos por destino a partir do total de registros e do percentual de sucesso de XML; o restante é apresentado como erro.',
+    agrupamento: 'Agrupado por sistema destino.',
   },
 
   cotacoesSerie: {

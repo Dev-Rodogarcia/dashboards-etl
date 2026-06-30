@@ -24,6 +24,7 @@ public class IntegracaoSateliteClient {
     private static final String ROTA_INTEGRACOES_CLIENTES = "/api/auditoria/integracoes-clientes";
     private static final String ROTA_EVOLUCAO_DIARIA = "/api/auditoria/integracoes-clientes/evolucao-diaria";
     private static final String ROTA_IMAGEM_LOG = "/api/auditoria/logs/{id}/imagem";
+    private static final String ROTA_QUARENTENA_ERROS = "/api/etl/quarentena/erros";
 
     private final RestTemplate restTemplate;
     private final String sateliteBaseUrl;
@@ -100,6 +101,28 @@ public class IntegracaoSateliteClient {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(List.of(MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN, MediaType.ALL));
+
+        return restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+    }
+
+    public ResponseEntity<String> buscarErrosQuarentena(Integer pagina, Integer tamanho) {
+        MultiValueMap<String, String> parametrosSatelite = new LinkedMultiValueMap<>();
+        if (pagina != null) {
+            parametrosSatelite.set("pagina", String.valueOf(Math.max(0, pagina)));
+        }
+        if (tamanho != null) {
+            parametrosSatelite.set("tamanho", String.valueOf(Math.max(1, Math.min(tamanho, 500))));
+        }
+
+        URI uri = UriComponentsBuilder
+                .fromUriString(sateliteBaseUrl + ROTA_QUARENTENA_ERROS)
+                .queryParams(parametrosSatelite)
+                .build()
+                .encode()
+                .toUri();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
         return restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), String.class);
     }

@@ -12,7 +12,7 @@ export interface ActiveFilter {
 }
 
 interface FilterBarProps {
-  children: ReactNode;
+  children?: ReactNode;
   onClear?: () => void;
   activeFilters?: ActiveFilter[];
   actions?: ReactNode;
@@ -89,6 +89,7 @@ export default function FilterBar({
   const hasActive = filtersWithValues.length > 0;
   const totalActive = filtersWithValues.reduce((s, f) => s + f.count, 0);
   const showDate = dataInicio && dataFim;
+  const hasFilterControls = Boolean(children);
 
   // ── barra recolhida (sempre visível) ──────────────────────────────
   const collapsedBar = (
@@ -110,31 +111,33 @@ export default function FilterBar({
       )}
 
       {/* Botão Filtros */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-controls={panelId}
-        className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium
-                   transition-all duration-150 hover:bg-[var(--color-bg)] active:scale-[0.97]
-                   focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-        style={{ color: 'var(--color-text)' }}
-      >
-        <SlidersHorizontal size={14} aria-hidden="true" />
-        Filtros
-        {totalActive > 0 && (
-          <span
-            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none"
-            style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', color: 'var(--color-primary)' }}
-            aria-label={`${totalActive} filtros ativos`}
-          >
-            {totalActive}
-          </span>
-        )}
-        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2, ease: 'easeInOut' }} aria-hidden="true">
-          <ChevronDown size={13} />
-        </motion.span>
-      </button>
+      {hasFilterControls && (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls={panelId}
+          className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium
+                     transition-all duration-150 hover:bg-[var(--color-bg)] active:scale-[0.97]
+                     focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+          style={{ color: 'var(--color-text)' }}
+        >
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          Filtros
+          {totalActive > 0 && (
+            <span
+              className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none"
+              style={{ backgroundColor: 'rgba(33, 71, 138, 0.14)', color: 'var(--color-primary)' }}
+              aria-label={`${totalActive} filtros ativos`}
+            >
+              {totalActive}
+            </span>
+          )}
+          <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2, ease: 'easeInOut' }} aria-hidden="true">
+            <ChevronDown size={13} />
+          </motion.span>
+        </button>
+      )}
 
       {actions ? (
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden p-1">
@@ -174,7 +177,7 @@ export default function FilterBar({
   // ── painel desktop (expande inline) ──────────────────────────────
   const desktopPanel = (
     <AnimatePresence initial={false}>
-      {open && !isMobile && (
+      {open && !isMobile && hasFilterControls && (
         <motion.div
           id={panelId}
           key="desktop-panel"
@@ -235,7 +238,7 @@ export default function FilterBar({
   const mobileDrawer = typeof document !== 'undefined'
     ? createPortal(
         <AnimatePresence>
-          {open && isMobile && (
+          {open && isMobile && hasFilterControls && (
             <>
               {/* Backdrop */}
               <motion.div

@@ -4,6 +4,7 @@ import type { EChartsOption } from 'echarts';
 import { Eye } from 'lucide-react';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
+import QuarentenaErrosPanel from '../components/domain/integracoes/QuarentenaErrosPanel';
 import AnalyticalDataTable, {
   type ColunaTabelaAnalitica,
   type SortDirection,
@@ -38,9 +39,11 @@ const STATUS_PADRAO = ['SUCESSO', 'ERRO_DESTINO', 'PENDENTE_FOTO'];
 const EMPTY_METRICAS: IntegracaoMetricaConsolidada[] = [];
 const EMPTY_PENDENCIAS: IntegracaoPendencia[] = [];
 const EMPTY_EVOLUCAO_DIARIA: IntegracaoEvolucaoDiaria[] = [];
-const ABAS_INTEGRACOES: { valor: IntegracoesEscopo; label: string }[] = [
+type IntegracoesAba = IntegracoesEscopo | 'QUARENTENA';
+const ABAS_INTEGRACOES: { valor: IntegracoesAba; label: string }[] = [
   { valor: 'PENDENCIAS', label: 'Pendências' },
   { valor: 'SUCESSO', label: 'Integrados com Sucesso' },
+  { valor: 'QUARENTENA', label: 'Quarentena' },
 ];
 
 interface IntegracoesTableSort {
@@ -292,8 +295,8 @@ function IntegracoesEscopoTabs({
   abaSelecionada,
   onChange,
 }: {
-  abaSelecionada: IntegracoesEscopo;
-  onChange: (aba: IntegracoesEscopo) => void;
+  abaSelecionada: IntegracoesAba;
+  onChange: (aba: IntegracoesAba) => void;
 }) {
   return (
     <div
@@ -328,12 +331,13 @@ function IntegracoesEscopoTabs({
 
 export default function IntegracoesPage() {
   const [pendenciaCanhoto, setPendenciaCanhoto] = useState<IntegracaoPendencia | null>(null);
-  const [abaSelecionada, setAbaSelecionada] = useState<IntegracoesEscopo>('PENDENCIAS');
+  const [abaSelecionada, setAbaSelecionada] = useState<IntegracoesAba>('PENDENCIAS');
   const [tableSort, setTableSort] = useState<IntegracoesTableSort | null>(null);
   const { dataInicio, dataFim, setDataInicio, setDataFim, setDataRange } = useFiltro();
   const { isDark } = useEchartsTheme();
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoTabela = useTabelaPaginadaState(`${filtrosTabela.resetKey}:${abaSelecionada}:${dataInicio}:${dataFim}`);
+  const abaAuditoriaSelecionada = abaSelecionada !== 'QUARENTENA';
 
   const integracoes = useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
@@ -355,8 +359,10 @@ export default function IntegracoesPage() {
       filtrosTabela.apiFilters,
       tableSort?.field,
       tableSort?.direction,
-      abaSelecionada,
+      abaSelecionada === 'QUARENTENA' ? 'PENDENCIAS' : abaSelecionada,
     ),
+    enabled: abaAuditoriaSelecionada,
+    placeholderData: (previousData) => previousData,
     staleTime: 60 * 1000,
     retry: 1,
   });
@@ -365,6 +371,7 @@ export default function IntegracoesPage() {
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, 'evolucao-diaria', dataInicio, dataFim],
     queryFn: () => buscarIntegracoesEvolucaoDiaria(dataInicio, dataFim),
+    placeholderData: (previousData) => previousData,
     staleTime: 60 * 1000,
     retry: 1,
   });
@@ -418,7 +425,7 @@ export default function IntegracoesPage() {
     [filtrosTabela.filters.status, pendencias],
   );
 
-  const selecionarAba = useCallback((aba: IntegracoesEscopo) => {
+  const selecionarAba = useCallback((aba: IntegracoesAba) => {
     setAbaSelecionada(aba);
     setPendenciaCanhoto(null);
   }, []);
@@ -439,118 +446,122 @@ export default function IntegracoesPage() {
         />
       </FilterBar>
 
-      {integracoes.isError && (
+      {abaAuditoriaSelecionada && integracoes.isError && (
         <MensagemErro
           mensagem={getApiErrorMessage(integracoes.error, 'Erro ao carregar auditoria de integrações.')}
           tipo={getTipoErro(integracoes.error)}
         />
       )}
 
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <TooltipKpi kpiName="integracoes.volumeOperacional">
-          <KpiCard
-            label="Volume Operacional"
-            valor={formatarInteiro(volumeTotal)}
-            metaLabel="Origem"
-            metaValue="Satélite"
-          />
-        </TooltipKpi>
-        <TooltipKpi kpiName="integracoes.taxaSucessoGlobal">
-          <KpiCard
-            label="Sucesso Global"
-            valor={formatarPercentual(taxaSucessoGlobal)}
-            tone={tomPercentual(taxaSucessoGlobal)}
-            metaLabel="Base"
-            metaValue="XML"
-            progressPct={taxaSucessoGlobal}
-          />
-        </TooltipKpi>
-        <TooltipKpi kpiName="integracoes.taxaSucessoCanhotos">
-          <KpiCard
-            label="Sucesso Canhotos"
-            valor={formatarPercentual(taxaSucessoCanhotos)}
-            tone={tomPercentual(taxaSucessoCanhotos)}
-            metaLabel="Base"
-            metaValue="Canhotos"
-            progressPct={taxaSucessoCanhotos}
-          />
-        </TooltipKpi>
-        <TooltipKpi kpiName="integracoes.pendenciasErros">
-          <KpiCard
-            label="Pendências"
-            valor={formatarInteiro(totalPendencias)}
-            tone={numeroSeguro(totalPendencias) > 0 ? 'warning' : 'positive'}
-            metaLabel="Base"
-            metaValue="Erros"
-          />
-        </TooltipKpi>
-      </div>
+      {abaSelecionada === 'QUARENTENA' ? (
+        <QuarentenaErrosPanel />
+      ) : (
+        <>
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <TooltipKpi kpiName="integracoes.volumeOperacional">
+              <KpiCard
+                label="Volume Operacional"
+                valor={formatarInteiro(volumeTotal)}
+                metaLabel="Origem"
+                metaValue="Satélite"
+              />
+            </TooltipKpi>
+            <TooltipKpi kpiName="integracoes.taxaSucessoGlobal">
+              <KpiCard
+                label="Sucesso Global"
+                valor={formatarPercentual(taxaSucessoGlobal)}
+                tone={tomPercentual(taxaSucessoGlobal)}
+                metaLabel="Base"
+                metaValue="XML"
+                progressPct={taxaSucessoGlobal}
+              />
+            </TooltipKpi>
+            <TooltipKpi kpiName="integracoes.taxaSucessoCanhotos">
+              <KpiCard
+                label="Sucesso Canhotos"
+                valor={formatarPercentual(taxaSucessoCanhotos)}
+                tone={tomPercentual(taxaSucessoCanhotos)}
+                metaLabel="Base"
+                metaValue="Canhotos"
+                progressPct={taxaSucessoCanhotos}
+              />
+            </TooltipKpi>
+            <TooltipKpi kpiName="integracoes.pendenciasErros">
+              <KpiCard
+                label="Pendências"
+                valor={formatarInteiro(totalPendencias)}
+                tone={numeroSeguro(totalPendencias) > 0 ? 'warning' : 'positive'}
+                metaLabel="Base"
+                metaValue="Erros"
+              />
+            </TooltipKpi>
+          </div>
 
-      <div className="mb-4 mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="h-[24rem] w-full">
-          <TooltipKpi kpiName="integracoes.sazonalidade" className="h-full w-full">
-            <ChartWrapper
-              titulo="Sazonalidade de Integrações"
-              option={sazonalidadeOption}
-              isLoading={evolucaoDiariaQuery.isLoading}
-              isEmpty={evolucaoDiaria.length === 0}
-              erro={evolucaoDiariaQuery.isError
-                ? getApiErrorMessage(evolucaoDiariaQuery.error, 'Erro ao carregar evolução diária.')
-                : null}
-              altura={300}
-              className="h-full w-full"
-            />
-          </TooltipKpi>
-        </div>
+          <div className="mb-4 mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="h-[24rem] w-full">
+              <ChartWrapper
+                titulo="Sazonalidade de Integrações"
+                option={sazonalidadeOption}
+                isLoading={evolucaoDiariaQuery.isLoading}
+                isEmpty={evolucaoDiaria.length === 0}
+                erro={evolucaoDiariaQuery.isError
+                  ? getApiErrorMessage(evolucaoDiariaQuery.error, 'Erro ao carregar evolução diária.')
+                  : null}
+                altura={300}
+                className="h-full w-full"
+                chartKey="integracoesSazonalidade"
+              />
+            </div>
 
-        <div className="h-[24rem] w-full">
-          <TooltipKpi kpiName="integracoes.saudePorDestino" className="h-full w-full">
-            <ChartWrapper
-              titulo="Saúde por Sistema Destino"
-              option={saudePorDestinoOption}
-              isLoading={integracoes.isLoading}
-              isEmpty={volumeTotal <= 0}
-              erro={integracoes.isError
-                ? getApiErrorMessage(integracoes.error, 'Erro ao carregar saúde por destino.')
-                : null}
-              altura={300}
-              className="h-full w-full"
-            />
-          </TooltipKpi>
-        </div>
-      </div>
+            <div className="h-[24rem] w-full">
+              <ChartWrapper
+                titulo="Saúde por Sistema Destino"
+                option={saudePorDestinoOption}
+                isLoading={integracoes.isLoading}
+                isEmpty={volumeTotal <= 0}
+                erro={integracoes.isError
+                  ? getApiErrorMessage(integracoes.error, 'Erro ao carregar saúde por destino.')
+                  : null}
+                altura={300}
+                className="h-full w-full"
+                chartKey="integracoesSaudeDestino"
+              />
+            </div>
+          </div>
 
-      <AnalyticalDataTable
-        titulo={tituloTabela}
-        dados={pendencias}
-        colunas={colunas}
-        chaveLinha="id"
-        filtros={filtrosTabela.filters}
-        hiddenActiveCount={filtrosTabela.hiddenActiveCount}
-        hasAnyFilter={filtrosTabela.hasAnyFilter}
-        onTextFilterChange={filtrosTabela.setTextFilter}
-        onMultiFilterChange={filtrosTabela.setMultiFilter}
-        onColumnFilterChange={filtrosTabela.setColumnFilter}
-        onClearFilters={filtrosTabela.clearTableFilters}
-        statusOptions={statusOptions}
-        isLoading={integracoes.isLoading}
-        isFetching={integracoes.isFetching}
-        error={integracoes.error}
-        errorFallbackMessage={`Erro ao carregar ${tituloTabela.toLowerCase()}.`}
-        totalRegistros={integracoes.data?.pendencias.paginacao.totalElementos}
-        paginaAtual={paginacaoTabela.pagina}
-        tamanhoPagina={paginacaoTabela.tamanhoPagina}
-        onPaginaChange={paginacaoTabela.setPagina}
-        onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
-        sortField={tableSort?.field}
-        sortDirection={tableSort?.direction}
-        onSortChange={(field, direction) => setTableSort({ field, direction })}
-      />
+          <AnalyticalDataTable
+            titulo={tituloTabela}
+            dados={pendencias}
+            colunas={colunas}
+            chaveLinha="id"
+            filtros={filtrosTabela.filters}
+            hiddenActiveCount={filtrosTabela.hiddenActiveCount}
+            hasAnyFilter={filtrosTabela.hasAnyFilter}
+            onTextFilterChange={filtrosTabela.setTextFilter}
+            onMultiFilterChange={filtrosTabela.setMultiFilter}
+            onColumnFilterChange={filtrosTabela.setColumnFilter}
+            onClearFilters={filtrosTabela.clearTableFilters}
+            statusOptions={statusOptions}
+            isLoading={integracoes.isLoading}
+            isFetching={integracoes.isFetching}
+            error={integracoes.error}
+            errorFallbackMessage={`Erro ao carregar ${tituloTabela.toLowerCase()}.`}
+            totalRegistros={integracoes.data?.pendencias.paginacao.totalElementos}
+            paginaAtual={paginacaoTabela.pagina}
+            tamanhoPagina={paginacaoTabela.tamanhoPagina}
+            onPaginaChange={paginacaoTabela.setPagina}
+            onTamanhoPaginaChange={paginacaoTabela.setTamanhoPagina}
+            sortField={tableSort?.field}
+            sortDirection={tableSort?.direction}
+            onSortChange={(field, direction) => setTableSort({ field, direction })}
+          />
 
-      <CanhotoImagemModal
-        pendencia={pendenciaCanhoto}
-        onClose={fecharCanhoto}
-      />
+          <CanhotoImagemModal
+            pendencia={pendenciaCanhoto}
+            onClose={fecharCanhoto}
+          />
+        </>
+      )}
     </div>
   );
 }

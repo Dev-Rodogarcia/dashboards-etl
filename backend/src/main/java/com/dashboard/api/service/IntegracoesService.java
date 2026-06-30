@@ -30,4 +30,8 @@ public class IntegracoesService {
     public ResponseEntity<String> consultarImagemCanhoto(Long id) {
         return integracaoSateliteClient.buscarImagemLog(id);
     }
+
+    public ResponseEntity<String> consultarErrosQuarentena(Integer pagina, Integer tamanho) {
+        return integracaoSateliteClient.buscarErrosQuarentena(pagina, tamanho);
+    }
 }

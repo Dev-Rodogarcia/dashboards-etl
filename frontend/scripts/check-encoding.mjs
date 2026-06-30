@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,7 +22,7 @@ const scanRoots = [
   resolve(repoRoot, 'backend', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'repository', 'acesso'),
   resolve(repoRoot, 'backend', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'security'),
   resolve(repoRoot, 'backend', 'src', 'main', 'java', 'com', 'dashboard', 'api', 'service', 'acesso'),
-  resolve(repoRoot, 'backend', 'src', 'main', 'resources', 'db', 'migration'),
+  resolve(repoRoot, 'database'),
 ];
 
 const allowedExtensions = new Set([
@@ -100,6 +100,9 @@ function walk(currentPath) {
 }
 
 for (const scanRoot of scanRoots) {
+  if (!existsSync(scanRoot)) {
+    continue;
+  }
   walk(scanRoot);
 }
 

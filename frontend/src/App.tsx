@@ -121,6 +121,7 @@ export default function App() {
 
               <Route element={<RotaProtegida permissao="integracoes" />}>
                 <Route path="/painel/integracoes" element={<IntegracoesPage />} />
+                <Route path="/painel/quarentena" element={<Navigate to="/painel/integracoes" replace />} />
               </Route>
 
               <Route element={<RotaProtegida adminOnly />}>
