@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { AxiosError } from 'axios';
-import { Eye, Save, Trash2 } from 'lucide-react';
+import { Copy, Eye, Save, Trash2 } from 'lucide-react';
+import ToastStack from '../../ui/ToastStack';
+import type { ToastItem, ToastTone } from '../../ui/ToastStack';
 import type { FretesGoalConfig, FretesGoalConfigPayload } from '../../../types/fretes';
 import { getApiErrorMessage } from '../../../utils/apiError';
 import { formatarDataHora, formatarMoeda } from '../../../utils/formatadores';
@@ -16,9 +18,12 @@ interface FretesGoalsManagerPanelProps {
   isSaving: boolean;
   error: unknown;
   saveError: unknown;
+  replicateError?: unknown;
+  isReplicating?: boolean;
   onPeriodChange: (ano: number, mes: number) => void;
   onSave: (payload: FretesGoalConfigPayload) => Promise<void>;
   onRemove: (branchId: string, ano: number, mes: number) => Promise<void>;
+  onReplicatePreviousMonth?: (ano: number, mes: number) => Promise<FretesGoalConfig[]>;
   onViewScope?: (branchId: string) => void;
 }
 
@@ -63,13 +68,17 @@ export default function FretesGoalsManagerPanel({
   isSaving,
   error,
   saveError,
+  replicateError,
+  isReplicating = false,
   onPeriodChange,
   onSave,
   onRemove,
+  onReplicatePreviousMonth,
   onViewScope,
 }: FretesGoalsManagerPanelProps) {
   const [branchId, setBranchId] = useState(GLOBAL_BRANCH_ID);
   const [metaFaturamentoDraft, setMetaFaturamentoDraft] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
   const configs = useMemo(() => data ?? [], [data]);
   const configsCadastradas = useMemo(
     () => configs.filter((item) => item.configurado !== false),
@@ -97,6 +106,16 @@ export default function FretesGoalsManagerPanel({
     return Array.from({ length: 7 }, (_, index) => current - 2 + index);
   }, []);
   const metaFaturamentoValue = metaFaturamentoDraft ?? String(configAtual?.metaFaturamento ?? 0);
+  const podeReplicarMetas = configsCadastradas.length === 0 && !isLoading && !error;
+  const actionError = saveError ?? replicateError;
+
+  function pushToast(message: string, tone: ToastTone) {
+    const id = `${Date.now()}-${Math.random()}`;
+    setToasts((current) => [...current, { id, message, tone }]);
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((item) => item.id !== id));
+    }, 4500);
+  }
 
   if (!open) {
     return null;
@@ -112,12 +131,30 @@ export default function FretesGoalsManagerPanel({
     });
   }
 
+  async function handleReplicarMetas() {
+    if (!onReplicatePreviousMonth || !podeReplicarMetas) {
+      return;
+    }
+
+    try {
+      const anoDestino = ano;
+      const mesDestino = mes;
+      const response = await onReplicatePreviousMonth(anoDestino, mesDestino);
+      setMetaFaturamentoDraft(null);
+      const total = response.filter((item) => item.configurado !== false).length;
+      pushToast(`${total} meta${total === 1 ? '' : 's'} copiada${total === 1 ? '' : 's'} do mês anterior.`, 'success');
+    } catch (err) {
+      pushToast(getApiErrorMessage(err, 'Não foi possível copiar as metas do mês anterior.'), 'error');
+    }
+  }
+
   return (
-    <section
-      className="mb-4 rounded-[20px] border p-5 shadow-sm"
-      style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
-      aria-label="Gerenciamento de metas de faturamento"
-    >
+    <>
+      <section
+        className="mb-4 rounded-[20px] border p-5 shadow-sm"
+        style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+        aria-label="Gerenciamento de metas de faturamento"
+      >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
@@ -146,13 +183,13 @@ export default function FretesGoalsManagerPanel({
         </p>
       ) : null}
 
-      {saveError ? (
+      {actionError ? (
         <p className="mb-4 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: '#dc2626', color: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)' }}>
-          {getApiErrorMessage(saveError, 'Não foi possível salvar a meta.')}
+          {getApiErrorMessage(actionError, 'Não foi possível salvar a meta.')}
         </p>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="grid gap-4 rounded-2xl border p-4 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]" style={{ borderColor: 'var(--color-border)' }}>
+      <form onSubmit={handleSubmit} className="grid gap-4 rounded-2xl border p-4 lg:grid-cols-[1fr_1fr_minmax(15rem,auto)_1fr_1fr_auto]" style={{ borderColor: 'var(--color-border)' }}>
         <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
           Ano
           <select
@@ -181,6 +218,25 @@ export default function FretesGoalsManagerPanel({
             {MONTHS.map((month) => <option key={month.value} value={month.value}>{month.label}</option>)}
           </select>
         </label>
+        {onReplicatePreviousMonth ? (
+          <div className="flex min-w-max flex-shrink-0 items-end">
+            <button
+              type="button"
+              onClick={() => void handleReplicarMetas()}
+              disabled={!podeReplicarMetas || isReplicating}
+              title={configsCadastradas.length > 0 ? 'Disponível apenas quando o mês selecionado ainda não possui metas.' : undefined}
+              className={`inline-flex h-11 min-w-max flex-shrink-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING_CLASS}`}
+              style={{
+                backgroundColor: podeReplicarMetas ? 'rgba(37, 99, 235, 0.10)' : 'var(--color-bg)',
+                borderColor: podeReplicarMetas ? 'var(--color-primary)' : 'var(--color-border)',
+                color: podeReplicarMetas ? 'var(--color-primary)' : 'var(--color-text-muted)',
+              }}
+            >
+              <Copy size={15} />
+              {isReplicating ? 'Copiando...' : 'Copiar Metas do Mês Anterior'}
+            </button>
+          </div>
+        ) : null}
         <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
           Filial
           <select
@@ -286,6 +342,8 @@ export default function FretesGoalsManagerPanel({
           )}
         </div>
       </div>
-    </section>
+      </section>
+      <ToastStack items={toasts} />
+    </>
   );
 }

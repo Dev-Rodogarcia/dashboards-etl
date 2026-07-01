@@ -11,6 +11,7 @@ public record ManifestosCostGoalDTO(
         LocalDate yearMonth,
         String contractType,
         String contractTypeKey,
+        String classificationKey,
         BigDecimal costGoal,
         Instant createdAt,
         Instant updatedAt
@@ -22,6 +23,7 @@ public record ManifestosCostGoalDTO(
                 entity.getYearMonth(),
                 entity.getContractType(),
                 entity.getContractTypeKey(),
+                entity.getClassificationKey(),
                 entity.getCostGoal(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()

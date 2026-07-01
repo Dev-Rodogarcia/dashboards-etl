@@ -190,6 +190,7 @@ public class FretesService {
         return buscarTopClientesAgregado(consulta(filtro), limiteAplicado).stream()
                 .map(row -> new FretesClienteRankingDTO(
                         row.getCliente(),
+                        row.getCnpjBase(),
                         zero(row.getReceita()).setScale(2, RoundingMode.HALF_UP),
                         row.getFretes(),
                         zero(row.getTicketMedio()).setScale(2, RoundingMode.HALF_UP)

@@ -64,6 +64,7 @@ export interface FretesTrendPoint {
 
 export interface FretesClienteRanking {
   cliente: string;
+  cnpjBase?: string | null;
   receita: number;
   fretes: number;
   ticketMedio: number;
@@ -148,4 +149,9 @@ export interface FretesGoalConfigPayload {
   ano: number;
   mes: number;
   metaFaturamento: number;
+}
+
+export interface FretesGoalReplicarPayload {
+  ano: number;
+  mes: number;
 }

@@ -10,6 +10,7 @@ import type {
   FretesFiltro,
   FretesGoalConfig,
   FretesGoalConfigPayload,
+  FretesGoalReplicarPayload,
   FretesGoalSummary,
   FretesOverview,
   FretesTrendPoint,
@@ -71,6 +72,13 @@ export async function buscarFretesMetasConfiguracoes(ano: number, mes: number): 
 
 export async function salvarFretesMetaConfiguracao(payload: FretesGoalConfigPayload): Promise<FretesGoalConfig> {
   const { data } = await clienteAxios.put<FretesGoalConfig>('/api/painel/fretes/metas/configuracoes', payload);
+  return data;
+}
+
+export async function replicarFretesMetasConfiguracoes(
+  payload: FretesGoalReplicarPayload,
+): Promise<FretesGoalConfig[]> {
+  const { data } = await clienteAxios.post<FretesGoalConfig[]>('/api/painel/fretes/metas/replicar', payload);
   return data;
 }
 

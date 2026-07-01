@@ -146,8 +146,8 @@ export const chartDictionary = {
     calculoTecnico:
       'COALESCE(SUM(valor_total), 0); CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT); COALESCE(SUM(valor_total) / NULLIF(SUM(elegivel_faturamento), 0), 0)',
     calculoNegocio:
-      'Para cada cliente, soma a receita, conta fretes elegíveis e divide receita por quantidade elegível para estimar o valor médio gerado.',
-    agrupamento: 'GROUP BY pagador_nome',
+      'Para cada grupo de cliente, soma a receita, conta fretes elegíveis e divide receita por quantidade elegível para estimar o valor médio gerado.',
+    agrupamento: 'GROUP BY CNPJ base do pagador (LEFT(pagador_documento, 8) após limpeza de máscara); fallback por pagador_nome quando não houver CNPJ válido',
   },
   fretesMixDocumental: {
     ...fretesFaturamentoBase,
@@ -190,8 +190,8 @@ export const chartDictionary = {
     calculoTecnico:
       'COALESCE(SUM(valor_total), 0); CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT); participação no frontend = receita do cliente / receita total do período',
     calculoNegocio:
-      'Soma a receita por cliente, conta fretes elegíveis e compara a receita de cada cliente contra o total filtrado para calcular sua fatia no período.',
-    agrupamento: 'GROUP BY pagador_nome',
+      'Soma a receita por grupo de cliente, conta fretes elegíveis e compara a receita de cada grupo contra o total filtrado para calcular sua fatia no período.',
+    agrupamento: 'GROUP BY CNPJ base do pagador (LEFT(pagador_documento, 8) após limpeza de máscara); fallback por pagador_nome quando não houver CNPJ válido',
   },
   faturamentoRota: {
     ...fretesFaturamentoBase,

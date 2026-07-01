@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  baixarTemplateManifestosMetas,
   buscarManifestosGraficos,
   buscarManifestosMetas,
   buscarManifestosOverview,
@@ -8,6 +9,8 @@ import {
   buscarManifestosTabela,
   buscarManifestosTabelaPaginada,
   buscarManifestosTabelaTotal,
+  importarManifestosMetas,
+  preValidarManifestosMetasImportacao,
   removerManifestosMeta,
   salvarManifestosMeta,
 } from '../../api/endpoints/manifestosServico';
@@ -131,12 +134,35 @@ export function useSaveManifestosMeta() {
 export function useDeleteManifestosMeta() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ branchId, ano, mes, contractTypeKey }: {
+    mutationFn: ({ branchId, ano, mes, contractTypeKey, classificationKey }: {
       branchId: string;
       ano: number;
       mes: number;
       contractTypeKey?: string;
-    }) => removerManifestosMeta(branchId, ano, mes, contractTypeKey),
+      classificationKey?: string | null;
+    }) => removerManifestosMeta(branchId, ano, mes, contractTypeKey, classificationKey),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export function useBaixarTemplateManifestosMetas() {
+  return useMutation({
+    mutationFn: baixarTemplateManifestosMetas,
+  });
+}
+
+export function usePreValidarManifestosMetasImportacao() {
+  return useMutation({
+    mutationFn: preValidarManifestosMetasImportacao,
+  });
+}
+
+export function useImportarManifestosMetas() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: importarManifestosMetas,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },

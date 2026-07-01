@@ -6,6 +6,7 @@ import type {
   FaturamentoFiltro,
   FaturamentoGoalConfig,
   FaturamentoGoalConfigPayload,
+  FaturamentoGoalReplicarPayload,
   FaturamentoGoalSummary,
   FaturamentoOverview,
   FaturamentoResumoRow,
@@ -24,6 +25,7 @@ import {
   buscarFretesTabelaTotal,
   buscarFretesTopClientes,
   exportarFretesCsv,
+  replicarFretesMetasConfiguracoes,
   removerFretesMetaConfiguracao,
   salvarFretesMetaConfiguracao,
 } from './fretesServico';
@@ -67,6 +69,12 @@ export async function buscarFaturamentoMetasConfiguracoes(ano: number, mes: numb
 
 export async function salvarFaturamentoMetaConfiguracao(payload: FaturamentoGoalConfigPayload): Promise<FaturamentoGoalConfig> {
   return salvarFretesMetaConfiguracao(payload);
+}
+
+export async function replicarFaturamentoMetasConfiguracoes(
+  payload: FaturamentoGoalReplicarPayload,
+): Promise<FaturamentoGoalConfig[]> {
+  return replicarFretesMetasConfiguracoes(payload);
 }
 
 export async function removerFaturamentoMetaConfiguracao(branchId: string, ano: number, mes: number): Promise<void> {

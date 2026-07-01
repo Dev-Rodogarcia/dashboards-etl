@@ -1,0 +1,425 @@
+import { useEffect, useMemo, useState } from 'react';
+import type { ChangeEvent, DragEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { AlertCircle, FileSpreadsheet, UploadCloud, X } from 'lucide-react';
+import DataTable, { type ColunaTabela } from '../../shared/DataTable';
+import {
+  useBaixarTemplateManifestosMetas,
+  useImportarManifestosMetas,
+  usePreValidarManifestosMetasImportacao,
+} from '../../../hooks/queries/useManifestos';
+import type {
+  ManifestosMetasImportacaoErro,
+  ManifestosMetasImportacaoPreviewLinha,
+  ManifestosMetasImportacaoPreviewResponse,
+  ManifestosMetasImportacaoResultado,
+  ManifestosMetasImportacaoStatus,
+} from '../../../types/manifestos';
+import { getApiErrorMessage } from '../../../utils/apiError';
+import { formatarMoeda } from '../../../utils/formatadores';
+
+const SURFACE_STYLE = {
+  backgroundColor: 'var(--color-card)',
+  borderColor: 'var(--color-border)',
+};
+
+const SOFT_PANEL_STYLE = {
+  backgroundColor: 'var(--color-bg)',
+  borderColor: 'var(--color-border)',
+};
+
+const PRIMARY_BUTTON_STYLE = {
+  backgroundColor: 'var(--color-primary)',
+  color: '#fff',
+};
+
+const SECONDARY_BUTTON_STYLE = {
+  backgroundColor: 'var(--color-bg)',
+  borderColor: 'var(--color-border)',
+  color: 'var(--color-text)',
+};
+
+const ERROR_PANEL_STYLE = {
+  backgroundColor: 'rgba(220, 38, 38, 0.12)',
+  borderColor: 'rgba(220, 38, 38, 0.45)',
+  color: 'var(--color-text)',
+};
+
+interface ManifestosMetasImportacaoModalProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+interface PreviewRowTable extends ManifestosMetasImportacaoPreviewLinha {
+  competencia: string;
+  classificationLabel: string;
+  costGoalLabel: string;
+  mensagensResumo: string;
+}
+
+function SummaryCard({ label, value, accent }: { label: string; value: number; accent: string }) {
+  return (
+    <div className="rounded-2xl border px-4 py-3" style={SURFACE_STYLE}>
+      <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
+        {label}
+      </div>
+      <div className="mt-1 text-2xl font-bold" style={{ color: accent }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function formatStatus(status: ManifestosMetasImportacaoStatus) {
+  return status === 'PRONTA' ? 'Pronta' : 'Erro de validação';
+}
+
+function statusStyle(status: ManifestosMetasImportacaoStatus) {
+  if (status === 'PRONTA') {
+    return {
+      backgroundColor: 'rgba(22, 163, 74, 0.14)',
+      color: '#15803d',
+    };
+  }
+
+  return {
+    backgroundColor: 'rgba(220, 38, 38, 0.14)',
+    color: '#dc2626',
+  };
+}
+
+export default function ManifestosMetasImportacaoModal({ open, onClose }: ManifestosMetasImportacaoModalProps) {
+  if (!open) {
+    return null;
+  }
+
+  return <ManifestosMetasImportacaoModalAberto onClose={onClose} />;
+}
+
+function ManifestosMetasImportacaoModalAberto({ onClose }: Pick<ManifestosMetasImportacaoModalProps, 'onClose'>) {
+  const baixarTemplate = useBaixarTemplateManifestosMetas();
+  const preValidacao = usePreValidarManifestosMetasImportacao();
+  const importacao = useImportarManifestosMetas();
+  const [arquivoSelecionado, setArquivoSelecionado] = useState<File | null>(null);
+  const [preview, setPreview] = useState<ManifestosMetasImportacaoPreviewResponse | null>(null);
+  const [resultado, setResultado] = useState<ManifestosMetasImportacaoResultado | null>(null);
+  const [erroLocal, setErroLocal] = useState('');
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  async function processarArquivo(arquivo: File) {
+    const nome = arquivo.name.toLowerCase();
+    if (!nome.endsWith('.xlsx') && !nome.endsWith('.xls') && !nome.endsWith('.csv')) {
+      setErroLocal('Formato inválido. Envie somente arquivos .xlsx, .xls ou .csv.');
+      return;
+    }
+
+    setErroLocal('');
+    setResultado(null);
+    setArquivoSelecionado(arquivo);
+
+    try {
+      const response = await preValidacao.mutateAsync(arquivo);
+      setPreview(response);
+    } catch (error) {
+      setPreview(null);
+      setErroLocal(getApiErrorMessage(error, 'Não foi possível pré-validar a planilha de metas.'));
+    }
+  }
+
+  async function handleFileInput(event: ChangeEvent<HTMLInputElement>) {
+    const arquivo = event.target.files?.[0];
+    if (!arquivo) {
+      return;
+    }
+    await processarArquivo(arquivo);
+    event.target.value = '';
+  }
+
+  async function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const arquivo = event.dataTransfer.files?.[0];
+    if (!arquivo) {
+      return;
+    }
+    await processarArquivo(arquivo);
+  }
+
+  async function handleBaixarTemplate() {
+    try {
+      await baixarTemplate.mutateAsync();
+    } catch (error) {
+      setErroLocal(getApiErrorMessage(error, 'Não foi possível baixar a planilha modelo.'));
+    }
+  }
+
+  async function handleImportar() {
+    if (!arquivoSelecionado) {
+      return;
+    }
+
+    try {
+      const response = await importacao.mutateAsync(arquivoSelecionado);
+      setResultado(response);
+      if (response.totalErros > 0) {
+        setErroLocal('Importação concluída com linhas rejeitadas. Confira o resultado final.');
+      } else {
+        setErroLocal('');
+      }
+    } catch (error) {
+      setErroLocal(getApiErrorMessage(error, 'Não foi possível importar a planilha de metas.'));
+    }
+  }
+
+  const previewRows = useMemo<PreviewRowTable[]>(
+    () =>
+      (preview?.linhasPreview ?? []).map((row) => ({
+        ...row,
+        competencia: row.ano && row.mes ? `${String(row.mes).padStart(2, '0')}/${row.ano}` : '—',
+        classificationLabel: row.classificationKey ?? 'Geral',
+        costGoalLabel: row.costGoal == null ? '—' : formatarMoeda(row.costGoal),
+        mensagensResumo: row.mensagens.join(' '),
+      })),
+    [preview],
+  );
+
+  const erroRows = useMemo<ManifestosMetasImportacaoErro[]>(
+    () => resultado?.listaErros ?? [],
+    [resultado],
+  );
+
+  const colunasPreview: ColunaTabela<PreviewRowTable>[] = [
+    { chave: 'linha', label: 'Linha', fixo: true },
+    { chave: 'competencia', label: 'Mês/Ano', largura: '110px' },
+    { chave: 'branchId', label: 'Filial', largura: '140px' },
+    { chave: 'contractType', label: 'Contrato', largura: '160px' },
+    { chave: 'classificationLabel', label: 'Classificação', largura: '180px' },
+    { chave: 'costGoalLabel', label: 'Meta', largura: '140px', alinhamento: 'right' },
+    {
+      chave: 'status',
+      label: 'Status',
+      largura: '160px',
+      formato: (valor) => (
+        <span
+          className="inline-flex rounded-full px-2 py-1 text-xs font-semibold"
+          style={statusStyle(valor as ManifestosMetasImportacaoStatus)}
+        >
+          {formatStatus(valor as ManifestosMetasImportacaoStatus)}
+        </span>
+      ),
+    },
+    {
+      chave: 'mensagensResumo',
+      label: 'Mensagens',
+      largura: '360px',
+      formato: (valor) => <span className="whitespace-normal">{String(valor || '—')}</span>,
+    },
+  ];
+
+  const colunasErros: ColunaTabela<ManifestosMetasImportacaoErro>[] = [
+    { chave: 'linha', label: 'Linha', fixo: true },
+    { chave: 'tipoErro', label: 'Tipo', largura: '160px' },
+    {
+      chave: 'motivo',
+      label: 'Motivo',
+      largura: '520px',
+      formato: (valor) => <span className="whitespace-normal">{String(valor)}</span>,
+    },
+  ];
+
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  return createPortal(
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-[80] bg-slate-950/45 backdrop-blur-[2px]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+      />
+
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 18 }}
+        className="fixed inset-x-4 bottom-4 top-4 z-[81] mx-auto flex max-w-7xl flex-col overflow-hidden rounded-[28px] border shadow-2xl"
+        style={SURFACE_STYLE}
+      >
+        <div className="flex items-start justify-between gap-4 border-b px-6 py-5" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
+              <FileSpreadsheet size={18} />
+              Importação de metas de manifestos
+            </div>
+            <h2 className="mt-1 text-2xl font-bold" style={{ color: 'var(--color-text)' }}>
+              Planilha com preview por filial, contrato e classificação
+            </h2>
+            <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
+              Formato obrigatório: <strong>Mês/Ano</strong>, <strong>Filial</strong>, <strong>Tipo de Contrato</strong>, <strong>Classificação</strong> e <strong>Valor da Meta</strong>.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border p-2 transition-opacity hover:opacity-80"
+            style={SECONDARY_BUTTON_STYLE}
+            aria-label="Fechar importação"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="space-y-6">
+            <section className="rounded-3xl border p-5" style={SOFT_PANEL_STYLE}>
+              <div className="grid gap-4 lg:grid-cols-[1.6fr_auto]">
+                <div>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text)' }}>
+                    Arquivo de entrada
+                  </h3>
+                  <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
+                    Selecione ou arraste a planilha. A pré-validação acontece antes da gravação no banco.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleBaixarTemplate()}
+                    disabled={baixarTemplate.isPending}
+                    className="rounded-xl border px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+                    style={SECONDARY_BUTTON_STYLE}
+                  >
+                    {baixarTemplate.isPending ? 'Baixando...' : 'Baixar planilha modelo'}
+                  </button>
+                  <label
+                    className="inline-flex cursor-pointer items-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white"
+                    style={PRIMARY_BUTTON_STYLE}
+                  >
+                    Selecionar arquivo
+                    <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(event) => void handleFileInput(event)} />
+                  </label>
+                </div>
+              </div>
+
+              <div
+                className="mt-4 rounded-3xl border border-dashed p-6 text-center"
+                style={{
+                  borderColor: 'var(--color-primary)',
+                  backgroundColor: 'var(--color-bg)',
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => void handleDrop(event)}
+              >
+                <UploadCloud className="mx-auto mb-3" size={24} style={{ color: 'var(--color-primary)' }} />
+                <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                  Arraste o Excel ou CSV aqui
+                </p>
+                <p className="mt-1 text-xs" style={{ color: 'var(--color-text-subtle)' }}>
+                  Filial em branco ou GLOBAL vira meta global. Classificação em branco, Geral ou Global vira meta geral.
+                </p>
+                <p className="mt-3 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                  {arquivoSelecionado ? `Arquivo atual: ${arquivoSelecionado.name}` : 'Nenhum arquivo selecionado ainda.'}
+                </p>
+              </div>
+
+              {erroLocal && (
+                <div className="mt-4 flex items-start gap-2 rounded-xl border px-3 py-2 text-sm" style={ERROR_PANEL_STYLE}>
+                  <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                  <span>{erroLocal}</span>
+                </div>
+              )}
+            </section>
+
+            {preview && (
+              <>
+                <section className="grid gap-4 md:grid-cols-3">
+                  <SummaryCard label="Total de linhas" value={preview.totais.totalLinhas} accent="var(--color-text)" />
+                  <SummaryCard label="Válidas para importação" value={preview.totais.validas} accent="#10b981" />
+                  <SummaryCard label="Com problemas" value={preview.totais.invalidas} accent="#ef4444" />
+                </section>
+
+                <DataTable
+                  titulo="Preview da importação"
+                  dados={previewRows}
+                  chaveLinha="linha"
+                  colunas={colunasPreview}
+                  isLoading={preValidacao.isPending}
+                />
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleImportar()}
+                    disabled={!preview.podeImportar || importacao.isPending || !arquivoSelecionado}
+                    className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    style={PRIMARY_BUTTON_STYLE}
+                  >
+                    {importacao.isPending ? 'Importando agora...' : 'Importar agora'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleBaixarTemplate()}
+                    className="rounded-xl border px-4 py-2.5 text-sm font-medium"
+                    style={SECONDARY_BUTTON_STYLE}
+                  >
+                    Baixar modelo novamente
+                  </button>
+                </div>
+              </>
+            )}
+
+            {resultado && (
+              <section className="space-y-5 rounded-3xl border p-5" style={SOFT_PANEL_STYLE}>
+                <div>
+                  <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
+                    Resultado final da importação
+                  </h3>
+                  <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
+                    As linhas válidas foram gravadas usando a mesma regra do cadastro manual.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <SummaryCard label="Processadas" value={resultado.totalProcessados} accent="var(--color-text)" />
+                  <SummaryCard label="Importadas" value={resultado.totalImportados} accent="#10b981" />
+                  <SummaryCard label="Rejeitadas" value={resultado.totalErros} accent="#ef4444" />
+                </div>
+
+                <DataTable
+                  titulo="Erros e motivos"
+                  dados={erroRows}
+                  chaveLinha="linha"
+                  colunas={colunasErros}
+                  semPaginacao={erroRows.length <= 10}
+                />
+              </section>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body,
+  );
+}

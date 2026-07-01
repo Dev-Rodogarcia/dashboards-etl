@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.fretes.FretesClienteRankingDTO;
 import com.dashboard.api.dto.fretes.FretesGoalSummaryDTO;
 import com.dashboard.api.dto.fretes.FretesOverviewDTO;
 import com.dashboard.api.dto.fretes.FretesTrendPointDTO;
@@ -177,6 +178,28 @@ class FretesServiceTest {
         assertThat(serie.get(1).fretes()).isEqualTo(1);
     }
 
+    @Test
+    void buscarTopClientesPreservaCnpjBaseDoGrupo() {
+        when(repository.buscarTopClientesAgregado(
+                any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
+                anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
+                anyInt()
+        )).thenReturn(List.of(clienteRanking("PPG", "43.996.693", "300.00", 2, "150.00")));
+
+        List<FretesClienteRankingDTO> topClientes = service.buscarTopClientes(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of()),
+                10
+        );
+
+        assertThat(topClientes).containsExactly(new FretesClienteRankingDTO(
+                "PPG",
+                "43.996.693",
+                new BigDecimal("300.00").setScale(2, RoundingMode.HALF_UP),
+                2,
+                new BigDecimal("150.00").setScale(2, RoundingMode.HALF_UP)
+        ));
+    }
+
     private void stubOverview(VisaoFretesRepository.FretesOverviewProjection overview) {
         when(repository.buscarOverviewAgregado(
                 any(), any(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(), anyList(), anyInt(),
@@ -224,6 +247,22 @@ class FretesServiceTest {
             @Override public BigDecimal getReceitaBruta() { return new BigDecimal(receita); }
             @Override public BigDecimal getValorFrete() { return new BigDecimal(valorFrete); }
             @Override public int getFretes() { return fretes; }
+        };
+    }
+
+    private static VisaoFretesRepository.FretesClienteRankingProjection clienteRanking(
+            String cliente,
+            String cnpjBase,
+            String receita,
+            int fretes,
+            String ticketMedio
+    ) {
+        return new VisaoFretesRepository.FretesClienteRankingProjection() {
+            @Override public String getCliente() { return cliente; }
+            @Override public String getCnpjBase() { return cnpjBase; }
+            @Override public BigDecimal getReceita() { return new BigDecimal(receita); }
+            @Override public int getFretes() { return fretes; }
+            @Override public BigDecimal getTicketMedio() { return new BigDecimal(ticketMedio); }
         };
     }
 

@@ -30,6 +30,7 @@ import {
   useFaturamentoSerie,
   useFaturamentoTabelaPaginada,
   useFaturamentoTopClientes,
+  useReplicarFaturamentoMetasConfiguracoes,
   useRemoverFaturamentoMetaConfiguracao,
   useSalvarFaturamentoMetaConfiguracao,
 } from '../hooks/queries/useFaturamento';
@@ -741,18 +742,28 @@ function buildTopClientesRows(
   atuais: FaturamentoClienteRanking[],
   anteriores: FaturamentoClienteRanking[],
 ) {
-  const anteriorPorCliente = new Map(anteriores.map((item) => [item.cliente, item.receita]));
+  const anteriorPorCliente = new Map(anteriores.map((item) => [clienteRankingKey(item), item.receita]));
 
   return atuais.slice(0, 10).map((item, index) => {
-    const mesAnterior = anteriorPorCliente.get(item.cliente) ?? 0;
+    const clienteKey = clienteRankingKey(item);
+    const mesAnterior = anteriorPorCliente.get(clienteKey) ?? 0;
     return {
       ranking: index + 1,
-      cliente: item.cliente,
+      clienteKey,
+      cliente: clienteRankingLabel(item),
       mesAnterior,
       mesAtual: item.receita,
       variacao: percentualVariacao(item.receita, mesAnterior),
     };
   });
+}
+
+function clienteRankingKey(item: FaturamentoClienteRanking) {
+  return item.cnpjBase || item.cliente;
+}
+
+function clienteRankingLabel(item: FaturamentoClienteRanking) {
+  return item.cnpjBase ? `${item.cliente} (${item.cnpjBase})` : item.cliente;
 }
 
 function TopClientesTableCard({
@@ -820,7 +831,7 @@ function TopClientesTableCard({
               </colgroup>
               <tbody>
                 {rows.map((row, index) => (
-                  <tr key={`${row.cliente}-${index}`} className="border-b last:border-b-0" style={{ borderColor: 'var(--color-border)' }}>
+                  <tr key={`${row.clienteKey}-${index}`} className="border-b last:border-b-0" style={{ borderColor: 'var(--color-border)' }}>
                     <td className="px-2 py-1.5 text-center" style={{ color: 'var(--color-text)' }}>{row.ranking}º</td>
                     <td className="truncate px-2 py-1.5" title={row.cliente} style={{ color: 'var(--color-text)' }}>{row.cliente}</td>
                     <td className="px-2 py-1.5 text-right" style={{ color: 'var(--color-text)' }}>{formatarMoeda(row.mesAnterior)}</td>
@@ -914,6 +925,7 @@ export default function FaturamentoPage() {
   const metasConfiguracoes = useFaturamentoMetasConfiguracoes(goalsPanelYear, goalsPanelMonth, goalsPanelOpen);
   const salvarMeta = useSalvarFaturamentoMetaConfiguracao();
   const removerMeta = useRemoverFaturamentoMetaConfiguracao();
+  const replicarMetas = useReplicarFaturamentoMetasConfiguracoes();
   const topClientes = useFaturamentoTopClientes(filtro, 10, topClientesEnabled);
   const topClientesPeriodoAnterior = useFaturamentoTopClientes(filtroPeriodoAnterior, 50, topClientesAnteriorEnabled);
   const filtrosTabela = useAnalyticalTableFilters();
@@ -1004,7 +1016,7 @@ export default function FaturamentoPage() {
   ]);
   const topClientesData = useMemo(() => topClientes.data ?? [], [topClientes.data]);
   const participacaoClientes = useMemo<ChartDatum[]>(() => {
-    const top = topClientesData.slice(0, 8).map((item) => ({ nome: item.cliente, receita: item.receita, fretes: item.fretes }));
+    const top = topClientesData.slice(0, 8).map((item) => ({ nome: clienteRankingLabel(item), receita: item.receita, fretes: item.fretes }));
     const somaTop = top.reduce((acc, item) => acc + item.receita, 0);
     const outros = Math.max((overviewData?.receitaBruta ?? 0) - somaTop, 0);
     return outros > 0 ? [...top, { nome: 'Outros', receita: outros, fretes: 0 }] : top;
@@ -1053,7 +1065,7 @@ export default function FaturamentoPage() {
       };
     })
   ), [metasData, metasPorFilial, tabela.data, usarMetaGlobalNaTabela]);
-  const managerIsSaving = salvarMeta.isPending || removerMeta.isPending;
+  const managerIsSaving = salvarMeta.isPending || removerMeta.isPending || replicarMetas.isPending;
   const managerSaveError = salvarMeta.error ?? removerMeta.error;
 
   function abrirGerenciadorMetas() {
@@ -1069,6 +1081,10 @@ export default function FaturamentoPage() {
 
   async function removerMetaFaturamento(branchId: string, ano: number, mes: number) {
     await removerMeta.mutateAsync({ branchId, ano, mes });
+  }
+
+  async function replicarMetasFaturamento(ano: number, mes: number) {
+    return replicarMetas.mutateAsync({ ano, mes });
   }
 
   function renderMetaPercentualTabela(valor: unknown) {
@@ -1184,12 +1200,15 @@ export default function FaturamentoPage() {
           isSaving={managerIsSaving}
           error={metasConfiguracoes.error}
           saveError={managerSaveError}
+          replicateError={replicarMetas.error}
+          isReplicating={replicarMetas.isPending}
           onPeriodChange={(ano, mes) => {
             setGoalsPanelYear(ano);
             setGoalsPanelMonth(mes);
           }}
           onSave={salvarMetaFaturamento}
           onRemove={removerMetaFaturamento}
+          onReplicatePreviousMonth={replicarMetasFaturamento}
           onViewScope={(branchId) => {
             setFiltro('filiais', branchId === 'GLOBAL' ? [] : [branchId]);
             paginacaoTabela.setPagina(1);

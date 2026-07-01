@@ -10,10 +10,11 @@ import {
   buscarFretesTabelaPaginada,
   buscarFretesTabelaTotal,
   buscarFretesTopClientes,
+  replicarFretesMetasConfiguracoes,
   removerFretesMetaConfiguracao,
   salvarFretesMetaConfiguracao,
 } from '../../api/endpoints/fretesServico';
-import type { FretesFiltro, FretesGoalConfigPayload } from '../../types/fretes';
+import type { FretesFiltro, FretesGoalConfigPayload, FretesGoalReplicarPayload } from '../../types/fretes';
 import type { TableApiFilters } from '../../types/tableFilters';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
@@ -93,6 +94,16 @@ export function useSalvarFretesMetaConfiguracao() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: FretesGoalConfigPayload) => salvarFretesMetaConfiguracao(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fretes'] });
+    },
+  });
+}
+
+export function useReplicarFretesMetasConfiguracoes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: FretesGoalReplicarPayload) => replicarFretesMetasConfiguracoes(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fretes'] });
     },

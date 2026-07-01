@@ -33,6 +33,8 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '') AS filial_nome,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '')) AS filial_nome_normalizada,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), filial_nome))), '') AS filial_emissora,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(50), pagador_documento_key))), '') AS pagador_documento_key,
+                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), pagador_documento))), '') AS pagador_documento,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), responsavel_regiao_destino))), '') AS responsavel_regiao_destino,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), responsavel_regiao_destino_key))), '') AS responsavel_destino_key,
                     COALESCE(
@@ -183,17 +185,50 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
     );
 
     @Query(value = FRETES_FILTRADOS_SQL + """
+            , clientes_documentados AS (
+                SELECT
+                    *,
+                    -- Limpa a pontuação usando a coluna correta do documento
+                    REPLACE(REPLACE(REPLACE(pagador_documento, N'.', N''), N'/', N''), N'-', N'') AS doc_limpo
+                FROM filtrados
+                WHERE pagador_nome IS NOT NULL
+            ),
+            clientes_chaveados AS (
+                SELECT
+                    *,
+                    CASE
+                        WHEN doc_limpo IS NOT NULL AND LEN(doc_limpo) = 14 THEN LEFT(doc_limpo, 8)
+                    END AS cnpj_base,
+                    CASE
+                        WHEN doc_limpo IS NOT NULL AND LEN(doc_limpo) = 14 THEN STUFF(STUFF(LEFT(doc_limpo, 8), 3, 0, N'.'), 7, 0, N'.')
+                    END AS cnpj_base_formatado,
+                    CASE
+                        WHEN doc_limpo IS NOT NULL AND LEN(doc_limpo) = 14 THEN N'cnpj_base:' + LEFT(doc_limpo, 8)
+                        ELSE N'nome:' + LOWER(pagador_nome)
+                    END AS cliente_grupo_key
+                FROM clientes_documentados
+            ),
+            totais AS (
+                SELECT
+                    cliente_grupo_key,
+                    MAX(pagador_nome) AS cliente,
+                    MAX(cnpj_base_formatado) AS cnpjBase,
+                    COALESCE(SUM(valor_total), 0) AS receita,
+                    CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretes,
+                    COALESCE(SUM(valor_total) / NULLIF(SUM(elegivel_faturamento), 0), 0) AS ticketMedio
+                FROM clientes_chaveados
+                GROUP BY cliente_grupo_key
+                HAVING COALESCE(SUM(valor_total), 0) <> 0
+                    OR COALESCE(SUM(subtotal), 0) <> 0
+            )
             SELECT
-                pagador_nome AS cliente,
-                COALESCE(SUM(valor_total), 0) AS receita,
-                CAST(COALESCE(SUM(elegivel_faturamento), 0) AS INT) AS fretes,
-                COALESCE(SUM(valor_total) / NULLIF(SUM(elegivel_faturamento), 0), 0) AS ticketMedio
-            FROM filtrados
-            WHERE pagador_nome IS NOT NULL
-            GROUP BY pagador_nome
-            HAVING COALESCE(SUM(valor_total), 0) <> 0
-                OR COALESCE(SUM(subtotal), 0) <> 0
-            ORDER BY receita DESC, pagador_nome
+                totais.cliente,
+                totais.cnpjBase,
+                totais.receita,
+                totais.fretes,
+                totais.ticketMedio
+            FROM totais
+            ORDER BY totais.receita DESC, cliente
             OFFSET 0 ROWS FETCH NEXT :limite ROWS ONLY
             """, nativeQuery = true)
     List<FretesClienteRankingProjection> buscarTopClientesAgregado(
@@ -723,6 +758,8 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
 
     interface FretesClienteRankingProjection {
         String getCliente();
+
+        String getCnpjBase();
 
         BigDecimal getReceita();
 

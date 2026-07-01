@@ -10,10 +10,15 @@ import {
   buscarFaturamentoTabelaPaginada,
   buscarFaturamentoTabelaTotal,
   buscarFaturamentoTopClientes,
+  replicarFaturamentoMetasConfiguracoes,
   removerFaturamentoMetaConfiguracao,
   salvarFaturamentoMetaConfiguracao,
 } from '../../api/endpoints/faturamentoServico';
-import type { FaturamentoFiltro, FaturamentoGoalConfigPayload } from '../../types/faturamento';
+import type {
+  FaturamentoFiltro,
+  FaturamentoGoalConfigPayload,
+  FaturamentoGoalReplicarPayload,
+} from '../../types/faturamento';
 import type { TableApiFilters } from '../../types/tableFilters';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
@@ -99,6 +104,16 @@ export function useSalvarFaturamentoMetaConfiguracao() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: FaturamentoGoalConfigPayload) => salvarFaturamentoMetaConfiguracao(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export function useReplicarFaturamentoMetasConfiguracoes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: FaturamentoGoalReplicarPayload) => replicarFaturamentoMetasConfiguracoes(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },

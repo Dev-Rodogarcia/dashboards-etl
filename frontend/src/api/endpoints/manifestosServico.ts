@@ -1,11 +1,14 @@
 import clienteAxios from '../clienteAxios';
 import { baixarCsv } from '../downloadCsv';
+import { extrairNomeArquivo, salvarBlobComoArquivo } from '../downloadArquivo';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
 import type {
   ManifestosCostGoalConfig,
   ManifestosCostGoalPayload,
+  ManifestosMetasImportacaoPreviewResponse,
+  ManifestosMetasImportacaoResultado,
   ManifestoResumoRow,
   ManifestosCharts,
   ManifestosFiltro,
@@ -75,10 +78,59 @@ export async function removerManifestosMeta(
   ano: number,
   mes: number,
   contractTypeKey?: string,
+  classificationKey?: string | null,
 ): Promise<void> {
   await clienteAxios.delete('/api/painel/manifestos/metas', {
-    params: { branchId, ano, mes, contractTypeKey },
+    params: { branchId, ano, mes, contractTypeKey, classificationKey },
   });
+}
+
+export async function baixarTemplateManifestosMetas(): Promise<void> {
+  const response = await clienteAxios.get<Blob>('/api/painel/manifestos/metas/importacao/template', {
+    responseType: 'blob',
+  });
+  const contentDisposition = response.headers['content-disposition'];
+  const nomeArquivo = extrairNomeArquivo(
+    Array.isArray(contentDisposition) ? contentDisposition[0] : contentDisposition,
+    'manifestos-metas-modelo.xlsx',
+  );
+  salvarBlobComoArquivo(response.data, nomeArquivo);
+}
+
+export async function preValidarManifestosMetasImportacao(
+  arquivo: File,
+): Promise<ManifestosMetasImportacaoPreviewResponse> {
+  const formData = new FormData();
+  formData.append('arquivo', arquivo);
+
+  const { data } = await clienteAxios.post<ManifestosMetasImportacaoPreviewResponse>(
+    '/api/painel/manifestos/metas/importacao/pre-validacao',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    },
+  );
+  return data;
+}
+
+export async function importarManifestosMetas(
+  arquivo: File,
+): Promise<ManifestosMetasImportacaoResultado> {
+  const formData = new FormData();
+  formData.append('arquivo', arquivo);
+
+  const { data } = await clienteAxios.post<ManifestosMetasImportacaoResultado>(
+    '/api/painel/manifestos/metas/importacao',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    },
+  );
+  return data;
 }
 
 export async function buscarManifestosTabela(

@@ -35,6 +35,9 @@ public class ManifestosCostGoalEntity {
     @Column(name = "contract_type_key", nullable = false, length = 100)
     private String contractTypeKey;
 
+    @Column(name = "classification_key", length = 120)
+    private String classificationKey;
+
     @Column(name = "cost_goal", nullable = false, precision = 18, scale = 2)
     private BigDecimal costGoal;
 
@@ -102,6 +105,14 @@ public class ManifestosCostGoalEntity {
 
     public void setContractTypeKey(String contractTypeKey) {
         this.contractTypeKey = contractTypeKey;
+    }
+
+    public String getClassificationKey() {
+        return classificationKey;
+    }
+
+    public void setClassificationKey(String classificationKey) {
+        this.classificationKey = classificationKey;
     }
 
     public BigDecimal getCostGoal() {

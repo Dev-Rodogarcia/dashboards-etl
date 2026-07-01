@@ -151,6 +151,7 @@ export interface ManifestosCostGoalConfig {
   branchId: string;
   contractType?: string;
   contractTypeKey?: string;
+  classificationKey?: string | null;
   ano: number;
   mes: number;
   costGoal: number;
@@ -164,7 +165,60 @@ export interface ManifestosCostGoalPayload {
   branchId: string;
   contractType?: string;
   contractTypeKey?: string;
+  classificationKey?: string | null;
   ano: number;
   mes: number;
   costGoal: number;
+}
+
+export type ManifestosMetasImportacaoStatus = 'PRONTA' | 'ERRO_VALIDACAO';
+
+export interface ManifestosMetasImportacaoTotais {
+  totalLinhas: number;
+  validas: number;
+  invalidas: number;
+}
+
+export interface ManifestosMetasImportacaoPreviewLinha {
+  linha: number;
+  ano: number | null;
+  mes: number | null;
+  branchId: string;
+  contractType: string;
+  contractTypeKey: string;
+  classificationKey: string | null;
+  costGoal: number | null;
+  status: ManifestosMetasImportacaoStatus;
+  mensagens: string[];
+}
+
+export interface ManifestosMetasImportacaoPreviewResponse {
+  arquivo: string;
+  totais: ManifestosMetasImportacaoTotais;
+  podeImportar: boolean;
+  linhasPreview: ManifestosMetasImportacaoPreviewLinha[];
+}
+
+export interface ManifestosMetasImportacaoImportado {
+  linha: number;
+  ano: number;
+  mes: number;
+  branchId: string;
+  contractTypeKey: string;
+  classificationKey: string | null;
+  costGoal: number;
+}
+
+export interface ManifestosMetasImportacaoErro {
+  linha: number;
+  motivo: string;
+  tipoErro: string;
+}
+
+export interface ManifestosMetasImportacaoResultado {
+  totalProcessados: number;
+  totalImportados: number;
+  totalErros: number;
+  listaImportados: ManifestosMetasImportacaoImportado[];
+  listaErros: ManifestosMetasImportacaoErro[];
 }

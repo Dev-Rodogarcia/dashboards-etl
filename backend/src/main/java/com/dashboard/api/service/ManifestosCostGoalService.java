@@ -1,11 +1,16 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.manifestos.ManifestosCostGoalConfigDTO;
+import com.dashboard.api.dto.manifestos.ManifestosCostGoalConfigRequestDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCustosEvolucaoDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCustosEvolucaoDTO.CustoDiarioDTO;
+import com.dashboard.api.model.acesso.ManifestosCostGoalEntity;
+import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.repository.ManifestosCostDataRepository;
 import com.dashboard.api.repository.acesso.ManifestosCostGoalRepository;
 import com.dashboard.api.repository.acesso.ManifestosCostGoalRepository.GoalAggregateProjection;
+import com.dashboard.api.repository.acesso.UsuarioRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.service.acesso.EscopoFilialService.EscopoFilial;
 import com.dashboard.api.util.ConsultaFiltroUtils;
@@ -19,6 +24,8 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +38,9 @@ public class ManifestosCostGoalService {
 
     private static final Logger log = LoggerFactory.getLogger(ManifestosCostGoalService.class);
     private static final ZoneId ZONE_ID_BRASILIA = ZoneId.of("America/Sao_Paulo");
+    private static final String GLOBAL_BRANCH_ID = "GLOBAL";
+    private static final String DEFAULT_CONTRACT_TYPE = "Geral";
+    private static final String DEFAULT_CONTRACT_TYPE_KEY = "geral";
     private static final List<String> FILTROS_SEM_DIMENSAO_ORCAMENTARIA = List.of(
             "status",
             "motoristas",
@@ -43,18 +53,21 @@ public class ManifestosCostGoalService {
     private final ManifestosCostGoalRepository goalRepository;
     private final ManifestosCostDataRepository performanceRepository;
     private final EscopoFilialService escopoFilialService;
+    private final UsuarioRepository usuarioRepository;
     private final Clock clock;
 
     @Autowired
     public ManifestosCostGoalService(
             ManifestosCostGoalRepository goalRepository,
             ManifestosCostDataRepository performanceRepository,
-            EscopoFilialService escopoFilialService
+            EscopoFilialService escopoFilialService,
+            UsuarioRepository usuarioRepository
     ) {
         this(
                 goalRepository,
                 performanceRepository,
                 escopoFilialService,
+                usuarioRepository,
                 Clock.system(ZONE_ID_BRASILIA)
         );
     }
@@ -65,10 +78,88 @@ public class ManifestosCostGoalService {
             EscopoFilialService escopoFilialService,
             Clock clock
     ) {
+        this(goalRepository, performanceRepository, escopoFilialService, null, clock);
+    }
+
+    ManifestosCostGoalService(
+            ManifestosCostGoalRepository goalRepository,
+            ManifestosCostDataRepository performanceRepository,
+            EscopoFilialService escopoFilialService,
+            UsuarioRepository usuarioRepository,
+            Clock clock
+    ) {
         this.goalRepository = goalRepository;
         this.performanceRepository = performanceRepository;
         this.escopoFilialService = escopoFilialService;
+        this.usuarioRepository = usuarioRepository;
         this.clock = clock != null ? clock : Clock.system(ZONE_ID_BRASILIA);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ManifestosCostGoalConfigDTO> listar(int ano, int mes) {
+        LocalDate competencia = competencia(ano, mes);
+        List<ManifestosCostGoalConfigDTO> metas = goalRepository.findAllByYearMonthOrdered(competencia).stream()
+                .map(ManifestosCostGoalConfigDTO::from)
+                .toList();
+
+        if (metas.isEmpty()) {
+            return List.of(ManifestosCostGoalConfigDTO.fallback(
+                    ano,
+                    mes,
+                    "Orçamento de custo operacional não cadastrado"
+            ));
+        }
+        return metas;
+    }
+
+    @Transactional
+    public ManifestosCostGoalConfigDTO salvar(
+            ManifestosCostGoalConfigRequestDTO request,
+            String authenticationName
+    ) {
+        Objects.requireNonNull(request, "Dados da meta são obrigatórios.");
+        LocalDate competencia = competencia(request.ano(), request.mes());
+        String branchId = normalizarBranchId(request.branchId());
+        ContractType contrato = normalizarContrato(request.contractType(), request.contractTypeKey());
+        String classificationKey = normalizarClassificationKey(request.classificationKey());
+        BigDecimal costGoal = normalizarMeta(request.costGoal());
+        UsuarioEntity usuario = usuarioAutenticado(authenticationName);
+
+        ManifestosCostGoalEntity entity = buscarExistente(
+                branchId,
+                competencia,
+                contrato.key(),
+                classificationKey
+        ).orElseGet(ManifestosCostGoalEntity::new);
+        entity.setBranchId(branchId);
+        entity.setYearMonth(competencia);
+        entity.setContractType(contrato.label());
+        entity.setContractTypeKey(contrato.key());
+        entity.setClassificationKey(classificationKey);
+        entity.setCostGoal(costGoal);
+        entity.setUpdatedByUser(usuario);
+
+        return ManifestosCostGoalConfigDTO.from(goalRepository.saveAndFlush(entity));
+    }
+
+    @Transactional
+    public void remover(
+            String branchId,
+            String contractTypeKey,
+            String classificationKey,
+            int ano,
+            int mes
+    ) {
+        LocalDate competencia = competencia(ano, mes);
+        String normalizedBranchId = normalizarBranchId(branchId);
+        ContractType contrato = normalizarContrato(null, contractTypeKey);
+        String normalizedClassificationKey = normalizarClassificationKey(classificationKey);
+        buscarExistente(
+                normalizedBranchId,
+                competencia,
+                contrato.key(),
+                normalizedClassificationKey
+        ).ifPresent(goalRepository::delete);
     }
 
     @Transactional(readOnly = true)
@@ -166,6 +257,113 @@ public class ManifestosCostGoalService {
                 consumoOrcamento,
                 serieDiaria
         );
+    }
+
+    private Optional<ManifestosCostGoalEntity> buscarExistente(
+            String branchId,
+            LocalDate competencia,
+            String contractTypeKey,
+            String classificationKey
+    ) {
+        if (branchId == null) {
+            return goalRepository.findGlobalByYearMonthAndContractTypeKeyAndClassificationKey(
+                    competencia,
+                    contractTypeKey,
+                    classificationKey
+            );
+        }
+        return goalRepository.findByBranchIdAndYearMonthAndContractTypeKeyAndClassificationKey(
+                branchId,
+                competencia,
+                contractTypeKey,
+                classificationKey
+        );
+    }
+
+    private LocalDate competencia(int ano, int mes) {
+        if (ano < 2000 || ano > 2100) {
+            throw new IllegalArgumentException("Ano da meta deve estar entre 2000 e 2100.");
+        }
+        if (mes < 1 || mes > 12) {
+            throw new IllegalArgumentException("Mês da meta deve estar entre 1 e 12.");
+        }
+        return LocalDate.of(ano, mes, 1);
+    }
+
+    private String normalizarBranchId(String branchId) {
+        String normalized = branchId == null || branchId.isBlank() ? GLOBAL_BRANCH_ID : branchId.trim();
+        if (GLOBAL_BRANCH_ID.equalsIgnoreCase(normalized)) {
+            return null;
+        }
+        if (normalized.length() > 120) {
+            throw new IllegalArgumentException("Filial da meta excede 120 caracteres.");
+        }
+        return normalized;
+    }
+
+    private ContractType normalizarContrato(String contractType, String contractTypeKey) {
+        String key = contractTypeKey == null || contractTypeKey.isBlank()
+                ? normalizarContractTypeKey(contractType)
+                : contractTypeKey.trim().toLowerCase(Locale.ROOT);
+        if (key.isBlank()) {
+            key = DEFAULT_CONTRACT_TYPE_KEY;
+        }
+        String label = contractType == null || contractType.isBlank()
+                ? labelContrato(key)
+                : contractType.trim();
+        if (label.length() > 100) {
+            throw new IllegalArgumentException("Tipo de contrato da meta excede 100 caracteres.");
+        }
+        if (key.length() > 100) {
+            throw new IllegalArgumentException("Chave do tipo de contrato da meta excede 100 caracteres.");
+        }
+        return new ContractType(label, key);
+    }
+
+    private String normalizarContractTypeKey(String contractType) {
+        if (contractType == null || contractType.isBlank()) {
+            return DEFAULT_CONTRACT_TYPE_KEY;
+        }
+        return contractType.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizarClassificationKey(String classificationKey) {
+        if (classificationKey == null || classificationKey.isBlank()) {
+            return null;
+        }
+        String normalized = classificationKey.trim().toLowerCase(Locale.ROOT);
+        if (normalized.length() > 120) {
+            throw new IllegalArgumentException("Chave da classificação da meta excede 120 caracteres.");
+        }
+        return normalized;
+    }
+
+    private String labelContrato(String contractTypeKey) {
+        return switch (contractTypeKey) {
+            case "frota" -> "Frota";
+            case "agregado" -> "Agregado";
+            case "terceiro" -> "Terceiro";
+            case "frota + px" -> "Frota + PX";
+            default -> DEFAULT_CONTRACT_TYPE_KEY.equals(contractTypeKey) ? DEFAULT_CONTRACT_TYPE : contractTypeKey;
+        };
+    }
+
+    private BigDecimal normalizarMeta(BigDecimal costGoal) {
+        BigDecimal normalized = Objects.requireNonNullElse(costGoal, BigDecimal.ZERO)
+                .setScale(2, RoundingMode.HALF_UP);
+        if (normalized.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Meta mensal de custo não pode ser negativa.");
+        }
+        return normalized;
+    }
+
+    private UsuarioEntity usuarioAutenticado(String authenticationName) {
+        if (usuarioRepository == null) {
+            throw new IllegalStateException("Repositório de usuários não configurado para persistir metas.");
+        }
+        String email = authenticationName == null ? "" : authenticationName;
+        return usuarioRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário autenticado não encontrado."));
     }
 
     private ManifestosCustosEvolucaoDTO montarRespostaSemOrcamento(
@@ -350,6 +548,9 @@ public class ManifestosCostGoalService {
 
     private BigDecimal moeda(BigDecimal valor) {
         return ConsultaFiltroUtils.zeroSeNulo(valor).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private record ContractType(String label, String key) {
     }
 
     private record AplicabilidadeOrcamento(

@@ -7,6 +7,7 @@ import type {
   FretesFiltro,
   FretesGoalConfig,
   FretesGoalConfigPayload,
+  FretesGoalReplicarPayload,
   FretesGoalSummary,
   FretesOverview,
   FretesTrendPoint,
@@ -23,4 +24,5 @@ export type FaturamentoCharts = FretesCharts;
 export type FaturamentoFiltro = FretesFiltro;
 export type FaturamentoGoalConfig = FretesGoalConfig;
 export type FaturamentoGoalConfigPayload = FretesGoalConfigPayload;
+export type FaturamentoGoalReplicarPayload = FretesGoalReplicarPayload;
 export type FaturamentoGoalSummary = FretesGoalSummary;

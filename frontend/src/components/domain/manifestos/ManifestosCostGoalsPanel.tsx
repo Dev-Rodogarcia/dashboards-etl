@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { AxiosError } from 'axios';
-import { Save, Trash2 } from 'lucide-react';
-import { useFiliais } from '../../../hooks/queries/useDimensoes';
+import { Download, FileSpreadsheet, Save, Trash2 } from 'lucide-react';
+import { useFiliais, useManifestosClassificacoes } from '../../../hooks/queries/useDimensoes';
 import {
+  useBaixarTemplateManifestosMetas,
   useDeleteManifestosMeta,
   useManifestosMetas,
   useSaveManifestosMeta,
@@ -11,6 +12,7 @@ import {
 import type { ManifestosCostGoalConfig } from '../../../types/manifestos';
 import { getApiErrorMessage } from '../../../utils/apiError';
 import { formatarDataHora, formatarMoeda } from '../../../utils/formatadores';
+import ManifestosMetasImportacaoModal from './ManifestosMetasImportacaoModal';
 
 interface ManifestosCostGoalsPanelProps {
   open: boolean;
@@ -38,6 +40,7 @@ const CONTRACT_TYPE_OPTIONS = [
   { value: 'terceiro', label: 'Terceiro' },
   { value: 'frota + px', label: 'Frota + PX' },
 ];
+const GENERAL_CLASSIFICATION_KEY = '__geral__';
 const FOCUS_RING_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
 
 function normalizeCurrency(value: string) {
@@ -74,20 +77,44 @@ function getConfigContractTypeLabel(config: ManifestosCostGoalConfig) {
   return config.contractType ?? CONTRACT_TYPE_OPTIONS.find((option) => option.value === getConfigContractTypeKey(config))?.label ?? 'Geral';
 }
 
+function getConfigClassificationKey(config: ManifestosCostGoalConfig) {
+  return config.classificationKey ?? GENERAL_CLASSIFICATION_KEY;
+}
+
+function getConfigClassificationLabel(config: ManifestosCostGoalConfig) {
+  return config.classificationKey ?? 'Geral';
+}
+
+function getClassificationPayload(value: string) {
+  return value === GENERAL_CLASSIFICATION_KEY ? null : value;
+}
+
+function formatDate(year: number, month: number, day: number) {
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPanelProps) {
   const periodoAtual = useMemo(() => getCurrentPeriod(), []);
   const [ano, setAno] = useState(periodoAtual.ano);
   const [mes, setMes] = useState(periodoAtual.mes);
   const [branchId, setBranchId] = useState(GLOBAL_BRANCH_ID);
   const [contractTypeKey, setContractTypeKey] = useState('geral');
+  const [classificationKey, setClassificationKey] = useState(GENERAL_CLASSIFICATION_KEY);
   const [costGoalDraft, setCostGoalDraft] = useState<string | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const filiais = useFiliais();
   const metas = useManifestosMetas(ano, mes, open);
+  const filtroClassificacoes = useMemo(() => ({
+    dataInicio: formatDate(ano, mes, 1),
+    dataFim: formatDate(ano, mes, new Date(ano, mes, 0).getDate()),
+  }), [ano, mes]);
+  const classificacoes = useManifestosClassificacoes(filtroClassificacoes);
   const salvarMeta = useSaveManifestosMeta();
   const removerMeta = useDeleteManifestosMeta();
-  const isSaving = salvarMeta.isPending || removerMeta.isPending;
-  const saveError = salvarMeta.error ?? removerMeta.error;
+  const baixarTemplate = useBaixarTemplateManifestosMetas();
+  const isSaving = salvarMeta.isPending || removerMeta.isPending || baixarTemplate.isPending;
+  const saveError = salvarMeta.error ?? removerMeta.error ?? baixarTemplate.error;
   const configs = useMemo(() => metas.data ?? [], [metas.data]);
   const configsCadastradas = useMemo(
     () => configs.filter((item) => item.configurado !== false),
@@ -107,9 +134,33 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
     });
     return Array.from(options.values());
   }, [configsCadastradas]);
+  const classificationOptions = useMemo(() => {
+    const options = new Map<string, { value: string; label: string }>();
+    options.set(GENERAL_CLASSIFICATION_KEY, { value: GENERAL_CLASSIFICATION_KEY, label: 'Geral' });
+
+    (classificacoes.data ?? []).forEach((classificacao) => {
+      const value = classificacao.trim().toLowerCase();
+      if (value && !options.has(value)) {
+        options.set(value, { value, label: classificacao });
+      }
+    });
+
+    configsCadastradas.forEach((config) => {
+      const value = getConfigClassificationKey(config);
+      if (!options.has(value)) {
+        options.set(value, { value, label: getConfigClassificationLabel(config) });
+      }
+    });
+
+    return Array.from(options.values());
+  }, [classificacoes.data, configsCadastradas]);
   const configAtual = useMemo(
-    () => configsCadastradas.find((item) => item.branchId === branchId && getConfigContractTypeKey(item) === contractTypeKey) ?? null,
-    [branchId, contractTypeKey, configsCadastradas],
+    () => configsCadastradas.find((item) =>
+      item.branchId === branchId
+      && getConfigContractTypeKey(item) === contractTypeKey
+      && getConfigClassificationKey(item) === classificationKey
+    ) ?? null,
+    [branchId, classificationKey, contractTypeKey, configsCadastradas],
   );
   const selectableBranches = useMemo(
     () => [
@@ -128,6 +179,9 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
     return Array.from({ length: 7 }, (_, index) => current - 2 + index);
   }, []);
   const selectedContractType = contractTypeOptions.find((option) => option.value === contractTypeKey) ?? CONTRACT_TYPE_OPTIONS[0];
+  const selectedClassification = classificationOptions.find((option) => option.value === classificationKey)
+    ?? classificationOptions[0]
+    ?? { value: GENERAL_CLASSIFICATION_KEY, label: 'Geral' };
   const costGoalValue = costGoalDraft ?? String(configAtual?.costGoal ?? 0);
 
   if (!open) {
@@ -140,6 +194,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
       branchId,
       contractType: selectedContractType.label,
       contractTypeKey: selectedContractType.value,
+      classificationKey: getClassificationPayload(selectedClassification.value),
       ano,
       mes,
       costGoal: normalizeCurrency(costGoalValue),
@@ -151,34 +206,65 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
     await removerMeta.mutateAsync({
       branchId: config.branchId,
       contractTypeKey: getConfigContractTypeKey(config),
+      classificationKey: config.classificationKey ?? null,
       ano: config.ano,
       mes: config.mes,
     });
-    if (config.branchId === branchId && getConfigContractTypeKey(config) === contractTypeKey) {
+    if (
+      config.branchId === branchId
+      && getConfigContractTypeKey(config) === contractTypeKey
+      && getConfigClassificationKey(config) === classificationKey
+    ) {
       setCostGoalDraft(null);
     }
   }
 
+  async function handleBaixarTemplate() {
+    await baixarTemplate.mutateAsync();
+  }
+
   return (
-    <section
-      className="mb-4 rounded-[20px] border p-5 shadow-sm"
-      style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
-      aria-label="Gerenciamento de orçamento de custo operacional"
-    >
+    <>
+      <section
+        className="mb-4 rounded-[20px] border p-5 shadow-sm"
+        style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+        aria-label="Gerenciamento de orçamento de custo operacional"
+      >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
             Gerenciar Orçamento de Custo Operacional
           </h2>
           <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>
-            Metas mensais de custo operacional por filial e tipo de contrato.
+            Metas mensais de custo operacional por filial, tipo de contrato e classificação.
           </p>
         </div>
-        {metas.isLoading ? (
-          <span className="rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: 'rgba(37, 99, 235, 0.12)', color: '#1d4ed8' }}>
-            Carregando metas
-          </span>
-        ) : null}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setIsImportModalOpen(true)}
+            className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold ${FOCUS_RING_CLASS}`}
+            style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+          >
+            <FileSpreadsheet size={15} />
+            Importar Planilha de Metas
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleBaixarTemplate()}
+            disabled={baixarTemplate.isPending}
+            className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING_CLASS}`}
+            style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+          >
+            <Download size={15} />
+            {baixarTemplate.isPending ? 'Baixando...' : 'Baixar Planilha Modelo'}
+          </button>
+          {metas.isLoading ? (
+            <span className="rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: 'rgba(37, 99, 235, 0.12)', color: '#1d4ed8' }}>
+              Carregando metas
+            </span>
+          ) : null}
+        </div>
       </div>
 
           {metas.error ? (
@@ -199,7 +285,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
             </p>
           ) : null}
 
-          <form onSubmit={handleSubmit} className="grid gap-4 rounded-2xl border p-4 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto]" style={{ borderColor: 'var(--color-border)' }}>
+          <form onSubmit={handleSubmit} className="grid gap-4 rounded-2xl border p-4 lg:grid-cols-[0.75fr_1fr_1.2fr_1.2fr_1.2fr_1fr_auto]" style={{ borderColor: 'var(--color-border)' }}>
             <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
               Ano
               <select
@@ -261,6 +347,22 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
               </select>
             </label>
             <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
+              Classificação
+              <select
+                value={classificationKey}
+                onChange={(event) => {
+                  setClassificationKey(event.target.value);
+                  setCostGoalDraft(null);
+                }}
+                className={`h-11 rounded-xl border px-3 text-sm ${FOCUS_RING_CLASS}`}
+                style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+              >
+                {classificationOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
               Meta Mensal
               <input
                 type="text"
@@ -297,12 +399,15 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
                 </p>
               ) : (
                 configsCadastradas.map((config) => (
-                  <div key={`${config.branchId}-${config.ano}-${config.mes}-${getConfigContractTypeKey(config)}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
+                  <div key={`${config.branchId}-${config.ano}-${config.mes}-${getConfigContractTypeKey(config)}-${getConfigClassificationKey(config)}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{config.branchId}</span>
                         <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
                           {getConfigContractTypeLabel(config)}
+                        </span>
+                        <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
+                          {getConfigClassificationLabel(config)}
                         </span>
                         <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
                           Meta Mensal {formatarMoeda(config.costGoal)}
@@ -327,6 +432,8 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
               )}
             </div>
           </div>
-    </section>
+      </section>
+      <ManifestosMetasImportacaoModal open={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
+    </>
   );
 }

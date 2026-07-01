@@ -7,6 +7,7 @@ import com.dashboard.api.dto.fretes.FretesClienteRankingDTO;
 import com.dashboard.api.dto.fretes.FretesDocumentMixDTO;
 import com.dashboard.api.dto.fretes.FretesGoalConfigDTO;
 import com.dashboard.api.dto.fretes.FretesGoalConfigRequestDTO;
+import com.dashboard.api.dto.fretes.FretesGoalReplicarRequestDTO;
 import com.dashboard.api.dto.fretes.FretesGoalSummaryDTO;
 import com.dashboard.api.dto.fretes.FretesOverviewDTO;
 import com.dashboard.api.dto.fretes.FretesTrendPointDTO;
@@ -22,6 +23,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -99,6 +101,18 @@ public class FretesController {
             @RequestBody FretesGoalConfigRequestDTO request,
             Authentication authentication) {
         return ResponseEntity.ok(fretesGoalService.salvarConfiguracao(request, usuarioLogin(authentication)));
+    }
+
+    @PostMapping("/metas/replicar")
+    @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
+    public ResponseEntity<List<FretesGoalConfigDTO>> replicarMetasMesAnterior(
+            @RequestBody FretesGoalReplicarRequestDTO request,
+            Authentication authentication) {
+        return ResponseEntity.ok(fretesGoalService.replicarConfiguracoesMesAnterior(
+                request.ano(),
+                request.mes(),
+                usuarioLogin(authentication)
+        ));
     }
 
     @DeleteMapping("/metas/configuracoes")

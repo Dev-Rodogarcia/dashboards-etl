@@ -12,6 +12,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -181,6 +182,61 @@ public class FretesGoalService implements ApplicationRunner {
 
         return buscarConfiguracao(branchId, request.ano(), request.mes())
                 .orElseThrow(() -> new IllegalStateException("Meta salva, mas não localizada para retorno."));
+    }
+
+    @Transactional
+    public List<FretesGoalConfigDTO> replicarConfiguracoesMesAnterior(int anoDestino, int mesDestino, String usuarioEmail) {
+        validarSchema();
+        validarAnoMes(anoDestino, mesDestino);
+
+        YearMonth destino = YearMonth.of(anoDestino, mesDestino);
+        YearMonth origem = destino.minusMonths(1);
+        int totalDestino = contarConfiguracoes(destino.getYear(), destino.getMonthValue());
+        if (totalDestino > 0) {
+            throw new IllegalStateException(
+                    "Já existem metas cadastradas para " + formatarCompetencia(destino) + "."
+            );
+        }
+
+        int totalOrigem = contarConfiguracoes(origem.getYear(), origem.getMonthValue());
+        if (totalOrigem == 0) {
+            throw new IllegalArgumentException(
+                    "Não há metas cadastradas em " + formatarCompetencia(origem) + " para copiar."
+            );
+        }
+
+        UsuarioEntity usuario = usuarioAutenticado(usuarioEmail);
+        int inseridas = jdbcTemplate.update("""
+                INSERT INTO acesso.fretes_goals (
+                    branch_id,
+                    ano,
+                    mes,
+                    meta_faturamento,
+                    meta_fretes,
+                    updated_by_user_id
+                )
+                SELECT
+                    branch_id,
+                    :anoDestino,
+                    :mesDestino,
+                    meta_faturamento,
+                    meta_fretes,
+                    :updatedByUserId
+                FROM acesso.fretes_goals
+                WHERE ano = :anoOrigem
+                  AND mes = :mesOrigem
+                """, new MapSqlParameterSource()
+                .addValue("anoDestino", destino.getYear())
+                .addValue("mesDestino", destino.getMonthValue())
+                .addValue("anoOrigem", origem.getYear())
+                .addValue("mesOrigem", origem.getMonthValue())
+                .addValue("updatedByUserId", usuario.getId()));
+
+        if (inseridas != totalOrigem) {
+            throw new IllegalStateException("A replicação das metas não copiou todas as linhas esperadas.");
+        }
+
+        return buscarConfiguracoes(destino.getYear(), destino.getMonthValue());
     }
 
     @Transactional
@@ -413,6 +469,22 @@ public class FretesGoalService implements ApplicationRunner {
                 .addValue("ano", ano)
                 .addValue("mes", mes), this::mapConfig);
         return rows.stream().findFirst();
+    }
+
+    private int contarConfiguracoes(int ano, int mes) {
+        Integer total = jdbcTemplate.queryForObject("""
+                SELECT COUNT(1)
+                FROM acesso.fretes_goals
+                WHERE ano = :ano
+                  AND mes = :mes
+                """, new MapSqlParameterSource()
+                .addValue("ano", ano)
+                .addValue("mes", mes), Integer.class);
+        return total == null ? 0 : total;
+    }
+
+    private String formatarCompetencia(YearMonth competencia) {
+        return String.format("%02d/%d", competencia.getMonthValue(), competencia.getYear());
     }
 
     private FretesGoalConfigDTO mapConfig(ResultSet rs, int rowNum) throws SQLException {

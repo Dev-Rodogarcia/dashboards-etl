@@ -12,10 +12,22 @@ import org.springframework.data.repository.query.Param;
 
 public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCostGoalEntity, Long> {
 
-    Optional<ManifestosCostGoalEntity> findByBranchIdAndYearMonthAndContractTypeKey(
-            String branchId,
-            LocalDate yearMonth,
-            String contractTypeKey
+    @Query("""
+            SELECT g
+            FROM ManifestosCostGoalEntity g
+            WHERE g.branchId = :branchId
+              AND g.yearMonth = :yearMonth
+              AND g.contractTypeKey = :contractTypeKey
+              AND (
+                    (:classificationKey IS NULL AND g.classificationKey IS NULL)
+                    OR g.classificationKey = :classificationKey
+              )
+            """)
+    Optional<ManifestosCostGoalEntity> findByBranchIdAndYearMonthAndContractTypeKeyAndClassificationKey(
+            @Param("branchId") String branchId,
+            @Param("yearMonth") LocalDate yearMonth,
+            @Param("contractTypeKey") String contractTypeKey,
+            @Param("classificationKey") String classificationKey
     );
 
     @Query("""
@@ -23,7 +35,10 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
             FROM ManifestosCostGoalEntity g
             LEFT JOIN FETCH g.updatedByUser
             WHERE g.yearMonth = :yearMonth
-            ORDER BY CASE WHEN g.branchId IS NULL THEN 0 ELSE 1 END, g.branchId, g.contractType
+            ORDER BY CASE WHEN g.branchId IS NULL THEN 0 ELSE 1 END,
+                     g.branchId,
+                     g.contractType,
+                     g.classificationKey
             """)
     List<ManifestosCostGoalEntity> findAllByYearMonthOrdered(@Param("yearMonth") LocalDate yearMonth);
 
@@ -34,10 +49,15 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
             WHERE g.branchId IS NULL
               AND g.yearMonth = :yearMonth
               AND g.contractTypeKey = :contractTypeKey
+              AND (
+                    (:classificationKey IS NULL AND g.classificationKey IS NULL)
+                    OR g.classificationKey = :classificationKey
+              )
             """)
-    Optional<ManifestosCostGoalEntity> findGlobalByYearMonthAndContractTypeKey(
+    Optional<ManifestosCostGoalEntity> findGlobalByYearMonthAndContractTypeKeyAndClassificationKey(
             @Param("yearMonth") LocalDate yearMonth,
-            @Param("contractTypeKey") String contractTypeKey
+            @Param("contractTypeKey") String contractTypeKey,
+            @Param("classificationKey") String classificationKey
     );
 
     @Query(value = """
