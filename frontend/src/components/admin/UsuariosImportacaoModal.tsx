@@ -3,8 +3,8 @@ import type { ChangeEvent, DragEvent, FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, FileSpreadsheet, RefreshCcw, UploadCloud, X } from 'lucide-react';
+import FiliaisPermitidasSplitSelect from './FiliaisPermitidasSplitSelect';
 import PermissionMatrix from './PermissionMatrix';
-import AsyncMultiSelect from '../shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../shared/DataTable';
 import ToastStack, { type ToastItem, type ToastTone } from '../ui/ToastStack';
 import {
@@ -55,6 +55,12 @@ const SECONDARY_BUTTON_STYLE = {
 const SOFT_PANEL_STYLE = {
   backgroundColor: 'var(--color-bg)',
   borderColor: 'var(--color-border)',
+};
+
+const ERROR_PANEL_STYLE = {
+  backgroundColor: 'rgba(220, 38, 38, 0.12)',
+  borderColor: 'rgba(220, 38, 38, 0.45)',
+  color: 'var(--color-text)',
 };
 
 const FORM_INICIAL_SETOR: SetorPayload = {
@@ -229,12 +235,10 @@ function CriarSetorInlineModal({
                 O setor precisa nascer com pelo menos uma filial para manter o escopo de acesso válido.
               </p>
             </div>
-            <AsyncMultiSelect
-              label="Filiais"
+            <FiliaisPermitidasSplitSelect
               opcoes={filiais.data ?? []}
-              selecionados={form.filiaisPermitidas}
+              selecionadas={form.filiaisPermitidas}
               onChange={(filiaisPermitidas) => setForm((current) => ({ ...current, filiaisPermitidas }))}
-              placeholder="Selecione ao menos uma filial"
               isLoading={filiais.isLoading}
             />
           </div>
@@ -255,11 +259,7 @@ function CriarSetorInlineModal({
           </div>
 
           {erro && (
-            <div className="rounded-xl border px-3 py-2 text-sm" style={{
-              backgroundColor: '#fef2f2',
-              borderColor: '#dc2626',
-              color: '#991b1b',
-            }}>
+            <div className="rounded-xl border px-3 py-2 text-sm" style={ERROR_PANEL_STYLE}>
               {erro}
             </div>
           )}
@@ -604,11 +604,7 @@ function UsuariosImportacaoModalAberto({ onClose }: Pick<UsuariosImportacaoModal
                 {erroLocal && (
                   <div
                     className="mt-4 rounded-xl border px-3 py-2 text-sm"
-                    style={{
-                      backgroundColor: '#fef2f2',
-                      borderColor: '#dc2626',
-                      color: '#991b1b',
-                    }}
+                    style={ERROR_PANEL_STYLE}
                   >
                     {erroLocal}
                   </div>

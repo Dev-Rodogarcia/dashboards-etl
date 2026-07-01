@@ -24,15 +24,15 @@ const OPCOES: Array<{ valor: PermissionOverrideMode; label: string }> = [
 function getToneSurfaceStyle(color: string) {
   if (color === '#ef4444') {
     return {
-      backgroundColor: '#fef2f2',
-      borderColor: '#dc2626',
+      backgroundColor: 'rgba(220, 38, 38, 0.12)',
+      borderColor: 'rgba(220, 38, 38, 0.45)',
     };
   }
 
   if (color === '#10b981') {
     return {
-      backgroundColor: '#f0fdf4',
-      borderColor: '#16a34a',
+      backgroundColor: 'rgba(22, 163, 74, 0.12)',
+      borderColor: 'rgba(22, 163, 74, 0.45)',
     };
   }
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import FiliaisPermitidasSplitSelect from '../components/admin/FiliaisPermitidasSplitSelect';
 import PermissionMatrix from '../components/admin/PermissionMatrix';
-import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import {
   useAtualizarSetor,
@@ -240,8 +240,6 @@ export default function AdminSetoresPage() {
   const [erro, setErro] = useState('');
   const isMobileSetoresTable = useIsMobileSetoresTable();
   const filiaisDisponiveis = filiais.data ?? [];
-  const todasFiliaisSelecionadas = filiaisDisponiveis.length > 0
-    && filiaisDisponiveis.every((filial) => form.filiaisPermitidas.includes(filial));
 
   usePageHeader({
     title: 'Gestão de setores',
@@ -302,11 +300,6 @@ export default function AdminSetoresPage() {
     } catch (error) {
       setErro(getApiErrorMessage(error));
     }
-  }
-
-  function selecionarTodasFiliais() {
-    if (filiaisDisponiveis.length === 0) return;
-    setForm((atual) => ({ ...atual, filiaisPermitidas: [...filiaisDisponiveis] }));
   }
 
   function renderActionMenu(row: SetorRow) {
@@ -440,29 +433,12 @@ export default function AdminSetoresPage() {
               <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Escopo de filiais</h2>
               <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>Usuários deste setor só verão dados das filiais selecionadas.</p>
             </div>
-            <div className="grid gap-3 md:grid-cols-[minmax(16rem,max-content)_auto] md:items-end">
-              <div className="min-w-[16rem]">
-                <AsyncMultiSelect
-                  label="Filiais permitidas"
-                  opcoes={filiaisDisponiveis}
-                  selecionados={form.filiaisPermitidas}
-                  onChange={(filiaisPermitidas) => setForm((atual) => ({ ...atual, filiaisPermitidas }))}
-                  placeholder="Selecione ao menos uma filial"
-                  isLoading={filiais.isLoading}
-                />
-              </div>
-              <div className="flex md:h-[58px] md:items-end">
-                <button
-                  type="button"
-                  onClick={selecionarTodasFiliais}
-                  disabled={filiais.isLoading || filiaisDisponiveis.length === 0 || todasFiliaisSelecionadas}
-                  className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING_CLASS}`}
-                  style={SECONDARY_BUTTON_STYLE}
-                >
-                  {todasFiliaisSelecionadas ? 'Todas selecionadas' : 'Selecionar todas'}
-                </button>
-              </div>
-            </div>
+            <FiliaisPermitidasSplitSelect
+              opcoes={filiaisDisponiveis}
+              selecionadas={form.filiaisPermitidas}
+              onChange={(filiaisPermitidas) => setForm((atual) => ({ ...atual, filiaisPermitidas }))}
+              isLoading={filiais.isLoading}
+            />
           </div>
 
           <div className="space-y-3">

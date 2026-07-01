@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Eye, MoreHorizontal, Pencil, Upload, UserX } from 'lucide-react';
+import FiliaisPermitidasSplitSelect from '../components/admin/FiliaisPermitidasSplitSelect';
 import PermissionOverrideMatrix from '../components/admin/PermissionOverrideMatrix';
 import UsuariosImportacaoModal from '../components/admin/UsuariosImportacaoModal';
-import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import {
@@ -93,6 +93,12 @@ const FIELD_STYLE = {
 const SOFT_PANEL_STYLE = {
   backgroundColor: 'var(--color-bg)',
   borderColor: 'var(--color-border)',
+};
+
+const WARNING_PANEL_STYLE = {
+  backgroundColor: 'rgba(249, 115, 22, 0.12)',
+  borderColor: 'rgba(249, 115, 22, 0.45)',
+  color: 'var(--color-text)',
 };
 
 const SECONDARY_BUTTON_STYLE = {
@@ -462,8 +468,6 @@ export default function AdminUsuariosPage() {
 
     return setorSelecionado?.filiaisPermitidas ?? [];
   }, [escopoComAcessoTotal, form.escopoFiliaisTipo, form.filiaisPermitidasUsuario, setorSelecionado?.filiaisPermitidas]);
-  const todasFiliaisUsuarioSelecionadas = filiaisDisponiveis.length > 0
-    && filiaisDisponiveis.every((filial) => form.filiaisPermitidasUsuario.includes(filial));
 
   usePageHeader({
     title: 'Gestão de usuários',
@@ -564,11 +568,6 @@ export default function AdminUsuariosPage() {
     });
     setOverrideState(mapOverridesToState(usuario.permissoesNegadas, usuario.permissoesConcedidas));
     setErro('');
-  }
-
-  function selecionarTodasFiliaisUsuario() {
-    if (filiaisDisponiveis.length === 0) return;
-    setForm((atual) => ({ ...atual, filiaisPermitidasUsuario: [...filiaisDisponiveis] }));
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -709,7 +708,7 @@ export default function AdminUsuariosPage() {
               type="checkbox"
               checked={podeGerenciarMetas}
               readOnly
-              className="mt-0.5 h-4 w-4 rounded border-gray-300"
+              className="mt-0.5 h-4 w-4 rounded border-[var(--color-border)]"
               style={{ accentColor: 'var(--color-primary)' }}
               tabIndex={-1}
             />
@@ -724,7 +723,7 @@ export default function AdminUsuariosPage() {
               type="checkbox"
               checked={podeGerenciarComunicacoes}
               readOnly
-              className="mt-0.5 h-4 w-4 rounded border-gray-300"
+              className="mt-0.5 h-4 w-4 rounded border-[var(--color-border)]"
               style={{ accentColor: 'var(--color-primary)' }}
               tabIndex={-1}
             />
@@ -910,7 +909,7 @@ export default function AdminUsuariosPage() {
                   type="checkbox"
                   checked={form.ativo}
                   onChange={(e) => setForm((atual) => ({ ...atual, ativo: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-[var(--color-border)]"
                   style={{ accentColor: 'var(--color-primary)' }}
                 />
                 Usuário ativo
@@ -952,7 +951,7 @@ export default function AdminUsuariosPage() {
                       escopoFiliaisTipo: opcao.value,
                       filiaisPermitidasUsuario: opcao.value === 'SELECIONADAS' ? atual.filiaisPermitidasUsuario : [],
                     }))}
-                    className="mt-1 h-4 w-4 border-gray-300"
+                    className="mt-1 h-4 w-4 border-[var(--color-border)]"
                     style={{ accentColor: 'var(--color-primary)' }}
                   />
                   <div>
@@ -964,36 +963,19 @@ export default function AdminUsuariosPage() {
             </div>
 
             {form.escopoFiliaisTipo === 'SELECIONADAS' && (
-              <div className="flex flex-wrap items-start gap-3">
-                <AsyncMultiSelect
-                  label="Filiais do usuário"
-                  opcoes={filiaisDisponiveis}
-                  selecionados={form.filiaisPermitidasUsuario}
-                  onChange={(filiaisPermitidasUsuario) => setForm((atual) => ({ ...atual, filiaisPermitidasUsuario }))}
-                  placeholder="Selecione ao menos uma filial"
-                  isLoading={filiais.isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={selecionarTodasFiliaisUsuario}
-                  disabled={filiais.isLoading || filiaisDisponiveis.length === 0 || todasFiliaisUsuarioSelecionadas}
-                  className="rounded-xl border px-4 py-2.5 text-sm font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
-                  style={SECONDARY_BUTTON_STYLE}
-                >
-                  {todasFiliaisUsuarioSelecionadas ? 'Todas selecionadas' : 'Selecionar todas'}
-                </button>
-              </div>
+              <FiliaisPermitidasSplitSelect
+                opcoes={filiaisDisponiveis}
+                selecionadas={form.filiaisPermitidasUsuario}
+                onChange={(filiaisPermitidasUsuario) => setForm((atual) => ({ ...atual, filiaisPermitidasUsuario }))}
+                isLoading={filiais.isLoading}
+              />
             )}
           </div>
 
           {senhaPolicyErrors.length > 0 && (
             <div
               className="rounded-2xl border px-4 py-3 text-sm"
-              style={{
-                backgroundColor: '#fffbeb',
-                borderColor: '#f97316',
-                color: '#ea580c',
-              }}
+              style={WARNING_PANEL_STYLE}
             >
               {senhaPolicyErrors[0]}
             </div>
@@ -1026,7 +1008,7 @@ export default function AdminUsuariosPage() {
                     name="papel"
                     checked={form.papel === papel.nome}
                     onChange={() => setForm((atual) => ({ ...atual, papel: papel.nome }))}
-                    className="mt-1 h-4 w-4 border-gray-300"
+                    className="mt-1 h-4 w-4 border-[var(--color-border)]"
                     style={{ accentColor: 'var(--color-primary)' }}
                   />
                   <div>
