@@ -261,4 +261,18 @@ export interface HorarioCorteRow {
   nomeArquivo: string | null;
   importadoEm: string | null;
   importadoPor: string | null;
+  acaoJustificativa?: null;
+}
+
+export interface ViagemJustificativaPayload {
+  codSolicitacao: number;
+  justificativa: string;
+}
+
+export interface ViagemJustificativa {
+  id: number;
+  codSolicitacao: number;
+  justificativa: string;
+  criadoEm: string;
+  criadoPor: string;
 }

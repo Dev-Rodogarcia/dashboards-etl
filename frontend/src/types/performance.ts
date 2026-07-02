@@ -111,6 +111,7 @@ export interface PerformanceDrilldownParams {
 
 export interface PerformanceDrilldownPoint {
   nome: string;
+  filtro?: string | null;
   nivel: PerformanceDrilldownNivel;
   noPrazo: number;
   foraDoPrazo: number;

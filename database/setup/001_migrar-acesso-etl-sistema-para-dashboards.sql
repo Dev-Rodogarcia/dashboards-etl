@@ -519,6 +519,9 @@ GO
 :r database/migrations/V011__adicionar_escopo_filiais_usuario.sql
 GO
 
+:r database/migrations/V049__criar_viagem_justificativas.sql
+GO
+
 IF SUSER_ID(N'$(AppLogin)') IS NOT NULL
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'$(AppLogin)')

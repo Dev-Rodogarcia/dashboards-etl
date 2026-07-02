@@ -17,12 +17,16 @@ import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRankingDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresSeriePointDTO;
+import com.dashboard.api.dto.indicadoresgestao.ViagemJustificativaDTO;
+import com.dashboard.api.dto.indicadoresgestao.ViagemJustificativaRequestDTO;
 import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.service.CubagemMercadoriasIndicadorService;
 import com.dashboard.api.service.IndenizacaoMercadoriasIndicadorService;
 import com.dashboard.api.service.IndicadoresGestaoAVistaService;
 import com.dashboard.api.service.PerformanceEntregaIndicadorService;
 import com.dashboard.api.service.UtilizacaoColetoresIndicadorService;
+import com.dashboard.api.service.ViagemJustificativaService;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import org.slf4j.Logger;
@@ -31,6 +35,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,19 +53,22 @@ public class IndicadoresGestaoAVistaController {
     private final UtilizacaoColetoresIndicadorService utilizacaoColetoresService;
     private final CubagemMercadoriasIndicadorService cubagemMercadoriasService;
     private final IndenizacaoMercadoriasIndicadorService indenizacaoMercadoriasService;
+    private final ViagemJustificativaService viagemJustificativaService;
 
     public IndicadoresGestaoAVistaController(
             IndicadoresGestaoAVistaService horariosCorteService,
             PerformanceEntregaIndicadorService performanceEntregaService,
             UtilizacaoColetoresIndicadorService utilizacaoColetoresService,
             CubagemMercadoriasIndicadorService cubagemMercadoriasService,
-            IndenizacaoMercadoriasIndicadorService indenizacaoMercadoriasService
+            IndenizacaoMercadoriasIndicadorService indenizacaoMercadoriasService,
+            ViagemJustificativaService viagemJustificativaService
     ) {
         this.horariosCorteService = horariosCorteService;
         this.performanceEntregaService = performanceEntregaService;
         this.utilizacaoColetoresService = utilizacaoColetoresService;
         this.cubagemMercadoriasService = cubagemMercadoriasService;
         this.indenizacaoMercadoriasService = indenizacaoMercadoriasService;
+        this.viagemJustificativaService = viagemJustificativaService;
     }
 
     @GetMapping("/performance-entrega/overview")
@@ -272,6 +281,13 @@ public class IndicadoresGestaoAVistaController {
         FiltroConsultaDTO filtro = FiltroRequestMapper.from(dataInicio, dataFim, params);
         log.info("GET /api/painel/indicadores-gestao-a-vista/horarios-corte/overview - periodo: {} a {}", dataInicio, dataFim);
         return ResponseEntity.ok(horariosCorteService.buscarHorariosCorteOverview(filtro));
+    }
+
+    @PostMapping("/horarios-corte/justificativas")
+    public ResponseEntity<ViagemJustificativaDTO> salvarJustificativa(
+            @Valid @RequestBody ViagemJustificativaRequestDTO request
+    ) {
+        return ResponseEntity.ok(viagemJustificativaService.salvar(request));
     }
 
     @GetMapping("/horarios-corte/serie")

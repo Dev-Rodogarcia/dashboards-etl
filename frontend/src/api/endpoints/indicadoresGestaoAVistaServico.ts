@@ -27,6 +27,8 @@ import type {
   UtilizacaoColetoresRankingItem,
   UtilizacaoColetoresRow,
   UtilizacaoColetoresSeriePoint,
+  ViagemJustificativa,
+  ViagemJustificativaPayload,
 } from '../../types/indicadoresGestaoAVista';
 import { normalizarCompetenciaApiOpcional } from '../../utils/competencia';
 
@@ -261,6 +263,13 @@ export async function buscarHorariosCorteTabelaPaginada(
 
 export async function exportarHorariosCorteCsv(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
   await baixarCsv(`${BASE}/horarios-corte/exportacao`, filtro, 'indicadores-horarios-corte');
+}
+
+export async function salvarJustificativaHorarioCorte(
+  payload: ViagemJustificativaPayload,
+): Promise<ViagemJustificativa> {
+  const { data } = await clienteAxios.post<ViagemJustificativa>(`${BASE}/horarios-corte/justificativas`, payload);
+  return data;
 }
 
 export async function buscarKpiGoalsCompleto(competencia?: string): Promise<KpiGoalsFullResponse> {

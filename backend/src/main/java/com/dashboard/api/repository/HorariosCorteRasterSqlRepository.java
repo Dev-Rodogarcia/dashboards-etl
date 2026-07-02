@@ -199,13 +199,16 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                     CASE
                         WHEN rc.data_base_sm_at IS NULL OR apoio.horario_corte IS NULL THEN NULL
                         ELSE DATEADD(SECOND, DATEDIFF(SECOND, CAST(N'00:00:00' AS TIME), apoio.horario_corte), CAST(CAST(rc.data_base_sm_at AS DATE) AS DATETIME2(0)))
-                    END AS corte_at
+                    END AS corte_at,
+                    vj.cod_solicitacao AS cod_solicitacao_justificada
                 FROM rota_canonica rc
                 LEFT JOIN hc_apoio apoio
                     ON apoio.origem_sm = rc.origem_sm
                    AND apoio.destino_sm = rc.destino_sm
                 LEFT JOIN filiais_raster filial
                     ON filial.origem_sm = rc.origem_sm
+                LEFT JOIN dbo.viagem_justificativas vj
+                    ON rc.cod_solicitacao = vj.cod_solicitacao
             )
             """;
 
@@ -243,11 +246,13 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                 data_hora_real_ini_at AS saida_efetiva,
                 corte_at AS horario_corte,
                 CASE
+                    WHEN cod_solicitacao_justificada IS NOT NULL THEN CAST(1 AS BIT)
                     WHEN data_hora_real_ini_at IS NULL OR corte_at IS NULL THEN NULL
                     WHEN data_hora_real_ini_at <= DATEADD(MINUTE, :toleranciaHorarioCorteMinutos, corte_at) THEN CAST(1 AS BIT)
                     ELSE CAST(0 AS BIT)
                 END AS saiu_no_horario,
                 CASE
+                    WHEN cod_solicitacao_justificada IS NOT NULL THEN 0
                     WHEN data_hora_real_ini_at IS NULL OR corte_at IS NULL THEN NULL
                     WHEN data_hora_real_ini_at <= DATEADD(MINUTE, :toleranciaHorarioCorteMinutos, corte_at) THEN 0
                     ELSE DATEDIFF(MINUTE, DATEADD(MINUTE, :toleranciaHorarioCorteMinutos, corte_at), data_hora_real_ini_at)
@@ -277,6 +282,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                     data_extracao_at,
                     N'Raster API - SQL Server' AS nome_arquivo,
                     CASE
+                        WHEN cod_solicitacao_justificada IS NOT NULL THEN 1
                         WHEN data_hora_real_ini_at <= DATEADD(MINUTE, :toleranciaHorarioCorteMinutos, corte_at) THEN 1
                         ELSE 0
                     END AS saiu_no_horario

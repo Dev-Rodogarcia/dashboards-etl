@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { AxiosError } from 'axios';
-import { Download, FileSpreadsheet, Save, Trash2 } from 'lucide-react';
+import { Copy, Download, FileSpreadsheet, Save, Trash2 } from 'lucide-react';
 import { useFiliais, useManifestosClassificacoes } from '../../../hooks/queries/useDimensoes';
 import {
   useBaixarTemplateManifestosMetas,
   useDeleteManifestosMeta,
   useManifestosMetas,
+  useReplicarManifestosMetasConfiguracoes,
   useSaveManifestosMeta,
 } from '../../../hooks/queries/useManifestos';
+import ToastStack from '../../ui/ToastStack';
+import type { ToastItem, ToastTone } from '../../ui/ToastStack';
 import type { ManifestosCostGoalConfig } from '../../../types/manifestos';
 import { getApiErrorMessage } from '../../../utils/apiError';
 import { formatarDataHora, formatarMoeda } from '../../../utils/formatadores';
@@ -102,9 +105,12 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
   const [classificationKey, setClassificationKey] = useState(GENERAL_CLASSIFICATION_KEY);
   const [costGoalDraft, setCostGoalDraft] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const filiais = useFiliais();
   const metas = useManifestosMetas(ano, mes, open);
+  const isLoading = metas.isLoading;
+  const error = metas.error;
   const filtroClassificacoes = useMemo(() => ({
     dataInicio: formatDate(ano, mes, 1),
     dataFim: formatDate(ano, mes, new Date(ano, mes, 0).getDate()),
@@ -113,7 +119,8 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
   const salvarMeta = useSaveManifestosMeta();
   const removerMeta = useDeleteManifestosMeta();
   const baixarTemplate = useBaixarTemplateManifestosMetas();
-  const isSaving = salvarMeta.isPending || removerMeta.isPending || baixarTemplate.isPending;
+  const replicarMetas = useReplicarManifestosMetasConfiguracoes();
+  const isSaving = salvarMeta.isPending || removerMeta.isPending || baixarTemplate.isPending || replicarMetas.isPending;
   const saveError = salvarMeta.error ?? removerMeta.error ?? baixarTemplate.error;
   const configs = useMemo(() => metas.data ?? [], [metas.data]);
   const configsCadastradas = useMemo(
@@ -183,6 +190,16 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
     ?? classificationOptions[0]
     ?? { value: GENERAL_CLASSIFICATION_KEY, label: 'Geral' };
   const costGoalValue = costGoalDraft ?? String(configAtual?.costGoal ?? 0);
+  const podeReplicarMetas = configsCadastradas.length === 0 && !isLoading && !error;
+  const actionError = saveError ?? replicarMetas.error;
+
+  function pushToast(message: string, tone: ToastTone) {
+    const id = `${Date.now()}-${Math.random()}`;
+    setToasts((current) => [...current, { id, message, tone }]);
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((item) => item.id !== id));
+    }, 4500);
+  }
 
   if (!open) {
     return null;
@@ -223,6 +240,21 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
     await baixarTemplate.mutateAsync();
   }
 
+  async function handleReplicarMetas() {
+    if (!podeReplicarMetas) {
+      return;
+    }
+
+    try {
+      const response = await replicarMetas.mutateAsync({ ano, mes });
+      setCostGoalDraft(null);
+      const total = response.filter((item) => item.configurado !== false).length;
+      pushToast(`${total} meta${total === 1 ? '' : 's'} copiada${total === 1 ? '' : 's'} do mês anterior.`, 'success');
+    } catch (err) {
+      pushToast(getApiErrorMessage(err, 'Não foi possível copiar as metas do mês anterior.'), 'error');
+    }
+  }
+
   return (
     <>
       <section
@@ -240,6 +272,23 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex min-w-max flex-shrink-0 items-end">
+            <button
+              type="button"
+              onClick={() => void handleReplicarMetas()}
+              disabled={!podeReplicarMetas || replicarMetas.isPending}
+              title={configsCadastradas.length > 0 ? 'Disponível apenas quando o mês selecionado ainda não possui metas.' : undefined}
+              className={`inline-flex h-11 min-w-max flex-shrink-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING_CLASS}`}
+              style={{
+                backgroundColor: podeReplicarMetas ? 'rgba(37, 99, 235, 0.10)' : 'var(--color-bg)',
+                borderColor: podeReplicarMetas ? 'var(--color-primary)' : 'var(--color-border)',
+                color: podeReplicarMetas ? 'var(--color-primary)' : 'var(--color-text-muted)',
+              }}
+            >
+              <Copy size={15} />
+              {replicarMetas.isPending ? 'Copiando...' : 'Copiar Metas do Mês Anterior'}
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => setIsImportModalOpen(true)}
@@ -259,7 +308,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
             <Download size={15} />
             {baixarTemplate.isPending ? 'Baixando...' : 'Baixar Planilha Modelo'}
           </button>
-          {metas.isLoading ? (
+          {isLoading ? (
             <span className="rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: 'rgba(37, 99, 235, 0.12)', color: '#1d4ed8' }}>
               Carregando metas
             </span>
@@ -267,21 +316,21 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
         </div>
       </div>
 
-          {metas.error ? (
+          {error ? (
             <p className="mb-4 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: '#dc2626', color: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)' }}>
-              {getMetasErrorMessage(metas.error)}
+              {getMetasErrorMessage(error)}
             </p>
           ) : null}
 
-          {!metas.error && statusMensagem ? (
+          {!error && statusMensagem ? (
             <p className="mb-4 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)', backgroundColor: 'var(--color-bg)' }}>
               {statusMensagem}
             </p>
           ) : null}
 
-          {saveError ? (
+          {actionError ? (
             <p className="mb-4 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: '#dc2626', color: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)' }}>
-              {getApiErrorMessage(saveError, 'Não foi possível salvar a meta.')}
+              {getApiErrorMessage(actionError, 'Não foi possível salvar a meta.')}
             </p>
           ) : null}
 
@@ -434,6 +483,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
           </div>
       </section>
       <ManifestosMetasImportacaoModal open={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
+      <ToastStack items={toasts} />
     </>
   );
 }

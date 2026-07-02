@@ -899,7 +899,7 @@ export const KpiDictionary = {
         descricao: 'Percentual das saídas realizadas dentro do horário de corte.',
         calculo: 'Saídas no Horário ÷ Total de Saídas Programadas × 100.',
         observacao:
-          `Há tolerância de 10 minutos após o horário de corte da rota. ${percentualSemBase}`,
+          `Há tolerância de 10 minutos após o horário de corte da rota. SMs com justificativa registrada contam como no horário. ${percentualSemBase}`,
       },
     },
 
@@ -1056,14 +1056,14 @@ export const KpiDictionary = {
         titulo: 'Saídas no Horário',
         descricao: 'Viagens iniciadas até o limite tolerado para a rota.',
         calculo:
-          'Contagem de Saídas com Início Real até Horário de Corte + 10 minutos.',
+          'Contagem de Saídas com Início Real até Horário de Corte + 10 minutos, incluindo SMs justificadas.',
         observacao:
           'A data-base é a partida programada; quando ela não existe, é usada a data do início real.',
       },
       saidasForaHorario: {
         titulo: 'Saídas Fora do Horário',
         descricao: 'Viagens iniciadas depois do limite tolerado para a rota.',
-        calculo: 'Total Programado − Saídas no Horário.',
+        calculo: 'Total Programado − Saídas no Horário; SMs justificadas são removidas deste grupo.',
       },
       totalProgramado: {
         titulo: 'Total Programado',
@@ -1074,9 +1074,9 @@ export const KpiDictionary = {
       percentualNoHorario: {
         titulo: 'Percentual no Horário',
         descricao: 'Percentual das saídas programadas realizadas dentro do limite.',
-        calculo: 'Saídas no Horário ÷ Total Programado × 100.',
+        calculo: 'Saídas no Horário, incluindo SMs justificadas, ÷ Total Programado × 100.',
         observacao:
-          `Há tolerância de 10 minutos após o horário de corte. ${percentualSemBase}`,
+          `Há tolerância de 10 minutos após o horário de corte. SMs com justificativa registrada contam como no horário. ${percentualSemBase}`,
       },
       gapMeta: {
         titulo: 'Gap vs Meta de Horário',

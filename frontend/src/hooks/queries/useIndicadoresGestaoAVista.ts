@@ -23,13 +23,14 @@ import {
   buscarPerformanceEntregaTabela,
   buscarPerformanceEntregaTabelaPaginada,
   removerKpiGoalsOverride,
+  salvarJustificativaHorarioCorte,
   buscarUtilizacaoColetoresOverview,
   buscarUtilizacaoColetoresRanking,
   buscarUtilizacaoColetoresSerie,
   buscarUtilizacaoColetoresTabela,
   buscarUtilizacaoColetoresTabelaPaginada,
 } from '../../api/endpoints/indicadoresGestaoAVistaServico';
-import type { IndicadoresGestaoVistaFiltro, KpiGoalIndicatorKey, KpiGoalsUpdatePayload } from '../../types/indicadoresGestaoAVista';
+import type { IndicadoresGestaoVistaFiltro, KpiGoalIndicatorKey, KpiGoalsUpdatePayload, ViagemJustificativaPayload } from '../../types/indicadoresGestaoAVista';
 import { normalizarCompetenciaApiOpcional } from '../../utils/competencia';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
@@ -366,5 +367,16 @@ export function useHorariosCorteTabelaPaginada(
     retry: false,
     refetchOnWindowFocus: false,
     enabled,
+  });
+}
+
+export function useSalvarJustificativaHorarioCorte() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: ViagemJustificativaPayload) => salvarJustificativaHorarioCorte(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['indicadores-gestao-a-vista', 'horarios-corte'] });
+    },
   });
 }

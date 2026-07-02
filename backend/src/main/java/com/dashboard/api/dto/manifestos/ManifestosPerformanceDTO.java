@@ -53,7 +53,9 @@ public record ManifestosPerformanceDTO(
 
     public record TipoVeiculoDTO(
             String tipo,
-            long quantidade
+            long quantidade,
+            Double aproveitamentoMedio,
+            Double mediaEventos
     ) {
     }
 }

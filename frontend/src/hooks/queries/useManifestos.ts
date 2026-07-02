@@ -11,10 +11,16 @@ import {
   buscarManifestosTabelaTotal,
   importarManifestosMetas,
   preValidarManifestosMetasImportacao,
+  replicarManifestosMetas,
   removerManifestosMeta,
   salvarManifestosMeta,
 } from '../../api/endpoints/manifestosServico';
-import type { ManifestosCostGoalPayload, ManifestosFiltro, ManifestosTempoNivel } from '../../types/manifestos';
+import type {
+  ManifestosCostGoalPayload,
+  ManifestosFiltro,
+  ManifestosGoalReplicarPayload,
+  ManifestosTempoNivel,
+} from '../../types/manifestos';
 import type { TableApiFilters } from '../../types/tableFilters';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
@@ -125,6 +131,16 @@ export function useSaveManifestosMeta() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: ManifestosCostGoalPayload) => salvarManifestosMeta(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export function useReplicarManifestosMetasConfiguracoes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ManifestosGoalReplicarPayload) => replicarManifestosMetas(payload.ano, payload.mes),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },

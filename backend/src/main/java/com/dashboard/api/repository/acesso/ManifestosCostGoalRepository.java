@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCostGoalEntity, Long> {
 
+    long countByYearMonth(LocalDate yearMonth);
+
     @Query("""
             SELECT g
             FROM ManifestosCostGoalEntity g
@@ -41,6 +43,17 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
                      g.classificationKey
             """)
     List<ManifestosCostGoalEntity> findAllByYearMonthOrdered(@Param("yearMonth") LocalDate yearMonth);
+
+    @Query("""
+            SELECT g
+            FROM ManifestosCostGoalEntity g
+            WHERE g.yearMonth = :yearMonth
+            ORDER BY CASE WHEN g.branchId IS NULL THEN 0 ELSE 1 END,
+                     g.branchId,
+                     g.contractType,
+                     g.classificationKey
+            """)
+    List<ManifestosCostGoalEntity> findAllByYearMonthForReplication(@Param("yearMonth") LocalDate yearMonth);
 
     @Query("""
             SELECT g

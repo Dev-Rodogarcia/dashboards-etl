@@ -90,7 +90,6 @@ export function usePerformanceDrilldown(
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, 'drilldown', filtro, drilldown],
     queryFn: () => buscarPerformanceDrilldown(filtro, drilldown),
-    placeholderData: (previousData) => previousData,
     staleTime: STALE_TIME,
     retry: 1,
     enabled,

@@ -2,6 +2,7 @@ package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.manifestos.ManifestosCostGoalConfigDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCostGoalConfigRequestDTO;
+import com.dashboard.api.dto.manifestos.ManifestosGoalReplicarRequestDTO;
 import com.dashboard.api.dto.manifestos.ManifestosMetasImportacaoPreviewResponseDTO;
 import com.dashboard.api.dto.manifestos.ManifestosMetasImportacaoResultadoDTO;
 import com.dashboard.api.service.ManifestosCostGoalService;
@@ -55,6 +56,19 @@ public class ManifestosCostGoalController {
             Authentication authentication
     ) {
         return ResponseEntity.ok(service.salvar(request, authenticationName(authentication)));
+    }
+
+    @PostMapping("/replicar")
+    @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
+    public ResponseEntity<List<ManifestosCostGoalConfigDTO>> replicar(
+            @RequestBody ManifestosGoalReplicarRequestDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(service.replicar(
+                request.ano(),
+                request.mes(),
+                authenticationName(authentication)
+        ));
     }
 
     @DeleteMapping

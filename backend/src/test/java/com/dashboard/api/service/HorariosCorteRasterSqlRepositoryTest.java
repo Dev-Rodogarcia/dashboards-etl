@@ -38,6 +38,19 @@ class HorariosCorteRasterSqlRepositoryTest {
     }
 
     @Test
+    void queryDeveForcarNoPrazoQuandoSmTemJustificativa() throws ReflectiveOperationException {
+        String sql = sql();
+        String sqlSerie = sqlSerie();
+
+        assertThat(sql).contains("LEFT JOIN dbo.viagem_justificativas vj");
+        assertThat(sql).contains("ON rc.cod_solicitacao = vj.cod_solicitacao");
+        assertThat(sql).contains("vj.cod_solicitacao AS cod_solicitacao_justificada");
+        assertThat(sql).contains("WHEN cod_solicitacao_justificada IS NOT NULL THEN CAST(1 AS BIT)");
+        assertThat(sql).contains("WHEN cod_solicitacao_justificada IS NOT NULL THEN 0");
+        assertThat(sqlSerie).contains("WHEN cod_solicitacao_justificada IS NOT NULL THEN 1");
+    }
+
+    @Test
     void serieDeveAgruparKpiNoSqlServer() throws ReflectiveOperationException {
         String sql = sqlSerie();
 

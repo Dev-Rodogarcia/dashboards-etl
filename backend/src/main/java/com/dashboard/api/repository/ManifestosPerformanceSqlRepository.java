@@ -15,6 +15,8 @@ import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import com.dashboard.api.util.TemporalJsonUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -211,7 +213,15 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         String sql = ctx.baseCte() + """
                 SELECT
                     tipo_veiculo AS tipo,
-                    COUNT(DISTINCT sequence_code) AS quantidade
+                    COUNT(DISTINCT sequence_code) AS quantidade,
+                    CAST(COALESCE(
+                        SUM(peso_taxado) * 100.0 / NULLIF(SUM(capacidade_veiculo), 0),
+                        0
+                    ) AS FLOAT) AS aproveitamento_medio,
+                    CAST(COALESCE(
+                        SUM(itens_entrega + itens_coleta) * 1.0 / NULLIF(COUNT(DISTINCT sequence_code), 0),
+                        0
+                    ) AS FLOAT) AS media_eventos
                 FROM manifestos
                 WHERE 1 = 1
                 """ + ctx.where() + """
@@ -221,7 +231,9 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
 
         return jdbcTemplate.query(sql, ctx.params(), (rs, rowNum) -> new TipoVeiculoDTO(
                 rs.getString("tipo"),
-                rs.getLong("quantidade")
+                rs.getLong("quantidade"),
+                doubleNullable(rs, "aproveitamento_medio"),
+                doubleNullable(rs, "media_eventos")
         ));
     }
 
@@ -575,6 +587,8 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                         COALESCE([Receita Total Transportada], 0) AS receita_total,
                         COALESCE([Total peso taxado], 0) AS peso_taxado,
                         COALESCE([Capacidade Lotação Kg], 0) AS capacidade_veiculo,
+                        COALESCE([Itens/Entrega], 0) AS itens_entrega,
+                        COALESCE([Itens/Coleta], 0) AS itens_coleta,
                         COALESCE([Itens/Finalizados], 0) AS servicos_finalizados,
                         COALESCE([Itens/Total], 0) AS servicos_total,
                         [Data de extracao] AS data_extracao
@@ -676,6 +690,11 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         return BigDecimal.ZERO;
     }
 
+    private static Double doubleNullable(ResultSet rs, String coluna) throws SQLException {
+        double valor = rs.getDouble(coluna);
+        return rs.wasNull() ? null : valor;
+    }
+
     private static BigDecimal escala(BigDecimal valor, int escala) {
         return (valor == null ? BigDecimal.ZERO : valor).setScale(escala, RoundingMode.HALF_UP);
     }
@@ -738,6 +757,8 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                     && existe("Receita Total Transportada")
                     && existe("Total peso taxado")
                     && existe("Capacidade Lotação Kg")
+                    && existe("Itens/Entrega")
+                    && existe("Itens/Coleta")
                     && existe("Itens/Finalizados")
                     && existe("Itens/Total")
                     && existe("Data de extracao");

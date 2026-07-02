@@ -6,8 +6,8 @@ REM Arquivo : iniciar-dev.bat
 REM Papel   : Inicia backend e frontend do monorepo em paralelo.
 REM AVISO IA: este e o unico modo permitido para IA subir/testar a aplicacao.
 REM AVISO IA: backend 5011 e frontend 5174. Producao fica fora do fluxo da IA.
-REM Uso     : iniciar-dev.bat
-REM Teste   : iniciar-dev.bat --dry-run
+REM Uso     : iniciar-dev.bat [--front-only]
+REM Teste   : iniciar-dev.bat --dry-run [--front-only]
 REM ============================================================
 
 chcp 65001 >nul
@@ -34,8 +34,12 @@ set "LOCAL_API_URL=http://127.0.0.1:%BACKEND_PORT%"
 set "LOCAL_FRONTEND_ORIGINS=http://127.0.0.1:%FRONTEND_PORT%,http://localhost:%FRONTEND_PORT%"
 set "BACKEND_CMD=call "%BACKEND_MVNW%" -f "%BACKEND_POM%" spring-boot:run -Dspring-boot.run.profiles=dev"
 set "DRY_RUN=0"
+set "FRONT_ONLY=0"
 
 if /i "%~1"=="--dry-run" set "DRY_RUN=1"
+if /i "%~2"=="--dry-run" set "DRY_RUN=1"
+if /i "%~1"=="--front-only" set "FRONT_ONLY=1"
+if /i "%~2"=="--front-only" set "FRONT_ONLY=1"
 
 call :prefer_java_home
 
@@ -117,31 +121,53 @@ echo Backend dev esperado em: http://127.0.0.1:%BACKEND_PORT%
 echo Frontend dev esperado em: http://127.0.0.1:%FRONTEND_PORT%
 echo.
 echo [INFO] O modo dev inicia diretamente:
-echo        - backend\mvnw.cmd spring-boot:run
-echo        - npm run dev -- --mode %FRONTEND_MODE% --strictPort
-echo [INFO] Antes de iniciar, apenas processos nas portas dev serao encerrados.
-echo [INFO] O backend roda em background e grava log em backend\logs.
+if "%FRONT_ONLY%"=="1" (
+    echo        - npm run dev -- --mode %FRONTEND_MODE% --strictPort
+) else (
+    echo        - backend\mvnw.cmd spring-boot:run
+    echo        - npm run dev -- --mode %FRONTEND_MODE% --strictPort
+)
+if "%FRONT_ONLY%"=="1" (
+    echo [INFO] Modo --front-only ativo: backend existente sera preservado.
+    echo [INFO] Antes de iniciar, apenas processos na porta dev do frontend serao encerrados.
+) else (
+    echo [INFO] Antes de iniciar, apenas processos nas portas dev serao encerrados.
+    echo [INFO] O backend roda em background e grava log em backend\logs.
+)
 echo [INFO] O frontend roda neste terminal.
 echo [INFO] Este modo injeta API local no frontend: %LOCAL_API_URL%
 echo [INFO] Este modo libera CORS local para: %LOCAL_FRONTEND_ORIGINS%
 echo [INFO] Vite carregara .env.development e recusara fallback para API publica.
-echo [INFO] Backend DEV carregara segredos somente de .env.development.local.
+if "%FRONT_ONLY%"=="1" (
+    echo [INFO] Front-only valida .env.development.local, mas nao reinicia o backend.
+) else (
+    echo [INFO] Backend DEV carregara segredos somente de .env.development.local.
+)
 echo [INFO] Este modo nao executa build, deploy ou limpeza de frontend\dist-prod.
 echo [INFO] Producao/Cloudflare permanece nas portas %PROD_BACKEND_PORT% e %PROD_FRONTEND_PORT%.
 echo [INFO] Para Cloudflare/producao, use iniciar-prod.bat.
 echo.
 
 if "%DRY_RUN%"=="1" (
-    echo [DRY-RUN] liberar portas %BACKEND_PORT% e %FRONTEND_PORT%
+    if "%FRONT_ONLY%"=="1" (
+        echo [DRY-RUN] modo front-only: liberar apenas porta %FRONTEND_PORT%
+        echo [DRY-RUN] backend preservado na porta %BACKEND_PORT%
+    ) else (
+        echo [DRY-RUN] liberar portas %BACKEND_PORT% e %FRONTEND_PORT%
+    )
     echo [DRY-RUN] portas de producao proibidas neste script: %PROD_BACKEND_PORT% e %PROD_FRONTEND_PORT%
-    echo [DRY-RUN] backend profile: dev
-    echo [DRY-RUN] backend env local: %BACKEND_DEV_ENV_FILE%
-    echo [DRY-RUN] backend banco: DB_URL deve apontar para databaseName diferente de DASHBOARDS
-    echo [DRY-RUN] backend ambiente: .env.development.local injetado em SPRING_APPLICATION_JSON acima de dashboards\.env
-    echo [DRY-RUN] backend CORS: %LOCAL_FRONTEND_ORIGINS%
-    echo [DRY-RUN] backend comando: backend\mvnw.cmd -f backend\pom.xml spring-boot:run -Dspring-boot.run.profiles=dev
-    echo [DRY-RUN] log backend: %BACKEND_DEV_LOG%
-    echo [DRY-RUN] aguardar healthcheck http://127.0.0.1:%BACKEND_PORT%/actuator/health/liveness
+    if "%FRONT_ONLY%"=="1" (
+        echo [DRY-RUN] sem iniciar backend, sem healthcheck backend
+    ) else (
+        echo [DRY-RUN] backend profile: dev
+        echo [DRY-RUN] backend env local: %BACKEND_DEV_ENV_FILE%
+        echo [DRY-RUN] backend banco: DB_URL deve apontar para databaseName diferente de DASHBOARDS
+        echo [DRY-RUN] backend ambiente: .env.development.local injetado em SPRING_APPLICATION_JSON acima de dashboards\.env
+        echo [DRY-RUN] backend CORS: %LOCAL_FRONTEND_ORIGINS%
+        echo [DRY-RUN] backend comando: backend\mvnw.cmd -f backend\pom.xml spring-boot:run -Dspring-boot.run.profiles=dev
+        echo [DRY-RUN] log backend: %BACKEND_DEV_LOG%
+        echo [DRY-RUN] aguardar healthcheck http://127.0.0.1:%BACKEND_PORT%/actuator/health/liveness
+    )
     echo [DRY-RUN] frontend env: %FRONTEND_DEV_ENV_FILE%
     echo [DRY-RUN] frontend neste terminal: npm run dev -- --mode %FRONTEND_MODE% --host 127.0.0.1 --port %FRONTEND_PORT% --strictPort
     echo [DRY-RUN] sem build de producao, sem deploy, sem alteracao em frontend\dist-prod
@@ -149,7 +175,8 @@ if "%DRY_RUN%"=="1" (
 )
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$ports = @(%BACKEND_PORT%, %FRONTEND_PORT%);" ^
+  "$ports = @(%FRONTEND_PORT%);" ^
+  "if ($env:FRONT_ONLY -ne '1') { $ports = @(%BACKEND_PORT%, %FRONTEND_PORT%) };" ^
   "$forbidden = @(%PROD_BACKEND_PORT%, %PROD_FRONTEND_PORT%);" ^
   "if ($ports | Where-Object { $forbidden -contains $_ }) { Write-Host '[ERRO] Script DEV tentou operar em porta de producao.'; exit 4 }" ^
   "foreach ($port in $ports) {" ^
@@ -176,6 +203,12 @@ if errorlevel 1 (
     echo [ERRO] Nao foi possivel liberar as portas de desenvolvimento.
     pause
     exit /b 1
+)
+
+if "%FRONT_ONLY%"=="1" (
+    echo.
+    echo [INFO] Modo --front-only ativo: backend preservado; pulando start e healthcheck.
+    goto start_frontend
 )
 
 if not exist "%BACKEND_LOG_DIR%\" mkdir "%BACKEND_LOG_DIR%"
@@ -253,9 +286,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:start_frontend
 echo.
 echo [INFO] Iniciando frontend dev neste terminal...
-echo [INFO] Use Ctrl+C para encerrar o frontend. O backend sera encerrado na proxima execucao ao liberar a porta %BACKEND_PORT%.
+if "%FRONT_ONLY%"=="1" (
+    echo [INFO] Use Ctrl+C para encerrar o frontend. O backend em background sera preservado.
+) else (
+    echo [INFO] Use Ctrl+C para encerrar o frontend. O backend sera encerrado na proxima execucao ao liberar a porta %BACKEND_PORT%.
+)
 echo.
 
 cd /d "%FRONTEND_DIR%"

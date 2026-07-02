@@ -233,10 +233,14 @@ public class PerformanceDashboardSqlRepository {
         String campoGrupo = switch (nivelSeguro) {
             case "regiao" -> "regiao_destino";
             case "cidade" -> "cidade_destino";
-            default -> "responsavel";
+            default -> "COALESCE(responsavel_key, responsavel)";
         };
+        String campoNome = "responsavel".equals(nivelSeguro)
+                ? "MIN(responsavel)"
+                : campoGrupo;
+        String campoFiltro = campoGrupo;
         if ("regiao".equals(nivelSeguro) || "cidade".equals(nivelSeguro)) {
-            adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "responsavelDrill", "responsavel", valorOpcional(responsavel));
+            adicionarFiltroTextoQualquer(ctx.whereBuilder(), ctx.params(), "responsavelDrill", valorOpcional(responsavel), "responsavel_key", "responsavel");
         }
         if ("cidade".equals(nivelSeguro)) {
             adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "regiaoDrill", "regiao_destino", valorOpcional(regiaoDestino));
@@ -246,13 +250,14 @@ public class PerformanceDashboardSqlRepository {
         String sql = ctx.baseCte() + """
                 SELECT
                     %s AS nome,
+                    %s AS filtro,
                     SUM(CASE WHEN status_norm = N'Finalizada' AND performance_diferenca_dias <= 0 THEN 1 ELSE 0 END) AS no_prazo,
                     SUM(CASE WHEN status_norm = N'Finalizada' AND performance_diferenca_dias > 0 THEN 1 ELSE 0 END) AS fora_do_prazo,
                     SUM(CASE WHEN status_norm <> N'Finalizada' AND data_previsao_entrega < :hoje THEN 1 ELSE 0 END) AS em_atraso,
                     COUNT_BIG(1) AS total
                 FROM entregas
                 WHERE 1 = 1
-                """.formatted(campoGrupo) + ctx.where() + """
+                """.formatted(campoNome, campoFiltro) + ctx.where() + """
                 GROUP BY %s
                 ORDER BY total DESC, nome
                 OFFSET 0 ROWS FETCH NEXT :limiteDrilldown ROWS ONLY
@@ -260,6 +265,7 @@ public class PerformanceDashboardSqlRepository {
 
         return jdbcTemplate.query(sql, ctx.params(), (rs, rowNum) -> new PerformanceDrilldownPointDTO(
                 rs.getString("nome"),
+                rs.getString("filtro"),
                 nivelSeguro,
                 rs.getLong("no_prazo"),
                 rs.getLong("fora_do_prazo"),
@@ -872,6 +878,28 @@ public class PerformanceDashboardSqlRepository {
         }
         params.addValue(chave, normalizados);
         where.append("\n AND LOWER(").append(campo).append(") IN (:").append(chave).append(")");
+    }
+
+    private static void adicionarFiltroTextoQualquer(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String chave,
+            Collection<String> valores,
+            String... campos
+    ) {
+        List<String> normalizados = normalizar(valores);
+        if (normalizados.isEmpty() || campos.length == 0) {
+            return;
+        }
+        params.addValue(chave, normalizados);
+        where.append("\n AND (");
+        for (int i = 0; i < campos.length; i++) {
+            if (i > 0) {
+                where.append(" OR ");
+            }
+            where.append("LOWER(").append(campos[i]).append(") IN (:").append(chave).append(")");
+        }
+        where.append(")");
     }
 
     private static List<String> normalizar(Collection<String> valores) {

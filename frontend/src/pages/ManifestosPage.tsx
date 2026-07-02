@@ -57,6 +57,53 @@ interface ManifestosTableSort {
   direction: SortDirection;
 }
 
+type TipoVeiculoTooltipData = {
+  tipo: string;
+  quantidade: number;
+  aproveitamentoMedio: number | null;
+  mediaEventos: number | null;
+  value: number;
+};
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char] ?? char));
+}
+
+function formatarTooltipTipoVeiculo(params: unknown): string {
+  const entry = Array.isArray(params) ? params[0] as { data?: TipoVeiculoTooltipData; name?: string; value?: number } : null;
+  const data = entry?.data;
+  const tipo = data?.tipo ?? entry?.name ?? '';
+  const quantidade = data?.quantidade ?? Number(entry?.value ?? 0);
+  const aproveitamentoMedio = data?.aproveitamentoMedio ?? 0;
+  const mediaEventos = data?.mediaEventos ?? 0;
+
+  return `
+    <section role="tooltip" style="min-width: 210px;">
+      <h3 style="margin: 0 0 8px; font-size: 13px; font-weight: 700;">${escapeHtml(tipo)}</h3>
+      <dl style="margin: 0; display: grid; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; gap: 16px;">
+          <dt>Quantidade de Manifestos</dt>
+          <dd style="margin: 0; font-weight: 700;">${formatarNumero(quantidade)}</dd>
+        </div>
+        <div style="display: flex; justify-content: space-between; gap: 16px;">
+          <dt>Aproveitamento Médio</dt>
+          <dd style="margin: 0; font-weight: 700;">${formatarNumero(aproveitamentoMedio, 1)}%</dd>
+        </div>
+        <div style="display: flex; justify-content: space-between; gap: 16px;">
+          <dt>Eventos Médios</dt>
+          <dd style="margin: 0; font-weight: 700;">${formatarNumero(mediaEventos, 1)}</dd>
+        </div>
+      </dl>
+    </section>
+  `;
+}
+
 function calcularPercentual(
   numerador: number | null | undefined,
   denominador: number | null | undefined,
@@ -289,7 +336,10 @@ export default function ManifestosPage() {
   }), [custosContrato, isDark]);
 
   const tiposVeiculoOption: EChartsOption = useMemo(() => buildBaseBarOption(isDark, {
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      formatter: formatarTooltipTipoVeiculo,
+    },
     legend: { show: false },
     grid: { top: 34, right: 10, bottom: 4, left: 44, containLabel: true },
     xAxis: {
@@ -306,7 +356,13 @@ export default function ManifestosPage() {
       {
         name: 'Veículos',
         type: 'bar',
-        data: tiposVeiculo.map((item) => item.quantidade),
+        data: tiposVeiculo.map((item) => ({
+          tipo: item.tipo,
+          quantidade: item.quantidade,
+          aproveitamentoMedio: item.aproveitamentoMedio,
+          mediaEventos: item.mediaEventos,
+          value: item.quantidade,
+        })),
       },
     ],
   }), [isDark, tiposVeiculo]);

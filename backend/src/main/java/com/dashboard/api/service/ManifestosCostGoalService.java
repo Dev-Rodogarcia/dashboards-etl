@@ -19,6 +19,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -162,6 +163,48 @@ public class ManifestosCostGoalService {
         ).ifPresent(goalRepository::delete);
     }
 
+    @Transactional
+    public List<ManifestosCostGoalConfigDTO> replicar(
+            int anoDestino,
+            int mesDestino,
+            String authenticationName
+    ) {
+        LocalDate competenciaDestino = competencia(anoDestino, mesDestino);
+        LocalDate competenciaOrigem = competenciaDestino.minusMonths(1);
+        YearMonth destino = YearMonth.from(competenciaDestino);
+        YearMonth origem = YearMonth.from(competenciaOrigem);
+
+        long totalDestino = goalRepository.countByYearMonth(competenciaDestino);
+        if (totalDestino > 0) {
+            throw new IllegalStateException(
+                    "Já existem metas cadastradas para " + formatarCompetencia(destino) + "."
+            );
+        }
+
+        long totalOrigem = goalRepository.countByYearMonth(competenciaOrigem);
+        if (totalOrigem == 0) {
+            throw new IllegalArgumentException(
+                    "Não há metas cadastradas em " + formatarCompetencia(origem) + " para copiar."
+            );
+        }
+
+        List<ManifestosCostGoalEntity> metasOrigem =
+                goalRepository.findAllByYearMonthForReplication(competenciaOrigem);
+        if (metasOrigem.size() != totalOrigem) {
+            throw new IllegalStateException("A consulta das metas de origem não retornou todas as linhas esperadas.");
+        }
+
+        UsuarioEntity usuario = usuarioAutenticado(authenticationName);
+        List<ManifestosCostGoalEntity> metasDestino = metasOrigem.stream()
+                .map(metaOrigem -> copiarMeta(metaOrigem, competenciaDestino, usuario))
+                .toList();
+
+        goalRepository.saveAllAndFlush(metasDestino);
+        return goalRepository.findAllByYearMonthOrdered(competenciaDestino).stream()
+                .map(ManifestosCostGoalConfigDTO::from)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public ManifestosCustosEvolucaoDTO calcular(FiltroConsultaDTO filtro, BigDecimal custoRealPeriodo) {
         BigDecimal custoReal = moeda(custoRealPeriodo);
@@ -278,6 +321,26 @@ public class ManifestosCostGoalService {
                 contractTypeKey,
                 classificationKey
         );
+    }
+
+    private ManifestosCostGoalEntity copiarMeta(
+            ManifestosCostGoalEntity origem,
+            LocalDate competenciaDestino,
+            UsuarioEntity usuario
+    ) {
+        ManifestosCostGoalEntity destino = new ManifestosCostGoalEntity();
+        destino.setBranchId(origem.getBranchId());
+        destino.setYearMonth(competenciaDestino);
+        destino.setContractType(origem.getContractType());
+        destino.setContractTypeKey(origem.getContractTypeKey());
+        destino.setClassificationKey(origem.getClassificationKey());
+        destino.setCostGoal(origem.getCostGoal());
+        destino.setUpdatedByUser(usuario);
+        return destino;
+    }
+
+    private String formatarCompetencia(YearMonth competencia) {
+        return String.format("%02d/%d", competencia.getMonthValue(), competencia.getYear());
     }
 
     private LocalDate competencia(int ano, int mes) {

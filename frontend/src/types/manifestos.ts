@@ -88,7 +88,7 @@ export interface PerformanceVeiculosDados {
   efetividade: GaugeMetric;
   statusSazonal: Array<{ data: string; encerrado: number; emTransito: number; pendente: number }>;
   custosContrato: Array<{ tipoContrato: string; custoTotal: number }>;
-  tiposVeiculo: Array<{ tipo: string; quantidade: number }>;
+  tiposVeiculo: Array<{ tipo: string; quantidade: number; aproveitamentoMedio: number | null; mediaEventos: number | null }>;
   custosEvolucao: ManifestosCustosEvolucao;
 }
 
@@ -169,6 +169,11 @@ export interface ManifestosCostGoalPayload {
   ano: number;
   mes: number;
   costGoal: number;
+}
+
+export interface ManifestosGoalReplicarPayload {
+  ano: number;
+  mes: number;
 }
 
 export type ManifestosMetasImportacaoStatus = 'PRONTA' | 'ERRO_VALIDACAO';

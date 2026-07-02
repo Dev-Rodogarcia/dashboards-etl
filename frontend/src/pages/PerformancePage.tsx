@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
-import { ChevronRight, ChevronUp } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
@@ -37,6 +37,7 @@ import { useStaggeredQueryEnabled } from '../hooks/useStaggeredQueryEnabled';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import type {
   PerformanceAgingPoint,
+  PerformanceDrilldownParams,
   PerformanceDrilldownNivel,
   PerformanceDrilldownPoint,
   PerformanceFiltro,
@@ -45,6 +46,7 @@ import type {
   PerformanceStatusDistribuicao,
   PerformanceTempoNivel,
 } from '../types/performance';
+import type { TableApiFilters } from '../types/tableFilters';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { CORES } from '../utils/chartColors';
 import { dataHojeLocal, primeiroDiaMesesAtrasLocal } from '../utils/dateUtils';
@@ -70,12 +72,41 @@ const HISTORICO_PERIODOS: Array<{ valor: HistoricoPeriodoMeses; label: string }>
   { valor: 12, label: '1 ano' },
 ];
 
-function chartClickName(params: unknown): string | null {
-  const item = params as { name?: unknown; data?: { name?: unknown } };
-  if (typeof item.data?.name === 'string') {
-    return item.data.name;
+function normalizarDrillTexto(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
   }
-  return typeof item.name === 'string' ? item.name : null;
+
+  const texto = value.replace(/\s+/g, ' ').trim();
+  return texto.length > 0 ? texto : null;
+}
+
+function chartClickName(params: unknown, dados?: PerformanceDrilldownPoint[]): string | null {
+  const item = params as { name?: unknown; value?: unknown; data?: unknown; dataIndex?: unknown };
+  const data = item.data;
+
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const dataItem = data as { filtro?: unknown; drillName?: unknown; name?: unknown };
+    const dataName = normalizarDrillTexto(dataItem.filtro)
+      ?? normalizarDrillTexto(dataItem.drillName)
+      ?? normalizarDrillTexto(dataItem.name);
+    if (dataName) {
+      return dataName;
+    }
+  }
+
+  if (typeof data === 'string') {
+    return normalizarDrillTexto(data);
+  }
+
+  if (typeof item.dataIndex === 'number') {
+    const ponto = dados?.[item.dataIndex];
+    return normalizarDrillTexto(ponto?.filtro)
+      ?? normalizarDrillTexto(ponto?.nome);
+  }
+
+  return normalizarDrillTexto(item.name)
+    ?? normalizarDrillTexto(item.value);
 }
 
 function truncateLabel(value: string, maxLength: number): string {
@@ -348,12 +379,25 @@ function buildDrilldownOption(dados: PerformanceDrilldownPoint[], nivel: Perform
   const tokens = getEchartsThemeTokens(isDark);
   const labels = dados.map((item) => item.nome);
   const axisRotate = labels.some((label) => label.length > 14) ? 18 : 0;
+  const isDrillable = nivel !== 'cidade';
+  const cursor = isDrillable ? 'pointer' : 'default';
+  const drillData = (
+    metric: keyof Pick<PerformanceDrilldownPoint, 'foraDoPrazo' | 'noPrazo' | 'emAtraso'>,
+  ) => dados.map((item) => ({
+    name: item.nome,
+    filtro: item.filtro ?? item.nome,
+    drillName: item.filtro ?? item.nome,
+    value: item[metric],
+    cursor,
+  }));
+
   return buildBaseBarOption(isDark, {
     legend: { top: 0 },
     grid: { top: 48, right: '3%', bottom: 0, left: '3%', containLabel: true },
     tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
+      triggerEvent: isDrillable,
       data: labels,
       axisLabel: {
         interval: 0,
@@ -369,25 +413,25 @@ function buildDrilldownOption(dados: PerformanceDrilldownPoint[], nivel: Perform
         name: 'FORA DO PRAZO',
         type: 'bar',
         stack: 'performance',
-        data: dados.map((item) => ({ name: item.nome, value: item.foraDoPrazo })),
+        data: drillData('foraDoPrazo'),
         itemStyle: { color: tokens.palette[3] },
-        cursor: nivel === 'cidade' ? 'default' : 'pointer',
+        cursor,
       },
       {
         name: 'NO PRAZO',
         type: 'bar',
         stack: 'performance',
-        data: dados.map((item) => ({ name: item.nome, value: item.noPrazo })),
+        data: drillData('noPrazo'),
         itemStyle: { color: tokens.palette[2] },
-        cursor: nivel === 'cidade' ? 'default' : 'pointer',
+        cursor,
       },
       {
         name: 'EM ATRASO',
         type: 'bar',
         stack: 'performance',
-        data: dados.map((item) => ({ name: item.nome, value: item.emAtraso })),
+        data: drillData('emAtraso'),
         itemStyle: { color: tokens.palette[1] },
-        cursor: nivel === 'cidade' ? 'default' : 'pointer',
+        cursor,
       },
     ],
   });
@@ -464,51 +508,153 @@ function kpiValorClassName(label: string, tone?: GoalTone): string | undefined {
   return toneClassName ? `text-2xl font-bold truncate ${toneClassName}` : undefined;
 }
 
+function drillUpButtonLabel(nivel: PerformanceDrilldownNivel, regiao: string | null): string | null {
+  if (nivel === 'cidade') {
+    return `Voltar para Região${regiao ? `: ${regiao}` : ''}`;
+  }
+
+  if (nivel === 'regiao') {
+    return 'Voltar para Responsáveis';
+  }
+
+  return null;
+}
+
+function DrillUpButton({
+  nivel,
+  regiao,
+  onBack,
+}: {
+  nivel: PerformanceDrilldownNivel;
+  regiao: string | null;
+  onBack: () => void;
+}) {
+  const label = drillUpButtonLabel(nivel, regiao);
+
+  if (!label) {
+    return null;
+  }
+
+  return (
+    <div className="mb-2 flex min-w-0 justify-start">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition hover:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+        style={{
+          backgroundColor: 'var(--color-card)',
+          borderColor: 'var(--color-border)',
+          color: 'var(--color-primary)',
+        }}
+      >
+        <ArrowLeft size={14} className="shrink-0" aria-hidden="true" />
+        <span className="truncate">{label}</span>
+      </button>
+    </div>
+  );
+}
+
 function DrilldownActions({
   nivel,
   responsavel,
   regiao,
   onBack,
+  onNivelClick,
 }: {
   nivel: PerformanceDrilldownNivel;
   responsavel: string | null;
   regiao: string | null;
   onBack: () => void;
+  onNivelClick: (nivel: PerformanceDrilldownNivel) => void;
 }) {
+  const levelButtonClassName = 'max-w-32 truncate rounded px-1.5 py-1 transition hover:bg-[var(--color-primary)]/10 hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]';
+
   return (
     <div className="flex min-w-0 flex-wrap items-center justify-end gap-1 text-[11px] font-semibold">
       <button
         type="button"
         title="Drill up"
         aria-label="Drill up"
-        disabled={nivel === 'responsavel'}
-        onClick={onBack}
-        className="flex h-7 w-7 items-center justify-center rounded-md border transition disabled:cursor-not-allowed disabled:opacity-35"
+        onClick={() => (nivel === 'responsavel' ? onNivelClick('responsavel') : onBack())}
+        className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border transition hover:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
         style={{ borderColor: 'var(--color-border)', color: nivel === 'responsavel' ? 'var(--color-text-muted)' : CORES.primaria }}
       >
         <ChevronUp size={14} />
       </button>
-      <span style={{ color: nivel === 'responsavel' ? CORES.primaria : 'var(--color-text-muted)' }}>
+      <button
+        type="button"
+        onClick={() => onNivelClick('responsavel')}
+        className={levelButtonClassName}
+        style={{ color: nivel === 'responsavel' ? CORES.primaria : 'var(--color-text-muted)' }}
+      >
         Responsável
-      </span>
+      </button>
       <ChevronRight size={12} style={{ color: 'var(--color-text-subtle)' }} />
-      <span
-        className="max-w-32 truncate"
-        title={responsavel ?? undefined}
+      <button
+        type="button"
+        onClick={() => onNivelClick('regiao')}
+        className={levelButtonClassName}
+        title={responsavel ? `Responsável: ${responsavel}` : undefined}
         style={{ color: nivel === 'regiao' ? CORES.primaria : 'var(--color-text-muted)' }}
       >
         Região
-      </span>
+      </button>
       <ChevronRight size={12} style={{ color: 'var(--color-text-subtle)' }} />
-      <span
-        className="max-w-32 truncate"
-        title={regiao ?? undefined}
+      <button
+        type="button"
+        onClick={() => onNivelClick('cidade')}
+        className={levelButtonClassName}
+        title={regiao ? `Região: ${regiao}` : undefined}
         style={{ color: nivel === 'cidade' ? CORES.primaria : 'var(--color-text-muted)' }}
       >
         Cidade
-      </span>
+      </button>
     </div>
   );
+}
+
+function aplicarDrillNosFiltrosTabela(
+  filtrosTabela: TableApiFilters,
+  nivel: PerformanceDrilldownNivel,
+  responsavel: string | null,
+  regiao: string | null,
+): TableApiFilters {
+  const tabelaColuna = { ...(filtrosTabela.tabelaColuna ?? {}) };
+  const next: TableApiFilters = { ...filtrosTabela };
+
+  if ((nivel === 'regiao' || nivel === 'cidade') && responsavel) {
+    next.tabelaRazaoSocial = responsavel;
+  }
+
+  if (nivel === 'cidade' && regiao) {
+    tabelaColuna.regiaoDestino = regiao;
+  }
+
+  if (Object.keys(tabelaColuna).length > 0) {
+    next.tabelaColuna = tabelaColuna;
+  } else {
+    delete next.tabelaColuna;
+  }
+
+  return next;
+}
+
+function drillTabelaLabel(
+  nivel: PerformanceDrilldownNivel,
+  responsavel: string | null,
+  regiao: string | null,
+): string | null {
+  const partes: string[] = [];
+
+  if ((nivel === 'regiao' || nivel === 'cidade') && responsavel) {
+    partes.push(`Responsável: ${responsavel}`);
+  }
+
+  if (nivel === 'cidade' && regiao) {
+    partes.push(`Região: ${regiao}`);
+  }
+
+  return partes.length > 0 ? `Tabela sincronizada com ${partes.join(' / ')}` : null;
 }
 
 function TemporalActions({
@@ -580,8 +726,8 @@ export default function PerformancePage() {
   const pagadores = usePagadores(pagadorBuscaDiferida);
 
   const drillNivel = normalizeDrillNivel(searchParams.get('drillNivel'));
-  const drillResponsavel = searchParams.get('drillResponsavel');
-  const drillRegiao = searchParams.get('drillRegiao');
+  const drillResponsavel = normalizarDrillTexto(searchParams.get('drillResponsavel'));
+  const drillRegiao = normalizarDrillTexto(searchParams.get('drillRegiao'));
   const nivelTemporal = normalizeTemporalNivel(searchParams.get(NIVEL_PARAM));
   const anoTemporal = numeroParam(searchParams.get(ANO_PARAM));
   const mesTemporal = numeroParam(searchParams.get(MES_PARAM));
@@ -664,19 +810,37 @@ export default function PerformancePage() {
   const status = usePerformanceStatus(filtro, statusEnabled);
   const historico = usePerformanceHistorico(historicoFiltro, historicoPeriodoMeses, historicoEnabled);
   const filtrosTabela = useAnalyticalTableFilters();
-  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }));
+  const filtrosTabelaComDrill = useMemo(
+    () => aplicarDrillNosFiltrosTabela(
+      filtrosTabela.apiFilters,
+      drillNivel,
+      drillResponsavel,
+      drillRegiao,
+    ),
+    [drillNivel, drillRegiao, drillResponsavel, filtrosTabela.apiFilters],
+  );
+  const drillTabelaResumo = useMemo(
+    () => drillTabelaLabel(drillNivel, drillResponsavel, drillRegiao),
+    [drillNivel, drillRegiao, drillResponsavel],
+  );
+  const drilldownParams = useMemo<PerformanceDrilldownParams>(() => ({
+    nivel: drillNivel,
+    responsavel: drillResponsavel,
+    regiaoDestino: drillRegiao,
+  }), [drillNivel, drillRegiao, drillResponsavel]);
+  const drillStateKey = useMemo(
+    () => [drilldownParams.nivel, drilldownParams.responsavel ?? '', drilldownParams.regiaoDestino ?? ''].join('|'),
+    [drilldownParams],
+  );
+  const paginacaoTabela = useTabelaPaginadaState(JSON.stringify({ filtro, tabela: filtrosTabelaComDrill }));
   const tabela = usePerformanceTabelaPaginada(
     filtro,
     paginacaoTabela.pagina,
     paginacaoTabela.tamanhoPagina,
-    filtrosTabela.apiFilters,
+    filtrosTabelaComDrill,
     tabelaEnabled,
   );
-  const drilldown = usePerformanceDrilldown(filtro, {
-    nivel: drillNivel,
-    responsavel: drillResponsavel,
-    regiaoDestino: drillRegiao,
-  }, drilldownEnabled);
+  const drilldown = usePerformanceDrilldown(filtro, drilldownParams, drilldownEnabled);
   const aging = usePerformanceAging(filtro, agingEnabled);
 
   usePageHeader({
@@ -762,23 +926,46 @@ export default function PerformancePage() {
       next.delete('drillResponsavel');
       next.delete('drillRegiao');
     }
-    setSearchParams(next, { replace: true });
+    setSearchParams(next, { replace: true, preventScrollReset: true });
+  }
+
+  function drillToNivel(nivelAlvo: PerformanceDrilldownNivel) {
+    const next = new URLSearchParams(searchParams);
+
+    if (nivelAlvo === 'responsavel') {
+      next.delete('drillNivel');
+      next.delete('drillResponsavel');
+      next.delete('drillRegiao');
+    } else if (nivelAlvo === 'regiao' && drillResponsavel) {
+      next.set('drillNivel', 'regiao');
+      next.set('drillResponsavel', drillResponsavel);
+      next.delete('drillRegiao');
+    } else if (nivelAlvo === 'cidade' && drillResponsavel && drillRegiao) {
+      next.set('drillNivel', 'cidade');
+      next.set('drillResponsavel', drillResponsavel);
+      next.set('drillRegiao', drillRegiao);
+    }
+
+    setSearchParams(next, { replace: true, preventScrollReset: true });
   }
 
   function drillDown(nome: string | null) {
-    if (!nome || drillNivel === 'cidade') {
+    const nomeDrill = normalizarDrillTexto(nome);
+
+    if (!nomeDrill || drillNivel === 'cidade') {
       return;
     }
+
     const next = new URLSearchParams(searchParams);
     if (drillNivel === 'responsavel') {
       next.set('drillNivel', 'regiao');
-      next.set('drillResponsavel', nome);
+      next.set('drillResponsavel', nomeDrill);
       next.delete('drillRegiao');
     } else {
       next.set('drillNivel', 'cidade');
-      next.set('drillRegiao', nome);
+      next.set('drillRegiao', nomeDrill);
     }
-    setSearchParams(next, { replace: true });
+    setSearchParams(next, { replace: true, preventScrollReset: true });
   }
 
   return (
@@ -919,29 +1106,39 @@ export default function PerformancePage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <div className="h-[26rem] min-h-0">
-          <ChartWrapper
-            titulo="Performance por responsável, região e cidade"
-            chartKey="performanceDrilldown"
-            actions={(
-              <DrilldownActions
-                nivel={drillNivel}
-                responsavel={drillResponsavel}
-                regiao={drillRegiao}
-                onBack={drillUp}
-              />
-            )}
-            option={drilldownOption}
-            isLoading={drilldown.isLoading}
-            isEmpty={drilldownData.length === 0}
-            emptyMessage={PERFORMANCE_EMPTY_MESSAGE}
-            erro={drilldown.isError ? getApiErrorMessage(drilldown.error, 'Erro ao carregar drill-down.') : null}
-            altura="100%"
-            className="h-full"
-            onEvents={{
-              click: (params) => drillDown(chartClickName(params)),
-            }}
-          />
+        <div className="flex h-[26rem] min-h-0 flex-col">
+          <DrillUpButton nivel={drillNivel} regiao={drillRegiao} onBack={drillUp} />
+          <div className="min-h-0 flex-1">
+            <ChartWrapper
+              key={drillStateKey}
+              titulo="Performance por responsável, região e cidade"
+              chartKey="performanceDrilldown"
+              actions={(
+                <DrilldownActions
+                  nivel={drillNivel}
+                  responsavel={drillResponsavel}
+                  regiao={drillRegiao}
+                  onBack={drillUp}
+                  onNivelClick={drillToNivel}
+                />
+              )}
+              option={drilldownOption}
+              isLoading={drilldown.isLoading}
+              isEmpty={drilldownData.length === 0}
+              emptyMessage={PERFORMANCE_EMPTY_MESSAGE}
+              erro={drilldown.isError ? getApiErrorMessage(drilldown.error, 'Erro ao carregar drill-down.') : null}
+              altura="100%"
+              className="h-full"
+              onEvents={{
+                click: (params: unknown) => {
+                  const nome = chartClickName(params, drilldownData);
+                  if (nome) {
+                    drillDown(nome);
+                  }
+                },
+              }}
+            />
+          </div>
         </div>
         <div className="h-[26rem] min-h-0">
           <ChartWrapper
@@ -958,8 +1155,20 @@ export default function PerformancePage() {
         </div>
       </div>
 
-      <div className="mt-6 mb-3 flex justify-end">
-        <ExportButton nomeArquivo="performance" onExport={() => exportarPerformanceCsv(filtro, filtrosTabela.apiFilters)} />
+      <div className="mt-6 mb-3 flex flex-wrap items-center justify-end gap-3">
+        {drillTabelaResumo ? (
+          <span
+            className="mr-auto inline-flex min-w-0 max-w-full items-center rounded-md border px-3 py-1.5 text-xs font-medium"
+            style={{
+              backgroundColor: 'var(--color-card)',
+              borderColor: 'var(--color-border)',
+              color: 'var(--color-text-muted)',
+            }}
+          >
+            <span className="truncate">{drillTabelaResumo}</span>
+          </span>
+        ) : null}
+        <ExportButton nomeArquivo="performance" onExport={() => exportarPerformanceCsv(filtro, filtrosTabelaComDrill)} />
       </div>
       <PerformanceTabela
         pagina={tabela.data}

@@ -73,6 +73,17 @@ export async function salvarManifestosMeta(payload: ManifestosCostGoalPayload): 
   return data;
 }
 
+export async function replicarManifestosMetas(
+  ano: number,
+  mes: number,
+): Promise<ManifestosCostGoalConfig[]> {
+  const { data } = await clienteAxios.post<ManifestosCostGoalConfig[]>('/api/painel/manifestos/metas/replicar', {
+    ano,
+    mes,
+  });
+  return data;
+}
+
 export async function removerManifestosMeta(
   branchId: string,
   ano: number,

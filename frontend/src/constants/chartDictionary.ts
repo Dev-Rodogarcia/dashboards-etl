@@ -126,9 +126,10 @@ export const chartDictionary = {
     tabelasOrigem: 'dbo.vw_fato_manifestos_dash',
     cruzamentos: 'Nenhum JOIN; CTE manifestos no ManifestosPerformanceSqlRepository.',
     descricao: 'Distribui manifestos por tipo de veículo para entender o perfil de frota usado nas operações do período.',
-    calculoTecnico: 'COUNT(DISTINCT sequence_code)',
+    calculoTecnico:
+      'COUNT(DISTINCT sequence_code); COALESCE(SUM(peso_taxado) * 100.0 / NULLIF(SUM(capacidade_veiculo), 0), 0); COALESCE(SUM(itens_entrega + itens_coleta) * 1.0 / NULLIF(COUNT(DISTINCT sequence_code), 0), 0)',
     calculoNegocio:
-      'Conta manifestos únicos por categoria de veículo, evitando duplicidade do mesmo manifesto e destacando a composição física da malha.',
+      'Conta manifestos únicos por categoria de veículo, evitando duplicidade do mesmo manifesto e destacando a composição física da malha. O tooltip também mostra o aproveitamento médio por peso contra capacidade e a média de eventos de entrega/coleta por manifesto.',
     agrupamento: 'GROUP BY tipo_veiculo',
   },
 

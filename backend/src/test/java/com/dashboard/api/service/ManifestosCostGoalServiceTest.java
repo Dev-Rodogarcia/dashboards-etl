@@ -3,9 +3,12 @@ package com.dashboard.api.service;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCustosEvolucaoDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCustosEvolucaoDTO.CustoDiarioDTO;
+import com.dashboard.api.model.acesso.ManifestosCostGoalEntity;
+import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.repository.ManifestosCostDataRepository;
 import com.dashboard.api.repository.acesso.ManifestosCostGoalRepository;
 import com.dashboard.api.repository.acesso.ManifestosCostGoalRepository.GoalAggregateProjection;
+import com.dashboard.api.repository.acesso.UsuarioRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -14,12 +17,15 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
@@ -39,6 +45,9 @@ class ManifestosCostGoalServiceTest {
 
     @Mock
     private ManifestosCostDataRepository performanceRepository;
+
+    @Mock
+    private UsuarioRepository usuarioRepository;
 
     private ManifestosCostGoalService service;
 
@@ -205,6 +214,77 @@ class ManifestosCostGoalServiceTest {
         assertThat(resultado.consumoOrcamento()).isZero();
     }
 
+    @Test
+    void replicarCopiaMetasDoMesAnteriorParaDestinoVazio() {
+        service = serviceComUsuario();
+        LocalDate destino = LocalDate.of(2026, 7, 1);
+        LocalDate origem = LocalDate.of(2026, 6, 1);
+        UsuarioEntity usuario = usuario("admin@example.com");
+        AtomicReference<List<ManifestosCostGoalEntity>> salvas = new AtomicReference<>(List.of());
+
+        when(goalRepository.countByYearMonth(destino)).thenReturn(0L);
+        when(goalRepository.countByYearMonth(origem)).thenReturn(2L);
+        when(goalRepository.findAllByYearMonthForReplication(origem)).thenReturn(List.of(
+                meta("SPO", origem, "Frota", "frota", "distribuicao", "1000.50"),
+                meta(null, origem, "Geral", "geral", null, "299000.00")
+        ));
+        when(usuarioRepository.findByEmailIgnoreCase("admin@example.com")).thenReturn(Optional.of(usuario));
+        when(goalRepository.saveAllAndFlush(any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<ManifestosCostGoalEntity> entities = (List<ManifestosCostGoalEntity>) invocation.getArgument(0);
+            salvas.set(entities);
+            return entities;
+        });
+        when(goalRepository.findAllByYearMonthOrdered(destino)).thenAnswer(invocation -> salvas.get());
+
+        var resultado = service.replicar(2026, 7, "admin@example.com");
+
+        assertThat(resultado).hasSize(2);
+        assertThat(salvas.get()).hasSize(2);
+        assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getYearMonth).containsOnly(destino);
+        assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getBranchId).containsExactly("SPO", null);
+        assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getContractTypeKey)
+                .containsExactly("frota", "geral");
+        assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getClassificationKey)
+                .containsExactly("distribuicao", null);
+        assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getCostGoal)
+                .containsExactly(new BigDecimal("1000.50"), new BigDecimal("299000.00"));
+        assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getUpdatedByUser)
+                .containsOnly(usuario);
+    }
+
+    @Test
+    void replicarNaoSobrescreveDestinoComMetasCadastradas() {
+        service = serviceComUsuario();
+        LocalDate destino = LocalDate.of(2026, 7, 1);
+        when(goalRepository.countByYearMonth(destino)).thenReturn(1L);
+
+        assertThatThrownBy(() -> service.replicar(2026, 7, "admin@example.com"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("07/2026");
+
+        verify(goalRepository, never()).findAllByYearMonthForReplication(any());
+        verify(goalRepository, never()).saveAllAndFlush(any());
+        verifyNoInteractions(usuarioRepository);
+    }
+
+    @Test
+    void replicarExigeMetasNoMesAnterior() {
+        service = serviceComUsuario();
+        LocalDate destino = LocalDate.of(2026, 7, 1);
+        LocalDate origem = LocalDate.of(2026, 6, 1);
+        when(goalRepository.countByYearMonth(destino)).thenReturn(0L);
+        when(goalRepository.countByYearMonth(origem)).thenReturn(0L);
+
+        assertThatThrownBy(() -> service.replicar(2026, 7, "admin@example.com"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("06/2026");
+
+        verify(goalRepository, never()).findAllByYearMonthForReplication(any());
+        verify(goalRepository, never()).saveAllAndFlush(any());
+        verifyNoInteractions(usuarioRepository);
+    }
+
     private void stubCalendarioECustos(FiltroConsultaDTO filtro, List<CustoDiarioDTO> serie) {
         when(performanceRepository.buscarCustosDiarios(filtro)).thenReturn(serie);
         when(performanceRepository.buscarUltimoDiaUtilFechado(FIM_MAIO))
@@ -222,18 +302,32 @@ class ManifestosCostGoalServiceTest {
     }
 
     private ManifestosCostGoalService serviceComEscopo(EscopoFilialService.EscopoFilial escopo) {
+        return new ManifestosCostGoalService(
+                goalRepository,
+                performanceRepository,
+                escopoService(escopo),
+                Clock.fixed(Instant.parse("2026-05-19T12:00:00Z"), ZONE_ID_BRASILIA)
+        );
+    }
+
+    private ManifestosCostGoalService serviceComUsuario() {
+        return new ManifestosCostGoalService(
+                goalRepository,
+                performanceRepository,
+                escopoService(EscopoFilialService.EscopoFilial.comAcessoTotal()),
+                usuarioRepository,
+                Clock.fixed(Instant.parse("2026-05-19T12:00:00Z"), ZONE_ID_BRASILIA)
+        );
+    }
+
+    private EscopoFilialService escopoService(EscopoFilialService.EscopoFilial escopo) {
         EscopoFilialService escopoService = new EscopoFilialService(null, null) {
             @Override
             public EscopoFilial escopoAtual() {
                 return escopo;
             }
         };
-        return new ManifestosCostGoalService(
-                goalRepository,
-                performanceRepository,
-                escopoService,
-                Clock.fixed(Instant.parse("2026-05-19T12:00:00Z"), ZONE_ID_BRASILIA)
-        );
+        return escopoService;
     }
 
     private static GoalAggregateProjection aggregate(String valor, long configuradas) {
@@ -248,5 +342,33 @@ class ManifestosCostGoalServiceTest {
                 return configuradas;
             }
         };
+    }
+
+    private static ManifestosCostGoalEntity meta(
+            String branchId,
+            LocalDate competencia,
+            String contractType,
+            String contractTypeKey,
+            String classificationKey,
+            String costGoal
+    ) {
+        ManifestosCostGoalEntity entity = new ManifestosCostGoalEntity();
+        entity.setBranchId(branchId);
+        entity.setYearMonth(competencia);
+        entity.setContractType(contractType);
+        entity.setContractTypeKey(contractTypeKey);
+        entity.setClassificationKey(classificationKey);
+        entity.setCostGoal(new BigDecimal(costGoal));
+        return entity;
+    }
+
+    private static UsuarioEntity usuario(String email) {
+        UsuarioEntity usuario = new UsuarioEntity();
+        usuario.setId(42L);
+        usuario.setLogin("admin");
+        usuario.setNome("Admin");
+        usuario.setEmail(email);
+        usuario.setSenhaHash("hash");
+        return usuario;
     }
 }

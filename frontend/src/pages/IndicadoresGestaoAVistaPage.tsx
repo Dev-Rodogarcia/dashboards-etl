@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BarChart3, Boxes, Clock3, Gauge, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
+import { AlertCircle, BarChart3, Boxes, Clock3, Gauge, MessageSquarePlus, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import type { ColunaTabela } from '../components/shared/DataTable';
@@ -10,6 +10,7 @@ import BranchGoalOverridesBanner from '../components/indicadores-gestao/BranchGo
 import IndicadoresGestaoPanoramaSection, { type PanoramaOperacionalItem } from '../components/indicadores-gestao/IndicadoresGestaoPanoramaSection';
 import IndicadoresGestaoSection from '../components/indicadores-gestao/IndicadoresGestaoSection';
 import IndicadoresGestaoSummaryCard from '../components/indicadores-gestao/IndicadoresGestaoSummaryCard';
+import JustificativaHorarioCorteModal from '../components/indicadores-gestao/JustificativaHorarioCorteModal';
 import KpiGoalsManagerPanel from '../components/indicadores-gestao/KpiGoalsManagerPanel';
 import { KpiDictionary } from '../constants/kpiDictionary';
 import {
@@ -43,6 +44,7 @@ import {
   usePerformanceEntregaSerie,
   usePerformanceEntregaTabelaPaginada,
   useRemoverKpiGoalsOverride,
+  useSalvarJustificativaHorarioCorte,
   useUtilizacaoColetoresOverview,
   useUtilizacaoColetoresRanking,
   useUtilizacaoColetoresTabelaPaginada,
@@ -189,6 +191,7 @@ export default function IndicadoresGestaoAVistaPage() {
   const [goalsPanelBranchId, setGoalsPanelBranchId] = useState('');
   const [goalsPanelCompetencia, setGoalsPanelCompetencia] = useState(() => normalizarCompetenciaApi(dataInicio));
   const [goalsHistoryPage, setGoalsHistoryPage] = useState(1);
+  const [horarioCorteSmJustificativa, setHorarioCorteSmJustificativa] = useState<number | null>(null);
   const dataInicioIndicadores = dataInicio;
   const dataFimIndicadores = dataFim;
   const competenciaFiltroGlobal = useMemo(() => normalizarCompetenciaApi(dataInicioIndicadores), [dataInicioIndicadores]);
@@ -270,6 +273,7 @@ export default function IndicadoresGestaoAVistaPage() {
   const atualizarGlobais = useAtualizarKpiGoalsGlobais();
   const atualizarFilial = useAtualizarKpiGoalsFilial();
   const removerOverride = useRemoverKpiGoalsOverride();
+  const salvarJustificativaHorarioCorte = useSalvarJustificativaHorarioCorte();
   const goals = useMemo(() => buildGoalConfigs(kpiGoals.data?.goals ?? DEFAULT_KPI_GOALS), [kpiGoals.data]);
   const overridesByIndicator = useMemo<Record<KpiGoalIndicatorKey, KpiGoalIndicatorOverride[]>>(() => ({
     delivery_performance: performanceOverrides.data?.overrides ?? [],
@@ -324,6 +328,11 @@ export default function IndicadoresGestaoAVistaPage() {
     atualizarFilial.reset();
     await removerOverride.mutateAsync({ branchId, competencia: goalsPanelCompetencia });
     setGoalsHistoryPage(1);
+  }
+
+  async function salvarJustificativaSm(payload: { codSolicitacao: number; justificativa: string }) {
+    await salvarJustificativaHorarioCorte.mutateAsync(payload);
+    setHorarioCorteSmJustificativa(null);
   }
 
   function alterarFilialPainelMetas(branchId: string) {
@@ -694,6 +703,24 @@ export default function IndicadoresGestaoAVistaPage() {
     { chave: 'corte', label: 'Corte' },
     { chave: 'saiuNoHorario', label: 'Status', formato: (v) => <StatusBadge status={v === true ? 'NO PRAZO' : v === false ? 'FORA DO PRAZO' : 'SEM DADO'} /> },
     { chave: 'atrasoMinutos', label: 'Atraso (min)', formato: (v) => v == null ? '—' : formatarNumero(Number(v)) },
+    {
+      chave: 'acaoJustificativa',
+      label: 'Justificar',
+      largura: '120px',
+      alinhamento: 'center',
+      formato: (_v, row) => row.saiuNoHorario === false ? (
+        <button
+          type="button"
+          onClick={() => setHorarioCorteSmJustificativa(row.id)}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors hover:bg-[var(--color-card)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
+          aria-label={`Justificar SM ${row.id}`}
+          title="Justificar SM"
+        >
+          <MessageSquarePlus size={15} />
+        </button>
+      ) : '—',
+    },
     { chave: 'observacao', label: 'Observação', largura: '260px' },
     { chave: 'nomeArquivo', label: 'Fonte', largura: '220px' },
     { chave: 'importadoEm', label: 'Extraído em', formato: (v) => v ? formatarDataHora(String(v)) : '—' },
@@ -1097,6 +1124,17 @@ export default function IndicadoresGestaoAVistaPage() {
         onTablePageSizeChange={horariosPaginacao.setTamanhoPagina}
         isExpanded={expandedSection === 'horarios'}
         onToggleTable={() => toggleSection('horarios')}
+      />
+
+      <JustificativaHorarioCorteModal
+        codSolicitacao={horarioCorteSmJustificativa}
+        isSubmitting={salvarJustificativaHorarioCorte.isPending}
+        onClose={() => {
+          if (!salvarJustificativaHorarioCorte.isPending) {
+            setHorarioCorteSmJustificativa(null);
+          }
+        }}
+        onSubmit={salvarJustificativaSm}
       />
     </div>
   );
