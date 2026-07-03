@@ -71,7 +71,7 @@ public class CsvExportWriter {
         RecordComponent[] componentes = tipo.getRecordComponents();
         List<String> headers = new ArrayList<>(componentes.length);
         for (RecordComponent componente : componentes) {
-            headers.add(componente.getName());
+            headers.add(header(componente));
         }
         escreverLinha(writer, headers);
 
@@ -202,6 +202,11 @@ public class CsvExportWriter {
             headers.add(metaData.getColumnLabel(coluna));
         }
         return headers;
+    }
+
+    private String header(RecordComponent componente) {
+        CsvColumn csvColumn = componente.getAnnotation(CsvColumn.class);
+        return csvColumn != null ? csvColumn.value() : componente.getName();
     }
 
     private record ValorCsv(String texto, boolean protegerFormula) {

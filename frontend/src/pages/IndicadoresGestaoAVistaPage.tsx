@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BarChart3, Boxes, Clock3, Gauge, MessageSquarePlus, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
+import { AlertCircle, BarChart3, Boxes, CheckCircle2, Clock3, Gauge, MessageSquarePlus, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import type { ColunaTabela } from '../components/shared/DataTable';
@@ -30,6 +30,7 @@ import {
   useCubagemMercadoriasOverview,
   useCubagemMercadoriasSerie,
   useCubagemMercadoriasTabelaPaginada,
+  useExcluirJustificativaHorarioCorte,
   useHorariosCorteOverview,
   useHorariosCorteSerie,
   useHorariosCorteTabelaPaginada,
@@ -78,6 +79,11 @@ import { buildMetaComparisonOption, buildRankingOption } from '../utils/indicado
 import { normalizarCompetenciaApi } from '../utils/competencia';
 
 type SectionId = 'performance' | 'coletores' | 'cubagem' | 'indenizacao' | 'horarios';
+
+interface HorarioCorteJustificativaSelecionada {
+  codSolicitacao: number;
+  justificativa: string | null;
+}
 
 interface GoalConfig {
   threshold: number;
@@ -191,7 +197,7 @@ export default function IndicadoresGestaoAVistaPage() {
   const [goalsPanelBranchId, setGoalsPanelBranchId] = useState('');
   const [goalsPanelCompetencia, setGoalsPanelCompetencia] = useState(() => normalizarCompetenciaApi(dataInicio));
   const [goalsHistoryPage, setGoalsHistoryPage] = useState(1);
-  const [horarioCorteSmJustificativa, setHorarioCorteSmJustificativa] = useState<number | null>(null);
+  const [horarioCorteJustificativaSelecionada, setHorarioCorteJustificativaSelecionada] = useState<HorarioCorteJustificativaSelecionada | null>(null);
   const dataInicioIndicadores = dataInicio;
   const dataFimIndicadores = dataFim;
   const competenciaFiltroGlobal = useMemo(() => normalizarCompetenciaApi(dataInicioIndicadores), [dataInicioIndicadores]);
@@ -274,6 +280,7 @@ export default function IndicadoresGestaoAVistaPage() {
   const atualizarFilial = useAtualizarKpiGoalsFilial();
   const removerOverride = useRemoverKpiGoalsOverride();
   const salvarJustificativaHorarioCorte = useSalvarJustificativaHorarioCorte();
+  const excluirJustificativaHorarioCorte = useExcluirJustificativaHorarioCorte();
   const goals = useMemo(() => buildGoalConfigs(kpiGoals.data?.goals ?? DEFAULT_KPI_GOALS), [kpiGoals.data]);
   const overridesByIndicator = useMemo<Record<KpiGoalIndicatorKey, KpiGoalIndicatorOverride[]>>(() => ({
     delivery_performance: performanceOverrides.data?.overrides ?? [],
@@ -332,7 +339,12 @@ export default function IndicadoresGestaoAVistaPage() {
 
   async function salvarJustificativaSm(payload: { codSolicitacao: number; justificativa: string }) {
     await salvarJustificativaHorarioCorte.mutateAsync(payload);
-    setHorarioCorteSmJustificativa(null);
+    setHorarioCorteJustificativaSelecionada(null);
+  }
+
+  async function excluirJustificativaSm(codSolicitacao: number) {
+    await excluirJustificativaHorarioCorte.mutateAsync(codSolicitacao);
+    setHorarioCorteJustificativaSelecionada(null);
   }
 
   function alterarFilialPainelMetas(branchId: string) {
@@ -708,18 +720,29 @@ export default function IndicadoresGestaoAVistaPage() {
       label: 'Justificar',
       largura: '120px',
       alinhamento: 'center',
-      formato: (_v, row) => row.saiuNoHorario === false ? (
-        <button
-          type="button"
-          onClick={() => setHorarioCorteSmJustificativa(row.id)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors hover:bg-[var(--color-card)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
-          aria-label={`Justificar SM ${row.id}`}
-          title="Justificar SM"
-        >
-          <MessageSquarePlus size={15} />
-        </button>
-      ) : '—',
+      formato: (_v, row) => {
+        const possuiJustificativa = Boolean(row.justificativa?.trim());
+        const podeJustificar = row.saiuNoHorario === false || possuiJustificativa;
+
+        if (!podeJustificar) {
+          return '—';
+        }
+
+        return (
+          <button
+            type="button"
+            onClick={() => setHorarioCorteJustificativaSelecionada({ codSolicitacao: row.id, justificativa: row.justificativa })}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors hover:bg-[var(--color-card)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            style={possuiJustificativa
+              ? { borderColor: 'rgba(22, 163, 74, 0.45)', color: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.08)' }
+              : { borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
+            aria-label={possuiJustificativa ? `SM ${row.id} justificada` : `Justificar SM ${row.id}`}
+            title={possuiJustificativa ? 'Justificado' : 'Justificar SM'}
+          >
+            {possuiJustificativa ? <CheckCircle2 size={15} /> : <MessageSquarePlus size={15} />}
+          </button>
+        );
+      },
     },
     { chave: 'observacao', label: 'Observação', largura: '260px' },
     { chave: 'nomeArquivo', label: 'Fonte', largura: '220px' },
@@ -1127,14 +1150,17 @@ export default function IndicadoresGestaoAVistaPage() {
       />
 
       <JustificativaHorarioCorteModal
-        codSolicitacao={horarioCorteSmJustificativa}
+        codSolicitacao={horarioCorteJustificativaSelecionada?.codSolicitacao ?? null}
+        justificativaAtual={horarioCorteJustificativaSelecionada?.justificativa ?? null}
         isSubmitting={salvarJustificativaHorarioCorte.isPending}
+        isDeleting={excluirJustificativaHorarioCorte.isPending}
         onClose={() => {
-          if (!salvarJustificativaHorarioCorte.isPending) {
-            setHorarioCorteSmJustificativa(null);
+          if (!salvarJustificativaHorarioCorte.isPending && !excluirJustificativaHorarioCorte.isPending) {
+            setHorarioCorteJustificativaSelecionada(null);
           }
         }}
         onSubmit={salvarJustificativaSm}
+        onDelete={excluirJustificativaSm}
       />
     </div>
   );

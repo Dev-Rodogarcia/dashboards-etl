@@ -22,6 +22,7 @@ import {
   buscarPerformanceEntregaSerie,
   buscarPerformanceEntregaTabela,
   buscarPerformanceEntregaTabelaPaginada,
+  excluirJustificativaHorarioCorte,
   removerKpiGoalsOverride,
   salvarJustificativaHorarioCorte,
   buscarUtilizacaoColetoresOverview,
@@ -375,6 +376,17 @@ export function useSalvarJustificativaHorarioCorte() {
 
   return useMutation({
     mutationFn: (payload: ViagemJustificativaPayload) => salvarJustificativaHorarioCorte(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['indicadores-gestao-a-vista', 'horarios-corte'] });
+    },
+  });
+}
+
+export function useExcluirJustificativaHorarioCorte() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sm: number | string) => excluirJustificativaHorarioCorte(sm),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['indicadores-gestao-a-vista', 'horarios-corte'] });
     },

@@ -34,7 +34,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -288,6 +290,12 @@ public class IndicadoresGestaoAVistaController {
             @Valid @RequestBody ViagemJustificativaRequestDTO request
     ) {
         return ResponseEntity.ok(viagemJustificativaService.salvar(request));
+    }
+
+    @DeleteMapping("/horarios-corte/justificativas/{sm}")
+    public ResponseEntity<Void> excluirJustificativa(@PathVariable("sm") Long sm) {
+        viagemJustificativaService.excluir(sm);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/horarios-corte/serie")

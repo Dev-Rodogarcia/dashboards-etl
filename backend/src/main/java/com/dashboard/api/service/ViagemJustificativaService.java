@@ -33,6 +33,11 @@ public class ViagemJustificativaService {
         return toDto(repository.save(entity));
     }
 
+    @Transactional
+    public void excluir(Long codSolicitacao) {
+        repository.deleteByCodSolicitacao(codSolicitacao);
+    }
+
     private ViagemJustificativaDTO toDto(ViagemJustificativa entity) {
         return new ViagemJustificativaDTO(
                 entity.getId(),

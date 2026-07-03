@@ -1,5 +1,6 @@
 package com.dashboard.api.service;
 
+import com.dashboard.api.util.CsvColumn;
 import com.dashboard.api.util.CsvExportWriter;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -50,6 +51,17 @@ class CsvExportWriterTest {
         assertThat(csv).isEqualTo("\ufeffigual;mais;menos;arroba\r\n\"'=SOMA(1;1)\";'+10;'-20;'@cmd\r\n");
     }
 
+    @Test
+    void escreverBeansDeveUsarNomeDeColunaCsvQuandoAnotado() throws Exception {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        writer.escreverBeans(outputStream, List.of(new HeaderCsv("texto")));
+
+        String csv = new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
+
+        assertThat(csv).isEqualTo("\ufeffJustificativa\r\ntexto\r\n");
+    }
+
     private record LinhaCsv(
             String cidade,
             String descricao,
@@ -61,5 +73,8 @@ class CsvExportWriterTest {
     }
 
     private record FormulaCsv(String igual, String mais, String menos, String arroba) {
+    }
+
+    private record HeaderCsv(@CsvColumn("Justificativa") String justificativa) {
     }
 }

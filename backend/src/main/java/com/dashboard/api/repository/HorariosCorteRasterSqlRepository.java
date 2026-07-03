@@ -200,7 +200,8 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                         WHEN rc.data_base_sm_at IS NULL OR apoio.horario_corte IS NULL THEN NULL
                         ELSE DATEADD(SECOND, DATEDIFF(SECOND, CAST(N'00:00:00' AS TIME), apoio.horario_corte), CAST(CAST(rc.data_base_sm_at AS DATE) AS DATETIME2(0)))
                     END AS corte_at,
-                    vj.cod_solicitacao AS cod_solicitacao_justificada
+                    vj.cod_solicitacao AS cod_solicitacao_justificada,
+                    vj.justificativa AS justificativa
                 FROM rota_canonica rc
                 LEFT JOIN hc_apoio apoio
                     ON apoio.origem_sm = rc.origem_sm
@@ -257,6 +258,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                     WHEN data_hora_real_ini_at <= DATEADD(MINUTE, :toleranciaHorarioCorteMinutos, corte_at) THEN 0
                     ELSE DATEDIFF(MINUTE, DATEADD(MINUTE, :toleranciaHorarioCorteMinutos, corte_at), data_hora_real_ini_at)
                 END AS atraso_minutos,
+                justificativa AS justificativa,
                 CONCAT(
                     N'Raster API | SM ',
                     CONVERT(NVARCHAR(30), cod_solicitacao),
@@ -528,6 +530,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                 localDateTime(rs, "horario_corte"),
                 nullableBoolean(rs, "saiu_no_horario"),
                 nullableInteger(rs, "atraso_minutos"),
+                rs.getString("justificativa"),
                 rs.getString("observacao"),
                 rs.getString("nome_arquivo"),
                 localDateTime(rs, "importado_em"),

@@ -257,6 +257,7 @@ export interface HorarioCorteRow {
   horarioCorte: string | null;
   saiuNoHorario: boolean | null;
   atrasoMinutos: number | null;
+  justificativa: string | null;
   observacao: string | null;
   nomeArquivo: string | null;
   importadoEm: string | null;

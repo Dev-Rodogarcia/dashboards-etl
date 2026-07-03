@@ -272,6 +272,10 @@ export async function salvarJustificativaHorarioCorte(
   return data;
 }
 
+export async function excluirJustificativaHorarioCorte(sm: number | string): Promise<void> {
+  await clienteAxios.delete(`${BASE}/horarios-corte/justificativas/${encodeURIComponent(String(sm))}`);
+}
+
 export async function buscarKpiGoalsCompleto(competencia?: string): Promise<KpiGoalsFullResponse> {
   const params = withCompetenciaParam({}, competencia);
   const { data } = Object.keys(params).length > 0

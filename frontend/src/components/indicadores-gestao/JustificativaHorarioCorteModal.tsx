@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Clock3, Loader2, Save, X } from 'lucide-react';
+import { Clock3, Loader2, Save, Trash2, X } from 'lucide-react';
 import type { ViagemJustificativaPayload } from '../../types/indicadoresGestaoAVista';
 import { getApiErrorMessage } from '../../utils/apiError';
 
@@ -25,23 +25,32 @@ const SECONDARY_BUTTON_STYLE = {
 
 interface JustificativaHorarioCorteModalProps {
   codSolicitacao: number | null;
+  justificativaAtual?: string | null;
   isSubmitting?: boolean;
+  isDeleting?: boolean;
   onClose: () => void;
   onSubmit: (payload: ViagemJustificativaPayload) => Promise<void>;
+  onDelete?: (codSolicitacao: number) => Promise<void>;
 }
 
 interface JustificativaHorarioCorteModalAbertoProps {
   codSolicitacao: number;
+  justificativaAtual?: string | null;
   isSubmitting: boolean;
+  isDeleting: boolean;
   onClose: () => void;
   onSubmit: (payload: ViagemJustificativaPayload) => Promise<void>;
+  onDelete?: (codSolicitacao: number) => Promise<void>;
 }
 
 export default function JustificativaHorarioCorteModal({
   codSolicitacao,
+  justificativaAtual = null,
   isSubmitting = false,
+  isDeleting = false,
   onClose,
   onSubmit,
+  onDelete,
 }: JustificativaHorarioCorteModalProps) {
   if (codSolicitacao == null) {
     return null;
@@ -51,25 +60,33 @@ export default function JustificativaHorarioCorteModal({
     <JustificativaHorarioCorteModalAberto
       key={codSolicitacao}
       codSolicitacao={codSolicitacao}
+      justificativaAtual={justificativaAtual}
       isSubmitting={isSubmitting}
+      isDeleting={isDeleting}
       onClose={onClose}
       onSubmit={onSubmit}
+      onDelete={onDelete}
     />
   );
 }
 
 function JustificativaHorarioCorteModalAberto({
   codSolicitacao,
+  justificativaAtual,
   isSubmitting,
+  isDeleting,
   onClose,
   onSubmit,
+  onDelete,
 }: JustificativaHorarioCorteModalAbertoProps) {
-  const [justificativa, setJustificativa] = useState('');
+  const [justificativa, setJustificativa] = useState(justificativaAtual ?? '');
   const [erro, setErro] = useState('');
+  const isBusy = isSubmitting || isDeleting;
+  const possuiJustificativa = Boolean(justificativaAtual?.trim());
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !isSubmitting) {
+      if (event.key === 'Escape' && !isBusy) {
         onClose();
       }
     }
@@ -82,7 +99,7 @@ function JustificativaHorarioCorteModalAberto({
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isSubmitting, onClose]);
+  }, [isBusy, onClose]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -101,6 +118,19 @@ function JustificativaHorarioCorteModalAberto({
     }
   }
 
+  async function handleDelete() {
+    if (!onDelete || !possuiJustificativa) {
+      return;
+    }
+
+    try {
+      setErro('');
+      await onDelete(codSolicitacao);
+    } catch (error) {
+      setErro(getApiErrorMessage(error, 'Não foi possível excluir a justificativa.'));
+    }
+  }
+
   if (typeof document === 'undefined') {
     return null;
   }
@@ -113,7 +143,7 @@ function JustificativaHorarioCorteModalAberto({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={() => {
-          if (!isSubmitting) onClose();
+          if (!isBusy) onClose();
         }}
       />
 
@@ -140,7 +170,7 @@ function JustificativaHorarioCorteModalAberto({
           <button
             type="button"
             onClick={onClose}
-            disabled={isSubmitting}
+            disabled={isBusy}
             className="rounded-xl border p-2 transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
             style={SECONDARY_BUTTON_STYLE}
             aria-label="Fechar justificativa"
@@ -160,7 +190,7 @@ function JustificativaHorarioCorteModalAberto({
               className="min-h-36 w-full resize-none rounded-xl border px-3 py-2.5 text-sm outline-none transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
               style={FIELD_STYLE}
               maxLength={1000}
-              disabled={isSubmitting}
+              disabled={isBusy}
               required
             />
           </label>
@@ -171,25 +201,39 @@ function JustificativaHorarioCorteModalAberto({
             </p>
           ) : null}
 
-          <div className="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-              style={SECONDARY_BUTTON_STYLE}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-              style={{ backgroundColor: 'var(--color-primary)' }}
-            >
-              {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-              Salvar
-            </button>
+          <div className="flex flex-wrap justify-between gap-2">
+            {possuiJustificativa && onDelete ? (
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={isBusy}
+                className="inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ borderColor: '#dc2626', color: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)' }}
+              >
+                {isDeleting ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                Excluir Justificativa
+              </button>
+            ) : <span />}
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isBusy}
+                className="inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                style={SECONDARY_BUTTON_STYLE}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isBusy}
+                className="inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ backgroundColor: 'var(--color-primary)' }}
+              >
+                {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                Salvar
+              </button>
+            </div>
           </div>
         </form>
       </motion.div>

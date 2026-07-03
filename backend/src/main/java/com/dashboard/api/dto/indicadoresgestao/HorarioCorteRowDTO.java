@@ -1,5 +1,7 @@
 package com.dashboard.api.dto.indicadoresgestao;
 
+import com.dashboard.api.util.CsvColumn;
+
 public record HorarioCorteRowDTO(
         long id,
         String data,
@@ -22,6 +24,8 @@ public record HorarioCorteRowDTO(
         String horarioCorte,
         Boolean saiuNoHorario,
         Integer atrasoMinutos,
+        @CsvColumn("Justificativa")
+        String justificativa,
         String observacao,
         String nomeArquivo,
         String importadoEm,

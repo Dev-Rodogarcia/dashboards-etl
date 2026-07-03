@@ -47,3 +47,10 @@ Você atua como Engenheiro de Software Principal neste repositório (Interface R
 * **Componente de exibição:** Os cards cobertos pelo dicionário devem permanecer integrados ao `frontend/src/components/shared/TooltipKpi.tsx`. Se a mudança exigir novos campos, outra organização das informações, comportamento de hover/foco ou ajuste de layout, atualize também o `TooltipKpi.tsx`. Mudanças apenas na fórmula não devem duplicar textos dentro do componente; o conteúdo continua pertencendo ao dicionário.
 * **Sem divergência silenciosa:** É proibido entregar uma mudança de cálculo mantendo tooltip desatualizado, ou alterar o texto do tooltip sem validar a regra real na camada de dados. A camada SQL/ETL é a fonte da verdade matemática; o `kpiDictionary.ts` é a fonte central da explicação apresentada ao usuário.
 * **Checklist de validação:** Toda mudança de KPI deve revisar os cards que consomem a definição, executar TypeScript, lint e testes do frontend e confirmar que o wrapper não alterou o comportamento responsivo de CSS Grid ou Flexbox.
+
+## Diretrizes de Sincronização de Estado (states.md)
+1. Antes de iniciar a implementação de qualquer código, você DEVE ler o arquivo `states.md` para compreender o contexto arquitetural e as regras de negócio vigentes, garantindo que as novas implementações não quebrem o estado atual.
+2. Leia a seção "Tarefas Pendentes" no `states.md` para entender o escopo exato do que precisa ser desenvolvido.
+3. Após finalizar a escrita e modificação do código, você DEVE atualizar o arquivo `states.md`.
+4. A atualização consiste em: remover a tarefa concluída da seção "Tarefas Pendentes" e atualizar as seções "Arquitetura e Padrões", "Fluxo de Dados" ou "Regras de Negócio Consolidadas" refletindo exatamente o novo estado do sistema.
+5. NUNCA entregue ou finalize uma modificação de código sem antes reescrever e atualizar o `states.md` para refletir o presente.

@@ -8,13 +8,16 @@ import {
   buscarKpiGoalsHistorico,
   buscarKpiGoalsHistoricoPaginado,
   buscarUtilizacaoColetoresRanking,
+  excluirJustificativaHorarioCorte,
   removerKpiGoalsOverride,
+  salvarJustificativaHorarioCorte,
 } from './indicadoresGestaoAVistaServico';
 import type { KpiGoalsMap } from '../../types/indicadoresGestaoAVista';
 
 vi.mock('../clienteAxios', () => ({
   default: {
     get: vi.fn(),
+    post: vi.fn(),
     put: vi.fn(),
     delete: vi.fn(),
   },
@@ -22,6 +25,7 @@ vi.mock('../clienteAxios', () => ({
 
 const clienteMock = clienteAxios as unknown as {
   get: ReturnType<typeof vi.fn>;
+  post: ReturnType<typeof vi.fn>;
   put: ReturnType<typeof vi.fn>;
   delete: ReturnType<typeof vi.fn>;
 };
@@ -39,6 +43,7 @@ describe('indicadoresGestaoAVistaServico kpi goals', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clienteMock.get.mockResolvedValue({ data: {} });
+    clienteMock.post.mockResolvedValue({ data: {} });
     clienteMock.put.mockResolvedValue({ data: {} });
     clienteMock.delete.mockResolvedValue({ data: {} });
   });
@@ -105,5 +110,19 @@ describe('indicadoresGestaoAVistaServico kpi goals', () => {
     expect(clienteMock.get).toHaveBeenCalledWith('/api/painel/indicadores-gestao-a-vista/utilizacao-coletores/ranking', {
       params: expect.any(URLSearchParams),
     });
+  });
+
+  it('salva justificativa de horario de corte', async () => {
+    const payload = { codSolicitacao: 123, justificativa: 'Saida autorizada pela operacao.' };
+
+    await salvarJustificativaHorarioCorte(payload);
+
+    expect(clienteMock.post).toHaveBeenCalledWith('/api/painel/indicadores-gestao-a-vista/horarios-corte/justificativas', payload);
+  });
+
+  it('exclui justificativa de horario de corte por SM', async () => {
+    await excluirJustificativaHorarioCorte(123);
+
+    expect(clienteMock.delete).toHaveBeenCalledWith('/api/painel/indicadores-gestao-a-vista/horarios-corte/justificativas/123');
   });
 });

@@ -78,6 +78,9 @@ public class VisaoHorariosCorteEntity {
     @Column(name = "[Atraso Minutos]")
     private Integer atrasoMinutos;
 
+    @Column(name = "[Justificativa]")
+    private String justificativa;
+
     @Column(name = "[Observação]")
     private String observacao;
 
@@ -118,6 +121,7 @@ public class VisaoHorariosCorteEntity {
             LocalDateTime horarioCorte,
             Boolean saiuNoHorario,
             Integer atrasoMinutos,
+            String justificativa,
             String observacao,
             String nomeArquivo,
             LocalDateTime importadoEm,
@@ -146,6 +150,7 @@ public class VisaoHorariosCorteEntity {
         entity.horarioCorte = horarioCorte;
         entity.saiuNoHorario = saiuNoHorario;
         entity.atrasoMinutos = atrasoMinutos;
+        entity.justificativa = justificativa;
         entity.observacao = observacao;
         entity.nomeArquivo = nomeArquivo;
         entity.importadoEm = importadoEm;
@@ -236,6 +241,10 @@ public class VisaoHorariosCorteEntity {
 
     public Integer getAtrasoMinutos() {
         return atrasoMinutos;
+    }
+
+    public String getJustificativa() {
+        return justificativa;
     }
 
     public String getObservacao() {

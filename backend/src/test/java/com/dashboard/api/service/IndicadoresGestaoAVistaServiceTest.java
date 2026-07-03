@@ -161,6 +161,7 @@ class IndicadoresGestaoAVistaServiceTest {
         setField(raster, "horarioCorteSm", "23:30");
         setField(raster, "previsaoChegadaDestino", "04:40");
         setField(raster, "transitTime", "05:10");
+        setField(raster, "justificativa", "Atraso justificado pela operacao.");
 
         when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(raster));
 
@@ -179,6 +180,7 @@ class IndicadoresGestaoAVistaServiceTest {
             assertThat(row.horarioCorteSm()).isEqualTo("23:30");
             assertThat(row.previsaoChegadaDestino()).isEqualTo("04:40");
             assertThat(row.transitTime()).isEqualTo("05:10");
+            assertThat(row.justificativa()).isEqualTo("Atraso justificado pela operacao.");
         });
     }
 
