@@ -7,6 +7,7 @@ import com.dashboard.api.security.FiltroRateLimitApi;
 import com.dashboard.api.security.FiltroValidacaoJwt;
 import com.dashboard.api.service.acesso.AutenticacaoService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -14,12 +15,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -34,6 +38,9 @@ public class SegurancaWebConfig {
     private final FiltroValidacaoJwt filtroJwt;
     private final FiltroApiKey filtroApiKey;
     private final FiltroRateLimitApi filtroRateLimitApi;
+
+    @Value("${security.headers.content-security-policy:default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'}")
+    private String contentSecurityPolicy;
 
     public SegurancaWebConfig(
             FiltroValidacaoJwt filtroJwt,
@@ -68,6 +75,20 @@ public class SegurancaWebConfig {
                         .authenticationEntryPoint(apiAuthenticationEntryPoint)
                         .accessDeniedHandler(apiAccessDeniedHandler)
                 )
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(contentSecurityPolicy()))
+                        .contentTypeOptions(Customizer.withDefaults())
+                        .frameOptions(frame -> frame.deny())
+                        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy", "camera=(), microphone=(), geolocation=()"))
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .requestMatcher(request -> true)
+                                .includeSubDomains(true)
+                                .preload(true)
+                                .maxAgeInSeconds(31536000)
+                        )
+                        .cacheControl(Customizer.withDefaults())
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
                         .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
@@ -82,6 +103,12 @@ public class SegurancaWebConfig {
                 .addFilterAfter(filtroRateLimitApi, FiltroValidacaoJwt.class);
 
         return http.build();
+    }
+
+    private String contentSecurityPolicy() {
+        return contentSecurityPolicy == null || contentSecurityPolicy.isBlank()
+                ? "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+                : contentSecurityPolicy.trim();
     }
 
     @Bean

@@ -2,6 +2,7 @@ package com.dashboard.api.service.acesso;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,20 @@ class UsuarioImportacaoExcelParserTest {
         assertThatThrownBy(() -> parser.parse(arquivo))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("até 2 MB");
+    }
+
+    @Test
+    void deveRejeitarXlsxComConteudoTextoAntesDeAbrirPlanilha() {
+        MockMultipartFile arquivo = new MockMultipartFile(
+                "arquivo",
+                "usuarios.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "Nome do Usuário,E-mail,Setor\nMaria,maria@empresa.com,Logística".getBytes(StandardCharsets.UTF_8)
+        );
+
+        assertThatThrownBy(() -> parser.parse(arquivo))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Assinatura do arquivo inválida");
     }
 
     @Test

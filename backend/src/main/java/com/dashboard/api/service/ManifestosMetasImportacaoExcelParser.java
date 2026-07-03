@@ -1,5 +1,7 @@
 package com.dashboard.api.service;
 
+import com.dashboard.api.util.UploadFileTypeValidator;
+import com.dashboard.api.util.UploadFileTypeValidator.FileType;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -139,6 +141,21 @@ public class ManifestosMetasImportacaoExcelParser {
         if (!nomeNormalizado.endsWith(".xlsx") && !nomeNormalizado.endsWith(".xls") && !nomeNormalizado.endsWith(".csv")) {
             throw new IllegalArgumentException("Formato inválido. Envie somente arquivos .xlsx, .xls ou .csv.");
         }
+
+        if (nomeNormalizado.endsWith(".csv")) {
+            UploadFileTypeValidator.validarAssinatura(
+                    arquivo,
+                    UploadFileTypeValidator.tipos(FileType.CSV),
+                    "Assinatura do arquivo inválida. Envie somente arquivos .csv reais."
+            );
+            return;
+        }
+
+        UploadFileTypeValidator.validarAssinatura(
+                arquivo,
+                UploadFileTypeValidator.tipos(FileType.XLSX, FileType.XLS),
+                "Assinatura do arquivo inválida. Envie somente planilhas .xlsx ou .xls reais."
+        );
     }
 
     private void validarCabecalho(List<String> colunas) {

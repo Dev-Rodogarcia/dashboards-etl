@@ -1,5 +1,7 @@
 package com.dashboard.api.service.acesso;
 
+import com.dashboard.api.util.UploadFileTypeValidator;
+import com.dashboard.api.util.UploadFileTypeValidator.FileType;
 import java.io.InputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -87,6 +89,12 @@ public class UsuarioImportacaoExcelParser {
         if (!nomeNormalizado.endsWith(".xlsx") && !nomeNormalizado.endsWith(".xls")) {
             throw new IllegalArgumentException("Formato inválido. Envie somente arquivos .xlsx ou .xls.");
         }
+
+        UploadFileTypeValidator.validarAssinatura(
+                arquivo,
+                UploadFileTypeValidator.tipos(FileType.XLSX, FileType.XLS),
+                "Assinatura do arquivo inválida. Envie somente planilhas .xlsx ou .xls reais."
+        );
     }
 
     private void validarCabecalho(Row row) {

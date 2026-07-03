@@ -366,23 +366,6 @@ class GestaoUsuarioServiceTest {
     }
 
     @Test
-    void exclusaoDefinitivaDeUsuarioDevePermanecerDesabilitada() {
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("admin@empresa.com", null, List.of())
-        );
-
-        UsuarioEntity alvo = new UsuarioEntity();
-        alvo.setId(2L);
-        alvo.setEmail("alvo@empresa.com");
-        alvo.setLogin("alvo@empresa.com");
-        alvo.setAtivo(true);
-
-        assertThrows(AccessDeniedException.class, () -> service.excluirUsuarioDefinitivamente(2L));
-
-        verify(usuarioRepository, never()).delete(alvo);
-    }
-
-    @Test
     void usuarioSupremoNaoPodeSerInativado() {
         UsuarioEntity supremo = new UsuarioEntity();
         supremo.setId(1L);
@@ -395,16 +378,6 @@ class GestaoUsuarioServiceTest {
         assertThrows(AccessDeniedException.class, () -> service.inativarUsuario(1L));
 
         verify(usuarioRepository, never()).save(supremo);
-    }
-
-    @Test
-    void desenvolvedorNaoPodeExcluirASiMesmo() {
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(usuarioSupremo.email(), null, List.of())
-        );
-
-        assertThrows(AccessDeniedException.class, () -> service.excluirUsuarioDefinitivamente(1L));
-
     }
 
     private ContextoAtualizacao prepararContextoAtualizacao(String papelSolicitadoNome) {

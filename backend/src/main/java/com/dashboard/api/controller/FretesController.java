@@ -13,6 +13,7 @@ import com.dashboard.api.dto.fretes.FretesOverviewDTO;
 import com.dashboard.api.dto.fretes.FretesTrendPointDTO;
 import com.dashboard.api.service.FretesGoalService;
 import com.dashboard.api.service.FretesService;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import org.slf4j.Logger;
@@ -98,7 +99,7 @@ public class FretesController {
     @PutMapping("/metas/configuracoes")
     @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
     public ResponseEntity<FretesGoalConfigDTO> salvarMetaConfiguracao(
-            @RequestBody FretesGoalConfigRequestDTO request,
+            @Valid @RequestBody FretesGoalConfigRequestDTO request,
             Authentication authentication) {
         return ResponseEntity.ok(fretesGoalService.salvarConfiguracao(request, usuarioLogin(authentication)));
     }
@@ -106,7 +107,7 @@ public class FretesController {
     @PostMapping("/metas/replicar")
     @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
     public ResponseEntity<List<FretesGoalConfigDTO>> replicarMetasMesAnterior(
-            @RequestBody FretesGoalReplicarRequestDTO request,
+            @Valid @RequestBody FretesGoalReplicarRequestDTO request,
             Authentication authentication) {
         return ResponseEntity.ok(fretesGoalService.replicarConfiguracoesMesAnterior(
                 request.ano(),

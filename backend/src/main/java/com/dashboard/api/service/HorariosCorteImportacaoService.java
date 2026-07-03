@@ -4,6 +4,8 @@ import com.dashboard.api.dto.indicadoresgestao.HorariosCorteImportacaoMensagemDT
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteImportacaoResultadoDTO;
 import com.dashboard.api.model.HorarioCorteEntity;
 import com.dashboard.api.repository.HorarioCorteRepository;
+import com.dashboard.api.util.UploadFileTypeValidator;
+import com.dashboard.api.util.UploadFileTypeValidator.FileType;
 import java.io.InputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -52,6 +54,7 @@ public class HorariosCorteImportacaoService {
     );
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final long MAX_FILE_SIZE_BYTES = 2L * 1024L * 1024L;
     private static final List<DateTimeFormatter> TIME_FORMATTERS = List.of(
             DateTimeFormatter.ofPattern("H:mm"),
             DateTimeFormatter.ofPattern("HH:mm"),
@@ -212,10 +215,20 @@ public class HorariosCorteImportacaoService {
             throw new IllegalArgumentException("Envie um arquivo .xlsx para importar os horários de corte.");
         }
 
+        if (arquivo.getSize() > MAX_FILE_SIZE_BYTES) {
+            throw new IllegalArgumentException("Arquivo muito grande. Envie uma planilha de até 2 MB.");
+        }
+
         String nome = arquivo.getOriginalFilename();
         if (nome == null || !nome.toLowerCase(Locale.ROOT).endsWith(".xlsx")) {
             throw new IllegalArgumentException("Formato inválido. Envie somente arquivos .xlsx.");
         }
+
+        UploadFileTypeValidator.validarAssinatura(
+                arquivo,
+                UploadFileTypeValidator.tipos(FileType.XLSX),
+                "Assinatura do arquivo inválida. Envie somente uma planilha .xlsx real."
+        );
     }
 
     private void validarCabecalho(Row row) {

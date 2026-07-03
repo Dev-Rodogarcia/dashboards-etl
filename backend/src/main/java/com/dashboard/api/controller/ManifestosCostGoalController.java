@@ -7,6 +7,7 @@ import com.dashboard.api.dto.manifestos.ManifestosMetasImportacaoPreviewResponse
 import com.dashboard.api.dto.manifestos.ManifestosMetasImportacaoResultadoDTO;
 import com.dashboard.api.service.ManifestosCostGoalService;
 import com.dashboard.api.service.ManifestosMetasImportacaoService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -52,7 +53,7 @@ public class ManifestosCostGoalController {
     @PostMapping
     @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
     public ResponseEntity<ManifestosCostGoalConfigDTO> salvar(
-            @RequestBody ManifestosCostGoalConfigRequestDTO request,
+            @Valid @RequestBody ManifestosCostGoalConfigRequestDTO request,
             Authentication authentication
     ) {
         return ResponseEntity.ok(service.salvar(request, authenticationName(authentication)));
@@ -61,7 +62,7 @@ public class ManifestosCostGoalController {
     @PostMapping("/replicar")
     @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
     public ResponseEntity<List<ManifestosCostGoalConfigDTO>> replicar(
-            @RequestBody ManifestosGoalReplicarRequestDTO request,
+            @Valid @RequestBody ManifestosGoalReplicarRequestDTO request,
             Authentication authentication
     ) {
         return ResponseEntity.ok(service.replicar(

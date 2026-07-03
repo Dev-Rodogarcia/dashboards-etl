@@ -65,6 +65,18 @@ class CorsConfigTest {
     }
 
     @Test
+    void deveRejeitarOrigemHttpPublicaQuandoAmbienteForProducao() {
+        CorsConfig config = new CorsConfig();
+        ReflectionTestUtils.setField(config, "origensPermitidas", "http://analytics.rodogarcia.com.br");
+        ReflectionTestUtils.setField(config, "springProfilesActive", "prod");
+        ReflectionTestUtils.setField(config, "appEnvironment", "");
+
+        assertThatThrownBy(config::validarOrigensDeProducao)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("somente origens HTTPS");
+    }
+
+    @Test
     void devePermitirLocalhostSomenteForaDeProducao() {
         CorsConfig config = new CorsConfig();
         ReflectionTestUtils.setField(config, "origensPermitidas", "http://localhost:5173,http://127.0.0.1:5173");

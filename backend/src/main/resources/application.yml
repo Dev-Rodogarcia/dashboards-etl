@@ -56,6 +56,8 @@ spring:
 
 security:
   trust-forwarded-headers: ${SECURITY_TRUST_FORWARDED_HEADERS:false}
+  headers:
+    content-security-policy: ${SECURITY_HEADERS_CONTENT_SECURITY_POLICY:default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'}
   rate-limit:
     login:
       max-attempts: ${SECURITY_RATE_LIMIT_LOGIN_MAX_ATTEMPTS:10}

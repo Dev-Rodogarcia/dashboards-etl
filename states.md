@@ -46,19 +46,25 @@
 - Para colunas `DATETIMEOFFSET`, usar `PeriodoOffsetDateTimeHelper` com zona `America/Sao_Paulo`, início inclusivo e fim exclusivo.
 - Agregações, somas, contagens, rankings, filtros volumosos, distinct, paginação e exportação devem ser executados no SQL Server.
 - ACL: permissões efetivas combinam catálogo ativo, template do setor e overrides individuais `GRANT`/`DENY`; admins de acesso, admin plataforma e desenvolvedor têm privilégios elevados.
+- Usuários administrativos são removidos apenas por inativação lógica (`ativo = false`) com revogação de refresh tokens; não existe endpoint nem serviço de exclusão definitiva de usuário.
 - Rotas backend usam `@PreAuthorize("@acessoSeguranca...")`; frontend espelha permissões em `src/utils/accessControl.ts`.
 - Escopo de filiais por usuário aceita `HERDAR_SETOR`, `TODAS` e `SELECIONADAS`; seleção vazia não é válida em `SELECIONADAS`.
 - Sessão: access token JWT fica em memória no frontend; refresh token rotativo fica em cookie HttpOnly; 401 tenta refresh silencioso e encerra sessão se falhar.
 - Política de senha: mínimo 12 caracteres, com maiúscula, minúscula, número e símbolo; hashes novos usam Argon2id, com upgrade de hash legado quando aplicável.
 - Login bloqueia após 5 falhas por 15 minutos; troca de senha revoga todos os refresh tokens do usuário.
 - Rate limit separa login, API geral e exportação; `/api/interno/**` exige `X-API-KEY`.
+- A API Spring emite headers defensivos por `SegurancaWebConfig`: CSP restritivo para respostas da API, HSTS, `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy` e cache-control padrão do Spring Security.
+- CORS de produção aceita somente origens públicas HTTPS; origens locais em produção e mistura de origem local com pública causam falha de startup.
 - Metas de fretes: branch `GLOBAL` é `NULL`, ano 2000-2100, mês 1-12 e meta não negativa; replicação só ocorre se destino estiver vazio e origem tiver metas.
 - Metas de KPIs de Gestão à Vista: indicadores válidos são `delivery_performance`, `collector_usage`, `cargo_cubage`, `cargo_indemnity` e `cutoff_time`; metas entre 0 e 100; competência normalizada para primeiro dia do mês; override igual ao global é removido.
 - Metas de custo de manifestos: branch `GLOBAL` vira `NULL`, contrato padrão `Geral/geral`, `classification_key` opcional e normalizada, custo não negativo; filtros sem dimensão orçamentária tornam orçamento inaplicável.
+- Endpoints com `@RequestBody` administrativo usam `@Valid`; DTOs de metas de fretes e manifestos validam competência, tamanhos máximos e metas não negativas na borda HTTP.
+- Uploads administrativos de usuários, metas de manifestos e horários de corte validam extensão contratual e assinatura/conteúdo real antes de abrir planilhas: OOXML `.xlsx`, OLE2 `.xls` e CSV texto quando aplicável.
 - Performance de Entrega em Gestão à Vista: o ranking/drill-down percorre `RESPONSAVEL -> REGIAO -> CIDADE`. A fonte é `dbo.fato_gestao_vista_fretes`, filtrada por `indicador_codigo = 'PE'`, `data_referencia >= :dataInicio`, `data_referencia < :dataFimExclusivo`, `is_linha_valida_indicador = 1`, `excluido_na_origem = 0` e escopo de filiais. Responsável e região selecionados viram filtros parametrizados; agrupamento, totalizações e Top 50 são calculados no SQL Server.
 - Horário de Corte: viagens Raster são avaliadas pela saída real contra o horário de corte da rota com tolerância de 10 minutos; SMs com justificativa ativa em `dbo.viagem_justificativas` contam como no horário, expõem o texto da justificativa na tabela/exportação CSV e podem ter a justificativa inativada por DELETE HTTP idempotente. O banco preserva o registro com `ativo = 0`, e as queries nativas filtram `vj.ativo = 1` para retornar a SM ao status original de contabilização.
 - Alteração de KPI deve atualizar `frontend/src/constants/kpiDictionary.ts`; alteração de regra/fonte de gráfico deve atualizar `frontend/src/constants/chartDictionary.ts`.
 - Produção é controlada por operador humano: não executar `iniciar-prod.bat`, não reiniciar processos e não liberar portas 5010/5173 por automação.
+- Backup operacional do banco próprio é versionado em `scripts/backup-dashboard-db.ps1`, com `BACKUP DATABASE`, `CHECKSUM`, `RESTORE VERIFYONLY`, bloqueio para bancos fora de `DASHBOARDS`/`DASHBOARDS_DEV` e retenção local segura. A rotina diária pode ser registrada pelo operador com `scripts/install-dashboard-backup-task.ps1`.
 - Arquivos, SQL e seeds devem permanecer em UTF-8 e sem mojibake.
 
 ## Protocolo de Planejamento de Requisições

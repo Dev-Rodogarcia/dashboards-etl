@@ -56,6 +56,13 @@ public class CorsConfig implements WebMvcConfigurer {
         if (possuiOrigemLocal) {
             throw new IllegalStateException("CORS de produção não pode permitir origens localhost/127.0.0.1/0.0.0.0.");
         }
+
+        boolean possuiOrigemHttp = Arrays.stream(origens)
+                .map(String::toLowerCase)
+                .anyMatch(origem -> origem.startsWith("http://"));
+        if (possuiOrigemHttp) {
+            throw new IllegalStateException("CORS de produção deve permitir somente origens HTTPS.");
+        }
     }
 
     @Override

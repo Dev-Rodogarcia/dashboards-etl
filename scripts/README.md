@@ -12,6 +12,10 @@ Este diretório contém a automação que compara os KPIs do SQL Server com os v
   Validação específica de Gestão à Vista. Usa o XLSX de divergências como fonte da verdade, chama a API local que alimenta o dashboard e gera relatório `.md`/`.json` com OK/ERRO por métrica.
 - `dashboard-validation/entities.mjs`
   Catálogo das entidades validadas, queries SQL-resumo e mapeamento entre aliases do banco e campos da API/UI.
+- `backup-dashboard-db.ps1`
+  Executa backup `COPY_ONLY` do banco próprio `DASHBOARDS`/`DASHBOARDS_DEV`, valida com `RESTORE VERIFYONLY` e aplica retenção local.
+- `install-dashboard-backup-task.ps1`
+  Registra uma tarefa diária no Agendador do Windows chamando `backup-dashboard-db.ps1`; não roda produção nem reinicia serviços.
 
 ### Pré-requisitos
 
@@ -58,6 +62,20 @@ Runner para Agendador do Windows ou CI self-hosted:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\run-gestao-vista-daily-validation.ps1 -DataInicio 2026-03-01 -DataFim 2026-03-31 -ApiBaseUrl http://localhost:5011
 ```
+
+Backup manual do banco próprio:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\backup-dashboard-db.ps1 -EnvFile .\.env -BackupDirectory C:\Dashboards\backups\sqlserver -RetentionDays 14
+```
+
+Instalação da rotina diária no Agendador do Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install-dashboard-backup-task.ps1 -EnvFile .\.env -BackupDirectory C:\Dashboards\backups\sqlserver -At 02:15 -RetentionDays 14
+```
+
+O backup usa apenas `DB_URL`, `DB_USER`, `DB_PASSWORD`, `DASHBOARDS_BACKUP_DIR` e `DASHBOARDS_BACKUP_RETENTION_DAYS` do ambiente. O script bloqueia bancos fora de `DASHBOARDS`/`DASHBOARDS_DEV`.
 
 ### Saída
 

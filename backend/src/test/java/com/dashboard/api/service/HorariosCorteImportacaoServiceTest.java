@@ -9,6 +9,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -114,6 +115,20 @@ class HorariosCorteImportacaoServiceTest {
         assertThatThrownBy(() -> service.importar(arquivo))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Cabeçalho inválido");
+    }
+
+    @Test
+    void importarDeveRejeitarXlsxComAssinaturaInvalidaAntesDeAbrirPlanilha() {
+        MockMultipartFile arquivo = new MockMultipartFile(
+                "arquivo",
+                "horarios-corte.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "DATA,LINHA OU OPERAÇÃO,INÍCIO\n2026-04-02,SPO-CAS,22:20".getBytes(StandardCharsets.UTF_8)
+        );
+
+        assertThatThrownBy(() -> service.importar(arquivo))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Assinatura do arquivo inválida");
     }
 
     private static byte[] workbookPadrao(Object[][] linhas) throws IOException {

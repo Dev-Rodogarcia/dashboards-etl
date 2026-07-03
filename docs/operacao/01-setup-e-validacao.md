@@ -91,6 +91,22 @@ O usuario de runtime da API nao deve manter permissoes DDL permanentes. Migratio
 
 Para permitir varios usuarios novos sem `chave_legado`, aplique a migration `V009__corrigir_unique_chave_legado_usuarios.sql` no banco de producao antes de validar o cadastro de usuarios. Ela troca a restricao `UNIQUE` comum por um indice unico filtrado que ignora `NULL`.
 
+## Backup do banco próprio
+
+O repositório versiona a rotina de backup do banco próprio `DASHBOARDS`/`DASHBOARDS_DEV` em `scripts/backup-dashboard-db.ps1`. O script lê `DB_URL`, `DB_USER`, `DB_PASSWORD`, `DASHBOARDS_BACKUP_DIR` e `DASHBOARDS_BACKUP_RETENTION_DAYS` do `.env`, executa `BACKUP DATABASE`, valida o arquivo com `RESTORE VERIFYONLY` e bloqueia bancos fora do domínio do portal.
+
+Backup manual:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\backup-dashboard-db.ps1 -EnvFile .\.env -BackupDirectory C:\Dashboards\backups\sqlserver -RetentionDays 14
+```
+
+Registro da tarefa diária no Agendador do Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install-dashboard-backup-task.ps1 -EnvFile .\.env -BackupDirectory C:\Dashboards\backups\sqlserver -At 02:15 -RetentionDays 14
+```
+
 ## Como subir localmente
 
 ### Opcao 1: script do monorepo

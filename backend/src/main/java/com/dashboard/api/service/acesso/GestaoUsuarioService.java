@@ -235,11 +235,6 @@ public class GestaoUsuarioService {
         auditService.registrar(AcaoAudit.USUARIO_DESATIVADO, usuarioIdNonNull, usuario.getLogin(), "usuario", null);
     }
 
-    @Transactional
-    public void excluirUsuarioDefinitivamente(Long usuarioId) {
-        throw new AccessDeniedException("Exclusão definitiva de usuários está desabilitada; use inativação.");
-    }
-
     @Transactional(readOnly = true)
     public List<PapelDTO> listarPapeisDisponiveis() {
         UsuarioEntity operador = usuarioAutenticado();
