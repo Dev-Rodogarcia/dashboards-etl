@@ -7,6 +7,7 @@ import {
   buscarKpiGoalsEfetivos,
   buscarKpiGoalsHistorico,
   buscarKpiGoalsHistoricoPaginado,
+  buscarPerformanceEntregaSerie,
   buscarUtilizacaoColetoresRanking,
   excluirJustificativaHorarioCorte,
   removerKpiGoalsOverride,
@@ -110,6 +111,23 @@ describe('indicadoresGestaoAVistaServico kpi goals', () => {
     expect(clienteMock.get).toHaveBeenCalledWith('/api/painel/indicadores-gestao-a-vista/utilizacao-coletores/ranking', {
       params: expect.any(URLSearchParams),
     });
+  });
+
+  it('busca serie de performance com visao e filtros de drill-down', async () => {
+    await buscarPerformanceEntregaSerie(
+      { dataInicio: '2026-05-01', dataFim: '2026-05-12', filiais: ['SPO'] },
+      { visao: 'CIDADE', responsavelFiltro: 'Responsavel A', regiaoFiltro: 'SP' },
+    );
+
+    const [, config] = clienteMock.get.mock.calls.at(-1) ?? [];
+    const params = config?.params as URLSearchParams;
+
+    expect(clienteMock.get).toHaveBeenCalledWith('/api/painel/indicadores-gestao-a-vista/performance-entrega/serie', {
+      params: expect.any(URLSearchParams),
+    });
+    expect(params.get('visao')).toBe('CIDADE');
+    expect(params.get('responsavelFiltro')).toBe('Responsavel A');
+    expect(params.get('regiaoFiltro')).toBe('SP');
   });
 
   it('salva justificativa de horario de corte', async () => {

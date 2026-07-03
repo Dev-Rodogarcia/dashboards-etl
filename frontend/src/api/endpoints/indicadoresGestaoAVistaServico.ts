@@ -22,6 +22,7 @@ import type {
   KpiGoalsUpdatePayload,
   PerformanceEntregaOverview,
   PerformanceEntregaRow,
+  PerformanceEntregaSerieParams,
   PerformanceEntregaSeriePoint,
   UtilizacaoColetoresOverview,
   UtilizacaoColetoresRankingItem,
@@ -56,6 +57,24 @@ function withLimit(filtro: IndicadoresGestaoVistaFiltro, limite: number) {
   return params;
 }
 
+function withPerformanceSerieParams(
+  filtro: IndicadoresGestaoVistaFiltro,
+  serieParams: PerformanceEntregaSerieParams,
+) {
+  const params = montarQueryParams(filtro);
+  params.set('visao', serieParams.visao);
+
+  if (serieParams.responsavelFiltro?.trim()) {
+    params.set('responsavelFiltro', serieParams.responsavelFiltro.trim());
+  }
+
+  if (serieParams.regiaoFiltro?.trim()) {
+    params.set('regiaoFiltro', serieParams.regiaoFiltro.trim());
+  }
+
+  return params;
+}
+
 export async function buscarPerformanceEntregaOverview(
   filtro: IndicadoresGestaoVistaFiltro,
 ): Promise<PerformanceEntregaOverview> {
@@ -67,9 +86,10 @@ export async function buscarPerformanceEntregaOverview(
 
 export async function buscarPerformanceEntregaSerie(
   filtro: IndicadoresGestaoVistaFiltro,
+  serieParams: PerformanceEntregaSerieParams,
 ): Promise<PerformanceEntregaSeriePoint[]> {
   const { data } = await clienteAxios.get<PerformanceEntregaSeriePoint[]>(`${BASE}/performance-entrega/serie`, {
-    params: montarQueryParams(filtro),
+    params: withPerformanceSerieParams(filtro, serieParams),
   });
   return data;
 }

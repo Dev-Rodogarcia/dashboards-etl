@@ -90,9 +90,18 @@ export interface PerformanceEntregaOverview {
   pctNoPrazo: number;
 }
 
+export type NivelVisaoPerformance = 'RESPONSAVEL' | 'REGIAO' | 'CIDADE';
+
+export interface PerformanceEntregaSerieParams {
+  visao: NivelVisaoPerformance;
+  responsavelFiltro?: string | null;
+  regiaoFiltro?: string | null;
+}
+
 export interface PerformanceEntregaSeriePoint {
-  date: string | null;
-  filialPerformance: string | null;
+  label: string;
+  filtro: string | null;
+  visao: NivelVisaoPerformance;
   totalEntregas: number;
   entregasNoPrazo: number;
   entregasForaDoPrazo: number;

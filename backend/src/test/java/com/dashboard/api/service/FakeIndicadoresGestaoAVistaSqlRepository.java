@@ -5,6 +5,7 @@ import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasSeriePointDTO;
 import com.dashboard.api.dto.indicadoresgestao.IndenizacaoMercadoriasRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.IndenizacaoMercadoriasSeriePointDTO;
+import com.dashboard.api.dto.indicadoresgestao.NivelVisaoPerformance;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaSeriePointDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRowDTO;
@@ -60,7 +61,13 @@ class FakeIndicadoresGestaoAVistaSqlRepository extends IndicadoresGestaoAVistaSq
     }
 
     @Override
-    public List<PerformanceEntregaSeriePointDTO> buscarPerformanceEntregaSerie(FiltroConsultaDTO filtro, EscopoFilialService.EscopoFilial escopo) {
+    public List<PerformanceEntregaSeriePointDTO> buscarPerformanceEntregaSerie(
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            NivelVisaoPerformance visao,
+            String responsavelFiltro,
+            String regiaoFiltro
+    ) {
         return performanceSerie;
     }
 

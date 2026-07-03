@@ -87,15 +87,15 @@ describe('indicadoresGestaoVistaUi', () => {
     });
   });
 
-  it('agrega performance por filial performance', () => {
+  it('mantem performance agregada pelo SQL por label dinamico', () => {
     const ranking = aggregatePerformanceRanking([
-      { date: '2026-04-01', filialPerformance: 'SPO', totalEntregas: 10, entregasNoPrazo: 6, entregasForaDoPrazo: 4, pctNoPrazo: 60 },
-      { date: '2026-04-02', filialPerformance: 'SPO', totalEntregas: 5, entregasNoPrazo: 3, entregasForaDoPrazo: 2, pctNoPrazo: 60 },
+      { label: 'SPO', filtro: 'SPO', visao: 'RESPONSAVEL', totalEntregas: 15, entregasNoPrazo: 9, entregasForaDoPrazo: 6, pctNoPrazo: 60 },
     ]);
 
     expect(ranking).toEqual([
       {
         group: 'SPO',
+        filtro: 'SPO',
         totalEntregas: 15,
         entregasNoPrazo: 9,
         entregasForaDoPrazo: 6,

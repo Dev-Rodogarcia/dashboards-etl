@@ -51,6 +51,8 @@ interface IndicadoresGestaoSectionProps<T> {
   chartTitle: string;
   chartOption: EChartsOption;
   chartKey?: ChartDictionaryKey;
+  chartActions?: ReactNode;
+  chartEvents?: Record<string, (params: unknown) => void>;
   chartLoading: boolean;
   chartEmpty: boolean;
   chartError?: string | null;
@@ -84,6 +86,8 @@ export default function IndicadoresGestaoSection<T>({
   chartTitle,
   chartOption,
   chartKey,
+  chartActions,
+  chartEvents,
   chartLoading,
   chartEmpty,
   chartError,
@@ -171,6 +175,8 @@ export default function IndicadoresGestaoSection<T>({
           titulo={chartTitle}
           option={chartOption}
           chartKey={chartKey}
+          actions={chartActions}
+          onEvents={chartEvents}
           isLoading={chartLoading}
           isEmpty={chartEmpty}
           erro={chartError}

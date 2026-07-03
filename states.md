@@ -12,6 +12,7 @@
 - Arquitetura em camadas Spring MVC no backend e SPA React no frontend.
 - Backend: `controller` expõe fronteiras HTTP; `service` orquestra regras; `repository` concentra SQL/JPA; `dto` define contratos; `model` representa entidades; `security` concentra JWT, API key e rate limit; `config` define infraestrutura; `policy` guarda regras reutilizáveis; `util` contém helpers puros.
 - Frontend: `src/App.tsx` define rotas lazy e proteção de acesso; `contexts` guarda sessão/filtros/cabeçalho; `api` centraliza Axios e endpoints; `hooks/queries` encapsula React Query; `pages` monta dashboards; `components/shared` padroniza filtros, cards, tabelas, exportação, gráficos e estados.
+- Modais animados com múltiplos filhos diretos em `AnimatePresence` devem declarar `key` explícita e estável por elemento; o modal de justificativa de Horário de Corte identifica backdrop e diálogo pela SM selecionada para evitar chaves vazias no React/Framer Motion.
 - Banco `DASHBOARDS` é gerido exclusivamente por Flyway em `database/migrations`, com baseline 22 e migrations atuais até `V050__adicionar_soft_delete_justificativas.sql`.
 - Hibernate roda com `spring.jpa.hibernate.ddl-auto=none`; DDL em runtime por Java é proibido.
 - O portal é consumidor read-only do ETL. O backend deve consultar objetos analíticos por nomes simples (`dbo.vw_*`, `dbo.fato_*`, `dbo.dim_*`), sem hardcode de database.
@@ -19,6 +20,9 @@
 - Produção e desenvolvimento são isolados por `.env`, profiles e validações que impedem DEV de conectar no banco `DASHBOARDS`.
 - Exportações CSV baseadas em records Java usam `CsvExportWriter`; quando um DTO precisa de cabeçalho amigável sem alterar o contrato JSON, o componente pode usar `@CsvColumn`, como em `HorarioCorteRowDTO.justificativa` exportado como `Justificativa`.
 - Dados de negócio, justificativas e auditoria usam exclusão lógica obrigatória; hard delete/`DELETE FROM` físico é proibido. Entidades JPA podem delegar o soft delete ao Hibernate com `@SQLDelete`/`@SQLRestriction`, e queries JDBC nativas devem filtrar registros inativos explicitamente.
+- A série gráfica de Performance de Entrega em Gestão à Vista usa o enum backend `NivelVisaoPerformance` (`RESPONSAVEL`, `REGIAO`, `CIDADE`) como contrato estrito de visão. O DTO expõe `label`, `filtro`, `visao`, totais físicos e percentual; o SQL seleciona e agrupa apenas colunas mapeadas pelo enum.
+- Componentes de seção de Gestão à Vista podem repassar `chartActions` e `chartEvents` ao `ChartWrapper`, permitindo breadcrumbs e drill-down em Apache ECharts sem duplicar wrappers visuais.
+- `ChartWrapper` tipa e encaminha `onEvents` diretamente ao `echarts-for-react`; dashboards com drill-down devem passar handlers de clique pelo wrapper, usar a seta do breadcrumb para retornar à raiz e deixar níveis indisponíveis com `disabled`/`cursor-not-allowed`.
 
 ## Fluxo de Dados e Integrações
 - Fluxo web: React -> hooks React Query -> `src/api/endpoints` -> `clienteAxios` -> controllers Spring -> services -> repositories SQL/JPA -> SQL Server -> DTOs -> cards/gráficos/tabelas.
@@ -30,6 +34,8 @@
 - Estado próprio em `DASHBOARDS`: schema `acesso` para usuários, papéis, permissões, setores, filiais permitidas, refresh tokens, audit logs, metas de KPI, metas de fretes, metas de custo de manifestos e comunicados; `dbo.viagem_justificativas` para justificativas de viagens Raster usadas pelo indicador de Horário de Corte.
 - Integração adicional: `IntegracaoSateliteClient` aponta para `APP_INTEGRATION_SATELITE_URL` com padrão `http://127.0.0.1:19090`.
 - Builds: dev usa backend 5011 e frontend 5174; produção usa backend 5010 e frontend 5173, com Cloudflare Tunnel previsto.
+- Gestão à Vista: `/api/painel/indicadores-gestao-a-vista/performance-entrega/serie` exige `visao` e aceita `responsavelFiltro`/`regiaoFiltro` para drill-down. O frontend envia esses parâmetros por `indicadoresGestaoAVistaServico.ts`, inclui todos no `queryKey` do TanStack Query e atualiza o gráfico ao clicar em barras.
+- A rota `/performance` mantém drill-down por `drillNivel`, `drillResponsavel` e `drillRegiao` nos query params; esses valores entram no `queryKey` de `usePerformanceDrilldown`, nos filtros da tabela e nos handlers de clique do gráfico.
 
 ## Regras de Negócio Consolidadas
 - O Dashboard não é dono do banco analítico; alterações em views/tabelas/fatos do ETL devem ser feitas em `etl-extracao-dados`.
@@ -49,6 +55,7 @@
 - Metas de fretes: branch `GLOBAL` é `NULL`, ano 2000-2100, mês 1-12 e meta não negativa; replicação só ocorre se destino estiver vazio e origem tiver metas.
 - Metas de KPIs de Gestão à Vista: indicadores válidos são `delivery_performance`, `collector_usage`, `cargo_cubage`, `cargo_indemnity` e `cutoff_time`; metas entre 0 e 100; competência normalizada para primeiro dia do mês; override igual ao global é removido.
 - Metas de custo de manifestos: branch `GLOBAL` vira `NULL`, contrato padrão `Geral/geral`, `classification_key` opcional e normalizada, custo não negativo; filtros sem dimensão orçamentária tornam orçamento inaplicável.
+- Performance de Entrega em Gestão à Vista: o ranking/drill-down percorre `RESPONSAVEL -> REGIAO -> CIDADE`. A fonte é `dbo.fato_gestao_vista_fretes`, filtrada por `indicador_codigo = 'PE'`, `data_referencia >= :dataInicio`, `data_referencia < :dataFimExclusivo`, `is_linha_valida_indicador = 1`, `excluido_na_origem = 0` e escopo de filiais. Responsável e região selecionados viram filtros parametrizados; agrupamento, totalizações e Top 50 são calculados no SQL Server.
 - Horário de Corte: viagens Raster são avaliadas pela saída real contra o horário de corte da rota com tolerância de 10 minutos; SMs com justificativa ativa em `dbo.viagem_justificativas` contam como no horário, expõem o texto da justificativa na tabela/exportação CSV e podem ter a justificativa inativada por DELETE HTTP idempotente. O banco preserva o registro com `ativo = 0`, e as queries nativas filtram `vj.ativo = 1` para retornar a SM ao status original de contabilização.
 - Alteração de KPI deve atualizar `frontend/src/constants/kpiDictionary.ts`; alteração de regra/fonte de gráfico deve atualizar `frontend/src/constants/chartDictionary.ts`.
 - Produção é controlada por operador humano: não executar `iniciar-prod.bat`, não reiniciar processos e não liberar portas 5010/5173 por automação.
@@ -64,4 +71,4 @@
 - É proibido incluir saudações, conclusões, explicações fora dos bullets ou reescrever outras seções durante a resposta de planejamento.
 
 ## Tarefas Pendentes
-- Nenhuma tarefa pendente registrada.
+- Nenhuma pendência registrada no momento.

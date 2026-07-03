@@ -30,6 +30,7 @@ export interface GoalAssessment {
 
 export interface PerformanceRankingItem {
   group: string;
+  filtro?: string | null;
   pctNoPrazo: number;
   totalEntregas: number;
   entregasNoPrazo: number;
@@ -245,27 +246,14 @@ export function avaliarMetaIndicador({
 }
 
 export function aggregatePerformanceRanking(points: PerformanceEntregaSeriePoint[]): PerformanceRankingItem[] {
-  const grouped = new Map<string, Omit<PerformanceRankingItem, 'pctNoPrazo'>>();
-
-  for (const point of points) {
-    const key = groupLabel(point.filialPerformance, 'Filial performance nao informada');
-    const current = grouped.get(key) ?? {
-      group: key,
-      totalEntregas: 0,
-      entregasNoPrazo: 0,
-      entregasForaDoPrazo: 0,
-    };
-
-    current.totalEntregas += point.totalEntregas ?? 0;
-    current.entregasNoPrazo += point.entregasNoPrazo ?? 0;
-    current.entregasForaDoPrazo += point.entregasForaDoPrazo ?? 0;
-    grouped.set(key, current);
-  }
-
-  return Array.from(grouped.values())
+  return points
     .map((item) => ({
-      ...item,
-      pctNoPrazo: percentual(item.entregasNoPrazo, item.totalEntregas),
+      group: groupLabel(item.label, 'Agrupamento nao informado'),
+      filtro: item.filtro,
+      totalEntregas: item.totalEntregas ?? 0,
+      entregasNoPrazo: item.entregasNoPrazo ?? 0,
+      entregasForaDoPrazo: item.entregasForaDoPrazo ?? 0,
+      pctNoPrazo: item.pctNoPrazo ?? percentual(item.entregasNoPrazo, item.totalEntregas),
     }))
     .sort((left, right) => left.pctNoPrazo - right.pctNoPrazo || right.totalEntregas - left.totalEntregas || left.group.localeCompare(right.group));
 }

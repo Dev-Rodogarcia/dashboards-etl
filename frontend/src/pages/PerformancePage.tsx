@@ -558,16 +558,25 @@ function DrilldownActions({
   nivel,
   responsavel,
   regiao,
-  onBack,
   onNivelClick,
 }: {
   nivel: PerformanceDrilldownNivel;
   responsavel: string | null;
   regiao: string | null;
-  onBack: () => void;
   onNivelClick: (nivel: PerformanceDrilldownNivel) => void;
 }) {
   const levelButtonClassName = 'max-w-32 truncate rounded px-1.5 py-1 transition hover:bg-[var(--color-primary)]/10 hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]';
+  const disabledButtonClassName = 'cursor-not-allowed opacity-45 hover:bg-transparent hover:no-underline';
+  const drillUpDesabilitado = nivel === 'responsavel';
+  const regiaoDesabilitada = !responsavel;
+  const cidadeDesabilitada = !responsavel || !regiao;
+  const resolveButtonClassName = (disabled: boolean) => `${levelButtonClassName} ${disabled ? disabledButtonClassName : ''}`;
+  const resolveButtonColor = (ativo: boolean, disabled = false) => {
+    if (disabled) {
+      return 'var(--color-text-subtle)';
+    }
+    return ativo ? CORES.primaria : 'var(--color-text-muted)';
+  };
 
   return (
     <div className="flex min-w-0 flex-wrap items-center justify-end gap-1 text-[11px] font-semibold">
@@ -575,9 +584,17 @@ function DrilldownActions({
         type="button"
         title="Drill up"
         aria-label="Drill up"
-        onClick={() => (nivel === 'responsavel' ? onNivelClick('responsavel') : onBack())}
-        className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border transition hover:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-        style={{ borderColor: 'var(--color-border)', color: nivel === 'responsavel' ? 'var(--color-text-muted)' : CORES.primaria }}
+        disabled={drillUpDesabilitado}
+        aria-disabled={drillUpDesabilitado}
+        onClick={() => {
+          if (!drillUpDesabilitado) {
+            onNivelClick('responsavel');
+          }
+        }}
+        className={`flex h-7 w-7 items-center justify-center rounded-md border transition focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] ${
+          drillUpDesabilitado ? 'cursor-not-allowed opacity-45' : 'cursor-pointer hover:border-[var(--color-primary)]'
+        }`}
+        style={{ borderColor: 'var(--color-border)', color: resolveButtonColor(true, drillUpDesabilitado) }}
       >
         <ChevronUp size={14} />
       </button>
@@ -592,20 +609,32 @@ function DrilldownActions({
       <ChevronRight size={12} style={{ color: 'var(--color-text-subtle)' }} />
       <button
         type="button"
-        onClick={() => onNivelClick('regiao')}
-        className={levelButtonClassName}
-        title={responsavel ? `Responsável: ${responsavel}` : undefined}
-        style={{ color: nivel === 'regiao' ? CORES.primaria : 'var(--color-text-muted)' }}
+        disabled={regiaoDesabilitada}
+        aria-disabled={regiaoDesabilitada}
+        onClick={() => {
+          if (!regiaoDesabilitada) {
+            onNivelClick('regiao');
+          }
+        }}
+        className={resolveButtonClassName(regiaoDesabilitada)}
+        title={responsavel ? `Responsável: ${responsavel}` : 'Clique em um responsável no gráfico para habilitar regiões'}
+        style={{ color: resolveButtonColor(nivel === 'regiao', regiaoDesabilitada) }}
       >
         Região
       </button>
       <ChevronRight size={12} style={{ color: 'var(--color-text-subtle)' }} />
       <button
         type="button"
-        onClick={() => onNivelClick('cidade')}
-        className={levelButtonClassName}
-        title={regiao ? `Região: ${regiao}` : undefined}
-        style={{ color: nivel === 'cidade' ? CORES.primaria : 'var(--color-text-muted)' }}
+        disabled={cidadeDesabilitada}
+        aria-disabled={cidadeDesabilitada}
+        onClick={() => {
+          if (!cidadeDesabilitada) {
+            onNivelClick('cidade');
+          }
+        }}
+        className={resolveButtonClassName(cidadeDesabilitada)}
+        title={regiao ? `Região: ${regiao}` : 'Clique em uma região no gráfico para habilitar cidades'}
+        style={{ color: resolveButtonColor(nivel === 'cidade', cidadeDesabilitada) }}
       >
         Cidade
       </button>
@@ -1118,7 +1147,6 @@ export default function PerformancePage() {
                   nivel={drillNivel}
                   responsavel={drillResponsavel}
                   regiao={drillRegiao}
-                  onBack={drillUp}
                   onNivelClick={drillToNivel}
                 />
               )}

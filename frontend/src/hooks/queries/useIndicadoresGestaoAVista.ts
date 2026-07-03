@@ -31,7 +31,13 @@ import {
   buscarUtilizacaoColetoresTabela,
   buscarUtilizacaoColetoresTabelaPaginada,
 } from '../../api/endpoints/indicadoresGestaoAVistaServico';
-import type { IndicadoresGestaoVistaFiltro, KpiGoalIndicatorKey, KpiGoalsUpdatePayload, ViagemJustificativaPayload } from '../../types/indicadoresGestaoAVista';
+import type {
+  IndicadoresGestaoVistaFiltro,
+  KpiGoalIndicatorKey,
+  KpiGoalsUpdatePayload,
+  PerformanceEntregaSerieParams,
+  ViagemJustificativaPayload,
+} from '../../types/indicadoresGestaoAVista';
 import { normalizarCompetenciaApiOpcional } from '../../utils/competencia';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
@@ -124,11 +130,23 @@ export function usePerformanceEntregaOverview(filtro: IndicadoresGestaoVistaFilt
   });
 }
 
-export function usePerformanceEntregaSerie(filtro: IndicadoresGestaoVistaFiltro, enabled = true) {
+export function usePerformanceEntregaSerie(
+  filtro: IndicadoresGestaoVistaFiltro,
+  serieParams: PerformanceEntregaSerieParams,
+  enabled = true,
+) {
   return useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
-    queryKey: ['indicadores-gestao-a-vista', 'performance-entrega', 'serie', filtro],
-    queryFn: () => buscarPerformanceEntregaSerie(filtro),
+    queryKey: [
+      'indicadores-gestao-a-vista',
+      'performance-entrega',
+      'serie',
+      filtro,
+      serieParams.visao,
+      serieParams.responsavelFiltro ?? null,
+      serieParams.regiaoFiltro ?? null,
+    ],
+    queryFn: () => buscarPerformanceEntregaSerie(filtro, serieParams),
     staleTime: STALE_TIME,
     retry: 1,
     enabled,

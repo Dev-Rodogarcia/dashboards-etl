@@ -873,7 +873,7 @@ export const KpiDictionary = {
         descricao: 'Percentual de minutas válidas entregues no prazo.',
         calculo: 'Entregas no Prazo ÷ Total de Entregas Válidas × 100.',
         observacao:
-          `${baseGestaoPerformance} Entregas ainda em aberto permanecem no total e reduzem o percentual.`,
+          `${baseGestaoPerformance} Entregas ainda em aberto permanecem no total e reduzem o percentual. O ranking detalha o mesmo contrato por responsável, região e cidade via drill-down.`,
       },
       utilizacaoColetores: {
         titulo: 'Utilização dos Coletores',
@@ -929,7 +929,7 @@ export const KpiDictionary = {
         descricao: 'Percentual de todas as minutas válidas que foram concluídas no prazo.',
         calculo: 'Entregas no Prazo ÷ Total de Entregas Válidas × 100.',
         observacao:
-          `${baseGestaoPerformance} Entregas em aberto permanecem no denominador. ${percentualSemBase}`,
+          `${baseGestaoPerformance} Entregas em aberto permanecem no denominador. O gráfico de apoio permite drill-down por responsável, região e cidade, sempre recalculado no SQL para o agrupamento atual. ${percentualSemBase}`,
       },
       gapMeta: {
         titulo: 'Gap vs Meta de Performance',

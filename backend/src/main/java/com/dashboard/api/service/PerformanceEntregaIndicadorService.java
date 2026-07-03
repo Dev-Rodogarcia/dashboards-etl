@@ -4,6 +4,7 @@ import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaSeriePointDTO;
+import com.dashboard.api.dto.indicadoresgestao.NivelVisaoPerformance;
 import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.repository.IndicadoresGestaoAVistaSqlRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
@@ -11,6 +12,7 @@ import com.dashboard.api.util.ConsultaLimiteUtils;
 import com.dashboard.api.util.IndicadoresGestaoMetricasUtils;
 import com.dashboard.api.util.TemporalJsonUtils;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -44,9 +46,31 @@ public class PerformanceEntregaIndicadorService {
         );
     }
 
-    public List<PerformanceEntregaSeriePointDTO> buscarSerie(FiltroConsultaDTO filtro) {
+    public List<PerformanceEntregaSeriePointDTO> buscarSerie(
+            FiltroConsultaDTO filtro,
+            NivelVisaoPerformance visao,
+            String responsavelFiltro,
+            String regiaoFiltro
+    ) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
-        return sqlRepository.buscarPerformanceEntregaSerie(filtro, escopoFilialService.escopoAtual());
+        NivelVisaoPerformance visaoObrigatoria = Objects.requireNonNull(visao, "visao");
+        String responsavel = normalizarOpcional(responsavelFiltro);
+        String regiao = normalizarOpcional(regiaoFiltro);
+
+        if (visaoObrigatoria.exigeResponsavelFiltro() && responsavel == null) {
+            throw new IllegalArgumentException("responsavelFiltro é obrigatório para a visão " + visaoObrigatoria);
+        }
+        if (visaoObrigatoria.exigeRegiaoFiltro() && regiao == null) {
+            throw new IllegalArgumentException("regiaoFiltro é obrigatório para a visão " + visaoObrigatoria);
+        }
+
+        return sqlRepository.buscarPerformanceEntregaSerie(
+                filtro,
+                escopoFilialService.escopoAtual(),
+                visaoObrigatoria,
+                responsavel,
+                regiao
+        );
     }
 
     public List<PerformanceEntregaRowDTO> buscarTabela(FiltroConsultaDTO filtro, int limite) {
@@ -100,5 +124,12 @@ public class PerformanceEntregaIndicadorService {
             return Integer.MAX_VALUE;
         }
         return (int) valor;
+    }
+
+    private static String normalizarOpcional(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return null;
+        }
+        return valor.trim();
     }
 }

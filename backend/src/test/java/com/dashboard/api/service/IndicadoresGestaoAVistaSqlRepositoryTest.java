@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.indicadoresgestao.NivelVisaoPerformance;
 import com.dashboard.api.repository.IndicadoresGestaoAVistaSqlRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
@@ -51,6 +52,8 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
                 .contains("AND data_referencia < :dataFimExclusivo")
                 .contains("SUM(CAST(is_no_prazo AS BIGINT))")
                 .contains("SUM(CAST(is_fora_prazo AS BIGINT))")
+                .contains("GROUP BY COALESCE(NULLIF(responsavel_regiao_destino")
+                .contains("OFFSET 0 ROWS FETCH NEXT :limitePerformanceDrilldown ROWS ONLY")
                 .doesNotContain("vw_fretes_powerbi")
                 .doesNotContain("fretes_deduplicados")
                 .doesNotContain("ROW_NUMBER()")
@@ -105,6 +108,36 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
                 .doesNotContain("AND YEAR(")
                 .doesNotContain("WHERE MONTH(")
                 .doesNotContain("AND MONTH(");
+    }
+
+    @Test
+    void performanceDrilldownAplicaFiltrosHierarquicosSemSqlDinamicoLivre() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        IndicadoresGestaoAVistaSqlRepository repository = new IndicadoresGestaoAVistaSqlRepository(
+                jdbcTemplate,
+                PeriodoOffsetDateTimeHelper.padrao()
+        );
+
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                LocalDate.of(2026, 1, 1),
+                LocalDate.of(2026, 1, 31),
+                Map.of()
+        );
+
+        repository.buscarPerformanceEntregaSerie(
+                filtro,
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                NivelVisaoPerformance.CIDADE,
+                "Responsavel A",
+                "SP"
+        );
+
+        assertThat(jdbcTemplate.sqls.get(0))
+                .contains("COALESCE(NULLIF(destino_cidade")
+                .contains("responsavel_regiao_destino = :responsavelFiltro")
+                .contains("filial_performance = :responsavelFiltro")
+                .contains("regiao_destino = :regiaoFiltro")
+                .doesNotContain("COALESCE(NULLIF(regiao_destino, N''), N'SEM_REGIAO') = :regiaoFiltro");
     }
 
     private static final class CapturandoNamedParameterJdbcTemplate extends NamedParameterJdbcTemplate {

@@ -1,8 +1,9 @@
 package com.dashboard.api.dto.indicadoresgestao;
 
 public record PerformanceEntregaSeriePointDTO(
-        String date,
-        String filialPerformance,
+        String label,
+        String filtro,
+        NivelVisaoPerformance visao,
         int totalEntregas,
         int entregasNoPrazo,
         int entregasForaDoPrazo,

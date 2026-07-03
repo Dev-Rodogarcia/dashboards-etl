@@ -138,6 +138,7 @@ function JustificativaHorarioCorteModalAberto({
   return createPortal(
     <AnimatePresence>
       <motion.div
+        key={`horario-corte-backdrop-${codSolicitacao}`}
         className="fixed inset-0 z-[80] bg-slate-950/45 backdrop-blur-[2px]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -148,6 +149,7 @@ function JustificativaHorarioCorteModalAberto({
       />
 
       <motion.div
+        key={`horario-corte-dialog-${codSolicitacao}`}
         role="dialog"
         aria-modal="true"
         initial={{ opacity: 0, y: 18 }}

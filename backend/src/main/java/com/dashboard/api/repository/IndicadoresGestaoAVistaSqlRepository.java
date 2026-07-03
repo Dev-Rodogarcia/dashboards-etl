@@ -5,6 +5,7 @@ import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.CubagemMercadoriasSeriePointDTO;
 import com.dashboard.api.dto.indicadoresgestao.IndenizacaoMercadoriasRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.IndenizacaoMercadoriasSeriePointDTO;
+import com.dashboard.api.dto.indicadoresgestao.NivelVisaoPerformance;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaSeriePointDTO;
 import com.dashboard.api.dto.indicadoresgestao.UtilizacaoColetoresRowDTO;
@@ -30,6 +31,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     private static final String STATUS_CANCELADO = "cancelado";
     private static final String PERFORMANCE_EM_ABERTO = "EM ABERTO";
+    private static final int PERFORMANCE_DRILLDOWN_LIMITE = 50;
     private static final BigDecimal VALOR_MINIMO_OPERACIONAL = new BigDecimal("0.01");
     private static final List<String> DOCUMENTOS_FILIAIS_OPERACIONAIS = List.of(
             "51863654000180",
@@ -87,25 +89,44 @@ public class IndicadoresGestaoAVistaSqlRepository {
             FiltroConsultaDTO filtro,
             EscopoFilialService.EscopoFilial escopo
     ) {
+        return buscarPerformanceEntregaSerie(filtro, escopo, NivelVisaoPerformance.RESPONSAVEL, null, null);
+    }
+
+    public List<PerformanceEntregaSeriePointDTO> buscarPerformanceEntregaSerie(
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            NivelVisaoPerformance visao,
+            String responsavelFiltro,
+            String regiaoFiltro
+    ) {
         QueryContext ctx = contextoLocalDate(filtro, escopo, false);
+        PerformanceVisaoSql visaoSql = performanceVisaoSql(visao);
+        String filtrosDrilldown = filtrosPerformanceDrilldown(ctx, visao, responsavelFiltro, regiaoFiltro);
+        ctx.params().addValue("limitePerformanceDrilldown", PERFORMANCE_DRILLDOWN_LIMITE);
+
         String sql = performanceEntregaCte() + """
                 SELECT
-                    CONVERT(char(10), previsao_entrega, 23) AS date,
-                    filial_performance,
+                    %s AS label,
+                    %s AS filtro,
                     COUNT_BIG(1) AS total_entregas,
                     COALESCE(SUM(CAST(is_no_prazo AS BIGINT)), 0) AS entregas_no_prazo,
-                    COALESCE(SUM(CAST(is_fora_prazo AS BIGINT)), 0) AS entregas_fora_do_prazo
+                    COALESCE(SUM(CAST(is_fora_prazo AS BIGINT)), 0) AS entregas_fora_do_prazo,
+                    CAST(COALESCE(SUM(CAST(is_no_prazo AS FLOAT)) * 100.0 / NULLIF(COUNT_BIG(1), 0), 0) AS DECIMAL(19,2)) AS pct_no_prazo
                 FROM performance
-                GROUP BY previsao_entrega, filial_performance
-                ORDER BY previsao_entrega, filial_performance
-                """;
+                WHERE 1 = 1
+                """.formatted(visaoSql.labelSql(), visaoSql.filtroSql()) + filtrosDrilldown + """
+                GROUP BY %s
+                ORDER BY pct_no_prazo ASC, total_entregas DESC, label
+                OFFSET 0 ROWS FETCH NEXT :limitePerformanceDrilldown ROWS ONLY
+                """.formatted(visaoSql.groupBySql());
 
         return jdbcTemplate.query(sql, ctx.params(), (rs, rowNum) -> {
             long total = rs.getLong("total_entregas");
             long noPrazo = rs.getLong("entregas_no_prazo");
             return new PerformanceEntregaSeriePointDTO(
-                    rs.getString("date"),
-                    rs.getString("filial_performance"),
+                    rs.getString("label"),
+                    rs.getString("filtro"),
+                    visao,
                     inteiro(total),
                     inteiro(noPrazo),
                     inteiro(rs.getLong("entregas_fora_do_prazo")),
@@ -561,6 +582,62 @@ public class IndicadoresGestaoAVistaSqlRepository {
                 """ + paginacao;
     }
 
+    private static PerformanceVisaoSql performanceVisaoSql(NivelVisaoPerformance visao) {
+        return switch (visao) {
+            case RESPONSAVEL -> new PerformanceVisaoSql(
+                    "COALESCE(NULLIF(responsavel_regiao_destino, N''), NULLIF(filial_performance, N''), N'Responsável não informado')",
+                    "COALESCE(NULLIF(responsavel_regiao_destino, N''), NULLIF(filial_performance, N''), N'Responsável não informado')",
+                    "COALESCE(NULLIF(responsavel_regiao_destino, N''), NULLIF(filial_performance, N''), N'Responsável não informado')"
+            );
+            case REGIAO -> new PerformanceVisaoSql(
+                    "COALESCE(NULLIF(regiao_destino, N''), N'SEM_REGIAO')",
+                    "COALESCE(NULLIF(regiao_destino, N''), N'SEM_REGIAO')",
+                    "COALESCE(NULLIF(regiao_destino, N''), N'SEM_REGIAO')"
+            );
+            case CIDADE -> new PerformanceVisaoSql(
+                    "COALESCE(NULLIF(destino_cidade, N''), NULLIF(destino, N''), N'SEM_CIDADE')",
+                    "COALESCE(NULLIF(destino_cidade, N''), NULLIF(destino, N''), N'SEM_CIDADE')",
+                    "COALESCE(NULLIF(destino_cidade, N''), NULLIF(destino, N''), N'SEM_CIDADE')"
+            );
+        };
+    }
+
+    private static String filtrosPerformanceDrilldown(
+            QueryContext ctx,
+            NivelVisaoPerformance visao,
+            String responsavelFiltro,
+            String regiaoFiltro
+    ) {
+        StringBuilder where = new StringBuilder();
+
+        if (visao.exigeResponsavelFiltro()) {
+            ctx.params().addValue("responsavelFiltro", responsavelFiltro);
+            where.append("""
+                    AND (
+                          responsavel_regiao_destino = :responsavelFiltro
+                          OR filial_performance = :responsavelFiltro
+                          OR (
+                              :responsavelFiltro = N'Responsável não informado'
+                              AND (responsavel_regiao_destino IS NULL OR responsavel_regiao_destino = N'')
+                              AND (filial_performance IS NULL OR filial_performance = N'')
+                          )
+                    )
+                    """);
+        }
+
+        if (visao.exigeRegiaoFiltro()) {
+            ctx.params().addValue("regiaoFiltro", regiaoFiltro);
+            where.append("""
+                    AND (
+                          regiao_destino = :regiaoFiltro
+                          OR (:regiaoFiltro = N'SEM_REGIAO' AND (regiao_destino IS NULL OR regiao_destino = N''))
+                    )
+                    """);
+        }
+
+        return where.toString();
+    }
+
     private static String performanceEntregaCte() {
         return """
                 WITH performance AS (
@@ -572,6 +649,10 @@ public class IndicadoresGestaoAVistaSqlRepository {
                         filial_performance,
                         filial_emissora,
                         filial_performance_key,
+                        responsavel_regiao_destino,
+                        regiao_destino,
+                        destino,
+                        destino_cidade,
                         performance_diferenca_dias,
                         performance_status,
                         is_no_prazo,
@@ -587,6 +668,13 @@ public class IndicadoresGestaoAVistaSqlRepository {
                       AND (:filiaisVazio = 1 OR filial_performance_key IN (:filiais))
                 )
                 """;
+    }
+
+    private record PerformanceVisaoSql(
+            String labelSql,
+            String filtroSql,
+            String groupBySql
+    ) {
     }
 
     private static String cubagemCte() {

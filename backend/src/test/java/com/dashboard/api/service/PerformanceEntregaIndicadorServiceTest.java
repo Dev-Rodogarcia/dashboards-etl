@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.indicadoresgestao.NivelVisaoPerformance;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaSeriePointDTO;
@@ -13,6 +14,7 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PerformanceEntregaIndicadorServiceTest {
 
@@ -52,8 +54,9 @@ class PerformanceEntregaIndicadorServiceTest {
     void buscarSerieDeveRetornarPontosAgregadosPeloSql() {
         FiltroConsultaDTO filtro = filtroPadrao();
         PerformanceEntregaSeriePointDTO ponto = new PerformanceEntregaSeriePointDTO(
-                "2026-04-05",
                 "REC",
+                "REC",
+                NivelVisaoPerformance.RESPONSAVEL,
                 1,
                 1,
                 0,
@@ -61,7 +64,14 @@ class PerformanceEntregaIndicadorServiceTest {
         );
         sqlRepository.performanceSerie = List.of(ponto);
 
-        assertThat(service.buscarSerie(filtro)).containsExactly(ponto);
+        assertThat(service.buscarSerie(filtro, NivelVisaoPerformance.RESPONSAVEL, null, null)).containsExactly(ponto);
+    }
+
+    @Test
+    void buscarSerieDeveExigirResponsavelParaVisaoDeRegiao() {
+        assertThatThrownBy(() -> service.buscarSerie(filtroPadrao(), NivelVisaoPerformance.REGIAO, null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("responsavelFiltro");
     }
 
     @Test

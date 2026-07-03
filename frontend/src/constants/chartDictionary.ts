@@ -397,12 +397,12 @@ export const chartDictionary = {
   gestaoPerformanceRanking: {
     tabelasOrigem: 'dbo.fato_gestao_vista_fretes',
     cruzamentos: 'Nenhum JOIN; CTE performance no IndicadoresGestaoAVistaSqlRepository.',
-    descricao: 'Ranqueia filiais pela performance de entrega no prazo para comparar qualidade operacional na gestão à vista.',
+    descricao: 'Ranqueia a performance de entrega no prazo por responsável, região ou cidade conforme o nível de drill-down selecionado na gestão à vista.',
     calculoTecnico:
-      'COUNT_BIG(1); SUM(CAST(is_no_prazo AS BIGINT)); SUM(CAST(is_fora_prazo AS BIGINT)); percentual Java = entregas_no_prazo / total_entregas',
+      'COUNT_BIG(1); SUM(CAST(is_no_prazo AS BIGINT)); SUM(CAST(is_fora_prazo AS BIGINT)); percentual Java = entregas_no_prazo / total_entregas; Top 50 ordenado por pior percentual',
     calculoNegocio:
-      'Conta entregas por filial, soma quantas ficaram no prazo e fora do prazo, e calcula a taxa de pontualidade sobre o total avaliado.',
-    agrupamento: 'GROUP BY previsao_entrega, filial_performance',
+      'Conta entregas válidas no agrupamento atual, soma quantas ficaram no prazo e fora do prazo, e calcula a taxa de pontualidade sobre o total avaliado.',
+    agrupamento: 'GROUP BY responsavel_regiao_destino; no drill, GROUP BY regiao_destino filtrando responsavel; no nível final, GROUP BY destino_cidade filtrando responsavel e regiao',
   },
   gestaoColetoresRanking: {
     tabelasOrigem: 'dbo.fato_gestao_vista_coletores',

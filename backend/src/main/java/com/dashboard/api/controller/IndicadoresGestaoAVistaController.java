@@ -10,6 +10,7 @@ import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
 import com.dashboard.api.dto.indicadoresgestao.IndenizacaoMercadoriasOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.IndenizacaoMercadoriasRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.IndenizacaoMercadoriasSeriePointDTO;
+import com.dashboard.api.dto.indicadoresgestao.NivelVisaoPerformance;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaOverviewDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaRowDTO;
 import com.dashboard.api.dto.indicadoresgestao.PerformanceEntregaSeriePointDTO;
@@ -86,9 +87,17 @@ public class IndicadoresGestaoAVistaController {
     public ResponseEntity<List<PerformanceEntregaSeriePointDTO>> performanceSerie(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
+            @RequestParam NivelVisaoPerformance visao,
+            @RequestParam(required = false) String responsavelFiltro,
+            @RequestParam(required = false) String regiaoFiltro,
             @RequestParam MultiValueMap<String, String> params
     ) {
-        return ResponseEntity.ok(performanceEntregaService.buscarSerie(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+        return ResponseEntity.ok(performanceEntregaService.buscarSerie(
+                FiltroRequestMapper.from(dataInicio, dataFim, params),
+                visao,
+                responsavelFiltro,
+                regiaoFiltro
+        ));
     }
 
     @GetMapping("/performance-entrega/tabela")

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BarChart3, Boxes, CheckCircle2, Clock3, Gauge, MessageSquarePlus, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
+import { AlertCircle, BarChart3, Boxes, CheckCircle2, ChevronRight, ChevronUp, Clock3, Gauge, MessageSquarePlus, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import type { ColunaTabela } from '../components/shared/DataTable';
@@ -61,6 +61,7 @@ import type {
   KpiGoalIndicatorKey,
   KpiGoalIndicatorOverride,
   KpiGoalsMap,
+  NivelVisaoPerformance,
   PerformanceEntregaRow,
   UtilizacaoColetoresRow,
 } from '../types/indicadoresGestaoAVista';
@@ -74,6 +75,7 @@ import {
   avaliarMetaIndicador,
   calcularDistanciaRelativaMeta,
   type GoalMode,
+  type PerformanceRankingItem,
 } from '../utils/indicadoresGestaoVistaUi';
 import { buildMetaComparisonOption, buildRankingOption } from '../utils/indicadoresGestaoVistaCharts';
 import { normalizarCompetenciaApi } from '../utils/competencia';
@@ -187,6 +189,121 @@ function formatarDiferencaMeta(value: number, goal: number): string {
   return `${prefix}${formatarNumero(difference, 1)} p.p.`;
 }
 
+const PERFORMANCE_VISAO_LABELS: Record<NivelVisaoPerformance, string> = {
+  RESPONSAVEL: 'Responsáveis',
+  REGIAO: 'Regiões',
+  CIDADE: 'Cidades',
+};
+
+function normalizarPerformanceDrillTexto(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function performanceChartClickItem(params: unknown, items: PerformanceRankingItem[]): PerformanceRankingItem | null {
+  const dataIndex = typeof params === 'object' && params !== null && 'dataIndex' in params
+    ? Number((params as { dataIndex?: number }).dataIndex)
+    : -1;
+
+  if (dataIndex < 0) {
+    return null;
+  }
+
+  if (items.length === 1) {
+    return dataIndex === 1 ? items[0] : null;
+  }
+
+  return [...items.slice(0, 8)].reverse()[dataIndex] ?? null;
+}
+
+function PerformanceDrilldownBreadcrumbs({
+  nivel,
+  responsavel,
+  regiao,
+  onNivelClick,
+}: {
+  nivel: NivelVisaoPerformance;
+  responsavel: string | null;
+  regiao: string | null;
+  onNivelClick: (nivel: NivelVisaoPerformance) => void;
+}) {
+  const buttonClassName = 'max-w-36 truncate rounded px-1.5 py-1 transition hover:bg-[var(--color-primary)]/10 hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]';
+  const disabledButtonClassName = 'cursor-not-allowed opacity-45 hover:bg-transparent hover:no-underline';
+  const drillUpDesabilitado = nivel === 'RESPONSAVEL';
+  const regiaoDesabilitada = !responsavel;
+  const cidadeDesabilitada = !responsavel || !regiao;
+  const resolveButtonClassName = (disabled: boolean) => `${buttonClassName} ${disabled ? disabledButtonClassName : ''}`;
+  const resolveButtonColor = (ativo: boolean, disabled = false) => {
+    if (disabled) {
+      return 'var(--color-text-subtle)';
+    }
+    return ativo ? 'var(--color-primary)' : 'var(--color-text-muted)';
+  };
+
+  return (
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-1 text-[11px] font-semibold">
+      <button
+        type="button"
+        title="Drill up"
+        aria-label="Drill up"
+        disabled={drillUpDesabilitado}
+        aria-disabled={drillUpDesabilitado}
+        onClick={() => {
+          if (!drillUpDesabilitado) {
+            onNivelClick('RESPONSAVEL');
+          }
+        }}
+        className={`flex h-7 w-7 items-center justify-center rounded-md border transition focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] ${
+          drillUpDesabilitado ? 'cursor-not-allowed opacity-45' : 'cursor-pointer hover:border-[var(--color-primary)]'
+        }`}
+        style={{ borderColor: 'var(--color-border)', color: resolveButtonColor(true, drillUpDesabilitado) }}
+      >
+        <ChevronUp size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => onNivelClick('RESPONSAVEL')}
+        className={buttonClassName}
+        style={{ color: nivel === 'RESPONSAVEL' ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
+      >
+        Responsáveis
+      </button>
+      <ChevronRight size={12} style={{ color: 'var(--color-text-subtle)' }} />
+      <button
+        type="button"
+        disabled={regiaoDesabilitada}
+        aria-disabled={regiaoDesabilitada}
+        onClick={() => {
+          if (!regiaoDesabilitada) {
+            onNivelClick('REGIAO');
+          }
+        }}
+        className={resolveButtonClassName(regiaoDesabilitada)}
+        title={responsavel ? `Responsável: ${responsavel}` : 'Clique em um responsável no gráfico para habilitar regiões'}
+        style={{ color: resolveButtonColor(nivel === 'REGIAO', regiaoDesabilitada) }}
+      >
+        {responsavel ? `Regiões de ${responsavel}` : 'Regiões'}
+      </button>
+      <ChevronRight size={12} style={{ color: 'var(--color-text-subtle)' }} />
+      <button
+        type="button"
+        disabled={cidadeDesabilitada}
+        aria-disabled={cidadeDesabilitada}
+        onClick={() => {
+          if (!cidadeDesabilitada) {
+            onNivelClick('CIDADE');
+          }
+        }}
+        className={resolveButtonClassName(cidadeDesabilitada)}
+        title={regiao ? `Região: ${regiao}` : 'Clique em uma região no gráfico para habilitar cidades'}
+        style={{ color: resolveButtonColor(nivel === 'CIDADE', cidadeDesabilitada) }}
+      >
+        {regiao ? `Cidades de ${regiao}` : 'Cidades'}
+      </button>
+    </div>
+  );
+}
+
 export default function IndicadoresGestaoAVistaPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const { isDark } = useEchartsTheme();
@@ -198,6 +315,9 @@ export default function IndicadoresGestaoAVistaPage() {
   const [goalsPanelCompetencia, setGoalsPanelCompetencia] = useState(() => normalizarCompetenciaApi(dataInicio));
   const [goalsHistoryPage, setGoalsHistoryPage] = useState(1);
   const [horarioCorteJustificativaSelecionada, setHorarioCorteJustificativaSelecionada] = useState<HorarioCorteJustificativaSelecionada | null>(null);
+  const [nivelVisaoPerformance, setNivelVisaoPerformance] = useState<NivelVisaoPerformance>('RESPONSAVEL');
+  const [responsavelSelecionado, setResponsavelSelecionado] = useState<string | null>(null);
+  const [regiaoSelecionada, setRegiaoSelecionada] = useState<string | null>(null);
   const dataInicioIndicadores = dataInicio;
   const dataFimIndicadores = dataFim;
   const competenciaFiltroGlobal = useMemo(() => normalizarCompetenciaApi(dataInicioIndicadores), [dataInicioIndicadores]);
@@ -227,7 +347,12 @@ export default function IndicadoresGestaoAVistaPage() {
   const cubagemSecondaryEnabled = useStaggeredQueryEnabled(cubagemOverview.isSuccess && Boolean(cubagemOverview.data), 290);
   const indenizacaoSecondaryEnabled = useStaggeredQueryEnabled(indenizacaoOverview.isSuccess && Boolean(indenizacaoOverview.data), 360);
   const horariosSecondaryEnabled = useStaggeredQueryEnabled(horariosOverview.isSuccess && Boolean(horariosOverview.data), 430);
-  const performanceSerie = usePerformanceEntregaSerie(filtroBase, performanceSecondaryEnabled);
+  const performanceSerieParams = useMemo(() => ({
+    visao: nivelVisaoPerformance,
+    responsavelFiltro: responsavelSelecionado,
+    regiaoFiltro: regiaoSelecionada,
+  }), [nivelVisaoPerformance, regiaoSelecionada, responsavelSelecionado]);
+  const performanceSerie = usePerformanceEntregaSerie(filtroBase, performanceSerieParams, performanceSecondaryEnabled);
   const performanceTabela = usePerformanceEntregaTabelaPaginada(
     filtroBase,
     performancePaginacao.pagina,
@@ -373,6 +498,43 @@ export default function IndicadoresGestaoAVistaPage() {
     rolarParaTopoIndicadores();
   }
 
+  function navegarPerformanceParaNivel(nivel: NivelVisaoPerformance) {
+    if (nivel === 'RESPONSAVEL') {
+      setNivelVisaoPerformance('RESPONSAVEL');
+      setResponsavelSelecionado(null);
+      setRegiaoSelecionada(null);
+      return;
+    }
+
+    if (nivel === 'REGIAO' && responsavelSelecionado) {
+      setNivelVisaoPerformance('REGIAO');
+      setRegiaoSelecionada(null);
+      return;
+    }
+
+    if (nivel === 'CIDADE' && responsavelSelecionado && regiaoSelecionada) {
+      setNivelVisaoPerformance('CIDADE');
+    }
+  }
+
+  const drillDownPerformance = useCallback((item: PerformanceRankingItem | null) => {
+    const filtroDrill = normalizarPerformanceDrillTexto(item?.filtro ?? item?.group);
+
+    if (!filtroDrill || nivelVisaoPerformance === 'CIDADE') {
+      return;
+    }
+
+    if (nivelVisaoPerformance === 'RESPONSAVEL') {
+      setResponsavelSelecionado(filtroDrill);
+      setRegiaoSelecionada(null);
+      setNivelVisaoPerformance('REGIAO');
+      return;
+    }
+
+    setRegiaoSelecionada(filtroDrill);
+    setNivelVisaoPerformance('CIDADE');
+  }, [nivelVisaoPerformance]);
+
   useEffect(() => {
     if (!goalsPanelOpen || goalsPanelBranchId || goalBranchOptions.length === 0) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -497,12 +659,15 @@ export default function IndicadoresGestaoAVistaPage() {
   const cubagemGapLabel = formatarGapComBase(cubagemHasData, cubagemGap, goals.cubagem.mode);
   const indenizacaoGapLabel = formatarGapComBase(indenizacaoHasData, indenizacaoGap, goals.indenizacao.mode, 2);
   const horariosGapLabel = formatarGapComBase(horariosHasData, horariosGap, goals.horarios.mode);
+  const performanceChartTitle = performanceRanking.length <= 1
+    ? 'Comparativo contra meta'
+    : `Performance por ${PERFORMANCE_VISAO_LABELS[nivelVisaoPerformance].toLocaleLowerCase('pt-BR')}`;
 
   const performanceChartOption = useMemo(() => (
     performanceRanking.length <= 1
       ? buildMetaComparisonOption({
           label: performanceRanking[0]?.group ?? 'Periodo filtrado',
-          value: performanceOverview.data?.pctNoPrazo ?? 0,
+          value: performanceRanking[0]?.pctNoPrazo ?? performanceOverview.data?.pctNoPrazo ?? 0,
           threshold: goals.performance.threshold,
           mode: goals.performance.mode,
           thresholdLabel: goals.performance.label,
@@ -513,19 +678,32 @@ export default function IndicadoresGestaoAVistaPage() {
           getLabel: (item) => item.group,
           getValue: (item) => item.pctNoPrazo,
           threshold: goals.performance.threshold,
-          getThreshold: (item) => metaFilial('performance', item.group),
           mode: goals.performance.mode,
           thresholdLabel: goals.performance.label,
           isDark,
           tooltipLines: (item) => [
-            `Meta da filial: ${formatarPorcentagem(metaFilial('performance', item.group))}`,
-            `Diferença: ${formatarDiferencaMeta(item.pctNoPrazo, metaFilial('performance', item.group))}`,
+            `Visão: ${PERFORMANCE_VISAO_LABELS[nivelVisaoPerformance]}`,
+            `Meta: ${formatarPorcentagem(goals.performance.threshold)}`,
+            `Diferença: ${formatarDiferencaMeta(item.pctNoPrazo, goals.performance.threshold)}`,
             `Total: ${formatarNumero(item.totalEntregas)}`,
             `No prazo: ${formatarNumero(item.entregasNoPrazo)}`,
             `Fora do prazo: ${formatarNumero(item.entregasForaDoPrazo)}`,
           ],
         })
-  ), [goals, isDark, metaFilial, performanceRanking, performanceOverview.data?.pctNoPrazo]);
+  ), [goals.performance.label, goals.performance.mode, goals.performance.threshold, isDark, nivelVisaoPerformance, performanceRanking, performanceOverview.data?.pctNoPrazo]);
+  const performanceChartEvents = useMemo(() => ({
+    click: (params: unknown) => {
+      drillDownPerformance(performanceChartClickItem(params, performanceRanking));
+    },
+  }), [drillDownPerformance, performanceRanking]);
+  const performanceChartActions = (
+    <PerformanceDrilldownBreadcrumbs
+      nivel={nivelVisaoPerformance}
+      responsavel={responsavelSelecionado}
+      regiao={regiaoSelecionada}
+      onNivelClick={navegarPerformanceParaNivel}
+    />
+  );
 
   const coletoresChartOption = useMemo(() => (
     coletoresRanking.length <= 1
@@ -967,7 +1145,7 @@ export default function IndicadoresGestaoAVistaPage() {
 
       <IndicadoresGestaoSection
         title="Nova Tela de Fretes = Performance"
-        description="Piores filiais performance por pontualidade, usando previsão de entrega e registros em aberto no denominador."
+        description="Performance de entrega com drill-down por responsável, região e cidade, usando previsão de entrega e registros em aberto no denominador."
         goalLabel={goals.performance.label}
         goalTone={performanceAssessment.tone}
         error={performanceOverview.error}
@@ -978,9 +1156,11 @@ export default function IndicadoresGestaoAVistaPage() {
           { definition: KpiDictionary.gestaoAVista.performance.noPrazo, label: 'Entregas No Prazo', value: formatarNumero(performanceOverview.data?.entregasNoPrazo ?? 0), icon: <Truck size={16} />, progressPct: performanceAssessment.progressPct },
           { definition: KpiDictionary.gestaoAVista.performance.gapMeta, label: `Gap vs ${goals.performance.label.toLowerCase()}`, value: performanceGapLabel, icon: <Gauge size={16} />, progressPct: performanceAssessment.progressPct },
         ]}
-        chartTitle={performanceRanking.length <= 1 ? 'Comparativo contra meta' : 'Piores filiais performance por pontualidade'}
+        chartTitle={performanceChartTitle}
         chartOption={performanceChartOption}
         chartKey="gestaoPerformanceRanking"
+        chartActions={performanceChartActions}
+        chartEvents={performanceChartEvents}
         chartLoading={performanceSerie.isLoading}
         chartEmpty={performanceRanking.length === 0}
         chartError={performanceSerie.isError ? getApiErrorMessage(performanceSerie.error, 'Erro ao carregar gráfico.') : null}
