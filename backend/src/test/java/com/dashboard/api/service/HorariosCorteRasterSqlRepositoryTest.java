@@ -44,6 +44,7 @@ class HorariosCorteRasterSqlRepositoryTest {
 
         assertThat(sql).contains("LEFT JOIN dbo.viagem_justificativas vj");
         assertThat(sql).contains("ON rc.cod_solicitacao = vj.cod_solicitacao");
+        assertThat(sql).contains("AND vj.ativo = 1");
         assertThat(sql).contains("vj.cod_solicitacao AS cod_solicitacao_justificada");
         assertThat(sql).contains("vj.justificativa AS justificativa");
         assertThat(sql).contains("justificativa AS justificativa");

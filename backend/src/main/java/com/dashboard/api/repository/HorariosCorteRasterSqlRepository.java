@@ -210,6 +210,7 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
                     ON filial.origem_sm = rc.origem_sm
                 LEFT JOIN dbo.viagem_justificativas vj
                     ON rc.cod_solicitacao = vj.cod_solicitacao
+                   AND vj.ativo = 1
             )
             """;
 

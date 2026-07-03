@@ -12,12 +12,13 @@
 - Arquitetura em camadas Spring MVC no backend e SPA React no frontend.
 - Backend: `controller` expõe fronteiras HTTP; `service` orquestra regras; `repository` concentra SQL/JPA; `dto` define contratos; `model` representa entidades; `security` concentra JWT, API key e rate limit; `config` define infraestrutura; `policy` guarda regras reutilizáveis; `util` contém helpers puros.
 - Frontend: `src/App.tsx` define rotas lazy e proteção de acesso; `contexts` guarda sessão/filtros/cabeçalho; `api` centraliza Axios e endpoints; `hooks/queries` encapsula React Query; `pages` monta dashboards; `components/shared` padroniza filtros, cards, tabelas, exportação, gráficos e estados.
-- Banco `DASHBOARDS` é gerido exclusivamente por Flyway em `database/migrations`, com baseline 22 e migrations atuais até `V049__criar_viagem_justificativas.sql`.
+- Banco `DASHBOARDS` é gerido exclusivamente por Flyway em `database/migrations`, com baseline 22 e migrations atuais até `V050__adicionar_soft_delete_justificativas.sql`.
 - Hibernate roda com `spring.jpa.hibernate.ddl-auto=none`; DDL em runtime por Java é proibido.
 - O portal é consumidor read-only do ETL. O backend deve consultar objetos analíticos por nomes simples (`dbo.vw_*`, `dbo.fato_*`, `dbo.dim_*`), sem hardcode de database.
 - Padrões obrigatórios: push-down computation no SQL Server, filtros sargable, paginação/exportação em SQL, DTOs pequenos, validação explícita de período e paridade entre cálculo de KPI e dicionários do frontend.
 - Produção e desenvolvimento são isolados por `.env`, profiles e validações que impedem DEV de conectar no banco `DASHBOARDS`.
 - Exportações CSV baseadas em records Java usam `CsvExportWriter`; quando um DTO precisa de cabeçalho amigável sem alterar o contrato JSON, o componente pode usar `@CsvColumn`, como em `HorarioCorteRowDTO.justificativa` exportado como `Justificativa`.
+- Dados de negócio, justificativas e auditoria usam exclusão lógica obrigatória; hard delete/`DELETE FROM` físico é proibido. Entidades JPA podem delegar o soft delete ao Hibernate com `@SQLDelete`/`@SQLRestriction`, e queries JDBC nativas devem filtrar registros inativos explicitamente.
 
 ## Fluxo de Dados e Integrações
 - Fluxo web: React -> hooks React Query -> `src/api/endpoints` -> `clienteAxios` -> controllers Spring -> services -> repositories SQL/JPA -> SQL Server -> DTOs -> cards/gráficos/tabelas.
@@ -48,12 +49,14 @@
 - Metas de fretes: branch `GLOBAL` é `NULL`, ano 2000-2100, mês 1-12 e meta não negativa; replicação só ocorre se destino estiver vazio e origem tiver metas.
 - Metas de KPIs de Gestão à Vista: indicadores válidos são `delivery_performance`, `collector_usage`, `cargo_cubage`, `cargo_indemnity` e `cutoff_time`; metas entre 0 e 100; competência normalizada para primeiro dia do mês; override igual ao global é removido.
 - Metas de custo de manifestos: branch `GLOBAL` vira `NULL`, contrato padrão `Geral/geral`, `classification_key` opcional e normalizada, custo não negativo; filtros sem dimensão orçamentária tornam orçamento inaplicável.
-- Horário de Corte: viagens Raster são avaliadas pela saída real contra o horário de corte da rota com tolerância de 10 minutos; SMs com justificativa em `dbo.viagem_justificativas` contam como no horário, expõem o texto da justificativa na tabela/exportação CSV e podem ter a justificativa excluída por DELETE idempotente para retornar ao status original de contabilização.
+- Horário de Corte: viagens Raster são avaliadas pela saída real contra o horário de corte da rota com tolerância de 10 minutos; SMs com justificativa ativa em `dbo.viagem_justificativas` contam como no horário, expõem o texto da justificativa na tabela/exportação CSV e podem ter a justificativa inativada por DELETE HTTP idempotente. O banco preserva o registro com `ativo = 0`, e as queries nativas filtram `vj.ativo = 1` para retornar a SM ao status original de contabilização.
 - Alteração de KPI deve atualizar `frontend/src/constants/kpiDictionary.ts`; alteração de regra/fonte de gráfico deve atualizar `frontend/src/constants/chartDictionary.ts`.
 - Produção é controlada por operador humano: não executar `iniciar-prod.bat`, não reiniciar processos e não liberar portas 5010/5173 por automação.
 - Arquivos, SQL e seeds devem permanecer em UTF-8 e sem mojibake.
 
 ## Protocolo de Planejamento de Requisições
+- Antes de iniciar qualquer planejamento ou escrita de código, a IA DEVE OBRIGATORIAMENTE ler `AGENTS.md` do projeto local e `CONTEXTO_GLOBAL.md`.
+- O `CONTEXTO_GLOBAL.md` dita as regras do ecossistema e o `AGENTS.md` dita as regras locais. Falhar em ler e aplicar essas regras resulta em quebra arquitetural.
 - Ao receber uma nova requisição para este projeto, atuar como Arquiteto de Software e usar este `states.md` como ESTADO ATUAL.
 - A análise deve respeitar a stack, a arquitetura, as fronteiras de banco e os contratos de dados descritos neste arquivo.
 - A resposta de planejamento deve retornar somente o bloco `## Tarefas Pendentes`, formatado em Markdown.

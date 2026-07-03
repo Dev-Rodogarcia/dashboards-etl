@@ -22,20 +22,22 @@ public class ViagemJustificativaService {
 
     @Transactional
     public ViagemJustificativaDTO salvar(ViagemJustificativaRequestDTO request) {
-        ViagemJustificativa entity = repository.findByCodSolicitacao(request.codSolicitacao())
+        ViagemJustificativa entity = repository.findAnyByCodSolicitacao(request.codSolicitacao())
                 .orElseGet(ViagemJustificativa::new);
 
         entity.setCodSolicitacao(request.codSolicitacao());
         entity.setJustificativa(request.justificativa().trim());
         entity.setCriadoEm(OffsetDateTime.now(ZoneOffset.UTC));
         entity.setCriadoPor(usuarioAtual());
+        entity.setAtivo(true);
 
         return toDto(repository.save(entity));
     }
 
     @Transactional
     public void excluir(Long codSolicitacao) {
-        repository.deleteByCodSolicitacao(codSolicitacao);
+        repository.findByCodSolicitacao(codSolicitacao)
+                .ifPresent(repository::delete);
     }
 
     private ViagemJustificativaDTO toDto(ViagemJustificativa entity) {

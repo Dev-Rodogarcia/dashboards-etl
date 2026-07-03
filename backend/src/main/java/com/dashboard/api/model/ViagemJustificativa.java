@@ -7,9 +7,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "viagem_justificativas")
+@SQLDelete(sql = "UPDATE viagem_justificativas SET ativo = 0 WHERE id = ?")
+@SQLRestriction("ativo = 1")
 public class ViagemJustificativa {
 
     @Id
@@ -27,6 +31,9 @@ public class ViagemJustificativa {
 
     @Column(name = "criado_por", nullable = false, length = 255)
     private String criadoPor;
+
+    @Column(name = "ativo", nullable = false)
+    private Boolean ativo = true;
 
     public Long getId() {
         return id;
@@ -62,5 +69,13 @@ public class ViagemJustificativa {
 
     public void setCriadoPor(String criadoPor) {
         this.criadoPor = criadoPor;
+    }
+
+    public Boolean getAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(Boolean ativo) {
+        this.ativo = ativo;
     }
 }
