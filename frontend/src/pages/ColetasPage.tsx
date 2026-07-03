@@ -310,7 +310,7 @@ export default function ColetasPage() {
 
     return buildBaseLineOption(isDark, buildBaseBarOption(isDark, {
       legend: { show: false },
-      grid: { top: 28, right: 54, bottom: 34, left: 42, containLabel: true },
+      grid: { top: 28, right: 20, bottom: 0, left: 20, containLabel: true },
       tooltip: {
         trigger: 'axis',
         formatter: (params: unknown) => {
@@ -491,7 +491,7 @@ export default function ColetasPage() {
     const agingColors = [tokens.palette[2], tokens.palette[8], tokens.palette[1], tokens.palette[3]];
 
     return buildBaseBarOption(isDark, {
-      grid: { top: 22, right: 18, bottom: 32, left: 34, containLabel: true },
+      grid: { top: 22, right: 18, bottom: 0, left: 34, containLabel: true },
       xAxis: { type: 'category', data: aging.map((item) => item.faixa) },
       yAxis: { type: 'value' },
       series: [{
