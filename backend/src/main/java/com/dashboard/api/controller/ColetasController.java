@@ -74,11 +74,12 @@ public class ColetasController {
     public ResponseEntity<List<ColetasCidadeOrigemDTO>> cidadesPorRegiao(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
-            @RequestParam String regiao,
+            @RequestParam(required = false) String regiaoLogistica,
+            @RequestParam(required = false) String regiao,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(coletasService.buscarCidadesPorRegiao(
                 FiltroRequestMapper.from(dataInicio, dataFim, params),
-                regiao
+                temTexto(regiaoLogistica) ? regiaoLogistica : regiao
         ));
     }
 
@@ -89,5 +90,9 @@ public class ColetasController {
             @RequestParam(defaultValue = "100") int limite,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(coletasService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
+    }
+
+    private boolean temTexto(String valor) {
+        return valor != null && !valor.isBlank();
     }
 }

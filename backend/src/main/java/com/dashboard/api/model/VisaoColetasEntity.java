@@ -60,6 +60,9 @@ public class VisaoColetasEntity {
     @Column(name = "[Região da Coleta]")
     private String regiaoColeta;
 
+    @Column(name = "[Região Logística]")
+    private String regiaoLogistica;
+
     @Column(name = "[Filial]")
     private String filialNome;
 
@@ -133,6 +136,10 @@ public class VisaoColetasEntity {
 
     public String getRegiaoColeta() {
         return regiaoColeta;
+    }
+
+    public String getRegiaoLogistica() {
+        return regiaoLogistica;
     }
 
     public String getFilialNome() {

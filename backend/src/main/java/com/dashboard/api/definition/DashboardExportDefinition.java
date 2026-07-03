@@ -16,7 +16,7 @@ public enum DashboardExportDefinition {
                     "filiais", List.of("[Filial]"),
                     "clientes", List.of("[Cliente]"),
                     "status", List.of("[Status]"),
-                    "regioes", List.of("[Região da Coleta]"),
+                    "regioes", List.of("[Região Logística]"),
                     "usuarios", List.of("[Usuario]")
             ),
             List.of("[Solicitacao] DESC", "[Coleta] DESC"),

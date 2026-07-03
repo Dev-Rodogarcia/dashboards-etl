@@ -76,12 +76,14 @@ export const chartDictionary = {
   },
   coletasOrigem: {
     ...coletasBase,
-    descricao: 'Classifica as coletas pela região ou cidade de origem para revelar onde a demanda nasce e qual peso operacional cada localidade gera.',
+    cruzamentos:
+      'CTE base_filtrada -> base_deduplicada por ROW_NUMBER() PARTITION BY [ID]. A view vw_coletas_powerbi resolve [Região Logística] por dbo.dim_regiao_logistica_rules antes do Dashboard agregar.',
+    descricao: 'Classifica as coletas pela região logística ou cidade de origem para revelar onde a demanda nasce e qual peso operacional cada localidade gera.',
     calculoTecnico: 'COUNT(DISTINCT [Coleta]); SUM(COALESCE([Peso Taxado], 0))',
     calculoNegocio:
-      'Conta coletas únicas por localidade e soma o peso taxado associado, combinando volume de solicitações com impacto físico de carga por origem.',
+      'Conta coletas únicas por região logística resolvida no banco e soma o peso taxado associado. A região vem primeiro de faixa de CEP, depois de Cidade/UF e, sem regra encontrada, de Cidade - UF.',
     agrupamento:
-      "GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Região da Coleta]))), N''), N'Sem mapeamento') ou GROUP BY cidade normalizada no drill",
+      "GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Região Logística]))), N''), N'Sem regiao logistica') ou GROUP BY cidade normalizada no drill filtrado pela região logística",
   },
   coletasAging: {
     ...coletasBase,

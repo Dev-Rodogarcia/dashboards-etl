@@ -102,8 +102,8 @@ function HistoricoPeriodoActions({
 export default function ColetasPage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const { isDark } = useEchartsTheme();
-  const [regiaoSelecionada, setRegiaoSelecionada] = useState<string | null>(null);
-  const [regiaoEmFoco, setRegiaoEmFoco] = useState<string | null>(null);
+  const [regiaoLogisticaSelecionada, setRegiaoLogisticaSelecionada] = useState<string | null>(null);
+  const [regiaoLogisticaEmFoco, setRegiaoLogisticaEmFoco] = useState<string | null>(null);
   const [origemLimite, setOrigemLimite] = useState<(typeof ORIGEM_LIMITES)[number]>(10);
   const [historicoPeriodo, setHistoricoPeriodo] = useState<ColetasHistoricoPeriodo>('dias');
   const filiais = useFiliais();
@@ -130,7 +130,7 @@ export default function ColetasPage() {
   const serie = useColetasSerie(filtro);
   const graficos = useColetasGraficos(filtro);
   const historicoPerformanceQuery = useColetasHistoricoPerformance(filtro, historicoPeriodo);
-  const cidadesOrigem = useColetasCidadesOrigem(filtro, regiaoSelecionada);
+  const cidadesOrigem = useColetasCidadesOrigem(filtro, regiaoLogisticaSelecionada);
   const filtrosTabela = useAnalyticalTableFilters();
   const paginacaoResetKey = useMemo(() => JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }), [filtro, filtrosTabela.resetKey]);
   const paginacaoTabela = useTabelaPaginadaState(paginacaoResetKey);
@@ -160,20 +160,20 @@ export default function ColetasPage() {
   const tabelaConteudo = tabela.data?.conteudo ?? EMPTY_ARRAY;
   const usuariosNomes = useMemo(() => (usuarios.data ?? EMPTY_ARRAY).map((item) => item.nome), [usuarios.data]);
   const regioesOrigemOrdenadas = useMemo(() => regioesOrigem
-    .map((item) => ({ nome: item.regiao, totalColetas: item.totalColetas, pesoTaxado: item.pesoTaxado }))
+    .map((item) => ({ nome: item.regiaoLogistica, totalColetas: item.totalColetas, pesoTaxado: item.pesoTaxado }))
     .sort((a, b) => b.totalColetas - a.totalColetas), [regioesOrigem]);
   const cidadesOrigemOrdenadas = useMemo(() => cidadesOrigemData
     .map((item) => ({ nome: item.cidade, totalColetas: item.totalColetas, pesoTaxado: item.pesoTaxado }))
     .sort((a, b) => b.totalColetas - a.totalColetas), [cidadesOrigemData]);
   const origemData = useMemo(() => {
-    const origemDataCompleta = regiaoSelecionada ? cidadesOrigemOrdenadas : regioesOrigemOrdenadas;
+    const origemDataCompleta = regiaoLogisticaSelecionada ? cidadesOrigemOrdenadas : regioesOrigemOrdenadas;
     return origemDataCompleta.slice(0, origemLimite);
-  }, [cidadesOrigemOrdenadas, origemLimite, regiaoSelecionada, regioesOrigemOrdenadas]);
-  const regiaoDestinoDrilldown = useMemo(() => {
-    const regiaoEmFocoValida = regiaoEmFoco && regioesOrigemOrdenadas.some((item) => item.nome === regiaoEmFoco);
-    return regiaoSelecionada ?? (regiaoEmFocoValida ? regiaoEmFoco : regioesOrigemOrdenadas[0]?.nome ?? null);
-  }, [regiaoEmFoco, regiaoSelecionada, regioesOrigemOrdenadas]);
-  const podeDrillDownOrigem = !regiaoSelecionada && Boolean(regiaoDestinoDrilldown);
+  }, [cidadesOrigemOrdenadas, origemLimite, regiaoLogisticaSelecionada, regioesOrigemOrdenadas]);
+  const regiaoLogisticaDrilldown = useMemo(() => {
+    const regiaoEmFocoValida = regiaoLogisticaEmFoco && regioesOrigemOrdenadas.some((item) => item.nome === regiaoLogisticaEmFoco);
+    return regiaoLogisticaSelecionada ?? (regiaoEmFocoValida ? regiaoLogisticaEmFoco : regioesOrigemOrdenadas[0]?.nome ?? null);
+  }, [regiaoLogisticaEmFoco, regiaoLogisticaSelecionada, regioesOrigemOrdenadas]);
+  const podeDrillDownOrigem = !regiaoLogisticaSelecionada && Boolean(regiaoLogisticaDrilldown);
   const agingMap = useMemo(() => new Map((graficos.data?.agingAbertas ?? EMPTY_ARRAY).map((item) => [item.faixa, item.total])), [graficos.data?.agingAbertas]);
   const aging = useMemo(() => AGING_BUCKETS.map((faixa) => ({ faixa, total: agingMap.get(faixa) ?? 0 })), [agingMap]);
   const statusTabelaOptions = useMemo(() => combinarStatusOptions(
@@ -305,7 +305,7 @@ export default function ColetasPage() {
 
   const origemOption: EChartsOption = useMemo(() => {
     const tokens = getEchartsThemeTokens(isDark);
-    const coletaColor = regiaoSelecionada ? tokens.palette[2] : tokens.palette[0];
+    const coletaColor = regiaoLogisticaSelecionada ? tokens.palette[2] : tokens.palette[0];
     const pesoColor = tokens.palette[1];
 
     return buildBaseLineOption(isDark, buildBaseBarOption(isDark, {
@@ -352,7 +352,7 @@ export default function ColetasPage() {
           name: 'Coletas',
           type: 'bar',
           data: origemData.map((item) => item.totalColetas),
-          cursor: regiaoSelecionada ? 'default' : 'pointer',
+          cursor: regiaoLogisticaSelecionada ? 'default' : 'pointer',
           itemStyle: { color: coletaColor },
           emphasis: {
             itemStyle: { color: coletaColor },
@@ -371,28 +371,28 @@ export default function ColetasPage() {
         },
       ],
     }));
-  }, [isDark, origemData, regiaoSelecionada]);
+  }, [isDark, origemData, regiaoLogisticaSelecionada]);
 
   const handleOrigemClick = useCallback((params: unknown) => {
-    if (regiaoSelecionada) {
+    if (regiaoLogisticaSelecionada) {
       return;
     }
     const nome = (params as { name?: string }).name;
     if (nome) {
-      setRegiaoEmFoco(nome);
-      setRegiaoSelecionada(nome);
+      setRegiaoLogisticaEmFoco(nome);
+      setRegiaoLogisticaSelecionada(nome);
     }
-  }, [regiaoSelecionada]);
+  }, [regiaoLogisticaSelecionada]);
 
   const handleOrigemMouseOver = useCallback((params: unknown) => {
-    if (regiaoSelecionada) {
+    if (regiaoLogisticaSelecionada) {
       return;
     }
     const nome = (params as { name?: string }).name;
     if (nome) {
-      setRegiaoEmFoco(nome);
+      setRegiaoLogisticaEmFoco(nome);
     }
-  }, [regiaoSelecionada]);
+  }, [regiaoLogisticaSelecionada]);
 
   const origemEvents = useMemo(() => ({
     click: handleOrigemClick,
@@ -400,20 +400,20 @@ export default function ColetasPage() {
   }), [handleOrigemClick, handleOrigemMouseOver]);
 
   const fazerDrillUpOrigem = useCallback(() => {
-    if (!regiaoSelecionada) {
+    if (!regiaoLogisticaSelecionada) {
       return;
     }
-    setRegiaoEmFoco(regiaoSelecionada);
-    setRegiaoSelecionada(null);
-  }, [regiaoSelecionada]);
+    setRegiaoLogisticaEmFoco(regiaoLogisticaSelecionada);
+    setRegiaoLogisticaSelecionada(null);
+  }, [regiaoLogisticaSelecionada]);
 
   const fazerDrillDownOrigem = useCallback(() => {
-    if (!podeDrillDownOrigem || !regiaoDestinoDrilldown) {
+    if (!podeDrillDownOrigem || !regiaoLogisticaDrilldown) {
       return;
     }
-    setRegiaoEmFoco(regiaoDestinoDrilldown);
-    setRegiaoSelecionada(regiaoDestinoDrilldown);
-  }, [podeDrillDownOrigem, regiaoDestinoDrilldown]);
+    setRegiaoLogisticaEmFoco(regiaoLogisticaDrilldown);
+    setRegiaoLogisticaSelecionada(regiaoLogisticaDrilldown);
+  }, [podeDrillDownOrigem, regiaoLogisticaDrilldown]);
 
   const origemActions = useMemo(() => (
     <div className="flex flex-wrap items-center justify-end gap-2">
@@ -435,10 +435,10 @@ export default function ColetasPage() {
           type="button"
           title="Drill up"
           aria-label="Drill up para regiões"
-          disabled={!regiaoSelecionada}
+          disabled={!regiaoLogisticaSelecionada}
           onClick={fazerDrillUpOrigem}
           className="flex h-7 w-7 items-center justify-center rounded-md transition disabled:cursor-not-allowed disabled:opacity-35"
-          style={{ color: regiaoSelecionada ? CORES.primaria : 'var(--color-text-muted)' }}
+          style={{ color: regiaoLogisticaSelecionada ? CORES.primaria : 'var(--color-text-muted)' }}
         >
           <ChevronUp size={14} />
         </button>
@@ -447,33 +447,33 @@ export default function ColetasPage() {
           onClick={fazerDrillUpOrigem}
           className="rounded-md px-2 py-1 text-[11px] font-semibold transition"
           style={{
-            backgroundColor: !regiaoSelecionada ? `${CORES.primaria}1F` : 'transparent',
-            color: !regiaoSelecionada ? CORES.primaria : 'var(--color-text-muted)',
+            backgroundColor: !regiaoLogisticaSelecionada ? `${CORES.primaria}1F` : 'transparent',
+            color: !regiaoLogisticaSelecionada ? CORES.primaria : 'var(--color-text-muted)',
           }}
         >
-          Regiões
+          Regiões logísticas
         </button>
         <ChevronRight size={12} style={{ color: 'var(--color-text-subtle)' }} />
         <button
           type="button"
-          title={regiaoSelecionada ? `Cidades de ${regiaoSelecionada}` : regiaoDestinoDrilldown ? `Drill down para ${regiaoDestinoDrilldown}` : 'Sem regiões para drill down'}
-          disabled={!podeDrillDownOrigem && !regiaoSelecionada}
+          title={regiaoLogisticaSelecionada ? `Cidades de ${regiaoLogisticaSelecionada}` : regiaoLogisticaDrilldown ? `Drill down para ${regiaoLogisticaDrilldown}` : 'Sem regiões para drill down'}
+          disabled={!podeDrillDownOrigem && !regiaoLogisticaSelecionada}
           onClick={() => {
-            if (!regiaoSelecionada) {
+            if (!regiaoLogisticaSelecionada) {
               fazerDrillDownOrigem();
             }
           }}
           className="max-w-36 truncate rounded-md px-2 py-1 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-55"
           style={{
-            backgroundColor: regiaoSelecionada ? `${CORES.sucesso}1F` : 'transparent',
-            color: regiaoSelecionada || podeDrillDownOrigem ? CORES.sucesso : 'var(--color-text-muted)',
+            backgroundColor: regiaoLogisticaSelecionada ? `${CORES.sucesso}1F` : 'transparent',
+            color: regiaoLogisticaSelecionada || podeDrillDownOrigem ? CORES.sucesso : 'var(--color-text-muted)',
           }}
         >
           Cidades
         </button>
         <button
           type="button"
-          title={regiaoDestinoDrilldown ? `Drill down para ${regiaoDestinoDrilldown}` : 'Sem regiões para drill down'}
+          title={regiaoLogisticaDrilldown ? `Drill down para ${regiaoLogisticaDrilldown}` : 'Sem regiões para drill down'}
           aria-label="Drill down para cidades"
           disabled={!podeDrillDownOrigem}
           onClick={fazerDrillDownOrigem}
@@ -484,7 +484,7 @@ export default function ColetasPage() {
         </button>
       </div>
     </div>
-  ), [fazerDrillDownOrigem, fazerDrillUpOrigem, origemLimite, podeDrillDownOrigem, regiaoDestinoDrilldown, regiaoSelecionada]);
+  ), [fazerDrillDownOrigem, fazerDrillUpOrigem, origemLimite, podeDrillDownOrigem, regiaoLogisticaDrilldown, regiaoLogisticaSelecionada]);
 
   const agingOption: EChartsOption = useMemo(() => {
     const tokens = getEchartsThemeTokens(isDark);
@@ -513,7 +513,7 @@ export default function ColetasPage() {
     { chave: 'status', label: 'Status', filtroTabela: 'status', formato: (valor) => <StatusBadge status={String(valor)} /> },
     { chave: 'filial', label: 'Filial' },
     { chave: 'cliente', label: 'Cliente', largura: '220px', filtroTabela: 'razaoSocial' },
-    { chave: 'regiaoColeta', label: 'Região', filtroTabela: 'origem' },
+    { chave: 'regiaoLogistica', label: 'Região Logística', filtroTabela: 'origem' },
     { chave: 'volumes', label: 'Volumes' },
     { chave: 'pesoTaxado', label: 'Peso', formato: (valor) => formatarPeso(Number(valor ?? 0)) },
     { chave: 'valorNf', label: 'Valor NF', formato: (valor) => formatarMoeda(Number(valor ?? 0)) },
@@ -572,14 +572,14 @@ export default function ColetasPage() {
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ChartWrapper
-          titulo="Coletas por Região de Origem e Cidade"
+          titulo="Coletas por Região Logística e Cidade"
           chartKey="coletasOrigem"
           option={origemOption}
           actions={origemActions}
           onEvents={origemEvents}
-          isLoading={regiaoSelecionada ? cidadesOrigem.isLoading : graficos.isLoading}
+          isLoading={regiaoLogisticaSelecionada ? cidadesOrigem.isLoading : graficos.isLoading}
           isEmpty={origemData.length === 0}
-          emptyMessage={regiaoSelecionada ? 'Nenhuma cidade encontrada para a região selecionada.' : 'Nenhuma região encontrada para o período selecionado.'}
+          emptyMessage={regiaoLogisticaSelecionada ? 'Nenhuma cidade encontrada para a região logística selecionada.' : 'Nenhuma região logística encontrada para o período selecionado.'}
         />
         <ChartWrapper titulo="Coletas em aberto" chartKey="coletasAging" option={agingOption} isLoading={graficos.isLoading} isEmpty={false} altura={300} />
       </div>

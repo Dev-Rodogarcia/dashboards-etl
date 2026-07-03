@@ -995,12 +995,12 @@ public class DashboardExportSqlBuilder {
     private TableFilterColumns colunasTabela(DashboardExportDefinition definition) {
         return switch (definition) {
             case COLETAS -> new TableFilterColumns(
-                    List.of("[Cliente]", "[Cidade]", "[UF]", "[Região da Coleta]", "[Status]"),
+                    List.of("[Cliente]", "[Cidade]", "[UF]", "[Região Logística]", "[Status]"),
                     List.of("[Coleta]", "[Numero Manifesto]"),
                     List.of(),
                     List.of("[Status]"),
                     List.of("[Cliente]"),
-                    List.of("[Cidade]", "[UF]", "[Região da Coleta]"),
+                    List.of("[Cidade]", "[UF]", "[Região Logística]"),
                     List.of()
             );
             case FRETES -> new TableFilterColumns(
@@ -1073,6 +1073,7 @@ public class DashboardExportSqlBuilder {
                 put(colunas, "filial", texto("[Filial]"));
                 put(colunas, "cliente", texto("[Cliente]"));
                 put(colunas, "regiaoColeta", texto("[Região da Coleta]"));
+                put(colunas, "regiaoLogistica", texto("[Região Logística]"));
                 put(colunas, "volumes", numero("[Volumes]"));
                 put(colunas, "pesoTaxado", numero("[Peso Taxado]"));
                 put(colunas, "valorNf", numero("[Valor NF]"));

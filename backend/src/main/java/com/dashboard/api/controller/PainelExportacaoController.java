@@ -1,5 +1,6 @@
 package com.dashboard.api.controller;
 
+import com.dashboard.api.contract.ColetasViewContractValidator;
 import com.dashboard.api.definition.DashboardExportDefinition;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.TotalRegistrosDTO;
@@ -33,6 +34,7 @@ public class PainelExportacaoController {
     private final IndicadoresGestaoAVistaService horariosCorteService;
     private final TrackingService trackingService;
     private final EtlSaudeService etlSaudeService;
+    private final ColetasViewContractValidator coletasViewContractValidator;
 
     public PainelExportacaoController(
             DashboardExportService dashboardExportService,
@@ -42,7 +44,8 @@ public class PainelExportacaoController {
             IndenizacaoMercadoriasIndicadorService indenizacaoMercadoriasService,
             IndicadoresGestaoAVistaService horariosCorteService,
             TrackingService trackingService,
-            EtlSaudeService etlSaudeService
+            EtlSaudeService etlSaudeService,
+            ColetasViewContractValidator coletasViewContractValidator
     ) {
         this.dashboardExportService = dashboardExportService;
         this.performanceEntregaService = performanceEntregaService;
@@ -52,6 +55,7 @@ public class PainelExportacaoController {
         this.horariosCorteService = horariosCorteService;
         this.trackingService = trackingService;
         this.etlSaudeService = etlSaudeService;
+        this.coletasViewContractValidator = coletasViewContractValidator;
     }
 
     @GetMapping("/coletas/exportacao")
@@ -61,6 +65,7 @@ public class PainelExportacaoController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
     ) {
+        coletasViewContractValidator.validarSolicitacaoNativa();
         return exportar(DashboardExportDefinition.COLETAS, dataInicio, dataFim, params);
     }
 
@@ -71,6 +76,7 @@ public class PainelExportacaoController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params
     ) {
+        coletasViewContractValidator.validarSolicitacaoNativa();
         return total(DashboardExportDefinition.COLETAS, dataInicio, dataFim, params);
     }
 

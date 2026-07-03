@@ -58,12 +58,12 @@ export function useColetasHistoricoPerformance(
   });
 }
 
-export function useColetasCidadesOrigem(filtro: ColetasFiltro, regiao: string | null) {
+export function useColetasCidadesOrigem(filtro: ColetasFiltro, regiaoLogistica: string | null) {
   return useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
-    queryKey: ['coletas', 'graficos', 'cidades-origem', filtro, regiao],
-    queryFn: () => buscarColetasCidadesOrigem(filtro, regiao ?? ''),
-    enabled: Boolean(regiao),
+    queryKey: ['coletas', 'graficos', 'cidades-origem', filtro, regiaoLogistica],
+    queryFn: () => buscarColetasCidadesOrigem(filtro, regiaoLogistica ?? ''),
+    enabled: Boolean(regiaoLogistica),
     staleTime: STALE_TIME,
     retry: 1,
   });

@@ -23,6 +23,7 @@
 - A série gráfica de Performance de Entrega em Gestão à Vista usa o enum backend `NivelVisaoPerformance` (`RESPONSAVEL`, `REGIAO`, `CIDADE`) como contrato estrito de visão. O DTO expõe `label`, `filtro`, `visao`, totais físicos e percentual; o SQL seleciona e agrupa apenas colunas mapeadas pelo enum.
 - Componentes de seção de Gestão à Vista podem repassar `chartActions` e `chartEvents` ao `ChartWrapper`, permitindo breadcrumbs e drill-down em Apache ECharts sem duplicar wrappers visuais.
 - `ChartWrapper` tipa e encaminha `onEvents` diretamente ao `echarts-for-react`; dashboards com drill-down devem passar handlers de clique pelo wrapper, usar a seta do breadcrumb para retornar à raiz e deixar níveis indisponíveis com `disabled`/`cursor-not-allowed`.
+- O painel de Coletas consome a coluna `[Região Logística]` publicada por `dbo.vw_coletas_powerbi` para o gráfico e filtros de origem. A região bruta `[Região da Coleta]` permanece no contrato como dado de compatibilidade, enquanto `ColetasRegiaoOrigemDTO.regiaoLogistica` e `ColetaResumoDTO.regiaoLogistica` expõem a macro-região governada.
 
 ## Fluxo de Dados e Integrações
 - Fluxo web: React -> hooks React Query -> `src/api/endpoints` -> `clienteAxios` -> controllers Spring -> services -> repositories SQL/JPA -> SQL Server -> DTOs -> cards/gráficos/tabelas.
@@ -31,6 +32,7 @@
 - Endpoints de apoio: `/api/dimensoes`, `/api/admin/acesso`, `/api/admin/acesso/usuarios/importacao`, `/api/kpi-goals`, `/api/etl/quarentena`, paginação `/api/painel/*/tabela/paginada`, exportação `/api/painel/*/exportacao` e justificativas de Horário de Corte em `/api/painel/indicadores-gestao-a-vista/horarios-corte/justificativas`.
 - Frontend possui rotas protegidas para Coletas, Manifestos, Faturamento/Fretes, Performance, Tracking, Faturas por Cliente, Contas a Pagar, Cotações, Indicadores de Gestão à Vista, Executivo, ETL Saúde, Integrações e Administração.
 - Objetos analíticos lidos do ETL incluem `dbo.vw_coletas_powerbi`, `dbo.vw_fretes_powerbi`, `dbo.vw_manifestos_powerbi`, `dbo.vw_localizacao_cargas_powerbi`, `dbo.vw_contas_a_pagar_powerbi`, `dbo.vw_cotacoes_powerbi`, `dbo.vw_sinistros_powerbi`, `dbo.vw_fato_manifestos_dash`, `dbo.fato_fretes_faturamento`, `dbo.fato_gestao_vista_fretes`, `dbo.fato_gestao_vista_coletores`, `dbo.fato_gestao_vista_faturas`, `dbo.fato_gestao_vista_manifestos`, `dbo.dim_calendario` e `dbo.vw_dim_*`.
+- A região logística de Coletas é resolvida no ETL por `dbo.dim_regiao_logistica_rules` e publicada em `dbo.vw_coletas_powerbi.[Região Logística]`; o Dashboard apenas consome essa coluna por nome simples, sem hardcode de database.
 - Estado próprio em `DASHBOARDS`: schema `acesso` para usuários, papéis, permissões, setores, filiais permitidas, refresh tokens, audit logs, metas de KPI, metas de fretes, metas de custo de manifestos e comunicados; `dbo.viagem_justificativas` para justificativas de viagens Raster usadas pelo indicador de Horário de Corte.
 - Integração adicional: `IntegracaoSateliteClient` aponta para `APP_INTEGRATION_SATELITE_URL` com padrão `http://127.0.0.1:19090`.
 - Builds: dev usa backend 5011 e frontend 5174; produção usa backend 5010 e frontend 5173, com Cloudflare Tunnel previsto.
@@ -63,6 +65,7 @@
 - Performance de Entrega em Gestão à Vista: o ranking/drill-down percorre `RESPONSAVEL -> REGIAO -> CIDADE`. A fonte é `dbo.fato_gestao_vista_fretes`, filtrada por `indicador_codigo = 'PE'`, `data_referencia >= :dataInicio`, `data_referencia < :dataFimExclusivo`, `is_linha_valida_indicador = 1`, `excluido_na_origem = 0` e escopo de filiais. Responsável e região selecionados viram filtros parametrizados; agrupamento, totalizações e Top 50 são calculados no SQL Server.
 - Horário de Corte: viagens Raster são avaliadas pela saída real contra o horário de corte da rota com tolerância de 10 minutos; SMs com justificativa ativa em `dbo.viagem_justificativas` contam como no horário, expõem o texto da justificativa na tabela/exportação CSV e podem ter a justificativa inativada por DELETE HTTP idempotente. O banco preserva o registro com `ativo = 0`, e as queries nativas filtram `vj.ativo = 1` para retornar a SM ao status original de contabilização.
 - Alteração de KPI deve atualizar `frontend/src/constants/kpiDictionary.ts`; alteração de regra/fonte de gráfico deve atualizar `frontend/src/constants/chartDictionary.ts`.
+- Coletas por Região Logística: o nível raiz do gráfico usa a macro-região resolvida no banco por precedência Faixa de CEP -> Cidade/UF -> Cidade - UF; o drill-down de segundo nível lista as cidades daquela região logística, sempre com agrupamento e totais calculados no SQL Server.
 - Produção é controlada por operador humano: não executar `iniciar-prod.bat`, não reiniciar processos e não liberar portas 5010/5173 por automação.
 - Backup operacional do banco próprio é versionado em `scripts/backup-dashboard-db.ps1`, com `BACKUP DATABASE`, `CHECKSUM`, `RESTORE VERIFYONLY`, bloqueio para bancos fora de `DASHBOARDS`/`DASHBOARDS_DEV` e retenção local segura. A rotina diária pode ser registrada pelo operador com `scripts/install-dashboard-backup-task.ps1`.
 - Arquivos, SQL e seeds devem permanecer em UTF-8 e sem mojibake.
@@ -77,4 +80,4 @@
 - É proibido incluir saudações, conclusões, explicações fora dos bullets ou reescrever outras seções durante a resposta de planejamento.
 
 ## Tarefas Pendentes
-- Nenhuma pendência registrada no momento.
+Nenhuma tarefa pendente registrada.

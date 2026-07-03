@@ -52,6 +52,27 @@ public class ColetasViewContractValidator {
             );
         }
 
+        validarRegiaoLogisticaPublicada();
         validado = true;
+    }
+
+    private void validarRegiaoLogisticaPublicada() {
+        String tipo = jdbcTemplate.query("""
+                SELECT system_type_name
+                FROM sys.dm_exec_describe_first_result_set(
+                    N'SELECT TOP (0) [Região Logística] FROM dbo.vw_coletas_powerbi',
+                    NULL,
+                    0
+                )
+                WHERE error_number IS NULL
+                  AND name = N'Região Logística'
+                """, rs -> rs.next() ? rs.getString(1) : null);
+
+        if (tipo == null || tipo.isBlank()) {
+            throw new IllegalStateException(
+                    "Contrato invalido: vw_coletas_powerbi.[Região Logística] nao encontrada. "
+                            + "Republique a view no repositorio etl-extracao-dados antes de iniciar o Dashboard."
+            );
+        }
     }
 }

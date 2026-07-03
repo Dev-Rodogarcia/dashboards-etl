@@ -104,6 +104,13 @@ export const KpiDictionary = {
       calculo: 'Soma do Valor das Notas Fiscais.',
       observacao: periodoColetas,
     },
+    regiaoLogistica: {
+      titulo: 'Coletas por Região Logística',
+      descricao: 'Distribuição de solicitações por macro-região logística de origem.',
+      calculo: 'Contagem de Coletas únicas e soma do Peso Taxado agrupadas pela Região Logística publicada pelo ETL.',
+      observacao:
+        `${periodoColetas} A região logística é resolvida no banco por Faixa de CEP; quando não há faixa aplicável, usa Cidade/UF; sem regra encontrada, preserva Cidade - UF.`,
+    },
   },
 
   manifestos: {

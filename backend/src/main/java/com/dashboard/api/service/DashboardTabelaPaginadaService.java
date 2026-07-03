@@ -279,6 +279,7 @@ public class DashboardTabelaPaginadaService {
                 texto(row, "Cidade"),
                 texto(row, "UF"),
                 texto(row, "Região da Coleta", "Regiao da Coleta"),
+                texto(row, "Região Logística", "Regiao Logistica"),
                 texto(row, "Filial"),
                 texto(row, "Usuario", "Usuário"),
                 texto(row, "Motivo Cancel."),

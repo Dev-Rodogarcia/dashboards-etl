@@ -20,7 +20,7 @@ class ColetasViewContractValidatorTest {
     @Test
     @SuppressWarnings("unchecked")
     void validarSolicitacaoNativaAceitaTipoDate() {
-        when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class))).thenReturn("date");
+        when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class))).thenReturn("date", "nvarchar(100)");
 
         ColetasViewContractValidator validator = new ColetasViewContractValidator(jdbcTemplate);
 

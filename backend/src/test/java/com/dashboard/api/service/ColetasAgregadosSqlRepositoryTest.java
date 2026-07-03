@@ -94,7 +94,7 @@ class ColetasAgregadosSqlRepositoryTest {
         assertThat(sqlCaptor.getValue())
                 .contains("COUNT(DISTINCT [Coleta]) AS total_coletas")
                 .contains("SUM(COALESCE([Peso Taxado], 0)) AS peso_taxado")
-                .contains("GROUP BY COALESCE(NULLIF(LTRIM(RTRIM([Região da Coleta]))");
+                .contains("GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Região Logística])))");
     }
 
     @Test

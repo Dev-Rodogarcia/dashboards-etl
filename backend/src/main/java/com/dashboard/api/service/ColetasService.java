@@ -63,6 +63,7 @@ public class ColetasService {
 
     public List<ColetaResumoDTO> buscarTabela(FiltroConsultaDTO filtro, int limite) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        contractValidator.validarSolicitacaoNativa();
         int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 100, 200);
         return tabelaPaginadaService.buscarPrimeiraPaginaColetas(filtro, limiteAplicado);
     }
@@ -102,15 +103,15 @@ public class ColetasService {
         );
     }
 
-    public List<ColetasCidadeOrigemDTO> buscarCidadesPorRegiao(FiltroConsultaDTO filtro, String regiao) {
+    public List<ColetasCidadeOrigemDTO> buscarCidadesPorRegiao(FiltroConsultaDTO filtro, String regiaoLogistica) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
         contractValidator.validarSolicitacaoNativa();
 
-        if (!temTexto(regiao)) {
+        if (!temTexto(regiaoLogistica)) {
             return List.of();
         }
 
-        return agregadosSqlRepository.buscarCidadesOrigem(filtro, regiao.trim());
+        return agregadosSqlRepository.buscarCidadesOrigem(filtro, regiaoLogistica.trim());
     }
 
     private boolean temTexto(String valor) {

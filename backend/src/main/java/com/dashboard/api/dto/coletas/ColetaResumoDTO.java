@@ -18,6 +18,7 @@ public record ColetaResumoDTO(
         String cidade,
         String uf,
         String regiaoColeta,
+        String regiaoLogistica,
         String filial,
         String usuario,
         String motivoCancelamento,

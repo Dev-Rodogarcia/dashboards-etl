@@ -39,9 +39,9 @@ export async function buscarColetasHistoricoPerformance(
   return data;
 }
 
-export async function buscarColetasCidadesOrigem(filtro: ColetasFiltro, regiao: string): Promise<ColetasCidadeOrigem[]> {
+export async function buscarColetasCidadesOrigem(filtro: ColetasFiltro, regiaoLogistica: string): Promise<ColetasCidadeOrigem[]> {
   const params = montarQueryParams(filtro);
-  params.set('regiao', regiao);
+  params.set('regiaoLogistica', regiaoLogistica);
   const { data } = await clienteAxios.get<ColetasCidadeOrigem[]>('/api/painel/coletas/graficos/cidades', {
     params,
   });

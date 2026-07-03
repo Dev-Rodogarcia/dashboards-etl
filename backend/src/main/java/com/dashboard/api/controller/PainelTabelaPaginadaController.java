@@ -1,5 +1,6 @@
 package com.dashboard.api.controller;
 
+import com.dashboard.api.contract.ColetasViewContractValidator;
 import com.dashboard.api.dto.coletas.ColetaResumoDTO;
 import com.dashboard.api.dto.contaspagar.ContaPagarResumoDTO;
 import com.dashboard.api.dto.cotacoes.CotacaoResumoDTO;
@@ -29,10 +30,16 @@ public class PainelTabelaPaginadaController {
 
     private final DashboardTabelaPaginadaService tabelaPaginadaService;
     private final TrackingService trackingService;
+    private final ColetasViewContractValidator coletasViewContractValidator;
 
-    public PainelTabelaPaginadaController(DashboardTabelaPaginadaService tabelaPaginadaService, TrackingService trackingService) {
+    public PainelTabelaPaginadaController(
+            DashboardTabelaPaginadaService tabelaPaginadaService,
+            TrackingService trackingService,
+            ColetasViewContractValidator coletasViewContractValidator
+    ) {
         this.tabelaPaginadaService = tabelaPaginadaService;
         this.trackingService = trackingService;
+        this.coletasViewContractValidator = coletasViewContractValidator;
     }
 
     @GetMapping("/coletas/tabela/paginada")
@@ -44,6 +51,7 @@ public class PainelTabelaPaginadaController {
             @RequestParam(defaultValue = "10") int tamanhoPagina,
             @RequestParam MultiValueMap<String, String> params
     ) {
+        coletasViewContractValidator.validarSolicitacaoNativa();
         return ResponseEntity.ok(tabelaPaginadaService.buscarColetas(filtro(dataInicio, dataFim, params), pagina, tamanhoPagina));
     }
 
