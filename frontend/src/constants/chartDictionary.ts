@@ -478,14 +478,14 @@ export const chartDictionary = {
       'Conta execuções do dia, identifica quantas falharam e calcula a proporção de execuções bem-sucedidas sobre o total processado.',
     agrupamento: 'GROUP BY data_execucao',
   },
-  etlVolumeDiario: {
-    tabelasOrigem: 'vw_bi_monitoramento',
-    cruzamentos: 'Nenhum JOIN; leitura via DashboardExportDefinition.ETL_SAUDE.',
-    descricao: 'Monitora volume de registros processados e duração média das execuções para acompanhar saúde e capacidade do ETL.',
-    calculoTecnico: 'SUM(total_registros); AVG(CAST(duracao_segundos AS FLOAT))',
+  etlInsercoesAtualizacoes: {
+    tabelasOrigem: 'dbo.log_extracoes',
+    cruzamentos: 'Nenhum JOIN; leitura direta da auditoria operacional de extrações.',
+    descricao: 'Mostra a evolução diária das operações de inserção/persistência e das atualizações idempotentes registradas pelo ETL.',
+    calculoTecnico: 'SUM(COALESCE(registros_extraidos, 0)); SUM(COALESCE(noop_count, 0)); filtro sargable por timestamp_inicio.',
     calculoNegocio:
-      'Soma os registros movimentados no dia e calcula a duração média das execuções, permitindo detectar queda de volume ou lentidão.',
-    agrupamento: 'GROUP BY data_execucao',
+      'Agrupa as extrações pelo dia de início, soma os registros gravados no log como inserções/persistências e soma os no-op idempotentes como atualizações já reconhecidas pelo destino.',
+    agrupamento: 'GROUP BY CAST(timestamp_inicio AS DATE)',
   },
 } as const satisfies Record<string, ChartDefinition>;
 

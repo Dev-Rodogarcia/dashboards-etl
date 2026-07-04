@@ -1,6 +1,7 @@
 package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.etl.EtlExecucaoTrendPointDTO;
+import com.dashboard.api.dto.etl.EtlInsercoesAtualizacoesPointDTO;
 import com.dashboard.api.dto.etl.EtlLogExtracaoAuditoriaDTO;
 import com.dashboard.api.dto.etl.EtlSaudeChartsDTO;
 import com.dashboard.api.dto.etl.EtlSaudeOverviewDTO;
@@ -46,6 +47,16 @@ public class EtlSaudeController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(etlSaudeService.buscarSerie(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
+    @GetMapping("/evolucao-insercoes-atualizacoes")
+    public ResponseEntity<List<EtlInsercoesAtualizacoesPointDTO>> evolucaoInsercoesAtualizacoes(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(etlSaudeService.buscarEvolucaoInsercoesAtualizacoes(
+                FiltroRequestMapper.from(dataInicio, dataFim, params)
+        ));
     }
 
     @GetMapping("/graficos")

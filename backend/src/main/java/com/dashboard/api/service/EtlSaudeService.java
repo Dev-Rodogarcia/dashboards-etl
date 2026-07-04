@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.etl.EtlExecucaoTrendPointDTO;
+import com.dashboard.api.dto.etl.EtlInsercoesAtualizacoesPointDTO;
 import com.dashboard.api.dto.etl.EtlLogExtracaoAuditoriaDTO;
 import com.dashboard.api.dto.etl.EtlSaudeChartsDTO;
 import com.dashboard.api.dto.etl.EtlSaudeOverviewDTO;
@@ -46,6 +47,11 @@ public class EtlSaudeService {
     public List<EtlExecucaoTrendPointDTO> buscarSerie(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
         return sqlRepository.buscarSerie(filtro);
+    }
+
+    public List<EtlInsercoesAtualizacoesPointDTO> buscarEvolucaoInsercoesAtualizacoes(FiltroConsultaDTO filtro) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        return sqlRepository.buscarEvolucaoInsercoesAtualizacoes(filtro);
     }
 
     public List<EtlLogExtracaoAuditoriaDTO> buscarTabela(FiltroConsultaDTO filtro) {

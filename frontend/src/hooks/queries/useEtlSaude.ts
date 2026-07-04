@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import {
+  buscarEtlSaudeEvolucaoInsercoesAtualizacoes,
   buscarEtlSaudeGraficos,
   buscarEtlSaudeOverview,
   buscarEtlSaudeSerie,
@@ -27,6 +28,16 @@ export function useEtlSaudeSerie(filtro: FiltroQuery) {
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['etl-saude', 'serie', filtro],
     queryFn: () => buscarEtlSaudeSerie(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useEtlSaudeEvolucaoInsercoesAtualizacoes(filtro: FiltroQuery) {
+  return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
+    queryKey: ['etl-saude', 'evolucao-insercoes-atualizacoes', filtro],
+    queryFn: () => buscarEtlSaudeEvolucaoInsercoesAtualizacoes(filtro),
     staleTime: STALE_TIME,
     retry: 1,
   });

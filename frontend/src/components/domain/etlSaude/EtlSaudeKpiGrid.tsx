@@ -1,5 +1,7 @@
 import KpiCard from '../../shared/KpiCard';
 import KpiGrid from '../../shared/KpiGrid';
+import TooltipKpi from '../../shared/TooltipKpi';
+import { KpiDictionary, type KpiDefinition } from '../../../constants/kpiDictionary';
 import type { EtlSaudeOverview } from '../../../types/etlSaude';
 import { formatarNumero, formatarPorcentagem } from '../../../utils/formatadores';
 
@@ -8,6 +10,13 @@ interface EtlSaudeKpiGridProps {
 }
 
 type KpiValorTone = 'text-positive' | 'text-warning' | 'text-negative';
+
+interface EtlSaudeKpiCard {
+  definition: KpiDefinition;
+  label: string;
+  valor: string;
+  valorClassName?: string;
+}
 
 const KPI_VALOR_CLASS = 'text-2xl font-bold truncate';
 
@@ -37,25 +46,48 @@ function toneTempoMedio(segundos: number): KpiValorTone {
 }
 
 export default function EtlSaudeKpiGrid({ overview }: EtlSaudeKpiGridProps) {
+  const cards: EtlSaudeKpiCard[] = [
+    {
+      definition: KpiDictionary.etlSaude.tempoMedioExecucao,
+      label: 'Tempo Médio (s)',
+      valor: formatarNumero(overview.tempoMedioExecucaoSegundos, 2),
+      valorClassName: valorClass(toneTempoMedio(overview.tempoMedioExecucaoSegundos)),
+    },
+    {
+      definition: KpiDictionary.etlSaude.execucoesComErro,
+      label: 'Com Erro',
+      valor: formatarNumero(overview.execucoesComErro),
+      valorClassName: valorClass(toneTaxaFalha(overview.execucoesComErro, overview.totalExecucoes)),
+    },
+    {
+      definition: KpiDictionary.etlSaude.totalExecucoes,
+      label: 'Total Execuções',
+      valor: formatarNumero(overview.totalExecucoes),
+    },
+    {
+      definition: KpiDictionary.etlSaude.volumeProcessado,
+      label: 'Vol. Processado',
+      valor: formatarNumero(overview.volumeProcessadoTotal),
+    },
+    {
+      definition: KpiDictionary.etlSaude.taxaSucesso,
+      label: 'Taxa Sucesso',
+      valor: formatarPorcentagem(overview.taxaSucesso),
+      valorClassName: valorClass(toneTaxaSucesso(overview.taxaSucesso)),
+    },
+  ];
+
   return (
     <KpiGrid count={5} singleRowDesktop>
-      <KpiCard
-        label="Tempo Médio (s)"
-        valor={formatarNumero(overview.tempoMedioExecucaoSegundos, 2)}
-        valorClassName={valorClass(toneTempoMedio(overview.tempoMedioExecucaoSegundos))}
-      />
-      <KpiCard
-        label="Com Erro"
-        valor={formatarNumero(overview.execucoesComErro)}
-        valorClassName={valorClass(toneTaxaFalha(overview.execucoesComErro, overview.totalExecucoes))}
-      />
-      <KpiCard label="Total Execuções" valor={formatarNumero(overview.totalExecucoes)} />
-      <KpiCard label="Vol. Processado" valor={formatarNumero(overview.volumeProcessadoTotal)} />
-      <KpiCard
-        label="Taxa Sucesso"
-        valor={formatarPorcentagem(overview.taxaSucesso)}
-        valorClassName={valorClass(toneTaxaSucesso(overview.taxaSucesso))}
-      />
+      {cards.map((card) => (
+        <TooltipKpi key={card.label} definition={card.definition}>
+          <KpiCard
+            label={card.label}
+            valor={card.valor}
+            valorClassName={card.valorClassName}
+          />
+        </TooltipKpi>
+      ))}
     </KpiGrid>
   );
 }

@@ -39,6 +39,12 @@ export interface EtlExecucaoTrendPoint {
   duracaoMedia: number;
 }
 
+export interface EtlInsercoesAtualizacoesPoint {
+  dataReferencia: string;
+  insercoes: number;
+  atualizacoes: number;
+}
+
 export interface EtlCategoriaErro {
   categoria: string;
   total: number;

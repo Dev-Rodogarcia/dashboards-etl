@@ -8,6 +8,11 @@ Você atua como Engenheiro de Software Principal neste repositório (Interface R
 * **Leitura obrigatória:** Antes de qualquer planejamento, análise ou escrita de código, leia este `AGENTS.md`, o `states.md` local e o `CONTEXTO_GLOBAL.md` do ecossistema.
 * **Hierarquia de regras:** O `CONTEXTO_GLOBAL.md` dita as regras imutáveis do ecossistema; este `AGENTS.md` dita as regras locais do Dashboard; o `states.md` registra o estado atual e as tarefas pendentes. Em caso de conflito, preserve a integridade arquitetural e explicite a decisão.
 
+## REGRA DE SILÊNCIO ABSOLUTO (ZERO CHATTER)
+1. É EXPRESSAMENTE PROIBIDO resumir, explicar, repetir regras ou descrever o que você leu no `states.md` ou neste arquivo.
+2. Não faça divagações, não crie planos de ação no chat e não explique o código que vai escrever. Leia tudo silenciosamente.
+3. O seu único output permitido no chat é a execução direta: faça as modificações nos arquivos de código e atualize as Tarefas Pendentes no `states.md`.
+
 ---
 
 ## ⛔ Bloqueio Absoluto de Execução (Cerca Elétrica)

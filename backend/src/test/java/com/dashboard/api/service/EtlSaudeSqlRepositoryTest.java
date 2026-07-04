@@ -73,6 +73,28 @@ class EtlSaudeSqlRepositoryTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void buscarEvolucaoInsercoesAtualizacoesDeveAgruparPorTimestampInicioNoSqlServer() {
+        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(List.of());
+
+        repository().buscarEvolucaoInsercoesAtualizacoes(filtroPadrao());
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
+
+        assertThat(sqlCaptor.getValue())
+                .contains("CAST(log.timestamp_inicio AS DATE) AS data_referencia")
+                .contains("SUM(COALESCE(log.registros_extraidos, 0)) AS insercoes")
+                .contains("SUM(COALESCE(log.noop_count, 0)) AS atualizacoes")
+                .contains("FROM dbo.log_extracoes log")
+                .contains("log.timestamp_inicio >= :dataInicio")
+                .contains("log.timestamp_inicio < :dataFimExclusivo")
+                .contains("GROUP BY CAST(log.timestamp_inicio AS DATE)")
+                .contains("ORDER BY data_referencia");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void buscarGraficosDeveAgruparCategoriasErroNoSqlServer() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of());
@@ -110,8 +132,8 @@ class EtlSaudeSqlRepositoryTest {
                 .contains("log.noop_count")
                 .contains("log.mensagem")
                 .contains("FROM dbo.log_extracoes log")
-                .contains("log.timestamp_fim >= :dataInicio")
-                .contains("log.timestamp_fim < :dataFimExclusivo")
+                .contains("log.timestamp_inicio >= :dataInicio")
+                .contains("log.timestamp_inicio < :dataFimExclusivo")
                 .contains("ORDER BY log.timestamp_fim DESC, log.id DESC");
     }
 
@@ -130,8 +152,8 @@ class EtlSaudeSqlRepositoryTest {
         assertThat(sqlCaptor.getValue())
                 .contains("SELECT COUNT(1)")
                 .contains("FROM dbo.log_extracoes log")
-                .contains("log.timestamp_fim >= :dataInicio")
-                .contains("log.timestamp_fim < :dataFimExclusivo");
+                .contains("log.timestamp_inicio >= :dataInicio")
+                .contains("log.timestamp_inicio < :dataFimExclusivo");
     }
 
     private EtlSaudeSqlRepository repository() {

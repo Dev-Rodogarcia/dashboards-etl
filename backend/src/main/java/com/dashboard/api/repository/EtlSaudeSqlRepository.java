@@ -5,6 +5,7 @@ import com.dashboard.api.definition.DashboardExportDefinition;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.etl.EtlCategoriaErroDTO;
 import com.dashboard.api.dto.etl.EtlExecucaoTrendPointDTO;
+import com.dashboard.api.dto.etl.EtlInsercoesAtualizacoesPointDTO;
 import com.dashboard.api.dto.etl.EtlLogExtracaoAuditoriaDTO;
 import com.dashboard.api.dto.etl.EtlSaudeChartsDTO;
 import com.dashboard.api.dto.etl.EtlSaudeOverviewDTO;
@@ -131,6 +132,29 @@ public class EtlSaudeSqlRepository {
         ));
     }
 
+    public List<EtlInsercoesAtualizacoesPointDTO> buscarEvolucaoInsercoesAtualizacoes(FiltroConsultaDTO filtro) {
+        String sql = """
+                SELECT
+                    CAST(log.timestamp_inicio AS DATE) AS data_referencia,
+                    SUM(COALESCE(log.registros_extraidos, 0)) AS insercoes,
+                    SUM(COALESCE(log.noop_count, 0)) AS atualizacoes
+                FROM dbo.log_extracoes log
+                WHERE log.timestamp_inicio >= :dataInicio
+                  AND log.timestamp_inicio < :dataFimExclusivo
+                GROUP BY CAST(log.timestamp_inicio AS DATE)
+                ORDER BY data_referencia
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("dataInicio", filtro.dataInicio())
+                .addValue("dataFimExclusivo", filtro.dataFim().plusDays(1));
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new EtlInsercoesAtualizacoesPointDTO(
+                rs.getDate("data_referencia").toLocalDate(),
+                rs.getInt("insercoes"),
+                rs.getInt("atualizacoes")
+        ));
+    }
+
     public List<EtlLogExtracaoAuditoriaDTO> buscarTabela(FiltroConsultaDTO filtro) {
         String sql = """
                 SELECT TOP (5000)
@@ -144,8 +168,8 @@ public class EtlSaudeSqlRepository {
                     log.noop_count,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(MAX), log.mensagem))), N'') AS mensagem
                 FROM dbo.log_extracoes log
-                WHERE log.timestamp_fim >= :dataInicio
-                  AND log.timestamp_fim < :dataFimExclusivo
+                WHERE log.timestamp_inicio >= :dataInicio
+                  AND log.timestamp_inicio < :dataFimExclusivo
                 ORDER BY log.timestamp_fim DESC, log.id DESC
                 """;
 
@@ -169,8 +193,8 @@ public class EtlSaudeSqlRepository {
         String sql = """
                 SELECT COUNT(1)
                 FROM dbo.log_extracoes log
-                WHERE log.timestamp_fim >= :dataInicio
-                  AND log.timestamp_fim < :dataFimExclusivo
+                WHERE log.timestamp_inicio >= :dataInicio
+                  AND log.timestamp_inicio < :dataFimExclusivo
                 """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()

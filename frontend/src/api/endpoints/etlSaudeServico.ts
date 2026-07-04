@@ -2,7 +2,7 @@ import clienteAxios from '../clienteAxios';
 import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
-import type { EtlExecucaoRow, EtlExecucaoTrendPoint, EtlLogExtracaoAuditoriaRow, EtlSaudeCharts, EtlSaudeOverview } from '../../types/etlSaude';
+import type { EtlExecucaoRow, EtlExecucaoTrendPoint, EtlInsercoesAtualizacoesPoint, EtlLogExtracaoAuditoriaRow, EtlSaudeCharts, EtlSaudeOverview } from '../../types/etlSaude';
 import type { FiltroQuery, PaginacaoResponse } from '../../types/common';
 
 export async function buscarEtlSaudeOverview(filtro: FiltroQuery): Promise<EtlSaudeOverview> {
@@ -14,6 +14,13 @@ export async function buscarEtlSaudeOverview(filtro: FiltroQuery): Promise<EtlSa
 
 export async function buscarEtlSaudeSerie(filtro: FiltroQuery): Promise<EtlExecucaoTrendPoint[]> {
   const { data } = await clienteAxios.get<EtlExecucaoTrendPoint[]>('/api/painel/etl-saude/serie', {
+    params: montarQueryParams(filtro),
+  });
+  return data;
+}
+
+export async function buscarEtlSaudeEvolucaoInsercoesAtualizacoes(filtro: FiltroQuery): Promise<EtlInsercoesAtualizacoesPoint[]> {
+  const { data } = await clienteAxios.get<EtlInsercoesAtualizacoesPoint[]>('/api/painel/etl-saude/evolucao-insercoes-atualizacoes', {
     params: montarQueryParams(filtro),
   });
   return data;

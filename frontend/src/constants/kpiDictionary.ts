@@ -873,6 +873,39 @@ export const KpiDictionary = {
     },
   },
 
+  etlSaude: {
+    tempoMedioExecucao: {
+      titulo: 'Tempo Médio de Execução',
+      descricao: 'Duração média das execuções do ETL no período selecionado.',
+      calculo: 'Média de Duracao (s) das execuções filtradas.',
+      observacao: 'O período considera a data de início publicada em dbo.vw_bi_monitoramento.[Data].',
+    },
+    execucoesComErro: {
+      titulo: 'Execuções com Erro',
+      descricao: 'Quantidade de execuções cujo status final não foi success.',
+      calculo: 'Contagem de execuções com Status diferente de success.',
+      observacao: 'Status vazio ou diferente de success é tratado como erro operacional.',
+    },
+    totalExecucoes: {
+      titulo: 'Total de Execuções',
+      descricao: 'Quantidade de execuções de ETL registradas no período selecionado.',
+      calculo: 'COUNT(1) sobre as execuções filtradas.',
+      observacao: 'O período considera a data de início publicada em dbo.vw_bi_monitoramento.[Data].',
+    },
+    volumeProcessado: {
+      titulo: 'Volume Processado',
+      descricao: 'Quantidade total de registros processados pelas execuções filtradas.',
+      calculo: 'Soma de Total Registros das execuções do ETL.',
+      observacao: 'A métrica vem da view de monitoramento publicada pelo ETL.',
+    },
+    taxaSucesso: {
+      titulo: 'Taxa de Sucesso',
+      descricao: 'Percentual de execuções encerradas com status success.',
+      calculo: 'Execuções com Status success ÷ Total de Execuções × 100.',
+      observacao: percentualSemBase,
+    },
+  },
+
   gestaoAVista: {
     resumo: {
       performanceFretes: {
