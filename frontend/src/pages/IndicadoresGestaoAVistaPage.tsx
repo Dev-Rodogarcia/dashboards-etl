@@ -3,6 +3,7 @@ import { AlertCircle, BarChart3, Boxes, CheckCircle2, ChevronRight, ChevronUp, C
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import type { ColunaTabela } from '../components/shared/DataTable';
+import type { ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -51,6 +52,7 @@ import {
   useUtilizacaoColetoresTabelaPaginada,
 } from '../hooks/queries/useIndicadoresGestaoAVista';
 import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
+import { useAnalyticalTableFilters } from '../hooks/useAnalyticalTableFilters';
 import { usePermissions } from '../hooks/usePermissions';
 import { useStaggeredQueryEnabled } from '../hooks/useStaggeredQueryEnabled';
 import type {
@@ -101,6 +103,7 @@ const DEFAULT_KPI_GOALS: KpiGoalsMap = {
   cutoff_time: 98,
 };
 const KPI_GOAL_HISTORY_PAGE_SIZE = 30;
+const HORARIOS_CORTE_STATUS_OPTIONS = ['NO PRAZO', 'FORA DO PRAZO', 'SEM DADO'];
 
 const SECTION_GOAL_KEYS: Record<SectionId, KpiGoalIndicatorKey> = {
   performance: 'delivery_performance',
@@ -327,11 +330,12 @@ export default function IndicadoresGestaoAVistaPage() {
   const goalBranchId = filiaisSelecionadas.length === 1 ? filiaisSelecionadas[0] : GLOBAL_KPI_GOAL_BRANCH_ID;
   const filtroBaseKey = JSON.stringify(filtroBase);
   const filtroColetoresKey = JSON.stringify(filtroColetores);
+  const horariosFiltrosTabela = useAnalyticalTableFilters();
   const performancePaginacao = useTabelaPaginadaState(`${filtroBaseKey}|performance`);
   const coletoresPaginacao = useTabelaPaginadaState(`${filtroColetoresKey}|coletores`);
   const cubagemPaginacao = useTabelaPaginadaState(`${filtroBaseKey}|cubagem`);
   const indenizacaoPaginacao = useTabelaPaginadaState(`${filtroBaseKey}|indenizacao`);
-  const horariosPaginacao = useTabelaPaginadaState(`${filtroBaseKey}|horarios`);
+  const horariosPaginacao = useTabelaPaginadaState(`${filtroBaseKey}|horarios|${horariosFiltrosTabela.resetKey}`);
   const activeFilters: ActiveFilter[] = [
     { label: 'Filial base', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
   ].filter((item) => item.count > 0);
@@ -385,6 +389,7 @@ export default function IndicadoresGestaoAVistaPage() {
     filtroBase,
     horariosPaginacao.pagina,
     horariosPaginacao.tamanhoPagina,
+    horariosFiltrosTabela.apiFilters,
     expandedSection === 'horarios' && horariosSecondaryEnabled,
   );
   const kpiGoals = useKpiGoalsEffective(goalBranchId, competenciaFiltroGlobal);
@@ -873,31 +878,32 @@ export default function IndicadoresGestaoAVistaPage() {
     { chave: 'causaRaiz', label: 'Causa Raiz', largura: '220px' },
     { chave: 'solucao', label: 'Solução', largura: '220px' },
   ];
-  const horariosColumns: ColunaTabela<HorarioCorteRow>[] = [
-    { chave: 'id', label: 'ID', fixo: true },
-    { chave: 'data', label: 'Data', formato: (v) => v ? formatarData(String(v)) : '—' },
+  const horariosColumns: ColunaTabelaAnalitica<HorarioCorteRow>[] = [
+    { chave: 'id', label: 'ID', fixo: true, filtravel: false },
+    { chave: 'data', label: 'Data', formato: (v) => v ? formatarData(String(v)) : '—', filtravel: false },
     { chave: 'filial', label: 'Filial' },
     { chave: 'linhaOuOperacao', label: 'Linha/Operação', largura: '220px' },
-    { chave: 'origemSm', label: 'Origem SM', largura: '180px' },
-    { chave: 'destinoSm', label: 'Destino SM', largura: '180px' },
-    { chave: 'origemDestino', label: 'Origem x Destino', largura: '240px' },
-    { chave: 'origem', label: 'Origem' },
-    { chave: 'ordem', label: 'Ordem' },
-    { chave: 'destino', label: 'Destino' },
-    { chave: 'horarioCorteSm', label: 'Horário Corte' },
-    { chave: 'previsaoChegadaDestino', label: 'Prev. Chegada' },
-    { chave: 'transitTime', label: 'Transit Time' },
-    { chave: 'inicio', label: 'Início' },
-    { chave: 'manifestado', label: 'Manifestado' },
-    { chave: 'smGerada', label: 'SM Gerada' },
-    { chave: 'corte', label: 'Corte' },
-    { chave: 'saiuNoHorario', label: 'Status', formato: (v) => <StatusBadge status={v === true ? 'NO PRAZO' : v === false ? 'FORA DO PRAZO' : 'SEM DADO'} /> },
-    { chave: 'atrasoMinutos', label: 'Atraso (min)', formato: (v) => v == null ? '—' : formatarNumero(Number(v)) },
+    { chave: 'origemSm', label: 'Origem SM', largura: '180px', filtravel: false },
+    { chave: 'destinoSm', label: 'Destino SM', largura: '180px', filtravel: false },
+    { chave: 'origemDestino', label: 'Origem x Destino', largura: '240px', filtravel: false },
+    { chave: 'origem', label: 'Origem', filtravel: false },
+    { chave: 'ordem', label: 'Ordem', filtravel: false },
+    { chave: 'destino', label: 'Destino', filtravel: false },
+    { chave: 'horarioCorteSm', label: 'Horário Corte', filtravel: false },
+    { chave: 'previsaoChegadaDestino', label: 'Prev. Chegada', filtravel: false },
+    { chave: 'transitTime', label: 'Transit Time', filtravel: false },
+    { chave: 'inicio', label: 'Início', filtravel: false },
+    { chave: 'manifestado', label: 'Manifestado', filtravel: false },
+    { chave: 'smGerada', label: 'SM Gerada', filtravel: false },
+    { chave: 'corte', label: 'Corte', filtravel: false },
+    { chave: 'saiuNoHorario', label: 'Status', filtroTabela: 'status', formato: (v) => <StatusBadge status={v === true ? 'NO PRAZO' : v === false ? 'FORA DO PRAZO' : 'SEM DADO'} /> },
+    { chave: 'atrasoMinutos', label: 'Atraso (min)', formato: (v) => v == null ? '—' : formatarNumero(Number(v)), filtravel: false },
     {
       chave: 'acaoJustificativa',
       label: 'Justificar',
       largura: '120px',
       alinhamento: 'center',
+      filtravel: false,
       formato: (_v, row) => {
         const possuiJustificativa = Boolean(row.justificativa?.trim());
         const podeJustificar = row.saiuNoHorario === false || possuiJustificativa;
@@ -922,10 +928,10 @@ export default function IndicadoresGestaoAVistaPage() {
         );
       },
     },
-    { chave: 'observacao', label: 'Observação', largura: '260px' },
-    { chave: 'nomeArquivo', label: 'Fonte', largura: '220px' },
-    { chave: 'importadoEm', label: 'Extraído em', formato: (v) => v ? formatarDataHora(String(v)) : '—' },
-    { chave: 'importadoPor', label: 'Origem técnica' },
+    { chave: 'observacao', label: 'Observação', largura: '260px', filtravel: false },
+    { chave: 'nomeArquivo', label: 'Fonte', largura: '220px', filtravel: false },
+    { chave: 'importadoEm', label: 'Extraído em', formato: (v) => v ? formatarDataHora(String(v)) : '—', filtravel: false },
+    { chave: 'importadoPor', label: 'Origem técnica', filtravel: false },
   ];
 
   const toggleSection = (sectionId: SectionId) => setExpandedSection((current) => current === sectionId ? null : sectionId);
@@ -1313,18 +1319,27 @@ export default function IndicadoresGestaoAVistaPage() {
         chartEmpty={horariosRanking.length === 0}
         chartError={horariosSerie.isError ? getApiErrorMessage(horariosSerie.error, 'Erro ao carregar gráfico.') : null}
         exportName="indicadores-gestao-a-vista-horarios-corte"
-        onExport={() => exportarHorariosCorteCsv(filtroBase)}
+        onExport={() => exportarHorariosCorteCsv(filtroBase, horariosFiltrosTabela.apiFilters)}
         tableTitle="Horários de Corte Analíticos"
         tableData={horariosTabela.data?.conteudo ?? []}
         tableColumns={horariosColumns}
         rowKey="id"
         tableLoading={horariosTabela.isLoading}
+        tableFetching={horariosTabela.isFetching}
         tableError={horariosTabela.error}
         tableTotal={horariosTabela.data?.totalElementos}
         tablePage={horariosPaginacao.pagina}
         tablePageSize={horariosPaginacao.tamanhoPagina}
         onTablePageChange={horariosPaginacao.setPagina}
         onTablePageSizeChange={horariosPaginacao.setTamanhoPagina}
+        tableFilters={horariosFiltrosTabela.filters}
+        tableHiddenActiveCount={horariosFiltrosTabela.hiddenActiveCount}
+        tableHasAnyFilter={horariosFiltrosTabela.hasAnyFilter}
+        onTableTextFilterChange={horariosFiltrosTabela.setTextFilter}
+        onTableMultiFilterChange={horariosFiltrosTabela.setMultiFilter}
+        onTableColumnFilterChange={horariosFiltrosTabela.setColumnFilter}
+        onTableClearFilters={horariosFiltrosTabela.clearTableFilters}
+        tableStatusOptions={HORARIOS_CORTE_STATUS_OPTIONS}
         isExpanded={expandedSection === 'horarios'}
         onToggleTable={() => toggleSection('horarios')}
       />

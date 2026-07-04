@@ -24,6 +24,8 @@
 - Componentes de seção de Gestão à Vista podem repassar `chartActions` e `chartEvents` ao `ChartWrapper`, permitindo breadcrumbs e drill-down em Apache ECharts sem duplicar wrappers visuais.
 - `ChartWrapper` tipa e encaminha `onEvents` diretamente ao `echarts-for-react`; dashboards com drill-down devem passar handlers de clique pelo wrapper, usar a seta do breadcrumb para retornar à raiz e deixar níveis indisponíveis com `disabled`/`cursor-not-allowed`.
 - O painel de Coletas consome a coluna `[Região Logística]` publicada por `dbo.vw_coletas_powerbi` para o gráfico e filtros de origem. A região bruta `[Região da Coleta]` permanece no contrato como dado de compatibilidade, enquanto `ColetasRegiaoOrigemDTO.regiaoLogistica` e `ColetaResumoDTO.regiaoLogistica` expõem a macro-região governada.
+- A tabela analítica de Horário de Corte em Gestão à Vista usa `AnalyticalDataTable` com filtros de coluna para Filial, Linha/Operação e Status. Esses filtros são serializados por `useAnalyticalTableFilters`/`TableApiFilters` como `f.tabelaBusca` e `f.tabelaColuna.*`, sem filtragem client-side sobre páginas parciais.
+- `HorariosCorteRasterSqlRepository` aplica escopo de filiais, filtro global da tabela e filtros de coluna em `WHERE` parametrizado antes de `COUNT_BIG`, `ORDER BY` e `OFFSET/FETCH`, mantendo paginação, totalização e exportação CSV alinhadas.
 
 ## Fluxo de Dados e Integrações
 - Fluxo web: React -> hooks React Query -> `src/api/endpoints` -> `clienteAxios` -> controllers Spring -> services -> repositories SQL/JPA -> SQL Server -> DTOs -> cards/gráficos/tabelas.
@@ -38,6 +40,7 @@
 - Builds: dev usa backend 5011 e frontend 5174; produção usa backend 5010 e frontend 5173, com Cloudflare Tunnel previsto.
 - Gestão à Vista: `/api/painel/indicadores-gestao-a-vista/performance-entrega/serie` exige `visao` e aceita `responsavelFiltro`/`regiaoFiltro` para drill-down. O frontend envia esses parâmetros por `indicadoresGestaoAVistaServico.ts`, inclui todos no `queryKey` do TanStack Query e atualiza o gráfico ao clicar em barras.
 - A rota `/performance` mantém drill-down por `drillNivel`, `drillResponsavel` e `drillRegiao` nos query params; esses valores entram no `queryKey` de `usePerformanceDrilldown`, nos filtros da tabela e nos handlers de clique do gráfico.
+- A rota `/api/painel/indicadores-gestao-a-vista/horarios-corte/tabela/paginada` aceita filtros analíticos de tabela via query params `f.tabelaBusca`, `f.tabelaColuna.filial`, `f.tabelaColuna.linhaOuOperacao` e `f.tabelaColuna.saiuNoHorario`; o hook `useHorariosCorteTabelaPaginada` inclui esses filtros no `queryKey`.
 
 ## Regras de Negócio Consolidadas
 - O Dashboard não é dono do banco analítico; alterações em views/tabelas/fatos do ETL devem ser feitas em `etl-extracao-dados`.
@@ -64,6 +67,7 @@
 - Uploads administrativos de usuários, metas de manifestos e horários de corte validam extensão contratual e assinatura/conteúdo real antes de abrir planilhas: OOXML `.xlsx`, OLE2 `.xls` e CSV texto quando aplicável.
 - Performance de Entrega em Gestão à Vista: o ranking/drill-down percorre `RESPONSAVEL -> REGIAO -> CIDADE`. A fonte é `dbo.fato_gestao_vista_fretes`, filtrada por `indicador_codigo = 'PE'`, `data_referencia >= :dataInicio`, `data_referencia < :dataFimExclusivo`, `is_linha_valida_indicador = 1`, `excluido_na_origem = 0` e escopo de filiais. Responsável e região selecionados viram filtros parametrizados; agrupamento, totalizações e Top 50 são calculados no SQL Server.
 - Horário de Corte: viagens Raster são avaliadas pela saída real contra o horário de corte da rota com tolerância de 10 minutos; SMs com justificativa ativa em `dbo.viagem_justificativas` contam como no horário, expõem o texto da justificativa na tabela/exportação CSV e podem ter a justificativa inativada por DELETE HTTP idempotente. O banco preserva o registro com `ativo = 0`, e as queries nativas filtram `vj.ativo = 1` para retornar a SM ao status original de contabilização.
+- A paginação de Horário de Corte é server-side de ponta a ponta: filtros de Filial, Linha/Operação e Status são aplicados no SQL antes da contagem e da página; `Status` aceita os rótulos `NO PRAZO`, `FORA DO PRAZO` e `SEM DADO`.
 - Alteração de KPI deve atualizar `frontend/src/constants/kpiDictionary.ts`; alteração de regra/fonte de gráfico deve atualizar `frontend/src/constants/chartDictionary.ts`.
 - Coletas por Região Logística: o nível raiz do gráfico usa a macro-região resolvida no banco por precedência Faixa de CEP -> Cidade/UF -> Cidade - UF; o drill-down de segundo nível lista as cidades daquela região logística, sempre com agrupamento e totais calculados no SQL Server.
 - Produção é controlada por operador humano: não executar `iniciar-prod.bat`, não reiniciar processos e não liberar portas 5010/5173 por automação.
@@ -80,4 +84,4 @@
 - É proibido incluir saudações, conclusões, explicações fora dos bullets ou reescrever outras seções durante a resposta de planejamento.
 
 ## Tarefas Pendentes
-Nenhuma tarefa pendente registrada.
+- Nenhuma tarefa pendente registrada no momento.

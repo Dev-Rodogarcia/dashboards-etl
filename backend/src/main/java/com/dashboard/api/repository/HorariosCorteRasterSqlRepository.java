@@ -1,5 +1,6 @@
 package com.dashboard.api.repository;
 
+import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
 import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.model.VisaoHorariosCorteEntity;
@@ -329,12 +330,20 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
             ORDER BY data_corte, filial
             """;
 
-    private static final String SQL_PAGED = SQL + """
+    private static final String SQL_COUNT = BASE_CTE + "SELECT COUNT_BIG(1) FROM calculado";
+    private static final String SQL_ORDER_PAGED = """
             ORDER BY data DESC, importado_em DESC, filial, linha_ou_operacao
             OFFSET :offset ROWS FETCH NEXT :limite ROWS ONLY
             """;
-
-    private static final String SQL_COUNT = BASE_CTE + "SELECT COUNT_BIG(1) FROM calculado";
+    private static final String LINHA_OU_OPERACAO_SQL = "COALESCE(origem_destino, rota_limpa, CONCAT(N'SM ', CONVERT(NVARCHAR(30), cod_solicitacao)))";
+    private static final String STATUS_TABELA_SQL = """
+            (CASE
+                WHEN cod_solicitacao_justificada IS NOT NULL THEN N'no prazo'
+                WHEN data_hora_real_ini_at IS NULL OR corte_at IS NULL THEN N'sem dado'
+                WHEN data_hora_real_ini_at <= DATEADD(MINUTE, :toleranciaHorarioCorteMinutos, corte_at) THEN N'no prazo'
+                ELSE N'fora do prazo'
+            END)
+            """;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -389,10 +398,17 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
     }
 
     @Override
-    public List<VisaoHorariosCorteEntity> findByDataBetween(LocalDate dataInicio, LocalDate dataFim) {
+    public List<VisaoHorariosCorteEntity> findByDataBetween(
+            LocalDate dataInicio,
+            LocalDate dataFim,
+            EscopoFilialService.EscopoFilial escopo,
+            List<String> filiaisFiltro,
+            FiltroConsultaDTO filtro
+    ) {
+        TabelaQuery query = tabelaQuery(SQL, dataInicio, dataFim, escopo, filiaisFiltro, filtro, "");
         return jdbcTemplate.query(
-                SQL,
-                paramsPeriodo(dataInicio, dataFim, EscopoFilialService.EscopoFilial.comAcessoTotal(), List.of()),
+                query.sql(),
+                query.params(),
                 this::mapRow
         );
     }
@@ -401,24 +417,191 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
     public PaginaDTO<VisaoHorariosCorteEntity> findPageByDataBetween(
             LocalDate dataInicio,
             LocalDate dataFim,
+            EscopoFilialService.EscopoFilial escopo,
+            List<String> filiaisFiltro,
+            FiltroConsultaDTO filtro,
             int paginaSolicitada,
             int tamanhoSolicitado
     ) {
         int pagina = Math.max(1, paginaSolicitada);
         int tamanho = ConsultaLimiteUtils.limitar(tamanhoSolicitado, 10, 100);
         long offset = (long) (pagina - 1) * tamanho;
-        MapSqlParameterSource params = paramsPeriodo(dataInicio, dataFim, EscopoFilialService.EscopoFilial.comAcessoTotal(), List.of());
-        Long total = jdbcTemplate.queryForObject(SQL_COUNT, params, Long.class);
+        TabelaQuery countQuery = tabelaQuery(SQL_COUNT, dataInicio, dataFim, escopo, filiaisFiltro, filtro, "");
+        Long total = jdbcTemplate.queryForObject(countQuery.sql(), countQuery.params(), Long.class);
         long totalElementos = total != null ? total : 0L;
         int totalPaginas = totalElementos == 0 ? 0 : (int) Math.ceil(totalElementos / (double) tamanho);
 
-        params.addValue("offset", offset)
+        TabelaQuery pageQuery = tabelaQuery(SQL, dataInicio, dataFim, escopo, filiaisFiltro, filtro, SQL_ORDER_PAGED);
+        pageQuery.params()
+                .addValue("offset", offset)
                 .addValue("limite", tamanho);
         List<VisaoHorariosCorteEntity> conteudo = offset >= totalElementos
                 ? List.of()
-                : jdbcTemplate.query(SQL_PAGED, params, this::mapRow);
+                : jdbcTemplate.query(pageQuery.sql(), pageQuery.params(), this::mapRow);
 
         return new PaginaDTO<>(conteudo, totalElementos, totalPaginas, pagina, tamanho);
+    }
+
+    private TabelaQuery tabelaQuery(
+            String sqlBase,
+            LocalDate dataInicio,
+            LocalDate dataFim,
+            EscopoFilialService.EscopoFilial escopo,
+            List<String> filiaisFiltro,
+            FiltroConsultaDTO filtro,
+            String sufixo
+    ) {
+        FiltroConsultaDTO filtroEfetivo = filtro != null ? filtro : new FiltroConsultaDTO(dataInicio, dataFim, Map.of());
+        MapSqlParameterSource params = paramsPeriodo(dataInicio, dataFim, escopo, filiaisFiltro);
+        StringBuilder sql = new StringBuilder(sqlBase)
+                .append("\nWHERE (:escopoFiliaisVazio = 1 OR filial_key IN (:escopoFiliais))")
+                .append("\n  AND (:filiaisVazio = 1 OR filial_key IN (:filiais))");
+
+        adicionarFiltrosTabela(sql, params, filtroEfetivo);
+        if (sufixo != null && !sufixo.isBlank()) {
+            sql.append('\n').append(sufixo);
+        }
+
+        return new TabelaQuery(sql.toString(), params);
+    }
+
+    private static void adicionarFiltrosTabela(StringBuilder where, MapSqlParameterSource params, FiltroConsultaDTO filtro) {
+        adicionarFiltroBuscaTabela(where, params, filtro.valores("tabelaBusca"));
+        adicionarFiltroStatusTabela(where, params, "filtroTabelaStatus", filtro.valores("tabelaStatus"));
+
+        for (Map.Entry<String, List<String>> entry : filtro.filtros().entrySet()) {
+            String chave = entry.getKey();
+            if (!chave.startsWith("tabelaColuna.")) {
+                continue;
+            }
+
+            String coluna = chave.substring("tabelaColuna.".length());
+            adicionarFiltroColunaTabela(where, params, coluna, entry.getValue());
+        }
+    }
+
+    private static void adicionarFiltroBuscaTabela(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            Collection<String> valores
+    ) {
+        String termo = primeiroNormalizado(valores);
+        if (termo == null || termo.length() < 3) {
+            return;
+        }
+
+        params.addValue("filtroTabelaBusca", "%" + termo + "%");
+        where.append("\n  AND (")
+                .append("filial_key LIKE :filtroTabelaBusca")
+                .append(" OR ").append(normalizarSql(LINHA_OU_OPERACAO_SQL)).append(" LIKE :filtroTabelaBusca")
+                .append(" OR ").append(normalizarSql("origem_sm")).append(" LIKE :filtroTabelaBusca")
+                .append(" OR ").append(normalizarSql("destino_sm")).append(" LIKE :filtroTabelaBusca")
+                .append(" OR ").append(normalizarSql("origem_raw")).append(" LIKE :filtroTabelaBusca")
+                .append(" OR ").append(normalizarSql("destino_raw")).append(" LIKE :filtroTabelaBusca")
+                .append(" OR CONVERT(NVARCHAR(30), cod_solicitacao) LIKE :filtroTabelaBusca")
+                .append(" OR ").append(STATUS_TABELA_SQL).append(" LIKE :filtroTabelaBusca")
+                .append(")");
+    }
+
+    private static void adicionarFiltroColunaTabela(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String coluna,
+            Collection<String> valores
+    ) {
+        String param = "filtroTabelaColuna_" + coluna.replaceAll("[^A-Za-z0-9]", "_");
+        switch (coluna) {
+            case "filial" -> adicionarFiltroTextoNormalizado(where, params, "filial_key", valores, param);
+            case "linhaOuOperacao", "linhaOperacao" -> adicionarFiltroTextoColuna(where, params, LINHA_OU_OPERACAO_SQL, valores, param);
+            case "status", "saiuNoHorario" -> adicionarFiltroStatusTabela(where, params, param, valores);
+            default -> {
+            }
+        }
+    }
+
+    private static void adicionarFiltroTextoNormalizado(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String expressao,
+            Collection<String> valores,
+            String param
+    ) {
+        String termo = primeiroNormalizado(valores);
+        if (termo == null) {
+            return;
+        }
+
+        params.addValue(param, "%" + termo + "%");
+        where.append("\n  AND ").append(expressao).append(" LIKE :").append(param);
+    }
+
+    private static void adicionarFiltroTextoColuna(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String expressao,
+            Collection<String> valores,
+            String param
+    ) {
+        String termo = primeiroNormalizado(valores);
+        if (termo == null) {
+            return;
+        }
+
+        params.addValue(param, "%" + termo + "%");
+        where.append("\n  AND ").append(normalizarSql(expressao)).append(" LIKE :").append(param);
+    }
+
+    private static void adicionarFiltroStatusTabela(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            String param,
+            Collection<String> valores
+    ) {
+        List<String> normalizados = normalizarStatus(valores);
+        if (normalizados.isEmpty()) {
+            return;
+        }
+
+        params.addValue(param, normalizados);
+        where.append("\n  AND ").append(STATUS_TABELA_SQL).append(" IN (:").append(param).append(")");
+    }
+
+    private static List<String> normalizarStatus(Collection<String> valores) {
+        if (valores == null) {
+            return List.of();
+        }
+
+        return valores.stream()
+                .filter(valor -> valor != null && !valor.isBlank())
+                .map(HorariosCorteRasterSqlRepository::normalizarStatusValor)
+                .distinct()
+                .toList();
+    }
+
+    private static String normalizarStatusValor(String valor) {
+        String texto = valor.trim().toLowerCase(Locale.ROOT);
+        return switch (texto) {
+            case "true", "sim", "no prazo", "no horario", "no horário", "pontual" -> "no prazo";
+            case "false", "fora do prazo", "fora horario", "fora do horario", "fora do horário", "atrasado" -> "fora do prazo";
+            case "sem dado", "sem dados", "sem status", "null" -> "sem dado";
+            default -> texto;
+        };
+    }
+
+    private static String primeiroNormalizado(Collection<String> valores) {
+        if (valores == null) {
+            return null;
+        }
+
+        return valores.stream()
+                .filter(valor -> valor != null && !valor.isBlank())
+                .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static String normalizarSql(String expressao) {
+        return "LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(4000), " + expressao + ")))) COLLATE Latin1_General_CI_AI";
     }
 
     private MapSqlParameterSource paramsPeriodo(
@@ -563,5 +746,8 @@ public class HorariosCorteRasterSqlRepository implements HorariosCorteRasterData
     private Integer nullableInteger(ResultSet rs, String column) throws SQLException {
         int value = rs.getInt(column);
         return rs.wasNull() ? null : value;
+    }
+
+    private record TabelaQuery(String sql, MapSqlParameterSource params) {
     }
 }

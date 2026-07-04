@@ -57,7 +57,7 @@ class IndicadoresGestaoAVistaServiceTest {
         assertThat(overview.pctNoHorario()).isEqualTo(66.7);
         assertThat(overview.ultimaImportacaoArquivo()).isEqualTo("arquivo-2.xlsx");
         assertThat(overview.ultimaImportacaoEm()).isEqualTo("2026-04-03T09:30:00");
-        verify(rasterSqlRepository, never()).findByDataBetween(any(), any());
+        verify(rasterSqlRepository, never()).findByDataBetween(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -76,7 +76,7 @@ class IndicadoresGestaoAVistaServiceTest {
                         org.assertj.core.groups.Tuple.tuple("REC", 1, 1),
                         org.assertj.core.groups.Tuple.tuple("SPO", 2, 1)
                 );
-        verify(rasterSqlRepository, never()).findByDataBetween(any(), any());
+        verify(rasterSqlRepository, never()).findByDataBetween(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -87,7 +87,7 @@ class IndicadoresGestaoAVistaServiceTest {
         setField(semHorarioCorte, "corte", null);
         setField(semHorarioCorte, "observacao", "Sem horario de corte em HC Apoio");
 
-        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(calculavel, semHorarioCorte));
+        when(rasterSqlRepository.findByDataBetween(any(), any(), any(), any(), any())).thenReturn(List.of(calculavel, semHorarioCorte));
         when(rasterSqlRepository.buscarResumoPorPeriodo(any(), any(), any(), any()))
                 .thenReturn(resumo(1, 1, 0, "2026-04-02T10:00:00", "Raster API - SQL Server"));
         when(rasterSqlRepository.buscarSeriePorPeriodo(any(), any(), any(), any())).thenReturn(List.of(
@@ -127,7 +127,7 @@ class IndicadoresGestaoAVistaServiceTest {
     void buscarTabelaDeveResolverFilialAPartirDaLinhaOperacaoQuandoVierNaoMapeada() {
         filialMapperService.definirMapeamento("SPO-CAS", "SPO");
 
-        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(
+        when(rasterSqlRepository.findByDataBetween(any(), any(), any(), any(), any())).thenReturn(List.of(
                 row(1L, HorarioCorteFilialMapperService.FILIAL_NAO_MAPEADA, "SPO-CAS", LocalDate.of(2026, 4, 2), true, 0, "arquivo-1.xlsx", LocalDateTime.of(2026, 4, 2, 10, 0))
         ));
 
@@ -163,7 +163,7 @@ class IndicadoresGestaoAVistaServiceTest {
         setField(raster, "transitTime", "05:10");
         setField(raster, "justificativa", "Atraso justificado pela operacao.");
 
-        when(rasterSqlRepository.findByDataBetween(any(), any())).thenReturn(List.of(raster));
+        when(rasterSqlRepository.findByDataBetween(any(), any(), any(), any(), any())).thenReturn(List.of(raster));
 
         List<HorarioCorteRowDTO> tabela = service.buscarHorariosCorteTabela(
                 new FiltroConsultaDTO(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31), Map.of()),

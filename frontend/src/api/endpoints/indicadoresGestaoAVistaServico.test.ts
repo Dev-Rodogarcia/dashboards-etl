@@ -7,6 +7,7 @@ import {
   buscarKpiGoalsEfetivos,
   buscarKpiGoalsHistorico,
   buscarKpiGoalsHistoricoPaginado,
+  buscarHorariosCorteTabelaPaginada,
   buscarPerformanceEntregaSerie,
   buscarUtilizacaoColetoresRanking,
   excluirJustificativaHorarioCorte,
@@ -128,6 +129,36 @@ describe('indicadoresGestaoAVistaServico kpi goals', () => {
     expect(params.get('visao')).toBe('CIDADE');
     expect(params.get('responsavelFiltro')).toBe('Responsavel A');
     expect(params.get('regiaoFiltro')).toBe('SP');
+  });
+
+  it('envia filtros analiticos para a tabela paginada de horarios de corte', async () => {
+    await buscarHorariosCorteTabelaPaginada(
+      { dataInicio: '2026-05-01', dataFim: '2026-05-12', filiais: ['SPO'] },
+      2,
+      20,
+      {
+        tabelaBusca: 'Raster',
+        tabelaColuna: {
+          filial: 'CWB',
+          linhaOuOperacao: 'CWB',
+          saiuNoHorario: ['NO PRAZO'],
+        },
+      },
+    );
+
+    const [, config] = clienteMock.get.mock.calls.at(-1) ?? [];
+    const params = config?.params as URLSearchParams;
+
+    expect(clienteMock.get).toHaveBeenCalledWith('/api/painel/indicadores-gestao-a-vista/horarios-corte/tabela/paginada', {
+      params: expect.any(URLSearchParams),
+    });
+    expect(params.get('pagina')).toBe('2');
+    expect(params.get('tamanhoPagina')).toBe('20');
+    expect(params.getAll('f.filiais')).toEqual(['SPO']);
+    expect(params.get('f.tabelaBusca')).toBe('Raster');
+    expect(params.get('f.tabelaColuna.filial')).toBe('CWB');
+    expect(params.get('f.tabelaColuna.linhaOuOperacao')).toBe('CWB');
+    expect(params.getAll('f.tabelaColuna.saiuNoHorario')).toEqual(['NO PRAZO']);
   });
 
   it('salva justificativa de horario de corte', async () => {

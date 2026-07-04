@@ -1,5 +1,6 @@
 package com.dashboard.api.repository;
 
+import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.indicadoresgestao.HorariosCorteSeriePointDTO;
 import com.dashboard.api.dto.PaginaDTO;
 import com.dashboard.api.model.VisaoHorariosCorteEntity;
@@ -22,11 +23,20 @@ public interface HorariosCorteRasterDataSource {
             List<String> filiaisFiltro
     );
 
-    List<VisaoHorariosCorteEntity> findByDataBetween(LocalDate dataInicio, LocalDate dataFim);
+    List<VisaoHorariosCorteEntity> findByDataBetween(
+            LocalDate dataInicio,
+            LocalDate dataFim,
+            EscopoFilialService.EscopoFilial escopo,
+            List<String> filiaisFiltro,
+            FiltroConsultaDTO filtro
+    );
 
     PaginaDTO<VisaoHorariosCorteEntity> findPageByDataBetween(
             LocalDate dataInicio,
             LocalDate dataFim,
+            EscopoFilialService.EscopoFilial escopo,
+            List<String> filiaisFiltro,
+            FiltroConsultaDTO filtro,
             int pagina,
             int tamanhoPagina
     );

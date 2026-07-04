@@ -162,16 +162,16 @@ public class IndicadoresGestaoAVistaService {
         PaginaDTO<VisaoHorariosCorteEntity> paginaFonte = rasterSqlRepository.findPageByDataBetween(
                 filtro.dataInicio(),
                 filtro.dataFim(),
+                escopoFilialService.escopoAtual(),
+                filtro.valores("filiais"),
+                filtro,
                 pagina,
                 tamanhoPagina
         );
-        EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         HorarioCorteFilialMapperService.FilialMappingContext mappingContext = filialMapperService.criarContextoRasterPadrao();
 
         List<HorarioCorteRowDTO> conteudo = paginaFonte.conteudo().stream()
                 .map(row -> new HorarioCorteRegistroResolvido(row, resolverFilial(row, mappingContext)))
-                .filter(row -> escopo.permiteAlgumaFilial(row.filial()))
-                .filter(row -> filtro.corresponde("filiais", row.filial()))
                 .map(row -> new HorarioCorteRowDTO(
                         Objects.requireNonNullElse(row.entity().getId(), 0L),
                         formatar(row.entity().getData()),
@@ -214,10 +214,14 @@ public class IndicadoresGestaoAVistaService {
     private List<HorarioCorteRegistroResolvido> buscarHorariosCorte(FiltroConsultaDTO filtro) {
         EscopoFilialService.EscopoFilial escopo = escopoFilialService.escopoAtual();
         HorarioCorteFilialMapperService.FilialMappingContext mappingContext = filialMapperService.criarContextoRasterPadrao();
-        return rasterSqlRepository.findByDataBetween(filtro.dataInicio(), filtro.dataFim()).stream()
+        return rasterSqlRepository.findByDataBetween(
+                        filtro.dataInicio(),
+                        filtro.dataFim(),
+                        escopo,
+                        filtro.valores("filiais"),
+                        filtro
+                ).stream()
                 .map(row -> new HorarioCorteRegistroResolvido(row, resolverFilial(row, mappingContext)))
-                .filter(row -> escopo.permiteAlgumaFilial(row.filial()))
-                .filter(row -> filtro.corresponde("filiais", row.filial()))
                 .toList();
     }
 

@@ -3,6 +3,7 @@ import type { EChartsOption } from 'echarts';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import ChartWrapper from '../charts/ChartWrapper';
 import DataTable, { type ColunaTabela } from '../shared/DataTable';
+import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../shared/AnalyticalDataTable';
 import ExportButton from '../shared/ExportButton';
 import KpiCard from '../shared/KpiCard';
 import KpiGrid from '../shared/KpiGrid';
@@ -10,6 +11,7 @@ import TooltipKpi from '../shared/TooltipKpi';
 import MensagemErro from '../ui/MensagemErro';
 import type { ChartDictionaryKey } from '../../constants/chartDictionary';
 import type { KpiDefinition } from '../../constants/kpiDictionary';
+import type { TableFilters } from '../../types/tableFilters';
 import { getApiErrorMessage, getTipoErro } from '../../utils/apiError';
 import { getGoalToneStyle, type GoalTone } from '../../utils/indicadoresGestaoVistaUi';
 
@@ -60,15 +62,25 @@ interface IndicadoresGestaoSectionProps<T> {
   onExport?: () => Promise<void> | void;
   tableTitle: string;
   tableData: T[];
-  tableColumns: ColunaTabela<T>[];
+  tableColumns: ColunaTabelaAnalitica<T>[];
   rowKey: keyof T & string;
   tableLoading: boolean;
+  tableFetching?: boolean;
   tableError?: unknown;
   tableTotal?: number;
   tablePage?: number;
   tablePageSize?: number;
   onTablePageChange?: (pagina: number) => void;
   onTablePageSizeChange?: (tamanhoPagina: number) => void;
+  tableFilters?: TableFilters;
+  tableHiddenActiveCount?: number;
+  tableHasAnyFilter?: boolean;
+  onTableTextFilterChange?: (campo: Exclude<keyof TableFilters, 'status' | 'columnFilters'>, valor: string) => void;
+  onTableMultiFilterChange?: (campo: Extract<keyof TableFilters, 'status'>, valores: string[]) => void;
+  onTableColumnFilterChange?: (chaveColuna: string, valor: string | string[]) => void;
+  onTableClearFilters?: () => void;
+  tableStatusOptions?: string[];
+  tableStatusOptionsLoading?: boolean;
   isExpanded: boolean;
   onToggleTable: () => void;
 }
@@ -98,12 +110,22 @@ export default function IndicadoresGestaoSection<T>({
   tableColumns,
   rowKey,
   tableLoading,
+  tableFetching,
   tableError,
   tableTotal,
   tablePage,
   tablePageSize,
   onTablePageChange,
   onTablePageSizeChange,
+  tableFilters,
+  tableHiddenActiveCount = 0,
+  tableHasAnyFilter = false,
+  onTableTextFilterChange,
+  onTableMultiFilterChange,
+  onTableColumnFilterChange,
+  onTableClearFilters,
+  tableStatusOptions,
+  tableStatusOptionsLoading,
   isExpanded,
   onToggleTable,
 }: IndicadoresGestaoSectionProps<T>) {
@@ -208,21 +230,48 @@ export default function IndicadoresGestaoSection<T>({
 
         {isExpanded ? (
           <div className="p-3">
-            <DataTable
-              titulo={tableTitle}
-              dados={tableData}
-              colunas={tableColumns}
-              chaveLinha={rowKey}
-              isLoading={tableLoading}
-              error={tableError}
-              errorFallbackMessage={`Erro ao carregar ${tableTitle}.`}
-              mostrarCabecalho={false}
-              totalRegistros={tableTotal}
-              paginaAtual={tablePage}
-              tamanhoPagina={tablePageSize}
-              onPaginaChange={onTablePageChange}
-              onTamanhoPaginaChange={onTablePageSizeChange}
-            />
+            {tableFilters && onTableTextFilterChange && onTableMultiFilterChange && onTableColumnFilterChange && onTableClearFilters ? (
+              <AnalyticalDataTable
+                titulo={tableTitle}
+                dados={tableData}
+                colunas={tableColumns}
+                chaveLinha={rowKey}
+                filtros={tableFilters}
+                hiddenActiveCount={tableHiddenActiveCount}
+                hasAnyFilter={tableHasAnyFilter}
+                onTextFilterChange={onTableTextFilterChange}
+                onMultiFilterChange={onTableMultiFilterChange}
+                onColumnFilterChange={onTableColumnFilterChange}
+                onClearFilters={onTableClearFilters}
+                statusOptions={tableStatusOptions}
+                statusOptionsLoading={tableStatusOptionsLoading}
+                isLoading={tableLoading}
+                isFetching={tableFetching}
+                error={tableError}
+                errorFallbackMessage={`Erro ao carregar ${tableTitle}.`}
+                totalRegistros={tableTotal}
+                paginaAtual={tablePage ?? 1}
+                tamanhoPagina={tablePageSize ?? 10}
+                onPaginaChange={onTablePageChange ?? (() => undefined)}
+                onTamanhoPaginaChange={onTablePageSizeChange ?? (() => undefined)}
+              />
+            ) : (
+              <DataTable
+                titulo={tableTitle}
+                dados={tableData}
+                colunas={tableColumns as ColunaTabela<T>[]}
+                chaveLinha={rowKey}
+                isLoading={tableLoading}
+                error={tableError}
+                errorFallbackMessage={`Erro ao carregar ${tableTitle}.`}
+                mostrarCabecalho={false}
+                totalRegistros={tableTotal}
+                paginaAtual={tablePage}
+                tamanhoPagina={tablePageSize}
+                onPaginaChange={onTablePageChange}
+                onTamanhoPaginaChange={onTablePageSizeChange}
+              />
+            )}
           </div>
         ) : null}
       </div>

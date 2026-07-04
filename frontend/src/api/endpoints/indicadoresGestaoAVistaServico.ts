@@ -3,6 +3,7 @@ import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
+import type { TableApiFilters } from '../../types/tableFilters';
 import type {
   CubagemMercadoriasOverview,
   CubagemMercadoriasRow,
@@ -277,12 +278,16 @@ export async function buscarHorariosCorteTabelaPaginada(
   filtro: IndicadoresGestaoVistaFiltro,
   pagina: number,
   tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
 ): Promise<PaginacaoResponse<HorarioCorteRow>> {
-  return buscarTabelaPaginada(`${BASE}/horarios-corte/tabela/paginada`, filtro, pagina, tamanhoPagina);
+  return buscarTabelaPaginada(`${BASE}/horarios-corte/tabela/paginada`, filtro, pagina, tamanhoPagina, filtrosTabela);
 }
 
-export async function exportarHorariosCorteCsv(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
-  await baixarCsv(`${BASE}/horarios-corte/exportacao`, filtro, 'indicadores-horarios-corte');
+export async function exportarHorariosCorteCsv(
+  filtro: IndicadoresGestaoVistaFiltro,
+  filtrosTabela?: TableApiFilters,
+): Promise<void> {
+  await baixarCsv(`${BASE}/horarios-corte/exportacao`, filtro, 'indicadores-horarios-corte', filtrosTabela);
 }
 
 export async function salvarJustificativaHorarioCorte(

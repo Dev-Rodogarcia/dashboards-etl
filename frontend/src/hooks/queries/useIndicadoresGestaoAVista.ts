@@ -38,6 +38,7 @@ import type {
   PerformanceEntregaSerieParams,
   ViagemJustificativaPayload,
 } from '../../types/indicadoresGestaoAVista';
+import type { TableApiFilters } from '../../types/tableFilters';
 import { normalizarCompetenciaApiOpcional } from '../../utils/competencia';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
@@ -376,12 +377,13 @@ export function useHorariosCorteTabelaPaginada(
   filtro: IndicadoresGestaoVistaFiltro,
   pagina: number,
   tamanhoPagina: number,
+  filtrosTabela?: TableApiFilters,
   enabled = true,
 ) {
   return useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
-    queryKey: ['indicadores-gestao-a-vista', 'horarios-corte', 'tabela-paginada', filtro, pagina, tamanhoPagina],
-    queryFn: () => buscarHorariosCorteTabelaPaginada(filtro, pagina, tamanhoPagina),
+    queryKey: ['indicadores-gestao-a-vista', 'horarios-corte', 'tabela-paginada', filtro, pagina, tamanhoPagina, filtrosTabela],
+    queryFn: () => buscarHorariosCorteTabelaPaginada(filtro, pagina, tamanhoPagina, filtrosTabela),
     staleTime: STALE_TIME,
     retry: false,
     refetchOnWindowFocus: false,

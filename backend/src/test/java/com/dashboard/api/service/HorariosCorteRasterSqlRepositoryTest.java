@@ -1,10 +1,18 @@
 package com.dashboard.api.service;
 
+import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.repository.HorariosCorteRasterSqlRepository;
+import com.dashboard.api.service.acesso.EscopoFilialService;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HorariosCorteRasterSqlRepositoryTest {
@@ -65,6 +73,41 @@ class HorariosCorteRasterSqlRepositoryTest {
     }
 
     @Test
+    void tabelaPaginadaDeveAplicarFiltrosAnaliticosAntesDoCountEOffset() throws ReflectiveOperationException {
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 12),
+                Map.of(
+                        "tabelaBusca", List.of("Raster"),
+                        "tabelaColuna.filial", List.of("CWB"),
+                        "tabelaColuna.linhaOuOperacao", List.of("CWB"),
+                        "tabelaColuna.saiuNoHorario", List.of("NO PRAZO")
+                )
+        );
+
+        Object countQuery = tabelaQuery(sqlCount(), filtro, "");
+        String sqlCount = querySql(countQuery);
+        MapSqlParameterSource countParams = queryParams(countQuery);
+
+        assertThat(sqlCount)
+                .contains("SELECT COUNT_BIG(1) FROM calculado")
+                .contains("filial_key LIKE :filtroTabelaColuna_filial")
+                .contains("filtroTabelaColuna_linhaOuOperacao")
+                .contains("IN (:filtroTabelaColuna_saiuNoHorario)")
+                .doesNotContain("OFFSET :offset");
+        assertThat(countParams.getValue("filtroTabelaBusca")).isEqualTo("%raster%");
+        assertThat(countParams.getValue("filtroTabelaColuna_filial")).isEqualTo("%cwb%");
+        assertThat(countParams.getValue("filtroTabelaColuna_linhaOuOperacao")).isEqualTo("%cwb%");
+        assertThat(countParams.getValue("filtroTabelaColuna_saiuNoHorario")).isEqualTo(List.of("no prazo"));
+
+        Object pageQuery = tabelaQuery(sql(), filtro, sqlOrderPaged());
+        assertThat(querySql(pageQuery))
+                .contains("filial_key LIKE :filtroTabelaColuna_filial")
+                .contains("ORDER BY data DESC, importado_em DESC, filial, linha_ou_operacao")
+                .contains("OFFSET :offset ROWS FETCH NEXT :limite ROWS ONLY");
+    }
+
+    @Test
     void regraCorrigidaDeveMarcarAtrasoQuandoFimPrevistoCaiNoDiaSeguinte() {
         LocalDateTime dataBaseSm = LocalDateTime.of(2026, 5, 20, 23, 10);
         LocalDateTime saidaEfetiva = LocalDateTime.of(2026, 5, 21, 0, 10);
@@ -101,6 +144,57 @@ class HorariosCorteRasterSqlRepositoryTest {
         Field field = HorariosCorteRasterSqlRepository.class.getDeclaredField("SQL_SERIE");
         field.setAccessible(true);
         return (String) field.get(null);
+    }
+
+    private String sqlCount() throws ReflectiveOperationException {
+        return constanteSql("SQL_COUNT");
+    }
+
+    private String sqlOrderPaged() throws ReflectiveOperationException {
+        return constanteSql("SQL_ORDER_PAGED");
+    }
+
+    private String constanteSql(String nome) throws ReflectiveOperationException {
+        Field field = HorariosCorteRasterSqlRepository.class.getDeclaredField(nome);
+        field.setAccessible(true);
+        return (String) field.get(null);
+    }
+
+    private Object tabelaQuery(String sqlBase, FiltroConsultaDTO filtro, String sufixo) throws ReflectiveOperationException {
+        HorariosCorteRasterSqlRepository repository = new HorariosCorteRasterSqlRepository(new JdbcTemplate());
+        Method method = HorariosCorteRasterSqlRepository.class.getDeclaredMethod(
+                "tabelaQuery",
+                String.class,
+                LocalDate.class,
+                LocalDate.class,
+                EscopoFilialService.EscopoFilial.class,
+                List.class,
+                FiltroConsultaDTO.class,
+                String.class
+        );
+        method.setAccessible(true);
+        return method.invoke(
+                repository,
+                sqlBase,
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 12),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                List.of("CWB"),
+                filtro,
+                sufixo
+        );
+    }
+
+    private String querySql(Object query) throws ReflectiveOperationException {
+        Method method = query.getClass().getDeclaredMethod("sql");
+        method.setAccessible(true);
+        return (String) method.invoke(query);
+    }
+
+    private MapSqlParameterSource queryParams(Object query) throws ReflectiveOperationException {
+        Method method = query.getClass().getDeclaredMethod("params");
+        method.setAccessible(true);
+        return (MapSqlParameterSource) method.invoke(query);
     }
 
     private int toleranciaHorarioCorteMinutos() throws ReflectiveOperationException {
