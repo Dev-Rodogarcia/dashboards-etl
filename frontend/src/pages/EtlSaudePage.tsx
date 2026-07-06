@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
@@ -17,8 +18,9 @@ import { usePageHeader } from '../contexts/PageHeaderContext';
 import {
   useEtlSaudeEvolucaoInsercoesAtualizacoes,
   useEtlSaudeOverview,
-  useEtlSaudeSerie,
   useEtlSaudeTabela,
+  useEtlSaudeTabelasResumo,
+  useEtlSaudeTaxasDiarias,
 } from '../hooks/queries/useEtlSaude';
 import { normalizarPeriodo } from '../utils/dateUtils';
 import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
@@ -28,6 +30,7 @@ import type { EtlLogExtracaoAuditoriaRow } from '../types/etlSaude';
 type TooltipParam = {
   axisValue?: string | number;
   axisValueLabel?: string;
+  dataIndex?: number;
   marker?: string;
   seriesName?: string;
   value?: number | string | Array<number | string | null> | null;
@@ -35,6 +38,19 @@ type TooltipParam = {
 
 function formatarInteiro(valor: unknown) {
   return typeof valor === 'number' && Number.isFinite(valor) ? formatarNumero(valor) : '—';
+}
+
+function numeroFinito(valor: unknown): number | null {
+  const numero = typeof valor === 'number' ? valor : Number(valor);
+  return Number.isFinite(numero) ? numero : null;
+}
+
+function numeroSeguro(valor: unknown): number {
+  return numeroFinito(valor) ?? 0;
+}
+
+function textoMensagemAuditoria(valor: unknown): string {
+  return typeof valor === 'string' && valor.trim() ? valor.replace(/\s+/g, ' ').trim() : '—';
 }
 
 function normalizarTooltipParams(params: unknown): TooltipParam[] {
@@ -60,6 +76,62 @@ function formatarTooltipNumero(params: unknown) {
   return [titulo, ...linhas].filter(Boolean).join('<br/>');
 }
 
+function formatarIntervaloExtracao(inicio: string | null, fim: string | null) {
+  if (!inicio || !fim) return '—';
+
+  const dataInicio = new Date(inicio);
+  const dataFim = new Date(fim);
+
+  if (Number.isNaN(dataInicio.getTime()) || Number.isNaN(dataFim.getTime())) {
+    return '—';
+  }
+
+  const diferencaMinutos = Math.max(0, Math.round((dataFim.getTime() - dataInicio.getTime()) / 60000));
+  const dias = Math.floor(diferencaMinutos / 1440);
+  const horas = Math.floor((diferencaMinutos % 1440) / 60);
+  const minutos = diferencaMinutos % 60;
+
+  if (dias > 0) {
+    return `${dias}d ${horas}h`;
+  }
+
+  if (horas > 0) {
+    return `${horas}h ${minutos}min`;
+  }
+
+  return `${minutos}min`;
+}
+
+function ResumoKpi({
+  label,
+  value,
+  color = 'var(--color-text)',
+  detail,
+  title,
+}: {
+  label: string;
+  value: ReactNode;
+  color?: string;
+  detail?: ReactNode;
+  title?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-semibold uppercase" style={{ color: 'var(--color-text-muted)' }}>
+        {label}
+      </p>
+      <p className="mt-1 truncate text-xl font-bold leading-tight" title={title} style={{ color }}>
+        {value}
+      </p>
+      {detail ? (
+        <p className="mt-1 truncate text-xs font-semibold" title={title} style={{ color: 'var(--color-text-muted)' }}>
+          {detail}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function EtlSaudePage() {
   const { dataInicio, dataFim, setDataInicio, setDataFim, setDataRange, limparFiltros } = useFiltro();
   const { isDark } = useEchartsTheme();
@@ -77,67 +149,147 @@ export default function EtlSaudePage() {
   }, []);
 
   const overview = useEtlSaudeOverview(filtro);
-  const serie = useEtlSaudeSerie(filtro);
+  const taxasDiariasQuery = useEtlSaudeTaxasDiarias(filtro);
   const evolucao = useEtlSaudeEvolucaoInsercoesAtualizacoes(filtro);
+  const tabelasResumo = useEtlSaudeTabelasResumo(filtro);
   const tabela = useEtlSaudeTabela(filtro);
 
   usePageHeader({
     title: 'Saúde do ETL',
-    description: 'Taxas de sucesso/falha, volume diário e auditoria crua das extrações.',
+    description: 'Volumetria diária de sucessos/falhas, inserções, atualizações e auditoria crua das extrações.',
     updatedAt: overview.data?.updatedAt ?? null,
   });
 
-  const serieDados = useMemo(() => serie.data ?? [], [serie.data]);
-  const erroSerie = serie.isError ? getApiErrorMessage(serie.error, 'Erro ao carregar série do ETL.') : null;
+  const taxasDiarias = useMemo(
+    () => [...(taxasDiariasQuery.data ?? [])].sort((a, b) => a.dataReferencia.localeCompare(b.dataReferencia)),
+    [taxasDiariasQuery.data],
+  );
+  const erroTaxasDiarias = taxasDiariasQuery.isError ? getApiErrorMessage(taxasDiariasQuery.error, 'Erro ao carregar sucessos e falhas do ETL.') : null;
   const evolucaoDados = useMemo(() => evolucao.data ?? [], [evolucao.data]);
   const erroEvolucao = evolucao.isError ? getApiErrorMessage(evolucao.error, 'Erro ao carregar evolução do ETL.') : null;
+  const resumoTabelasDados = useMemo(
+    () => [...(tabelasResumo.data ?? [])].sort((a, b) => {
+      const diferencaRegistros = numeroSeguro(a.totalRegistrosGravados) - numeroSeguro(b.totalRegistrosGravados);
+      if (diferencaRegistros !== 0) return diferencaRegistros;
+
+      const diferencaExtracoes = numeroSeguro(a.qtdExtracoes) - numeroSeguro(b.qtdExtracoes);
+      if (diferencaExtracoes !== 0) return diferencaExtracoes;
+
+      return a.tabelaAlvo.localeCompare(b.tabelaAlvo);
+    }),
+    [tabelasResumo.data],
+  );
+  const erroResumoTabelas = tabelasResumo.isError ? getApiErrorMessage(tabelasResumo.error, 'Erro ao carregar resumo por tabela alvo do ETL.') : null;
   const auditoriaDados = tabela.data ?? [];
-  const taxasDiarias = useMemo(() => serieDados.map((item) => {
-    const totalExecucoes = Math.max(item.execucoes, 0);
-    const falhas = Math.max(item.erros, 0);
-    const sucessos = Math.max(totalExecucoes - falhas, 0);
+  const metricasTaxasDiarias = useMemo(() => {
+    const totais = taxasDiarias.reduce(
+      (acc, item) => {
+        acc.sucessos += Math.max(item.qtdSucesso, 0);
+        acc.falhas += Math.max(item.qtdFalha, 0);
+        return acc;
+      },
+      { sucessos: 0, falhas: 0 },
+    );
+    const totalExecucoes = totais.sucessos + totais.falhas;
 
     return {
-      date: item.date,
-      taxaSucesso: totalExecucoes > 0 ? (sucessos * 100) / totalExecucoes : 0,
-      taxaFalha: totalExecucoes > 0 ? (falhas * 100) / totalExecucoes : 0,
+      totalExecucoes,
+      totalSucessos: totais.sucessos,
+      totalFalhas: totais.falhas,
+      taxaSucessoGeral: totalExecucoes > 0 ? (totais.sucessos * 100) / totalExecucoes : 0,
     };
-  }), [serieDados]);
+  }, [taxasDiarias]);
+  const metricasResumoTabelas = useMemo(() => {
+    const totais = resumoTabelasDados.reduce(
+      (acc, item) => {
+        const qtdExtracoes = numeroSeguro(item.qtdExtracoes);
+        const qtdSucessos = numeroFinito(item.qtdSucessos);
+        const qtdFalhas = numeroFinito(item.qtdFalhas);
+
+        acc.qtdExtracoes += qtdExtracoes;
+        acc.qtdSucessos += qtdSucessos ?? (qtdFalhas !== null ? Math.max(qtdExtracoes - qtdFalhas, 0) : 0);
+        acc.qtdFalhas += qtdFalhas ?? 0;
+        acc.totalRegistrosGravados += numeroSeguro(item.totalRegistrosGravados);
+        acc.temDetalheStatus = acc.temDetalheStatus || qtdSucessos !== null || qtdFalhas !== null;
+
+        if (item.primeiraExtracao && (!acc.primeiraExtracao || item.primeiraExtracao < acc.primeiraExtracao)) {
+          acc.primeiraExtracao = item.primeiraExtracao;
+        }
+
+        if (item.ultimaExtracao && (!acc.ultimaExtracao || item.ultimaExtracao > acc.ultimaExtracao)) {
+          acc.ultimaExtracao = item.ultimaExtracao;
+        }
+
+        return acc;
+      },
+      {
+        qtdExtracoes: 0,
+        qtdSucessos: 0,
+        qtdFalhas: 0,
+        totalRegistrosGravados: 0,
+        primeiraExtracao: null as string | null,
+        ultimaExtracao: null as string | null,
+        temDetalheStatus: false,
+      },
+    );
+    const tabelaMaiorVolume = resumoTabelasDados.length > 0 ? resumoTabelasDados[resumoTabelasDados.length - 1] : null;
+    const tabelasComFalha = totais.temDetalheStatus
+      ? resumoTabelasDados.filter((item) => numeroSeguro(item.qtdFalhas) > 0)
+      : [];
+    const nomesTabelasComFalha = tabelasComFalha.map((item) => item.tabelaAlvo);
+    const qtdSucessos = totais.temDetalheStatus ? totais.qtdSucessos : metricasTaxasDiarias.totalSucessos;
+    const qtdFalhas = totais.temDetalheStatus ? totais.qtdFalhas : metricasTaxasDiarias.totalFalhas;
+
+    return {
+      tabelasMonitoradas: resumoTabelasDados.length,
+      qtdExtracoes: totais.qtdExtracoes,
+      qtdSucessos,
+      qtdFalhas,
+      totalRegistrosGravados: totais.totalRegistrosGravados,
+      primeiraExtracao: totais.primeiraExtracao,
+      ultimaExtracao: totais.ultimaExtracao,
+      intervaloExtracao: formatarIntervaloExtracao(totais.primeiraExtracao, totais.ultimaExtracao),
+      tabelaMaiorVolume,
+      tabelasComFalha,
+      tabelasComFalhaQuantidade: totais.temDetalheStatus ? tabelasComFalha.length : null,
+      tabelasComFalhaTexto: !totais.temDetalheStatus
+        ? 'Sem detalhe por tabela'
+        : nomesTabelasComFalha.length > 0
+        ? nomesTabelasComFalha.slice(0, 3).join(', ')
+        : 'Nenhuma',
+      tabelasComFalhaTitle: nomesTabelasComFalha.join(', '),
+    };
+  }, [metricasTaxasDiarias.totalFalhas, metricasTaxasDiarias.totalSucessos, resumoTabelasDados]);
 
   const taxasOption: EChartsOption = useMemo(() => {
-    const tokens = getEchartsThemeTokens(isDark);
-
-    return buildBaseLineOption(isDark, {
+    return buildBaseBarOption(isDark, {
       legend: { bottom: 0 },
       tooltip: {
         trigger: 'axis',
-        valueFormatter: (value) => formatarPorcentagem(Number(value ?? 0), 1),
+        formatter: formatarTooltipNumero,
       },
       grid: { top: 34, right: 36, bottom: 46, left: 42, containLabel: true },
-      xAxis: { type: 'category', data: taxasDiarias.map((item) => item.date) },
+      xAxis: { type: 'category', data: taxasDiarias.map((item) => item.dataReferencia) },
       yAxis: {
         type: 'value',
-        max: 100,
-        axisLabel: { formatter: (value: number | string) => formatarPorcentagem(Number(value), 0) },
+        name: 'Execuções',
       },
       series: [
         {
           name: 'Sucesso',
-          type: 'line',
-          smooth: true,
-          symbolSize: 7,
-          data: taxasDiarias.map((item) => Number(item.taxaSucesso.toFixed(1))),
-          itemStyle: { color: tokens.palette[2] },
-          lineStyle: { color: tokens.palette[2], width: 2 },
+          type: 'bar',
+          stack: 'total',
+          data: taxasDiarias.map((item) => item.qtdSucesso),
+          itemStyle: { color: 'var(--color-positive-fill)' },
+          emphasis: { focus: 'series' },
         },
         {
-          name: 'Falha',
-          type: 'line',
-          smooth: true,
-          symbolSize: 7,
-          data: taxasDiarias.map((item) => Number(item.taxaFalha.toFixed(1))),
-          itemStyle: { color: tokens.palette[3] },
-          lineStyle: { color: tokens.palette[3], width: 2 },
+          name: 'Falhas',
+          type: 'bar',
+          stack: 'total',
+          data: taxasDiarias.map((item) => item.qtdFalha),
+          itemStyle: { color: 'var(--color-negative-fill)' },
+          emphasis: { focus: 'series' },
         },
       ],
     });
@@ -176,6 +328,81 @@ export default function EtlSaudePage() {
     }));
   }, [evolucaoDados, isDark]);
 
+  const tabelasResumoOption: EChartsOption = useMemo(() => {
+    const tokens = getEchartsThemeTokens(isDark);
+    const categorias = resumoTabelasDados.map((item) => item.tabelaAlvo);
+    const zoomEnd = resumoTabelasDados.length > 12
+      ? Math.min(100, (12 / resumoTabelasDados.length) * 100)
+      : 100;
+
+    return buildBaseBarOption(isDark, {
+      legend: { top: 0 },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: (params: unknown) => {
+          const itens = normalizarTooltipParams(params);
+          const indice = Number(itens[0]?.dataIndex ?? -1);
+          const item = Number.isInteger(indice) && indice >= 0 ? resumoTabelasDados[indice] : null;
+          const tabelaAlvo = item?.tabelaAlvo ?? String(itens[0]?.axisValueLabel ?? itens[0]?.axisValue ?? '');
+          const linhas = [
+            tabelaAlvo,
+            `Registros gravados: ${formatarNumero(numeroSeguro(item?.totalRegistrosGravados))}`,
+            `Extrações: ${formatarNumero(numeroSeguro(item?.qtdExtracoes))}`,
+            `Sucessos: ${formatarNumero(numeroSeguro(item?.qtdSucessos))}`,
+            `Falhas: ${formatarNumero(numeroSeguro(item?.qtdFalhas))}`,
+            `Janela: ${item?.primeiraExtracao ? formatarDataHora(item.primeiraExtracao) : '—'} x ${item?.ultimaExtracao ? formatarDataHora(item.ultimaExtracao) : '—'}`,
+          ];
+
+          return linhas.join('<br/>');
+        },
+      },
+      grid: { top: 48, right: 28, bottom: 42, left: 8, containLabel: true },
+      xAxis: { type: 'value', name: 'Registros gravados' },
+      yAxis: {
+        type: 'category',
+        data: categorias,
+        inverse: true,
+        axisLabel: {
+          width: 210,
+          overflow: 'truncate',
+          fontSize: 12,
+          fontWeight: 700,
+          color: 'var(--color-text)',
+          margin: 12,
+        },
+      },
+      dataZoom: resumoTabelasDados.length > 12 ? [
+        {
+          type: 'slider',
+          yAxisIndex: 0,
+          right: 8,
+          start: 0,
+          end: zoomEnd,
+          width: 14,
+        },
+        {
+          type: 'inside',
+          yAxisIndex: 0,
+        },
+      ] : undefined,
+      series: [
+        {
+          name: 'Registros gravados',
+          type: 'bar',
+          data: resumoTabelasDados.map((item) => numeroSeguro(item.totalRegistrosGravados)),
+          itemStyle: { color: tokens.palette[0] },
+          label: {
+            show: true,
+            position: 'right',
+            formatter: (params: { value?: unknown }) => formatarNumero(numeroSeguro(params.value)),
+          },
+          emphasis: { focus: 'series' },
+        },
+      ],
+    });
+  }, [isDark, resumoTabelasDados]);
+
   const colunas: ColunaTabela<EtlLogExtracaoAuditoriaRow>[] = [
     {
       chave: 'id',
@@ -210,11 +437,16 @@ export default function EtlSaudePage() {
       chave: 'mensagem',
       label: 'Mensagem',
       largura: '520px',
-      formato: (valor) => (
-        <span className="block max-w-[520px] whitespace-normal leading-relaxed">
-          {typeof valor === 'string' && valor.trim() ? valor : '—'}
-        </span>
-      ),
+      formato: (valor) => {
+        const mensagem = textoMensagemAuditoria(valor);
+        const titulo = typeof valor === 'string' && valor.trim() ? valor : undefined;
+
+        return (
+          <span className="block max-w-[520px] truncate leading-relaxed" title={titulo}>
+            {mensagem}
+          </span>
+        );
+      },
     },
   ];
 
@@ -229,13 +461,52 @@ export default function EtlSaudePage() {
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ChartWrapper
-          titulo="Taxas de Sucesso/Falha por Dia"
+          titulo="Sucessos/Falhas por Dia"
           chartKey="etlTaxasDiarias"
           option={taxasOption}
-          isLoading={serie.isLoading}
-          isEmpty={serieDados.length === 0}
-          erro={erroSerie}
+          isLoading={taxasDiariasQuery.isLoading}
+          isEmpty={taxasDiarias.length === 0}
+          erro={erroTaxasDiarias}
           altura={320}
+          sideContent={(
+            <div
+              className="grid h-full min-h-[320px] grid-cols-2 content-center gap-x-4 gap-y-5 border-t pt-4 lg:grid-cols-1 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
+              <div>
+                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  Total de Execuções
+                </p>
+                <p className="mt-1 text-2xl font-bold" style={{ color: 'var(--color-text)' }}>
+                  {formatarNumero(metricasTaxasDiarias.totalExecucoes)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  Total de Sucessos
+                </p>
+                <p className="mt-1 text-2xl font-bold" style={{ color: 'var(--color-positive-text)' }}>
+                  {formatarNumero(metricasTaxasDiarias.totalSucessos)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  Total de Falhas
+                </p>
+                <p className="mt-1 text-2xl font-bold" style={{ color: 'var(--color-negative-fill)' }}>
+                  {formatarNumero(metricasTaxasDiarias.totalFalhas)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  Taxa de Sucesso Geral
+                </p>
+                <p className="mt-1 text-2xl font-bold" style={{ color: 'var(--color-positive-text)' }}>
+                  {formatarPorcentagem(metricasTaxasDiarias.taxaSucessoGeral, 1)}
+                </p>
+              </div>
+            </div>
+          )}
         />
         <ChartWrapper
           titulo="Evolução de Inserções e Atualizações"
@@ -245,6 +516,61 @@ export default function EtlSaudePage() {
           isEmpty={evolucaoDados.length === 0}
           erro={erroEvolucao}
           altura={320}
+        />
+        <ChartWrapper
+          titulo="Resumo por Tabela Alvo"
+          chartKey="etlTabelasResumo"
+          option={tabelasResumoOption}
+          isLoading={tabelasResumo.isLoading}
+          isEmpty={resumoTabelasDados.length === 0}
+          erro={erroResumoTabelas}
+          altura={420}
+          className="xl:col-span-2"
+          sideContent={(
+            <div
+              className="flex h-full min-h-[420px] flex-col justify-center gap-4 border-t pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
+              <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                <ResumoKpi label="Tabelas" value={formatarNumero(metricasResumoTabelas.tabelasMonitoradas)} />
+                <ResumoKpi label="Extrações" value={formatarNumero(metricasResumoTabelas.qtdExtracoes)} />
+                <ResumoKpi label="Sucessos" value={formatarNumero(metricasResumoTabelas.qtdSucessos)} color="var(--color-positive-text)" />
+                <ResumoKpi label="Falhas" value={formatarNumero(metricasResumoTabelas.qtdFalhas)} color="var(--color-negative-fill)" />
+                <ResumoKpi label="Registros" value={formatarNumero(metricasResumoTabelas.totalRegistrosGravados)} color="var(--color-primary)" />
+                <ResumoKpi label="Intervalo" value={metricasResumoTabelas.intervaloExtracao} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-5 gap-y-4 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
+                <ResumoKpi
+                  label="Primeira"
+                  value={metricasResumoTabelas.primeiraExtracao ? formatarDataHora(metricasResumoTabelas.primeiraExtracao) : '—'}
+                  title={metricasResumoTabelas.primeiraExtracao ? formatarDataHora(metricasResumoTabelas.primeiraExtracao) : undefined}
+                />
+                <ResumoKpi
+                  label="Última"
+                  value={metricasResumoTabelas.ultimaExtracao ? formatarDataHora(metricasResumoTabelas.ultimaExtracao) : '—'}
+                  title={metricasResumoTabelas.ultimaExtracao ? formatarDataHora(metricasResumoTabelas.ultimaExtracao) : undefined}
+                />
+              </div>
+
+              <div className="grid gap-4 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
+                <ResumoKpi
+                  label="Maior Volume"
+                  value={formatarNumero(numeroSeguro(metricasResumoTabelas.tabelaMaiorVolume?.totalRegistrosGravados))}
+                  color="var(--color-primary)"
+                  detail={metricasResumoTabelas.tabelaMaiorVolume?.tabelaAlvo ?? '—'}
+                  title={metricasResumoTabelas.tabelaMaiorVolume?.tabelaAlvo ?? undefined}
+                />
+                <ResumoKpi
+                  label="Tabelas com Erro"
+                  value={metricasResumoTabelas.tabelasComFalhaQuantidade === null ? '—' : formatarNumero(metricasResumoTabelas.tabelasComFalhaQuantidade)}
+                  color={metricasResumoTabelas.qtdFalhas > 0 ? 'var(--color-negative-fill)' : 'var(--color-positive-text)'}
+                  detail={metricasResumoTabelas.tabelasComFalhaTexto}
+                  title={metricasResumoTabelas.tabelasComFalhaTitle || metricasResumoTabelas.tabelasComFalhaTexto}
+                />
+              </div>
+            </div>
+          )}
         />
       </div>
 

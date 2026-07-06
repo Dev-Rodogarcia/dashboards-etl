@@ -2,7 +2,7 @@ import clienteAxios from '../clienteAxios';
 import { baixarCsv } from '../downloadCsv';
 import { buscarTabelaPaginada } from '../tabelaPaginada';
 import { montarQueryParams } from './queryParams';
-import type { EtlExecucaoRow, EtlExecucaoTrendPoint, EtlInsercoesAtualizacoesPoint, EtlLogExtracaoAuditoriaRow, EtlSaudeCharts, EtlSaudeOverview } from '../../types/etlSaude';
+import type { EtlExecucaoRow, EtlInsercoesAtualizacoesPoint, EtlLogExtracaoAuditoriaRow, EtlSaudeCharts, EtlSaudeOverview, EtlTabelaAuditoriaResumoRow, EtlTaxasDiariasPoint } from '../../types/etlSaude';
 import type { FiltroQuery, PaginacaoResponse } from '../../types/common';
 
 export async function buscarEtlSaudeOverview(filtro: FiltroQuery): Promise<EtlSaudeOverview> {
@@ -12,8 +12,8 @@ export async function buscarEtlSaudeOverview(filtro: FiltroQuery): Promise<EtlSa
   return data;
 }
 
-export async function buscarEtlSaudeSerie(filtro: FiltroQuery): Promise<EtlExecucaoTrendPoint[]> {
-  const { data } = await clienteAxios.get<EtlExecucaoTrendPoint[]>('/api/painel/etl-saude/serie', {
+export async function buscarEtlSaudeTaxasDiarias(filtro: FiltroQuery): Promise<EtlTaxasDiariasPoint[]> {
+  const { data } = await clienteAxios.get<EtlTaxasDiariasPoint[]>('/api/painel/etl-saude/serie', {
     params: montarQueryParams(filtro),
   });
   return data;
@@ -36,6 +36,13 @@ export async function buscarEtlSaudeGraficos(filtro: FiltroQuery): Promise<EtlSa
 export async function buscarEtlSaudeTabela(filtro: FiltroQuery): Promise<EtlLogExtracaoAuditoriaRow[]> {
   const params = montarQueryParams(filtro);
   const { data } = await clienteAxios.get<EtlLogExtracaoAuditoriaRow[]>('/api/painel/etl-saude/tabela', { params });
+  return data;
+}
+
+export async function buscarEtlSaudeTabelasResumo(filtro: FiltroQuery): Promise<EtlTabelaAuditoriaResumoRow[]> {
+  const { data } = await clienteAxios.get<EtlTabelaAuditoriaResumoRow[]>('/api/painel/etl-saude/tabelas/resumo', {
+    params: montarQueryParams(filtro),
+  });
   return data;
 }
 

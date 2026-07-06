@@ -53,7 +53,7 @@ class EtlSaudeSqlRepositoryTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void buscarSerieDeveAgruparPorDataNoSqlServer() {
+    void buscarSerieDeveAgruparSucessoFalhaPorTimestampInicioNoSqlServer() {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
                 .thenReturn(List.of());
 
@@ -63,12 +63,15 @@ class EtlSaudeSqlRepositoryTest {
         verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
 
         assertThat(sqlCaptor.getValue())
-                .contains("COUNT(1) AS execucoes")
-                .contains("SUM(CASE WHEN status_normalizado <> N'success' THEN 1 ELSE 0 END) AS erros")
-                .contains("SUM(total_registros) AS volume_processado")
-                .contains("AVG(CAST(duracao_segundos AS FLOAT))")
-                .contains("GROUP BY data_execucao")
-                .contains("ORDER BY data_execucao");
+                .contains("CAST(log.timestamp_inicio AS DATE) AS data_referencia")
+                .contains("UPPER(LTRIM(RTRIM(CONVERT(NVARCHAR(40), log.status_final))))")
+                .contains("FROM dbo.log_extracoes log")
+                .contains("log.timestamp_inicio >= :dataInicio")
+                .contains("log.timestamp_inicio < :dataFimExclusivo")
+                .contains("SUM(CASE WHEN status_normalizado IN (N'COMPLETO', N'SUCCESS', N'SUCESSO') THEN 1 ELSE 0 END) AS qtd_sucesso")
+                .contains("SUM(CASE WHEN status_normalizado NOT IN (N'COMPLETO', N'SUCCESS', N'SUCESSO') THEN 1 ELSE 0 END) AS qtd_falha")
+                .contains("GROUP BY data_referencia")
+                .contains("ORDER BY data_referencia");
     }
 
     @Test
@@ -135,6 +138,35 @@ class EtlSaudeSqlRepositoryTest {
                 .contains("log.timestamp_inicio >= :dataInicio")
                 .contains("log.timestamp_inicio < :dataFimExclusivo")
                 .contains("ORDER BY log.timestamp_fim DESC, log.id DESC");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void buscarResumoTabelasDeveAgregarAuditoriaPorEntidadeNoSqlServer() {
+        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(List.of());
+
+        repository().buscarResumoTabelas(filtroPadrao());
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
+
+        assertThat(sqlCaptor.getValue())
+                .contains("COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), log.entidade))), N''), N'Sem entidade') AS target_entity")
+                .contains("CAST(COALESCE(log.registros_extraidos, 0) AS BIGINT)")
+                .contains("+ CAST(COALESCE(log.noop_count, 0) AS BIGINT) AS registros_gravados")
+                .contains("UPPER(LTRIM(RTRIM(CONVERT(NVARCHAR(40), log.status_final))))")
+                .contains("FROM dbo.log_extracoes log")
+                .contains("log.timestamp_inicio >= :dataInicio")
+                .contains("log.timestamp_inicio < :dataFimExclusivo")
+                .contains("COUNT_BIG(1) AS total_extracoes")
+                .contains("SUM(CASE WHEN status_normalizado IN (N'COMPLETO', N'SUCCESS', N'SUCESSO') THEN 1 ELSE 0 END) AS total_sucessos")
+                .contains("SUM(CASE WHEN status_normalizado NOT IN (N'COMPLETO', N'SUCCESS', N'SUCESSO') THEN 1 ELSE 0 END) AS total_falhas")
+                .contains("SUM(registros_gravados) AS total_registros_gravados")
+                .contains("MIN(timestamp_inicio) AS primeira_extracao")
+                .contains("MAX(timestamp_fim) AS ultima_extracao")
+                .contains("GROUP BY target_entity")
+                .contains("ORDER BY total_registros_gravados ASC, target_entity");
     }
 
     @Test

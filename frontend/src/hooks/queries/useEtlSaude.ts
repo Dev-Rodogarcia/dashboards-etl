@@ -3,10 +3,11 @@ import {
   buscarEtlSaudeEvolucaoInsercoesAtualizacoes,
   buscarEtlSaudeGraficos,
   buscarEtlSaudeOverview,
-  buscarEtlSaudeSerie,
   buscarEtlSaudeTabela,
   buscarEtlSaudeTabelaPaginada,
   buscarEtlSaudeTabelaTotal,
+  buscarEtlSaudeTabelasResumo,
+  buscarEtlSaudeTaxasDiarias,
 } from '../../api/endpoints/etlSaudeServico';
 import type { FiltroQuery } from '../../types/common';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
@@ -23,11 +24,11 @@ export function useEtlSaudeOverview(filtro: FiltroQuery) {
   });
 }
 
-export function useEtlSaudeSerie(filtro: FiltroQuery) {
+export function useEtlSaudeTaxasDiarias(filtro: FiltroQuery) {
   return useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
-    queryKey: ['etl-saude', 'serie', filtro],
-    queryFn: () => buscarEtlSaudeSerie(filtro),
+    queryKey: ['etl-saude', 'taxas-diarias', filtro],
+    queryFn: () => buscarEtlSaudeTaxasDiarias(filtro),
     staleTime: STALE_TIME,
     retry: 1,
   });
@@ -58,6 +59,16 @@ export function useEtlSaudeTabela(filtro: FiltroQuery) {
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['etl-saude', 'tabela', filtro],
     queryFn: () => buscarEtlSaudeTabela(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useEtlSaudeTabelasResumo(filtro: FiltroQuery) {
+  return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
+    queryKey: ['etl-saude', 'tabelas-resumo', filtro],
+    queryFn: () => buscarEtlSaudeTabelasResumo(filtro),
     staleTime: STALE_TIME,
     retry: 1,
   });

@@ -4,15 +4,15 @@ import com.dashboard.api.builder.DashboardExportSqlBuilder;
 import com.dashboard.api.definition.DashboardExportDefinition;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.etl.EtlCategoriaErroDTO;
-import com.dashboard.api.dto.etl.EtlExecucaoTrendPointDTO;
 import com.dashboard.api.dto.etl.EtlInsercoesAtualizacoesPointDTO;
 import com.dashboard.api.dto.etl.EtlLogExtracaoAuditoriaDTO;
 import com.dashboard.api.dto.etl.EtlSaudeChartsDTO;
 import com.dashboard.api.dto.etl.EtlSaudeOverviewDTO;
+import com.dashboard.api.dto.etl.EtlTabelaAuditoriaResumoDTO;
+import com.dashboard.api.dto.etl.EtlTaxasDiariasPointDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -34,6 +34,9 @@ public class EtlSaudeSqlRepository {
             "COALESCE(NULLIF(LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))), N''), N'')";
     private static final String STATUS_SUCESSO_SQL = STATUS_NORMALIZADO_SQL + " = N'success'";
     private static final String STATUS_ERRO_SQL = STATUS_NORMALIZADO_SQL + " <> N'success'";
+    private static final String LOG_STATUS_NORMALIZADO_SQL =
+            "COALESCE(NULLIF(UPPER(LTRIM(RTRIM(CONVERT(NVARCHAR(40), log.status_final)))), N''), N'')";
+    private static final String LOG_STATUS_SUCESSO_LISTA_SQL = "N'COMPLETO', N'SUCCESS', N'SUCESSO'";
     private static final String DURACAO_SEGUNDOS_SQL = "COALESCE(TRY_CONVERT(INT, [Duracao (s)]), 0)";
     private static final String TOTAL_REGISTROS_SQL = "COALESCE(TRY_CONVERT(INT, [Total Registros]), 0)";
 
@@ -91,44 +94,36 @@ public class EtlSaudeSqlRepository {
         ));
     }
 
-    public List<EtlExecucaoTrendPointDTO> buscarSerie(FiltroConsultaDTO filtro) {
-        DashboardExportSqlBuilder.ExportSql source = source(filtro);
+    public List<EtlTaxasDiariasPointDTO> buscarSerie(FiltroConsultaDTO filtro) {
         String sql = """
-                WITH base_filtrada AS (
-                    SELECT *
-                    %s
-                ),
-                base_metricas AS (
+                WITH base_metricas AS (
                     SELECT
-                        [Data] AS data_execucao,
-                        %s AS duracao_segundos,
-                        %s AS total_registros,
+                        CAST(log.timestamp_inicio AS DATE) AS data_referencia,
                         %s AS status_normalizado
-                    FROM base_filtrada
-                    WHERE [Data] IS NOT NULL
+                    FROM dbo.log_extracoes log
+                    WHERE log.timestamp_inicio >= :dataInicio
+                      AND log.timestamp_inicio < :dataFimExclusivo
                 )
                 SELECT
-                    data_execucao,
-                    COUNT(1) AS execucoes,
-                    SUM(CASE WHEN status_normalizado <> N'success' THEN 1 ELSE 0 END) AS erros,
-                    SUM(total_registros) AS volume_processado,
-                    CAST(COALESCE(AVG(CAST(duracao_segundos AS FLOAT)), 0) AS DECIMAL(19,2)) AS duracao_media
+                    data_referencia,
+                    SUM(CASE WHEN status_normalizado IN (%s) THEN 1 ELSE 0 END) AS qtd_sucesso,
+                    SUM(CASE WHEN status_normalizado NOT IN (%s) THEN 1 ELSE 0 END) AS qtd_falha
                 FROM base_metricas
-                GROUP BY data_execucao
-                ORDER BY data_execucao
+                GROUP BY data_referencia
+                ORDER BY data_referencia
                 """.formatted(
-                source.sql(),
-                DURACAO_SEGUNDOS_SQL,
-                TOTAL_REGISTROS_SQL,
-                STATUS_NORMALIZADO_SQL
+                LOG_STATUS_NORMALIZADO_SQL,
+                LOG_STATUS_SUCESSO_LISTA_SQL,
+                LOG_STATUS_SUCESSO_LISTA_SQL
         );
 
-        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new EtlExecucaoTrendPointDTO(
-                data(rs.getDate("data_execucao")),
-                rs.getInt("execucoes"),
-                rs.getInt("erros"),
-                rs.getInt("volume_processado"),
-                decimalDouble(rs.getBigDecimal("duracao_media"))
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("dataInicio", filtro.dataInicio())
+                .addValue("dataFimExclusivo", filtro.dataFim().plusDays(1));
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new EtlTaxasDiariasPointDTO(
+                rs.getDate("data_referencia").toLocalDate(),
+                rs.getInt("qtd_sucesso"),
+                rs.getInt("qtd_falha")
         ));
     }
 
@@ -186,6 +181,51 @@ public class EtlSaudeSqlRepository {
                 inteiro(rs, "paginas_processadas"),
                 inteiro(rs, "noop_count"),
                 rs.getString("mensagem")
+        ));
+    }
+
+    public List<EtlTabelaAuditoriaResumoDTO> buscarResumoTabelas(FiltroConsultaDTO filtro) {
+        String sql = """
+                WITH base_log AS (
+                    SELECT
+                        COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), log.entidade))), N''), N'Sem entidade') AS target_entity,
+                        CAST(COALESCE(log.registros_extraidos, 0) AS BIGINT)
+                            + CAST(COALESCE(log.noop_count, 0) AS BIGINT) AS registros_gravados,
+                        %s AS status_normalizado,
+                        log.timestamp_inicio,
+                        log.timestamp_fim
+                    FROM dbo.log_extracoes log
+                    WHERE log.timestamp_inicio >= :dataInicio
+                      AND log.timestamp_inicio < :dataFimExclusivo
+                )
+                SELECT
+                    target_entity,
+                    COUNT_BIG(1) AS total_extracoes,
+                    SUM(CASE WHEN status_normalizado IN (%s) THEN 1 ELSE 0 END) AS total_sucessos,
+                    SUM(CASE WHEN status_normalizado NOT IN (%s) THEN 1 ELSE 0 END) AS total_falhas,
+                    SUM(registros_gravados) AS total_registros_gravados,
+                    MIN(timestamp_inicio) AS primeira_extracao,
+                    MAX(timestamp_fim) AS ultima_extracao
+                FROM base_log
+                GROUP BY target_entity
+                ORDER BY total_registros_gravados ASC, target_entity
+                """.formatted(
+                LOG_STATUS_NORMALIZADO_SQL,
+                LOG_STATUS_SUCESSO_LISTA_SQL,
+                LOG_STATUS_SUCESSO_LISTA_SQL
+        );
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("dataInicio", filtro.dataInicio())
+                .addValue("dataFimExclusivo", filtro.dataFim().plusDays(1));
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new EtlTabelaAuditoriaResumoDTO(
+                rs.getString("target_entity"),
+                rs.getLong("total_extracoes"),
+                rs.getLong("total_sucessos"),
+                rs.getLong("total_falhas"),
+                rs.getLong("total_registros_gravados"),
+                localDateTime(rs.getTimestamp("primeira_extracao")),
+                localDateTime(rs.getTimestamp("ultima_extracao"))
         ));
     }
 
@@ -252,10 +292,6 @@ public class EtlSaudeSqlRepository {
 
     private double decimalDouble(BigDecimal valor) {
         return (valor != null ? valor : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).doubleValue();
-    }
-
-    private String data(Date data) {
-        return data != null ? data.toLocalDate().toString() : null;
     }
 
     private LocalDateTime localDateTime(Timestamp timestamp) {

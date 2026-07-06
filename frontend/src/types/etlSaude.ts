@@ -22,6 +22,16 @@ export interface EtlLogExtracaoAuditoriaRow {
   mensagem: string | null;
 }
 
+export interface EtlTabelaAuditoriaResumoRow {
+  tabelaAlvo: string;
+  qtdExtracoes: number;
+  qtdSucessos: number;
+  qtdFalhas: number;
+  totalRegistrosGravados: number;
+  primeiraExtracao: string | null;
+  ultimaExtracao: string | null;
+}
+
 export interface EtlSaudeOverview {
   updatedAt: string;
   tempoMedioExecucaoSegundos: number;
@@ -31,12 +41,10 @@ export interface EtlSaudeOverview {
   taxaSucesso: number;
 }
 
-export interface EtlExecucaoTrendPoint {
-  date: string;
-  execucoes: number;
-  erros: number;
-  volumeProcessado: number;
-  duracaoMedia: number;
+export interface EtlTaxasDiariasPoint {
+  dataReferencia: string;
+  qtdSucesso: number;
+  qtdFalha: number;
 }
 
 export interface EtlInsercoesAtualizacoesPoint {

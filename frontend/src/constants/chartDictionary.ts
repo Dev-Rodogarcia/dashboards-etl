@@ -469,14 +469,14 @@ export const chartDictionary = {
   },
 
   etlTaxasDiarias: {
-    tabelasOrigem: 'vw_bi_monitoramento',
-    cruzamentos: 'Nenhum JOIN; leitura via DashboardExportDefinition.ETL_SAUDE.',
-    descricao: 'Acompanha execuções diárias do ETL e taxa de sucesso para medir estabilidade da carga de dados.',
+    tabelasOrigem: 'dbo.log_extracoes',
+    cruzamentos: 'Nenhum JOIN; leitura direta da auditoria operacional de extrações.',
+    descricao: 'Acompanha a volumetria diária de execuções concluídas com sucesso e falhas para evidenciar picos de erro no período filtrado.',
     calculoTecnico:
-      "COUNT(1); SUM(CASE WHEN status_normalizado <> N'success' THEN 1 ELSE 0 END); taxa_sucesso no frontend = (execucoes - erros) / execucoes",
+      "SUM(CASE WHEN status_final normalizado IN (N'COMPLETO', N'SUCCESS', N'SUCESSO') THEN 1 ELSE 0 END); SUM(CASE WHEN status_final normalizado NOT IN (...) THEN 1 ELSE 0 END); filtro sargable por timestamp_inicio.",
     calculoNegocio:
-      'Conta execuções do dia, identifica quantas falharam e calcula a proporção de execuções bem-sucedidas sobre o total processado.',
-    agrupamento: 'GROUP BY data_execucao',
+      'Agrupa as execuções pelo dia de início e separa quantas terminaram como sucesso das demais, permitindo localizar dias específicos com aumento de falhas.',
+    agrupamento: 'GROUP BY CAST(timestamp_inicio AS DATE)',
   },
   etlInsercoesAtualizacoes: {
     tabelasOrigem: 'dbo.log_extracoes',
@@ -486,6 +486,16 @@ export const chartDictionary = {
     calculoNegocio:
       'Agrupa as extrações pelo dia de início, soma os registros gravados no log como inserções/persistências e soma os no-op idempotentes como atualizações já reconhecidas pelo destino.',
     agrupamento: 'GROUP BY CAST(timestamp_inicio AS DATE)',
+  },
+  etlTabelasResumo: {
+    tabelasOrigem: 'dbo.log_extracoes',
+    cruzamentos: 'Nenhum JOIN; leitura direta da auditoria operacional de extrações por entidade/tabela alvo.',
+    descricao: 'Consolida execuções, volume gravado e janela temporal de processamento por tabela alvo para confrontar gaps de carga entre entidades do ETL.',
+    calculoTecnico:
+      "COUNT_BIG(1); SUM(CASE WHEN status_final normalizado IN (N'COMPLETO', N'SUCCESS', N'SUCESSO') THEN 1 ELSE 0 END); SUM(CASE WHEN status_final normalizado NOT IN (...) THEN 1 ELSE 0 END); SUM(COALESCE(registros_extraidos, 0) + COALESCE(noop_count, 0)); MIN(timestamp_inicio); MAX(timestamp_fim); filtro sargable por timestamp_inicio.",
+    calculoNegocio:
+      'Agrupa as execuções pela entidade registrada no log, conta quantas vezes cada tabela rodou, separa sucessos e falhas, soma o volume gravado/auditado, mostra a primeira e última execução dentro do período filtrado e ordena as barras do menor para o maior volume.',
+    agrupamento: 'GROUP BY entidade normalizada; ORDER BY total_registros_gravados ASC, target_entity',
   },
 } as const satisfies Record<string, ChartDefinition>;
 

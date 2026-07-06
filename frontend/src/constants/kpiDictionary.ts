@@ -902,7 +902,8 @@ export const KpiDictionary = {
       titulo: 'Taxa de Sucesso',
       descricao: 'Percentual de execuções encerradas com status success.',
       calculo: 'Execuções com Status success ÷ Total de Execuções × 100.',
-      observacao: percentualSemBase,
+      observacao:
+        `${percentualSemBase} O gráfico Sucessos/Falhas por Dia complementa este KPI com a volumetria diária de status da auditoria operacional em dbo.log_extracoes.`,
     },
   },
 

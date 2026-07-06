@@ -56,7 +56,10 @@ interface ChartWrapperProps {
   erro?: string | null;
   altura?: number | string;
   className?: string;
+  contentClassName?: string;
+  chartClassName?: string;
   chartKey?: ChartDictionaryKey;
+  sideContent?: ReactNode;
 }
 
 function ChartWrapperInner({
@@ -70,7 +73,10 @@ function ChartWrapperInner({
   erro,
   altura = 300,
   className,
+  contentClassName,
+  chartClassName,
   chartKey,
+  sideContent,
 }: ChartWrapperProps) {
   const { baseOption } = useEchartsTheme();
 
@@ -90,15 +96,22 @@ function ChartWrapperInner({
   }), [altura]);
 
   return (
-    <ChartCard titulo={titulo} actions={actions} isLoading={isLoading} isEmpty={isEmpty} emptyMessage={emptyMessage} erro={erro} className={className} chartKey={chartKey}>
-      <div className="h-full min-h-0" style={chartStyle}>
-        <ReactECharts
-          option={mergedOption}
-          style={chartStyle}
-          opts={ECHARTS_CANVAS_OPTS}
-          onEvents={onEvents}
-          notMerge
-        />
+    <ChartCard titulo={titulo} actions={actions} isLoading={isLoading} isEmpty={isEmpty} emptyMessage={emptyMessage} erro={erro} className={className} contentClassName={contentClassName} chartKey={chartKey}>
+      <div className={sideContent ? 'grid h-full min-h-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6' : 'h-full min-h-0'}>
+        <div className={`h-full min-h-0 ${sideContent ? 'lg:col-span-2' : ''} ${chartClassName ?? ''}`} style={chartStyle}>
+          <ReactECharts
+            option={mergedOption}
+            style={chartStyle}
+            opts={ECHARTS_CANVAS_OPTS}
+            onEvents={onEvents}
+            notMerge
+          />
+        </div>
+        {sideContent ? (
+          <div className="min-h-0 lg:col-span-1">
+            {sideContent}
+          </div>
+        ) : null}
       </div>
     </ChartCard>
   );

@@ -1,10 +1,11 @@
 package com.dashboard.api.controller;
 
-import com.dashboard.api.dto.etl.EtlExecucaoTrendPointDTO;
 import com.dashboard.api.dto.etl.EtlInsercoesAtualizacoesPointDTO;
 import com.dashboard.api.dto.etl.EtlLogExtracaoAuditoriaDTO;
 import com.dashboard.api.dto.etl.EtlSaudeChartsDTO;
 import com.dashboard.api.dto.etl.EtlSaudeOverviewDTO;
+import com.dashboard.api.dto.etl.EtlTabelaAuditoriaResumoDTO;
+import com.dashboard.api.dto.etl.EtlTaxasDiariasPointDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.EtlSaudeService;
 import java.time.LocalDate;
@@ -42,7 +43,7 @@ public class EtlSaudeController {
     }
 
     @GetMapping("/serie")
-    public ResponseEntity<List<EtlExecucaoTrendPointDTO>> serie(
+    public ResponseEntity<List<EtlTaxasDiariasPointDTO>> serie(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params) {
@@ -73,5 +74,15 @@ public class EtlSaudeController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(etlSaudeService.buscarTabela(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
+    @GetMapping("/tabelas/resumo")
+    public ResponseEntity<List<EtlTabelaAuditoriaResumoDTO>> resumoTabelas(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(etlSaudeService.buscarResumoTabelas(
+                FiltroRequestMapper.from(dataInicio, dataFim, params)
+        ));
     }
 }
