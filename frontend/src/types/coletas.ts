@@ -88,6 +88,7 @@ export interface ColetasFiltro {
   dataInicio: string;
   dataFim: string;
   filiais?: string[];
+  parceirosLogisticos?: string[];
   clientes?: string[];
   status?: string[];
   regioes?: string[];

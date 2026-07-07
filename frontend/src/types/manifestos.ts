@@ -137,6 +137,7 @@ export interface ManifestosFiltro {
   dataInicio: string;
   dataFim: string;
   filiais?: string[];
+  parceirosLogisticos?: string[];
   status?: string[];
   motoristas?: string[];
   veiculos?: string[];

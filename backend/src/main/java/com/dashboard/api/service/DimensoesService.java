@@ -90,7 +90,7 @@ public class DimensoesService {
         if (escopo.acessoTotal()) {
             return listarFiliaisComCache();
         }
-        return escopo.filiaisOrdenadas();
+        return limparFiliaisParaExibicao(escopo.filiaisOrdenadas());
     }
 
     private List<String> listarFiliaisComCache() {
@@ -129,12 +129,20 @@ public class DimensoesService {
     }
 
     private List<String> consultarFiliais() {
-        return dimFilialRepository.findDistinctNomes().stream()
+        return limparFiliaisParaExibicao(dimFilialRepository.findDistinctNomes());
+    }
+
+    private List<String> limparFiliaisParaExibicao(List<String> filiais) {
+        return filiais.stream()
                 .filter(this::temTexto)
-                .map(String::trim)
+                .map(this::normalizarFilialParaExibicao)
                 .distinct()
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .toList();
+    }
+
+    private String normalizarFilialParaExibicao(String filial) {
+        return filial.trim().toUpperCase(Locale.ROOT);
     }
 
     private List<String> fallbackFiliais(RuntimeException ex) {

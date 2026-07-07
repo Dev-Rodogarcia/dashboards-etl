@@ -7,11 +7,13 @@ describe('downloadCsv', () => {
       dataInicio: '2026-03-17',
       dataFim: '2026-04-16',
       filiais: ['SP', 'RJ'],
+      parceirosLogisticos: ['SP | Parceiro A'],
     });
 
     expect(config.responseType).toBe('blob');
     expect(config.params.get('dataInicio')).toBe('2026-03-17');
     expect(config.params.getAll('f.filiais')).toEqual(['SP', 'RJ']);
+    expect(config.params.getAll('f.parceirosLogisticos')).toEqual(['SP | Parceiro A']);
   });
 
   it('extrai filename normal e filename UTF-8 do header', () => {

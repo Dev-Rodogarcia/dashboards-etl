@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, BarChart3, Boxes, CheckCircle2, ChevronRight, ChevronUp, Clock3, Gauge, MessageSquarePlus, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
-import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import type { ColunaTabela } from '../components/shared/DataTable';
 import type { ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
+import FiliaisParceirosFilter from '../components/shared/FiliaisParceirosFilter';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import BranchGoalOverridesBanner from '../components/indicadores-gestao/BranchGoalOverridesBanner';
@@ -68,6 +68,7 @@ import type {
   UtilizacaoColetoresRow,
 } from '../types/indicadoresGestaoAVista';
 import { getApiErrorMessage } from '../utils/apiError';
+import { isParceiroLogistico } from '../utils/filiais';
 import { formatarData, formatarDataHora, formatarMoeda, formatarNumero, formatarPorcentagem } from '../utils/formatadores';
 import {
   aggregateCubagemRanking,
@@ -308,7 +309,7 @@ function PerformanceDrilldownBreadcrumbs({
 }
 
 export default function IndicadoresGestaoAVistaPage() {
-  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, setFiltros, limparFiltros } = useFiltro();
   const { isDark } = useEchartsTheme();
   const { canAccess } = usePermissions();
   const filiais = useFiliais();
@@ -324,9 +325,14 @@ export default function IndicadoresGestaoAVistaPage() {
   const dataInicioIndicadores = dataInicio;
   const dataFimIndicadores = dataFim;
   const competenciaFiltroGlobal = useMemo(() => normalizarCompetenciaApi(dataInicioIndicadores), [dataInicioIndicadores]);
-  const filtroBase: IndicadoresGestaoVistaFiltro = { dataInicio: dataInicioIndicadores, dataFim: dataFimIndicadores, filiais: filtros.filiais };
+  const filtroBase: IndicadoresGestaoVistaFiltro = {
+    dataInicio: dataInicioIndicadores,
+    dataFim: dataFimIndicadores,
+    filiais: filtros.filiais,
+    parceirosLogisticos: filtros.parceirosLogisticos,
+  };
   const filtroColetores: IndicadoresGestaoVistaFiltro = filtroBase;
-  const filiaisSelecionadas = filtros.filiais ?? [];
+  const filiaisSelecionadas = [...(filtros.filiais ?? []), ...(filtros.parceirosLogisticos ?? [])];
   const goalBranchId = filiaisSelecionadas.length === 1 ? filiaisSelecionadas[0] : GLOBAL_KPI_GOAL_BRANCH_ID;
   const filtroBaseKey = JSON.stringify(filtroBase);
   const filtroColetoresKey = JSON.stringify(filtroColetores);
@@ -338,6 +344,7 @@ export default function IndicadoresGestaoAVistaPage() {
   const horariosPaginacao = useTabelaPaginadaState(`${filtroBaseKey}|horarios|${horariosFiltrosTabela.resetKey}`);
   const activeFilters: ActiveFilter[] = [
     { label: 'Filial base', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Parceiro logístico base', count: filtros.parceirosLogisticos?.length ?? 0, onRemove: () => setFiltro('parceirosLogisticos', []) },
   ].filter((item) => item.count > 0);
   const canManageKpiGoals = canAccess('can_manage_kpi_goals');
 
@@ -494,12 +501,16 @@ export default function IndicadoresGestaoAVistaPage() {
   }
 
   function selecionarFilialMeta(branchId: string) {
-    setFiltro('filiais', [branchId]);
+    const isParceiro = isParceiroLogistico(branchId);
+    setFiltros({
+      filiais: isParceiro ? [] : [branchId],
+      parceirosLogisticos: isParceiro ? [branchId] : [],
+    });
     rolarParaTopoIndicadores();
   }
 
   function limparFiltroFilialMeta() {
-    setFiltro('filiais', []);
+    setFiltros({ filiais: [], parceirosLogisticos: [] });
     rolarParaTopoIndicadores();
   }
 
@@ -1058,7 +1069,16 @@ export default function IndicadoresGestaoAVistaPage() {
         ) : null}
       >
         <DateRangePicker dataInicio={dataInicioIndicadores} dataFim={dataFimIndicadores} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
-        <AsyncMultiSelect label="Filial base" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />
+        <FiliaisParceirosFilter
+          filialLabel="Filial base"
+          parceiroLabel="Parceiro logístico base"
+          opcoes={filiais.data ?? []}
+          filiaisSelecionadas={filtros.filiais ?? []}
+          parceirosSelecionados={filtros.parceirosLogisticos ?? []}
+          onFiliaisChange={(valores) => setFiltro('filiais', valores)}
+          onParceirosChange={(valores) => setFiltro('parceirosLogisticos', valores)}
+          isLoading={filiais.isLoading}
+        />
       </FilterBar>
 
       {canManageKpiGoals ? (

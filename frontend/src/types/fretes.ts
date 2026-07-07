@@ -108,6 +108,7 @@ export interface FretesFiltro {
   dataInicio: string;
   dataFim: string;
   filiais?: string[];
+  parceirosLogisticos?: string[];
   status?: string[];
   pagadores?: string[];
   responsaveis?: string[];

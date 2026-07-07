@@ -192,7 +192,7 @@ function ManifestosMetasImportacaoModalAberto({ onClose }: Pick<ManifestosMetasI
       (preview?.linhasPreview ?? []).map((row) => ({
         ...row,
         competencia: row.ano && row.mes ? `${String(row.mes).padStart(2, '0')}/${row.ano}` : '—',
-        classificationLabel: row.classificationKey ?? 'Geral',
+        classificationLabel: row.classificationKey ?? 'GERAL',
         costGoalLabel: row.costGoal == null ? '—' : formatarMoeda(row.costGoal),
         mensagensResumo: row.mensagens.join(' '),
       })),
@@ -337,7 +337,7 @@ function ManifestosMetasImportacaoModalAberto({ onClose }: Pick<ManifestosMetasI
                   Arraste o Excel ou CSV aqui
                 </p>
                 <p className="mt-1 text-xs" style={{ color: 'var(--color-text-subtle)' }}>
-                  Filial em branco ou GLOBAL vira meta global. Classificação em branco, Geral ou Global vira meta geral.
+                  Filial em branco ou GLOBAL vira meta global. Classificação em branco, GERAL ou GLOBAL vira meta geral.
                 </p>
                 <p className="mt-3 text-xs" style={{ color: 'var(--color-text-muted)' }}>
                   {arquivoSelecionado ? `Arquivo atual: ${arquivoSelecionado.name}` : 'Nenhum arquivo selecionado ainda.'}

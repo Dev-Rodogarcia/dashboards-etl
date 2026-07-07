@@ -17,12 +17,12 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
     @Query("""
             SELECT g
             FROM ManifestosCostGoalEntity g
-            WHERE g.branchId = :branchId
+            WHERE UPPER(g.branchId) = :branchId
               AND g.yearMonth = :yearMonth
-              AND g.contractTypeKey = :contractTypeKey
+              AND UPPER(g.contractTypeKey) = :contractTypeKey
               AND (
                     (:classificationKey IS NULL AND g.classificationKey IS NULL)
-                    OR g.classificationKey = :classificationKey
+                    OR UPPER(g.classificationKey) = :classificationKey
               )
             """)
     Optional<ManifestosCostGoalEntity> findByBranchIdAndYearMonthAndContractTypeKeyAndClassificationKey(
@@ -61,10 +61,10 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
             LEFT JOIN FETCH g.updatedByUser
             WHERE g.branchId IS NULL
               AND g.yearMonth = :yearMonth
-              AND g.contractTypeKey = :contractTypeKey
+              AND UPPER(g.contractTypeKey) = :contractTypeKey
               AND (
                     (:classificationKey IS NULL AND g.classificationKey IS NULL)
-                    OR g.classificationKey = :classificationKey
+                    OR UPPER(g.classificationKey) = :classificationKey
               )
             """)
     Optional<ManifestosCostGoalEntity> findGlobalByYearMonthAndContractTypeKeyAndClassificationKey(
@@ -90,7 +90,14 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
                 FROM acesso.manifestos_cost_goals
                 WHERE year_month >= :inicioCompetencia
                   AND year_month < :fimCompetencia
-                  AND (:contractTypeFilterActive = 0 OR contract_type_key IN (:contractTypeKeys))
+                  AND (
+                        :contractTypeFilterActive = 0
+                        OR UPPER(LTRIM(RTRIM(contract_type_key))) IN (:contractTypeKeys)
+                  )
+                  AND (
+                        :classificationFilterActive = 0
+                        OR UPPER(LTRIM(RTRIM(classification_key))) IN (:classificationKeys)
+                  )
                 GROUP BY year_month
             )
             SELECT
@@ -102,7 +109,9 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
             @Param("inicioCompetencia") LocalDate inicioCompetencia,
             @Param("fimCompetencia") LocalDate fimCompetencia,
             @Param("contractTypeKeys") Collection<String> contractTypeKeys,
-            @Param("contractTypeFilterActive") int contractTypeFilterActive
+            @Param("contractTypeFilterActive") int contractTypeFilterActive,
+            @Param("classificationKeys") Collection<String> classificationKeys,
+            @Param("classificationFilterActive") int classificationFilterActive
     );
 
     @Query(value = """
@@ -113,14 +122,23 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
             WHERE year_month >= :inicioCompetencia
               AND year_month < :fimCompetencia
               AND branch_id COLLATE Latin1_General_CI_AI IN (:branchIds)
-              AND (:contractTypeFilterActive = 0 OR contract_type_key IN (:contractTypeKeys))
+              AND (
+                    :contractTypeFilterActive = 0
+                    OR UPPER(LTRIM(RTRIM(contract_type_key))) IN (:contractTypeKeys)
+              )
+              AND (
+                    :classificationFilterActive = 0
+                    OR UPPER(LTRIM(RTRIM(classification_key))) IN (:classificationKeys)
+              )
             """, nativeQuery = true)
     GoalAggregateProjection aggregateByBranches(
             @Param("inicioCompetencia") LocalDate inicioCompetencia,
             @Param("fimCompetencia") LocalDate fimCompetencia,
             @Param("branchIds") Collection<String> branchIds,
             @Param("contractTypeKeys") Collection<String> contractTypeKeys,
-            @Param("contractTypeFilterActive") int contractTypeFilterActive
+            @Param("contractTypeFilterActive") int contractTypeFilterActive,
+            @Param("classificationKeys") Collection<String> classificationKeys,
+            @Param("classificationFilterActive") int classificationFilterActive
     );
 
     interface GoalAggregateProjection {

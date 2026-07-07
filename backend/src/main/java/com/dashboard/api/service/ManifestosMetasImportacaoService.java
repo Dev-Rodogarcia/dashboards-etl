@@ -51,15 +51,15 @@ public class ManifestosMetasImportacaoService {
             var exemplo = sheet.createRow(1);
             exemplo.createCell(0).setCellValue("05/2026");
             exemplo.createCell(1).setCellValue("GLOBAL");
-            exemplo.createCell(2).setCellValue("Geral");
-            exemplo.createCell(3).setCellValue("Geral");
+            exemplo.createCell(2).setCellValue("GERAL");
+            exemplo.createCell(3).setCellValue("GERAL");
             exemplo.createCell(4).setCellValue(8400000.00);
 
             var exemploFilial = sheet.createRow(2);
             exemploFilial.createCell(0).setCellValue("05/2026");
             exemploFilial.createCell(1).setCellValue("SPO");
-            exemploFilial.createCell(2).setCellValue("Frota + PX");
-            exemploFilial.createCell(3).setCellValue("Distribuição");
+            exemploFilial.createCell(2).setCellValue("FROTA + PX");
+            exemploFilial.createCell(3).setCellValue("DISTRIBUIÇÃO");
             exemploFilial.createCell(4).setCellValue(1200000.00);
 
             for (int index = 0; index < colunas.size(); index++) {

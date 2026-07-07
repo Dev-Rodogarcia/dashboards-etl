@@ -20,7 +20,7 @@ public record ManifestosCostGoalConfigDTO(
     public static ManifestosCostGoalConfigDTO from(ManifestosCostGoalEntity entity) {
         return new ManifestosCostGoalConfigDTO(
                 entity.getBranchId() == null ? "GLOBAL" : entity.getBranchId(),
-                entity.getContractType() == null ? "Geral" : entity.getContractType(),
+                entity.getContractType() == null ? "GERAL" : entity.getContractType(),
                 entity.getContractTypeKey(),
                 entity.getClassificationKey(),
                 entity.getYearMonth().getYear(),
@@ -36,8 +36,8 @@ public record ManifestosCostGoalConfigDTO(
     public static ManifestosCostGoalConfigDTO fallback(int ano, int mes, String mensagem) {
         return new ManifestosCostGoalConfigDTO(
                 "GLOBAL",
-                "Geral",
-                "geral",
+                "GERAL",
+                "GERAL",
                 null,
                 ano,
                 mes,

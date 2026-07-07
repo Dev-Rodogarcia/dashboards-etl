@@ -56,6 +56,7 @@ export interface PerformanceFiltro {
   dataInicio: string;
   dataFim: string;
   filiais?: string[];
+  parceirosLogisticos?: string[];
   status?: string[];
   pagadores?: string[];
   responsaveis?: string[];

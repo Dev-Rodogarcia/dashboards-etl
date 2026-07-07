@@ -103,6 +103,7 @@ export interface CotacoesFiltro {
   dataInicio: string;
   dataFim: string;
   filiais?: string[];
+  parceirosLogisticos?: string[];
   clientes?: string[];
   ufOrigem?: string[];
   ufDestino?: string[];

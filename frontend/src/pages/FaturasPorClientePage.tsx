@@ -6,6 +6,7 @@ import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
+import FiliaisParceirosFilter from '../components/shared/FiliaisParceirosFilter';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
@@ -44,6 +45,7 @@ export default function FaturasPorClientePage() {
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
+    parceirosLogisticos: filtros.parceirosLogisticos,
     pagadores: filtros.pagadores,
     clientesCnpj: filtros.clientesCnpj,
     statusProcesso: filtros.statusProcesso,
@@ -51,6 +53,7 @@ export default function FaturasPorClientePage() {
 
   const activeFilters: ActiveFilter[] = [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Parceiros Logísticos', count: filtros.parceirosLogisticos?.length ?? 0, onRemove: () => setFiltro('parceirosLogisticos', []) },
     { label: 'Pagadores', count: filtros.pagadores?.length ?? 0, onRemove: () => setFiltro('pagadores', []) },
     { label: 'CNPJs', count: filtros.clientesCnpj?.length ?? 0, onRemove: () => setFiltro('clientesCnpj', []) },
     { label: 'Status Processo', count: filtros.statusProcesso?.length ?? 0, onRemove: () => setFiltro('statusProcesso', []) },
@@ -156,11 +159,12 @@ export default function FaturasPorClientePage() {
           onDataFimChange={setDataFim}
           onRangeChange={setDataRange}
         />
-        <AsyncMultiSelect
-          label="Filiais"
+        <FiliaisParceirosFilter
           opcoes={filiais.data ?? []}
-          selecionados={filtros.filiais ?? []}
-          onChange={(valores) => setFiltro('filiais', valores)}
+          filiaisSelecionadas={filtros.filiais ?? []}
+          parceirosSelecionados={filtros.parceirosLogisticos ?? []}
+          onFiliaisChange={(valores) => setFiltro('filiais', valores)}
+          onParceirosChange={(valores) => setFiltro('parceirosLogisticos', valores)}
           isLoading={filiais.isLoading}
         />
         <AsyncMultiSelect

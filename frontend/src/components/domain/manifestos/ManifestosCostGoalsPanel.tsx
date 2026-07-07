@@ -14,6 +14,7 @@ import ToastStack from '../../ui/ToastStack';
 import type { ToastItem, ToastTone } from '../../ui/ToastStack';
 import type { ManifestosCostGoalConfig } from '../../../types/manifestos';
 import { getApiErrorMessage } from '../../../utils/apiError';
+import { isParceiroLogistico } from '../../../utils/filiais';
 import { formatarDataHora, formatarMoeda } from '../../../utils/formatadores';
 import ManifestosMetasImportacaoModal from './ManifestosMetasImportacaoModal';
 
@@ -37,14 +38,20 @@ const MONTHS = [
   { value: 12, label: 'Dezembro' },
 ];
 const CONTRACT_TYPE_OPTIONS = [
-  { value: 'geral', label: 'Geral' },
-  { value: 'frota', label: 'Frota' },
-  { value: 'agregado', label: 'Agregado' },
-  { value: 'terceiro', label: 'Terceiro' },
-  { value: 'frota + px', label: 'Frota + PX' },
+  { value: 'GERAL', label: 'GERAL' },
+  { value: 'FROTA', label: 'FROTA' },
+  { value: 'AGREGADO', label: 'AGREGADO' },
+  { value: 'TERCEIRO', label: 'TERCEIRO' },
+  { value: 'FROTA + PX', label: 'FROTA + PX' },
 ];
 const GENERAL_CLASSIFICATION_KEY = '__geral__';
 const FOCUS_RING_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
+const BRANCH_CODE_PATTERN = /^[A-Z0-9]{3}$/;
+
+interface BranchOption {
+  value: string;
+  label: string;
+}
 
 function normalizeCurrency(value: string) {
   const normalized = value
@@ -72,24 +79,68 @@ function getCurrentPeriod() {
   };
 }
 
+function normalizeKey(value: string | null | undefined, fallback = '') {
+  const normalized = value?.trim().toUpperCase() ?? '';
+  return normalized || fallback;
+}
+
+function extractBranchCode(value: string | null | undefined) {
+  const normalized = normalizeKey(value);
+  if (!normalized || normalized === GLOBAL_BRANCH_ID || isParceiroLogistico(normalized)) {
+    return normalized === GLOBAL_BRANCH_ID ? GLOBAL_BRANCH_ID : null;
+  }
+
+  const segments = normalized.split(/\s*[-|]\s*/).filter(Boolean);
+  const words = normalized.split(/\s+/).filter(Boolean);
+  const candidates = [
+    normalized,
+    segments[0],
+    segments.at(-1),
+    words[0],
+    words.at(-1),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  return candidates.find((candidate) => BRANCH_CODE_PATTERN.test(candidate)) ?? null;
+}
+
+function branchLabel(value: string, label?: string | null) {
+  const normalizedLabel = normalizeKey(label);
+  if (!normalizedLabel || normalizedLabel === value) {
+    return value;
+  }
+  return normalizedLabel;
+}
+
+function getConfigBranchKey(config: ManifestosCostGoalConfig) {
+  const code = extractBranchCode(config.branchId);
+  return code ?? normalizeKey(config.branchId, GLOBAL_BRANCH_ID);
+}
+
+function formatGoalCurrency(value: number) {
+  return formatarMoeda(Math.round(Number(value ?? 0) * 100) / 100);
+}
+
 function getConfigContractTypeKey(config: ManifestosCostGoalConfig) {
-  return config.contractTypeKey ?? 'geral';
+  return normalizeKey(config.contractTypeKey ?? config.contractType, 'GERAL');
 }
 
 function getConfigContractTypeLabel(config: ManifestosCostGoalConfig) {
-  return config.contractType ?? CONTRACT_TYPE_OPTIONS.find((option) => option.value === getConfigContractTypeKey(config))?.label ?? 'Geral';
+  return normalizeKey(
+    config.contractType,
+    CONTRACT_TYPE_OPTIONS.find((option) => option.value === getConfigContractTypeKey(config))?.label ?? 'GERAL',
+  );
 }
 
 function getConfigClassificationKey(config: ManifestosCostGoalConfig) {
-  return config.classificationKey ?? GENERAL_CLASSIFICATION_KEY;
+  return normalizeKey(config.classificationKey) || GENERAL_CLASSIFICATION_KEY;
 }
 
 function getConfigClassificationLabel(config: ManifestosCostGoalConfig) {
-  return config.classificationKey ?? 'Geral';
+  return normalizeKey(config.classificationKey, 'GERAL');
 }
 
 function getClassificationPayload(value: string) {
-  return value === GENERAL_CLASSIFICATION_KEY ? null : value;
+  return value === GENERAL_CLASSIFICATION_KEY ? null : normalizeKey(value);
 }
 
 function formatDate(year: number, month: number, day: number) {
@@ -100,8 +151,8 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
   const periodoAtual = useMemo(() => getCurrentPeriod(), []);
   const [ano, setAno] = useState(periodoAtual.ano);
   const [mes, setMes] = useState(periodoAtual.mes);
-  const [branchId, setBranchId] = useState(GLOBAL_BRANCH_ID);
-  const [contractTypeKey, setContractTypeKey] = useState('geral');
+  const [branchId, setBranchId] = useState('');
+  const [contractTypeKey, setContractTypeKey] = useState('GERAL');
   const [classificationKey, setClassificationKey] = useState(GENERAL_CLASSIFICATION_KEY);
   const [costGoalDraft, setCostGoalDraft] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -143,12 +194,12 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
   }, [configsCadastradas]);
   const classificationOptions = useMemo(() => {
     const options = new Map<string, { value: string; label: string }>();
-    options.set(GENERAL_CLASSIFICATION_KEY, { value: GENERAL_CLASSIFICATION_KEY, label: 'Geral' });
+    options.set(GENERAL_CLASSIFICATION_KEY, { value: GENERAL_CLASSIFICATION_KEY, label: 'GERAL' });
 
     (classificacoes.data ?? []).forEach((classificacao) => {
-      const value = classificacao.trim().toLowerCase();
+      const value = normalizeKey(classificacao);
       if (value && !options.has(value)) {
-        options.set(value, { value, label: classificacao });
+        options.set(value, { value, label: value });
       }
     });
 
@@ -161,25 +212,68 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
 
     return Array.from(options.values());
   }, [classificacoes.data, configsCadastradas]);
+  const branchOptions = useMemo<BranchOption[]>(() => {
+    const options = new Map<string, BranchOption>();
+    const configuredBranches = new Set(
+      configsCadastradas
+        .map(getConfigBranchKey)
+        .filter((value) => value && value !== GLOBAL_BRANCH_ID),
+    );
+
+    function upsert(value: string, label?: string | null) {
+      if (!value) {
+        return;
+      }
+      const next = { value, label: branchLabel(value, label) };
+      const current = options.get(value);
+      if (!current || current.label === value) {
+        options.set(value, next);
+      }
+    }
+
+    (filiais.data ?? []).forEach((filial) => {
+      if (isParceiroLogistico(filial)) {
+        return;
+      }
+      const code = extractBranchCode(filial);
+      if (!code || code === GLOBAL_BRANCH_ID) {
+        return;
+      }
+      if (configuredBranches.size === 0 || configuredBranches.has(code)) {
+        upsert(code, filial);
+      }
+    });
+
+    configsCadastradas.forEach((config) => {
+      const value = getConfigBranchKey(config);
+      if (value === GLOBAL_BRANCH_ID) {
+        upsert(value, GLOBAL_BRANCH_ID);
+        return;
+      }
+      upsert(value, config.branchId);
+    });
+
+    return Array.from(options.values())
+      .sort((left, right) => {
+        if (left.value === GLOBAL_BRANCH_ID) {
+          return 1;
+        }
+        if (right.value === GLOBAL_BRANCH_ID) {
+          return -1;
+        }
+        return left.value.localeCompare(right.value, 'pt-BR');
+      });
+  }, [configsCadastradas, filiais.data]);
+  const selectedBranchId = branchOptions.some((option) => option.value === branchId)
+    ? branchId
+    : branchOptions[0]?.value ?? '';
   const configAtual = useMemo(
     () => configsCadastradas.find((item) =>
-      item.branchId === branchId
+      getConfigBranchKey(item) === selectedBranchId
       && getConfigContractTypeKey(item) === contractTypeKey
       && getConfigClassificationKey(item) === classificationKey
     ) ?? null,
-    [branchId, classificationKey, contractTypeKey, configsCadastradas],
-  );
-  const selectableBranches = useMemo(
-    () => [
-      GLOBAL_BRANCH_ID,
-      ...Array.from(new Set([
-        ...(filiais.data ?? []),
-        ...configsCadastradas.map((item) => item.branchId),
-      ]))
-        .filter((item) => item && item !== GLOBAL_BRANCH_ID)
-        .sort((left, right) => left.localeCompare(right, 'pt-BR')),
-    ],
-    [configsCadastradas, filiais.data],
+    [selectedBranchId, classificationKey, contractTypeKey, configsCadastradas],
   );
   const anos = useMemo(() => {
     const current = new Date().getFullYear();
@@ -188,10 +282,23 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
   const selectedContractType = contractTypeOptions.find((option) => option.value === contractTypeKey) ?? CONTRACT_TYPE_OPTIONS[0];
   const selectedClassification = classificationOptions.find((option) => option.value === classificationKey)
     ?? classificationOptions[0]
-    ?? { value: GENERAL_CLASSIFICATION_KEY, label: 'Geral' };
+    ?? { value: GENERAL_CLASSIFICATION_KEY, label: 'GERAL' };
   const costGoalValue = costGoalDraft ?? String(configAtual?.costGoal ?? 0);
   const podeReplicarMetas = configsCadastradas.length === 0 && !isLoading && !error;
   const actionError = saveError ?? replicarMetas.error;
+  const configsDaFilialSelecionada = useMemo(
+    () => configsCadastradas
+      .filter((config) => getConfigBranchKey(config) === selectedBranchId)
+      .sort((left, right) => {
+        const contrato = getConfigContractTypeLabel(left).localeCompare(getConfigContractTypeLabel(right), 'pt-BR');
+        if (contrato !== 0) {
+          return contrato;
+        }
+        return getConfigClassificationLabel(left).localeCompare(getConfigClassificationLabel(right), 'pt-BR');
+      }),
+    [selectedBranchId, configsCadastradas],
+  );
+  const selectedBranchLabel = branchOptions.find((option) => option.value === selectedBranchId)?.label ?? selectedBranchId;
 
   function pushToast(message: string, tone: ToastTone) {
     const id = `${Date.now()}-${Math.random()}`;
@@ -208,7 +315,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await salvarMeta.mutateAsync({
-      branchId,
+      branchId: selectedBranchId,
       contractType: selectedContractType.label,
       contractTypeKey: selectedContractType.value,
       classificationKey: getClassificationPayload(selectedClassification.value),
@@ -228,7 +335,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
       mes: config.mes,
     });
     if (
-      config.branchId === branchId
+      getConfigBranchKey(config) === selectedBranchId
       && getConfigContractTypeKey(config) === contractTypeKey
       && getConfigClassificationKey(config) === classificationKey
     ) {
@@ -334,21 +441,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
             </p>
           ) : null}
 
-          <form onSubmit={handleSubmit} className="grid gap-4 rounded-2xl border p-4 lg:grid-cols-[0.75fr_1fr_1.2fr_1.2fr_1.2fr_1fr_auto]" style={{ borderColor: 'var(--color-border)' }}>
-            <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
-              Ano
-              <select
-                value={ano}
-                onChange={(event) => {
-                  setCostGoalDraft(null);
-                  setAno(Number(event.target.value));
-                }}
-                className={`h-11 rounded-xl border px-3 text-sm ${FOCUS_RING_CLASS}`}
-                style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-              >
-                {anos.map((year) => <option key={year} value={year}>{year}</option>)}
-              </select>
-            </label>
+          <div className="grid gap-4 rounded-2xl border p-4 md:grid-cols-[1fr_0.8fr_1.6fr]" style={{ borderColor: 'var(--color-border)' }}>
             <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
               Mês
               <select
@@ -364,9 +457,23 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
               </select>
             </label>
             <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
+              Ano
+              <select
+                value={ano}
+                onChange={(event) => {
+                  setCostGoalDraft(null);
+                  setAno(Number(event.target.value));
+                }}
+                className={`h-11 rounded-xl border px-3 text-sm ${FOCUS_RING_CLASS}`}
+                style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+              >
+                {anos.map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
               Filial
               <select
-                value={branchId}
+                value={selectedBranchId}
                 onChange={(event) => {
                   setBranchId(event.target.value);
                   setCostGoalDraft(null);
@@ -374,11 +481,14 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
                 className={`h-11 rounded-xl border px-3 text-sm ${FOCUS_RING_CLASS}`}
                 style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
               >
-                {selectableBranches.map((option) => (
-                  <option key={option} value={option}>{option === GLOBAL_BRANCH_ID ? 'GLOBAL' : option}</option>
+                {branchOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
             </label>
+          </div>
+
+          <form onSubmit={handleSubmit} className="mt-4 grid gap-4 rounded-2xl border p-4 lg:grid-cols-[1.2fr_1.2fr_1fr_auto]" style={{ borderColor: 'var(--color-border)' }}>
             <label className="grid gap-1 text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>
               Tipo de Contrato
               <select
@@ -427,7 +537,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
             <div className="flex items-end">
               <button
                 type="submit"
-                disabled={isSaving}
+                disabled={isSaving || !selectedBranchId}
                 className={`inline-flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING_CLASS}`}
                 style={{ backgroundColor: 'var(--color-primary)' }}
               >
@@ -439,45 +549,54 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
 
           <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: 'var(--color-border)' }}>
             <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-              Orçamentos cadastrados para {MONTHS.find((item) => item.value === mes)?.label}/{ano}
+              Orçamentos cadastrados para {selectedBranchLabel || 'filial'} em {MONTHS.find((item) => item.value === mes)?.label}/{ano}
             </h3>
-            <div className="mt-3 grid gap-2">
-              {configsCadastradas.length === 0 ? (
+            <div className="mt-3 overflow-x-auto">
+              {configsDaFilialSelecionada.length === 0 ? (
                 <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                  {statusMensagem ?? 'Nenhuma meta cadastrada para este mês.'}
+                  {statusMensagem ?? 'Nenhuma meta cadastrada para a filial selecionada neste mês.'}
                 </p>
               ) : (
-                configsCadastradas.map((config) => (
-                  <div key={`${config.branchId}-${config.ano}-${config.mes}-${getConfigContractTypeKey(config)}-${getConfigClassificationKey(config)}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{config.branchId}</span>
-                        <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
-                          {getConfigContractTypeLabel(config)}
-                        </span>
-                        <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
-                          {getConfigClassificationLabel(config)}
-                        </span>
-                        <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
-                          Meta Mensal {formatarMoeda(config.costGoal)}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs" style={{ color: 'var(--color-text-subtle)' }}>
-                        Última atualização: {config.updatedAt ? formatarDataHora(config.updatedAt) : '—'} · {config.updatedByName ?? 'Usuário não identificado'}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={isSaving}
-                      onClick={() => void handleRemove(config)}
-                      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING_CLASS}`}
-                      style={{ borderColor: '#dc2626', color: '#dc2626' }}
-                    >
-                      <Trash2 size={13} />
-                      Remover
-                    </button>
-                  </div>
-                ))
+                <table className="min-w-[720px] w-full border-collapse text-sm">
+                  <thead>
+                    <tr style={{ color: 'var(--color-text-subtle)', borderBottom: '1px solid var(--color-border)' }}>
+                      <th className="px-3 py-2 text-left font-semibold">Tipo de Contrato</th>
+                      <th className="px-3 py-2 text-left font-semibold">Classificação</th>
+                      <th className="px-3 py-2 text-right font-semibold">Meta Mensal Cadastrada</th>
+                      <th className="px-3 py-2 text-left font-semibold">Última Atualização</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {configsDaFilialSelecionada.map((config) => (
+                      <tr
+                        key={`${config.branchId}-${config.ano}-${config.mes}-${getConfigContractTypeKey(config)}-${getConfigClassificationKey(config)}`}
+                        style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                      >
+                        <td className="px-3 py-3 font-medium">{getConfigContractTypeLabel(config)}</td>
+                        <td className="px-3 py-3">{getConfigClassificationLabel(config)}</td>
+                        <td className="px-3 py-3 text-right font-semibold tabular-nums">{formatGoalCurrency(config.costGoal)}</td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="min-w-0 truncate" title={config.updatedByName ?? undefined}>
+                              {config.updatedAt ? formatarDataHora(config.updatedAt) : '—'} · {config.updatedByName ?? 'Usuário não identificado'}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => void handleRemove(config)}
+                              aria-label={`Remover meta ${getConfigContractTypeLabel(config)} ${getConfigClassificationLabel(config)}`}
+                              title="Remover meta"
+                              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING_CLASS}`}
+                              style={{ borderColor: '#dc2626', color: '#dc2626' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
           </div>

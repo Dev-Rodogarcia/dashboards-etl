@@ -9,6 +9,7 @@ import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
+import FiliaisParceirosFilter from '../components/shared/FiliaisParceirosFilter';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
@@ -114,17 +115,19 @@ export default function ColetasPage() {
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
+    parceirosLogisticos: filtros.parceirosLogisticos,
     clientes: filtros.clientes,
     status: filtros.status,
     regioes: filtros.regioes,
     usuarios: filtros.usuarios,
-  }), [dataFim, dataInicio, filtros.clientes, filtros.filiais, filtros.regioes, filtros.status, filtros.usuarios]);
+  }), [dataFim, dataInicio, filtros.clientes, filtros.filiais, filtros.parceirosLogisticos, filtros.regioes, filtros.status, filtros.usuarios]);
 
   const activeFilters: ActiveFilter[] = useMemo(() => [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Parceiros Logísticos', count: filtros.parceirosLogisticos?.length ?? 0, onRemove: () => setFiltro('parceirosLogisticos', []) },
     { label: 'Clientes', count: filtros.clientes?.length ?? 0, onRemove: () => setFiltro('clientes', []) },
     { label: 'Usuários', count: filtros.usuarios?.length ?? 0, onRemove: () => setFiltro('usuarios', []) },
-  ], [filtros.clientes, filtros.filiais, filtros.usuarios, setFiltro]);
+  ], [filtros.clientes, filtros.filiais, filtros.parceirosLogisticos, filtros.usuarios, setFiltro]);
 
   const overview = useColetasOverview(filtro);
   const serie = useColetasSerie(filtro);
@@ -530,11 +533,12 @@ export default function ColetasPage() {
           onDataFimChange={setDataFim}
           onRangeChange={setDataRange}
         />
-        <AsyncMultiSelect
-          label="Filiais"
+        <FiliaisParceirosFilter
           opcoes={filiais.data ?? EMPTY_ARRAY}
-          selecionados={filtros.filiais ?? []}
-          onChange={(valores) => setFiltro('filiais', valores)}
+          filiaisSelecionadas={filtros.filiais ?? EMPTY_ARRAY}
+          parceirosSelecionados={filtros.parceirosLogisticos ?? EMPTY_ARRAY}
+          onFiliaisChange={(valores) => setFiltro('filiais', valores)}
+          onParceirosChange={(valores) => setFiltro('parceirosLogisticos', valores)}
           isLoading={filiais.isLoading}
         />
         <AsyncMultiSelect

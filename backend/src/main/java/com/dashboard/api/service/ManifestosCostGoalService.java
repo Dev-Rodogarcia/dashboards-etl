@@ -40,8 +40,10 @@ public class ManifestosCostGoalService {
     private static final Logger log = LoggerFactory.getLogger(ManifestosCostGoalService.class);
     private static final ZoneId ZONE_ID_BRASILIA = ZoneId.of("America/Sao_Paulo");
     private static final String GLOBAL_BRANCH_ID = "GLOBAL";
-    private static final String DEFAULT_CONTRACT_TYPE = "Geral";
-    private static final String DEFAULT_CONTRACT_TYPE_KEY = "geral";
+    private static final String DEFAULT_CONTRACT_TYPE = "GERAL";
+    private static final String DEFAULT_CONTRACT_TYPE_KEY = "GERAL";
+    private static final String ALL_CONTRACT_TYPES = "__all_contract_types__";
+    private static final String ALL_CLASSIFICATIONS = "__all_classifications__";
     private static final List<String> FILTROS_SEM_DIMENSAO_ORCAMENTARIA = List.of(
             "status",
             "motoristas",
@@ -249,14 +251,18 @@ public class ManifestosCostGoalService {
                         inicioCompetencia,
                         fimCompetenciaExclusivo,
                         aplicabilidade.contractTypeKeys(),
-                        aplicabilidade.contractTypeFilterActive()
+                        aplicabilidade.contractTypeFilterActive(),
+                        aplicabilidade.classificationKeys(),
+                        aplicabilidade.classificationFilterActive()
                 )
                 : goalRepository.aggregateByBranches(
                         inicioCompetencia,
                         fimCompetenciaExclusivo,
                         aplicabilidade.filiais(),
                         aplicabilidade.contractTypeKeys(),
-                        aplicabilidade.contractTypeFilterActive()
+                        aplicabilidade.contractTypeFilterActive(),
+                        aplicabilidade.classificationKeys(),
+                        aplicabilidade.classificationFilterActive()
         );
         BigDecimal orcamentoCusto = moeda(aggregate == null ? null : aggregate.getCostGoal());
         boolean configurado = aggregate != null && aggregate.getConfiguredGoals() > 0;
@@ -328,12 +334,13 @@ public class ManifestosCostGoalService {
             LocalDate competenciaDestino,
             UsuarioEntity usuario
     ) {
+        ContractType contrato = normalizarContrato(origem.getContractType(), origem.getContractTypeKey());
         ManifestosCostGoalEntity destino = new ManifestosCostGoalEntity();
-        destino.setBranchId(origem.getBranchId());
+        destino.setBranchId(normalizarBranchId(origem.getBranchId()));
         destino.setYearMonth(competenciaDestino);
-        destino.setContractType(origem.getContractType());
-        destino.setContractTypeKey(origem.getContractTypeKey());
-        destino.setClassificationKey(origem.getClassificationKey());
+        destino.setContractType(contrato.label());
+        destino.setContractTypeKey(contrato.key());
+        destino.setClassificationKey(normalizarClassificationKey(origem.getClassificationKey()));
         destino.setCostGoal(origem.getCostGoal());
         destino.setUpdatedByUser(usuario);
         return destino;
@@ -358,6 +365,7 @@ public class ManifestosCostGoalService {
         if (GLOBAL_BRANCH_ID.equalsIgnoreCase(normalized)) {
             return null;
         }
+        normalized = normalized.toUpperCase(Locale.ROOT);
         if (normalized.length() > 120) {
             throw new IllegalArgumentException("Filial da meta excede 120 caracteres.");
         }
@@ -367,13 +375,13 @@ public class ManifestosCostGoalService {
     private ContractType normalizarContrato(String contractType, String contractTypeKey) {
         String key = contractTypeKey == null || contractTypeKey.isBlank()
                 ? normalizarContractTypeKey(contractType)
-                : contractTypeKey.trim().toLowerCase(Locale.ROOT);
+                : contractTypeKey.trim().toUpperCase(Locale.ROOT);
         if (key.isBlank()) {
             key = DEFAULT_CONTRACT_TYPE_KEY;
         }
         String label = contractType == null || contractType.isBlank()
                 ? labelContrato(key)
-                : contractType.trim();
+                : contractType.trim().toUpperCase(Locale.ROOT);
         if (label.length() > 100) {
             throw new IllegalArgumentException("Tipo de contrato da meta excede 100 caracteres.");
         }
@@ -387,14 +395,17 @@ public class ManifestosCostGoalService {
         if (contractType == null || contractType.isBlank()) {
             return DEFAULT_CONTRACT_TYPE_KEY;
         }
-        return contractType.trim().toLowerCase(Locale.ROOT);
+        return contractType.trim().toUpperCase(Locale.ROOT);
     }
 
     private String normalizarClassificationKey(String classificationKey) {
         if (classificationKey == null || classificationKey.isBlank()) {
             return null;
         }
-        String normalized = classificationKey.trim().toLowerCase(Locale.ROOT);
+        String normalized = classificationKey.trim().toUpperCase(Locale.ROOT);
+        if (GLOBAL_BRANCH_ID.equals(normalized) || DEFAULT_CONTRACT_TYPE_KEY.equals(normalized)) {
+            return null;
+        }
         if (normalized.length() > 120) {
             throw new IllegalArgumentException("Chave da classificação da meta excede 120 caracteres.");
         }
@@ -403,10 +414,10 @@ public class ManifestosCostGoalService {
 
     private String labelContrato(String contractTypeKey) {
         return switch (contractTypeKey) {
-            case "frota" -> "Frota";
-            case "agregado" -> "Agregado";
-            case "terceiro" -> "Terceiro";
-            case "frota + px" -> "Frota + PX";
+            case "FROTA" -> "FROTA";
+            case "AGREGADO" -> "AGREGADO";
+            case "TERCEIRO" -> "TERCEIRO";
+            case "FROTA + PX" -> "FROTA + PX";
             default -> DEFAULT_CONTRACT_TYPE_KEY.equals(contractTypeKey) ? DEFAULT_CONTRACT_TYPE : contractTypeKey;
         };
     }
@@ -493,9 +504,10 @@ public class ManifestosCostGoalService {
         }
 
         List<String> contractTypeKeys = normalizar(filtro.valores("tiposContrato"));
+        List<String> classificationKeys = normalizar(filtro.valores("classificacoes"));
         List<String> filiaisSelecionadas = normalizar(filtro.valores("filiais"));
         if (escopo.acessoTotal() && filiaisSelecionadas.isEmpty()) {
-            return AplicabilidadeOrcamento.global(contractTypeKeys);
+            return AplicabilidadeOrcamento.global(contractTypeKeys, classificationKeys);
         }
 
         List<String> filiaisPermitidas = escopo.acessoTotal()
@@ -509,7 +521,7 @@ public class ManifestosCostGoalService {
                     "Orçamento indisponível porque as filiais selecionadas estão fora do escopo autorizado."
             );
         }
-        return AplicabilidadeOrcamento.porFiliais(filiaisPermitidas, contractTypeKeys);
+        return AplicabilidadeOrcamento.porFiliais(filiaisPermitidas, contractTypeKeys, classificationKeys);
     }
 
     private List<String> intersecao(Collection<String> selecionadas, Collection<String> permitidas) {
@@ -525,7 +537,7 @@ public class ManifestosCostGoalService {
         }
         return valores.stream()
                 .filter(valor -> valor != null && !valor.isBlank())
-                .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
+                .map(valor -> valor.trim().toUpperCase(Locale.ROOT))
                 .distinct()
                 .toList();
     }
@@ -621,40 +633,64 @@ public class ManifestosCostGoalService {
             boolean usarMetaGlobal,
             List<String> filiais,
             List<String> contractTypeKeys,
+            List<String> classificationKeys,
             String observacao
     ) {
-        static AplicabilidadeOrcamento global(List<String> contractTypeKeys) {
+        static AplicabilidadeOrcamento global(List<String> contractTypeKeys, List<String> classificationKeys) {
             return new AplicabilidadeOrcamento(
                     true,
                     true,
                     List.of(),
                     filtroContrato(contractTypeKeys),
+                    filtroClassificacao(classificationKeys),
                     null
             );
         }
 
-        static AplicabilidadeOrcamento porFiliais(List<String> filiais, List<String> contractTypeKeys) {
+        static AplicabilidadeOrcamento porFiliais(
+                List<String> filiais,
+                List<String> contractTypeKeys,
+                List<String> classificationKeys
+        ) {
             return new AplicabilidadeOrcamento(
                     true,
                     false,
                     filiais,
                     filtroContrato(contractTypeKeys),
+                    filtroClassificacao(classificationKeys),
                     null
             );
         }
 
         static AplicabilidadeOrcamento indisponivel(String observacao) {
-            return new AplicabilidadeOrcamento(false, false, List.of(), List.of("__all_contract_types__"), observacao);
+            return new AplicabilidadeOrcamento(
+                    false,
+                    false,
+                    List.of(),
+                    List.of(ALL_CONTRACT_TYPES),
+                    List.of(ALL_CLASSIFICATIONS),
+                    observacao
+            );
         }
 
         int contractTypeFilterActive() {
-            return contractTypeKeys.size() == 1 && "__all_contract_types__".equals(contractTypeKeys.get(0)) ? 0 : 1;
+            return contractTypeKeys.size() == 1 && ALL_CONTRACT_TYPES.equals(contractTypeKeys.get(0)) ? 0 : 1;
+        }
+
+        int classificationFilterActive() {
+            return classificationKeys.size() == 1 && ALL_CLASSIFICATIONS.equals(classificationKeys.get(0)) ? 0 : 1;
         }
 
         private static List<String> filtroContrato(List<String> contractTypeKeys) {
             return contractTypeKeys == null || contractTypeKeys.isEmpty()
-                    ? List.of("__all_contract_types__")
+                    ? List.of(ALL_CONTRACT_TYPES)
                     : contractTypeKeys;
+        }
+
+        private static List<String> filtroClassificacao(List<String> classificationKeys) {
+            return classificationKeys == null || classificationKeys.isEmpty()
+                    ? List.of(ALL_CLASSIFICATIONS)
+                    : classificationKeys;
         }
     }
 }

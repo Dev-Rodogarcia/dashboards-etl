@@ -1,18 +1,11 @@
 import AsyncMultiSelect from '../shared/AsyncMultiSelect';
+import { combinarFiliaisParceiros, isParceiroLogistico } from '../../utils/filiais';
 
 interface FiliaisPermitidasSplitSelectProps {
   opcoes: string[];
   selecionadas: string[];
   onChange: (filiais: string[]) => void;
   isLoading?: boolean;
-}
-
-function isParceiroLogistico(filial: string) {
-  return filial.toLowerCase().includes('| parceiro');
-}
-
-function combinarSelecoes(filiaisProprias: string[], parceirosLogisticos: string[]) {
-  return Array.from(new Set([...filiaisProprias, ...parceirosLogisticos]));
 }
 
 export default function FiliaisPermitidasSplitSelect({
@@ -27,11 +20,11 @@ export default function FiliaisPermitidasSplitSelect({
   const parceirosLogisticosSelecionados = selecionadas.filter(isParceiroLogistico);
 
   function atualizarFiliaisProprias(proximasFiliaisProprias: string[]) {
-    onChange(combinarSelecoes(proximasFiliaisProprias, parceirosLogisticosSelecionados));
+    onChange(combinarFiliaisParceiros(proximasFiliaisProprias, parceirosLogisticosSelecionados));
   }
 
   function atualizarParceirosLogisticos(proximosParceirosLogisticos: string[]) {
-    onChange(combinarSelecoes(filiaisPropriasSelecionadas, proximosParceirosLogisticos));
+    onChange(combinarFiliaisParceiros(filiaisPropriasSelecionadas, proximosParceirosLogisticos));
   }
 
   return (

@@ -5,6 +5,7 @@ export interface FiltroBase {
 
 export interface FiltroComDimensoes extends FiltroBase {
   filiais?: string[];
+  parceirosLogisticos?: string[];
   status?: string[];
   clientes?: string[];
 }

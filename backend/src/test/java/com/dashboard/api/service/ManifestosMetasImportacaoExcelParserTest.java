@@ -28,6 +28,25 @@ class ManifestosMetasImportacaoExcelParserTest {
     }
 
     @Test
+    void deveNormalizarChavesDaPlanilhaEmCaixaAlta() {
+        MockMultipartFile arquivo = new MockMultipartFile(
+                "arquivo",
+                "manifestos-metas.csv",
+                "text/csv",
+                ("Mês/Ano;Filial;Tipo de Contrato;Classificação;Valor da Meta\n"
+                        + "05/2026; spo ; frota + px ; distribuição ;123,45\n").getBytes(StandardCharsets.UTF_8)
+        );
+
+        ManifestosMetasImportacaoExcelParser.PlanilhaImportada resultado = parser.parse(arquivo);
+        ManifestosMetasImportacaoExcelParser.LinhaPlanilha linha = resultado.linhas().get(0);
+
+        assertThat(linha.branchId()).isEqualTo("SPO");
+        assertThat(linha.contractType()).isEqualTo("FROTA + PX");
+        assertThat(linha.contractTypeKey()).isEqualTo("FROTA + PX");
+        assertThat(linha.classificationKey()).isEqualTo("DISTRIBUIÇÃO");
+    }
+
+    @Test
     void deveRejeitarXlsxComConteudoTextoAntesDeAbrirPlanilha() {
         MockMultipartFile arquivo = new MockMultipartFile(
                 "arquivo",

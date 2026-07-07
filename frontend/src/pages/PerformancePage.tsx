@@ -8,6 +8,7 @@ import PerformanceTabela from '../components/domain/performance/PerformanceTabel
 import AsyncMultiSelect, { type AsyncMultiSelectOpcao } from '../components/shared/AsyncMultiSelect';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
+import FiliaisParceirosFilter from '../components/shared/FiliaisParceirosFilter';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import KpiCard from '../components/shared/KpiCard';
 import TooltipKpi from '../components/shared/TooltipKpi';
@@ -765,6 +766,7 @@ export default function PerformancePage() {
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
+    parceirosLogisticos: filtros.parceirosLogisticos,
     status: filtros.status,
     pagadores: filtros.pagadores,
     responsaveis: filtros.responsaveis,
@@ -776,6 +778,7 @@ export default function PerformancePage() {
     filtros.cidadesDestino,
     filtros.filiais,
     filtros.pagadores,
+    filtros.parceirosLogisticos,
     filtros.regioesDestino,
     filtros.responsaveis,
     filtros.status,
@@ -800,6 +803,7 @@ export default function PerformancePage() {
     dataInicio: primeiroDiaMesesAtrasLocal(historicoPeriodoMeses - 1),
     dataFim: dataHojeLocal(),
     filiais: filtros.filiais,
+    parceirosLogisticos: filtros.parceirosLogisticos,
     status: filtros.status,
     pagadores: filtros.pagadores,
     responsaveis: filtros.responsaveis,
@@ -809,6 +813,7 @@ export default function PerformancePage() {
     filtros.cidadesDestino,
     filtros.filiais,
     filtros.pagadores,
+    filtros.parceirosLogisticos,
     filtros.regioesDestino,
     filtros.responsaveis,
     filtros.status,
@@ -817,6 +822,7 @@ export default function PerformancePage() {
 
   const activeFilters: ActiveFilter[] = [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Parceiros Logísticos', count: filtros.parceirosLogisticos?.length ?? 0, onRemove: () => setFiltro('parceirosLogisticos', []) },
     { label: 'Status', count: filtros.status?.length ?? 0, onRemove: () => setFiltro('status', []) },
     { label: 'Pagadores', count: filtros.pagadores?.length ?? 0, onRemove: () => setFiltro('pagadores', []) },
     { label: 'Responsáveis', count: filtros.responsaveis?.length ?? 0, onRemove: () => setFiltro('responsaveis', []) },
@@ -1007,11 +1013,12 @@ export default function PerformancePage() {
           onDataFimChange={setDataFim}
           onRangeChange={setDataRange}
         />
-        <AsyncMultiSelect
-          label="Filiais"
+        <FiliaisParceirosFilter
           opcoes={filiais.data ?? []}
-          selecionados={filtros.filiais ?? []}
-          onChange={(valores) => setFiltro('filiais', valores)}
+          filiaisSelecionadas={filtros.filiais ?? []}
+          parceirosSelecionados={filtros.parceirosLogisticos ?? []}
+          onFiliaisChange={(valores) => setFiltro('filiais', valores)}
+          onParceirosChange={(valores) => setFiltro('parceirosLogisticos', valores)}
           isLoading={filiais.isLoading}
         />
         <AsyncMultiSelect

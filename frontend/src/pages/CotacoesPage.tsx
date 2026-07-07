@@ -11,6 +11,7 @@ import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/s
 import ChartCard from '../components/shared/ChartCard';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
+import FiliaisParceirosFilter from '../components/shared/FiliaisParceirosFilter';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
@@ -1038,6 +1039,7 @@ export default function CotacoesPage() {
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
+    parceirosLogisticos: filtros.parceirosLogisticos,
     clientes: filtros.clientes,
     statusConversao: filtros.statusConversao,
     usuarios: filtros.usuarios,
@@ -1052,6 +1054,7 @@ export default function CotacoesPage() {
     filtros.destinos,
     filtros.filiais,
     filtros.origens,
+    filtros.parceirosLogisticos,
     filtros.statusConversao,
     filtros.usuarios,
   ]);
@@ -1060,6 +1063,7 @@ export default function CotacoesPage() {
     dataInicio: primeiroDiaMesesAtrasLocal(conversionPeriodoMeses - 1),
     dataFim: dataHojeLocal(),
     filiais: filtros.filiais,
+    parceirosLogisticos: filtros.parceirosLogisticos,
     clientes: filtros.clientes,
     statusConversao: filtros.statusConversao,
     usuarios: filtros.usuarios,
@@ -1073,6 +1077,7 @@ export default function CotacoesPage() {
     filtros.destinos,
     filtros.filiais,
     filtros.origens,
+    filtros.parceirosLogisticos,
     filtros.statusConversao,
     filtros.usuarios,
   ]);
@@ -1084,6 +1089,7 @@ export default function CotacoesPage() {
 
   const activeFilters: ActiveFilter[] = [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Parceiros Logísticos', count: filtros.parceirosLogisticos?.length ?? 0, onRemove: () => setFiltro('parceirosLogisticos', []) },
     { label: 'Clientes', count: filtros.clientes?.length ?? 0, onRemove: () => setFiltro('clientes', []) },
     { label: 'Status', count: filtros.statusConversao?.length ?? 0, onRemove: () => setFiltro('statusConversao', []) },
     { label: 'Usuário', count: filtros.usuarios?.length ?? 0, onRemove: () => setFiltro('usuarios', []) },
@@ -1194,7 +1200,14 @@ export default function CotacoesPage() {
         actions={<CotacoesViewTabs activeView={activeView} onChange={setActiveView} />}
       >
         <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
-        <AsyncMultiSelect label="Filiais" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />
+        <FiliaisParceirosFilter
+          opcoes={filiais.data ?? []}
+          filiaisSelecionadas={filtros.filiais ?? []}
+          parceirosSelecionados={filtros.parceirosLogisticos ?? []}
+          onFiliaisChange={(valores) => setFiltro('filiais', valores)}
+          onParceirosChange={(valores) => setFiltro('parceirosLogisticos', valores)}
+          isLoading={filiais.isLoading}
+        />
         <AsyncMultiSelect label="Clientes" opcoes={clientes.data ?? []} selecionados={filtros.clientes ?? []} onChange={(valores) => setFiltro('clientes', valores)} isLoading={clientes.isLoading} />
         <AsyncMultiSelect label="Status" opcoes={['Convertida', 'Reprovada', 'Pendente']} selecionados={filtros.statusConversao ?? []} onChange={(valores) => setFiltro('statusConversao', valores)} />
         <AsyncMultiSelect label="Classificação" opcoes={classificacoesCotacoes.data ?? []} selecionados={filtros.classificacoes ?? []} onChange={(valores) => setFiltro('classificacoes', valores)} isLoading={classificacoesCotacoes.isLoading} />

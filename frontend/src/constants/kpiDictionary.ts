@@ -161,9 +161,9 @@ export const KpiDictionary = {
       titulo: 'Orçamento de Custo',
       descricao: 'Orçamento mensal de custo operacional aplicável às competências e filiais selecionadas.',
       calculo:
-        'Soma dos Orçamentos Mensais por filial e tipo de contrato. Sem filtro de filial, a meta global prevalece; com filtro ou escopo restrito, são somadas as metas das filiais aplicáveis.',
+        'Soma dos Orçamentos Mensais por filial, tipo de contrato e classificação canônica. Sem filtro de filial, a meta global prevalece; com filtro ou escopo restrito, são somadas as metas das filiais aplicáveis.',
       observacao:
-        'O orçamento não é comparado quando existem filtros de status, motorista, veículo, tipo de carga ou tipo de motorista.',
+        'Quando houver filtro de classificação, somente metas com a mesma chave em caixa alta entram no orçamento. O orçamento não é comparado quando existem filtros de status, motorista, veículo, tipo de carga ou tipo de motorista.',
     },
     custoReal: {
       titulo: 'Custo Real',

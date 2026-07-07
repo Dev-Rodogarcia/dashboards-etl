@@ -85,6 +85,23 @@ class ManifestosCostGoalMigrationSqlTest {
     }
 
     @Test
+    void migrationV051NormalizaChavesDeMetasDeManifestos() throws IOException {
+        String sql = lerSql(Path.of(
+                "..",
+                "database",
+                "migrations",
+                "V051__normalizar_chaves_metas_manifestos.sql"
+        ));
+
+        assertThat(sql)
+                .contains("UPDATE acesso.manifestos_cost_goals")
+                .contains("UPPER(LTRIM(RTRIM(branch_id)))")
+                .contains("UPPER(LTRIM(RTRIM(contract_type_key)))")
+                .contains("UPPER(LTRIM(RTRIM(classification_key)))")
+                .doesNotContain("ETL_SISTEMA");
+    }
+
+    @Test
     void validacaoDeSchemaCobreTabelaEIndices() throws IOException {
         String sql = lerSql(Path.of(
                 "..",
@@ -99,7 +116,8 @@ class ManifestosCostGoalMigrationSqlTest {
                 .contains("contract_type_key")
                 .contains("classification_key")
                 .contains("UX_manifestos_cost_goals_branch_period_contract_classification")
-                .contains("UX_manifestos_cost_goals_global_period_contract_classification");
+                .contains("UX_manifestos_cost_goals_global_period_contract_classification")
+                .contains("Metas de manifestos possuem chaves fora do padrao canonico em caixa alta");
     }
 
     private String lerSql(Path path) throws IOException {

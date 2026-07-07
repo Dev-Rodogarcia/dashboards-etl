@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.manifestos.ManifestosCostGoalConfigRequestDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCustosEvolucaoDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCustosEvolucaoDTO.CustoDiarioDTO;
 import com.dashboard.api.model.acesso.ManifestosCostGoalEntity;
@@ -68,6 +69,8 @@ class ManifestosCostGoalServiceTest {
                 INICIO_MAIO,
                 LocalDate.of(2026, 6, 1),
                 List.of("__all_contract_types__"),
+                0,
+                List.of("__all_classifications__"),
                 0
         ))
                 .thenReturn(aggregate("8400000.00", 1));
@@ -101,6 +104,8 @@ class ManifestosCostGoalServiceTest {
                 INICIO_MAIO,
                 LocalDate.of(2026, 6, 1),
                 List.of("__all_contract_types__"),
+                0,
+                List.of("__all_classifications__"),
                 0
         ))
                 .thenReturn(aggregate("299000.00", 1));
@@ -125,8 +130,10 @@ class ManifestosCostGoalServiceTest {
         when(goalRepository.aggregateByBranches(
                 INICIO_MAIO,
                 LocalDate.of(2026, 6, 1),
-                List.of("rec", "spo"),
+                List.of("REC", "SPO"),
                 List.of("__all_contract_types__"),
+                0,
+                List.of("__all_classifications__"),
                 0
         )).thenReturn(aggregate("3000000.00", 2));
 
@@ -136,7 +143,7 @@ class ManifestosCostGoalServiceTest {
         );
 
         assertThat(resultado.orcamentoCusto()).isEqualByComparingTo("3000000.00");
-        verify(goalRepository, never()).aggregateGlobalOrBranches(any(), any(), any(), anyInt());
+        verify(goalRepository, never()).aggregateGlobalOrBranches(any(), any(), any(), anyInt(), any(), anyInt());
     }
 
     @Test
@@ -150,8 +157,10 @@ class ManifestosCostGoalServiceTest {
         when(goalRepository.aggregateGlobalOrBranches(
                 INICIO_MAIO,
                 LocalDate.of(2026, 6, 1),
-                List.of("frota + px"),
-                1
+                List.of("FROTA + PX"),
+                1,
+                List.of("__all_classifications__"),
+                0
         )).thenReturn(aggregate("1200000.00", 1));
 
         ManifestosCustosEvolucaoDTO resultado = service.calcular(
@@ -162,6 +171,33 @@ class ManifestosCostGoalServiceTest {
         assertThat(resultado.orcamentoAplicavel()).isTrue();
         assertThat(resultado.orcamentoConfigurado()).isTrue();
         assertThat(resultado.orcamentoCusto()).isEqualByComparingTo("1200000.00");
+    }
+
+    @Test
+    void aplicaFiltroDeClassificacaoNaMetaComChaveCanonica() {
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                INICIO_MAIO,
+                FIM_MAIO,
+                Map.of("classificacoes", List.of("distribuição"))
+        );
+        stubCalendarioECustos(filtro, List.of());
+        when(goalRepository.aggregateGlobalOrBranches(
+                INICIO_MAIO,
+                LocalDate.of(2026, 6, 1),
+                List.of("__all_contract_types__"),
+                0,
+                List.of("DISTRIBUIÇÃO"),
+                1
+        )).thenReturn(aggregate("900000.00", 1));
+
+        ManifestosCustosEvolucaoDTO resultado = service.calcular(
+                filtro,
+                new BigDecimal("300000.00")
+        );
+
+        assertThat(resultado.orcamentoAplicavel()).isTrue();
+        assertThat(resultado.orcamentoConfigurado()).isTrue();
+        assertThat(resultado.orcamentoCusto()).isEqualByComparingTo("900000.00");
     }
 
     @Test
@@ -198,6 +234,8 @@ class ManifestosCostGoalServiceTest {
                 INICIO_MAIO,
                 LocalDate.of(2026, 6, 1),
                 List.of("__all_contract_types__"),
+                0,
+                List.of("__all_classifications__"),
                 0
         ))
                 .thenReturn(aggregate("0.00", 0));
@@ -212,6 +250,42 @@ class ManifestosCostGoalServiceTest {
         assertThat(resultado.saldoOrcamentario()).isZero();
         assertThat(resultado.limiteDiarioDinamico()).isZero();
         assertThat(resultado.consumoOrcamento()).isZero();
+    }
+
+    @Test
+    void salvarNormalizaFilialContratoEClassificacaoEmCaixaAlta() {
+        service = serviceComUsuario();
+        UsuarioEntity usuario = usuario("admin@example.com");
+        AtomicReference<ManifestosCostGoalEntity> salva = new AtomicReference<>();
+
+        when(goalRepository.findByBranchIdAndYearMonthAndContractTypeKeyAndClassificationKey(
+                "SPO",
+                INICIO_MAIO,
+                "FROTA + PX",
+                "DISTRIBUIÇÃO"
+        )).thenReturn(Optional.empty());
+        when(usuarioRepository.findByEmailIgnoreCase("admin@example.com")).thenReturn(Optional.of(usuario));
+        when(goalRepository.saveAndFlush(any(ManifestosCostGoalEntity.class))).thenAnswer(invocation -> {
+            ManifestosCostGoalEntity entity = invocation.getArgument(0);
+            salva.set(entity);
+            return entity;
+        });
+
+        service.salvar(new ManifestosCostGoalConfigRequestDTO(
+                " spo ",
+                " frota + px ",
+                " frota + px ",
+                " distribuição ",
+                2026,
+                5,
+                new BigDecimal("1200.129")
+        ), "admin@example.com");
+
+        assertThat(salva.get().getBranchId()).isEqualTo("SPO");
+        assertThat(salva.get().getContractType()).isEqualTo("FROTA + PX");
+        assertThat(salva.get().getContractTypeKey()).isEqualTo("FROTA + PX");
+        assertThat(salva.get().getClassificationKey()).isEqualTo("DISTRIBUIÇÃO");
+        assertThat(salva.get().getCostGoal()).isEqualByComparingTo("1200.13");
     }
 
     @Test
@@ -244,9 +318,9 @@ class ManifestosCostGoalServiceTest {
         assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getYearMonth).containsOnly(destino);
         assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getBranchId).containsExactly("SPO", null);
         assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getContractTypeKey)
-                .containsExactly("frota", "geral");
+                .containsExactly("FROTA", "GERAL");
         assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getClassificationKey)
-                .containsExactly("distribuicao", null);
+                .containsExactly("DISTRIBUICAO", null);
         assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getCostGoal)
                 .containsExactly(new BigDecimal("1000.50"), new BigDecimal("299000.00"));
         assertThat(salvas.get()).extracting(ManifestosCostGoalEntity::getUpdatedByUser)

@@ -244,7 +244,7 @@ public class ManifestosMetasImportacaoExcelParser {
         if (valor == null || valor.isBlank() || "GLOBAL".equalsIgnoreCase(valor.trim())) {
             return null;
         }
-        String normalizado = valor.trim();
+        String normalizado = normalizarUpper(valor);
         if (normalizado.length() > 120) {
             mensagens.add("Filial excede 120 caracteres.");
         }
@@ -252,29 +252,33 @@ public class ManifestosMetasImportacaoExcelParser {
     }
 
     private ContractType normalizarContrato(String valor, List<String> mensagens) {
-        String label = valor == null || valor.isBlank() ? "Geral" : valor.trim();
-        String key = label.toLowerCase(Locale.ROOT);
+        String label = valor == null || valor.isBlank() ? "GERAL" : normalizarUpper(valor);
+        String key = label;
         if (label.length() > 100) {
             mensagens.add("Tipo de contrato excede 100 caracteres.");
         }
         if (key.length() > 100) {
             mensagens.add("Chave do tipo de contrato excede 100 caracteres.");
         }
-        return new ContractType(label, key.isBlank() ? "geral" : key);
+        return new ContractType(label, key.isBlank() ? "GERAL" : key);
     }
 
     private String normalizarClassificationKey(String valor, List<String> mensagens) {
         if (valor == null || valor.isBlank()) {
             return null;
         }
-        String normalizado = valor.trim().toLowerCase(Locale.ROOT);
-        if ("geral".equals(normalizado) || "global".equals(normalizado)) {
+        String normalizado = normalizarUpper(valor);
+        if ("GERAL".equals(normalizado) || "GLOBAL".equals(normalizado)) {
             return null;
         }
         if (normalizado.length() > 120) {
             mensagens.add("Chave da classificação excede 120 caracteres.");
         }
         return normalizado;
+    }
+
+    private String normalizarUpper(String valor) {
+        return valor.trim().toUpperCase(Locale.ROOT);
     }
 
     private BigDecimal parseMeta(String valor, List<String> mensagens) {
@@ -409,7 +413,7 @@ public class ManifestosMetasImportacaoExcelParser {
 
         public String chaveImportacao() {
             return "%s|%s|%s|%s|%s".formatted(
-                    branchId == null ? "GLOBAL" : branchId.toLowerCase(Locale.ROOT),
+                    branchId == null ? "GLOBAL" : branchId.toUpperCase(Locale.ROOT),
                     ano,
                     mes,
                     contractTypeKey,

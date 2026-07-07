@@ -3,11 +3,11 @@ import type { EChartsOption } from 'echarts';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import ExecutivoKpiGrid from '../components/domain/executivo/ExecutivoKpiGrid';
-import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import DataTable, { type ColunaTabela } from '../components/shared/DataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import { DATE_RANGE_PRESETS } from '../components/shared/dateRangePresets';
 import ExportButton from '../components/shared/ExportButton';
+import FiliaisParceirosFilter from '../components/shared/FiliaisParceirosFilter';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import MensagemErro from '../components/ui/MensagemErro';
 import { KpiDictionary } from '../constants/kpiDictionary';
@@ -206,10 +206,12 @@ export default function ExecutivoPage() {
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
+    parceirosLogisticos: filtros.parceirosLogisticos,
   };
 
   const activeFilters: ActiveFilter[] = [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Parceiros Logísticos', count: filtros.parceirosLogisticos?.length ?? 0, onRemove: () => setFiltro('parceirosLogisticos', []) },
   ];
 
   const overview = useExecutivoOverview(filtro);
@@ -334,7 +336,14 @@ export default function ExecutivoPage() {
     <div className="w-full">
       <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
         <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
-        <AsyncMultiSelect label="Filiais" opcoes={filiais.data ?? []} selecionados={filtros.filiais ?? []} onChange={(valores) => setFiltro('filiais', valores)} isLoading={filiais.isLoading} />
+        <FiliaisParceirosFilter
+          opcoes={filiais.data ?? []}
+          filiaisSelecionadas={filtros.filiais ?? []}
+          parceirosSelecionados={filtros.parceirosLogisticos ?? []}
+          onFiliaisChange={(valores) => setFiltro('filiais', valores)}
+          onParceirosChange={(valores) => setFiltro('parceirosLogisticos', valores)}
+          isLoading={filiais.isLoading}
+        />
       </FilterBar>
 
       {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar visão executiva.')} tipo={getTipoErro(overview.error)} />}

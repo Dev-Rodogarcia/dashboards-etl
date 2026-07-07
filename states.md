@@ -12,13 +12,17 @@
 - Arquitetura em camadas Spring MVC no backend e SPA React no frontend.
 - Backend: `controller` expõe fronteiras HTTP; `service` orquestra regras; `repository` concentra SQL/JPA; `dto` define contratos; `model` representa entidades; `security` concentra JWT, API key e rate limit; `config` define infraestrutura; `policy` guarda regras reutilizáveis; `util` contém helpers puros.
 - Frontend: `src/App.tsx` define rotas lazy e proteção de acesso; `contexts` guarda sessão/filtros/cabeçalho; `api` centraliza Axios e endpoints; `hooks/queries` encapsula React Query; `pages` monta dashboards; `components/shared` padroniza filtros, cards, tabelas, exportação, gráficos e estados.
+- Filtros globais de dashboards que usam a dimensão de filiais exibem apenas filiais próprias em `components/shared/FiliaisParceirosFilter.tsx`, reutilizando a classificação `| parceiro` centralizada em `utils/filiais.ts` para ocultar parceiros logísticos da barra operacional; a administração continua usando `FiliaisPermitidasSplitSelect` com a mesma regra segregada.
+- A dimensão de filiais (`DimensoesService.listarFiliais`) normaliza os nomes para maiúsculas na leitura, tanto no cache global quanto no escopo restrito de usuário, sem hardcode de filiais específicas.
 - Modais animados com múltiplos filhos diretos em `AnimatePresence` devem declarar `key` explícita e estável por elemento; o modal de justificativa de Horário de Corte identifica backdrop e diálogo pela SM selecionada para evitar chaves vazias no React/Framer Motion.
-- Banco `DASHBOARDS` é gerido exclusivamente por Flyway em `database/migrations`, com baseline 22 e migrations atuais até `V050__adicionar_soft_delete_justificativas.sql`.
+- Banco `DASHBOARDS` é gerido exclusivamente por Flyway em `database/migrations`, com baseline 22 e migrations atuais até `V051__normalizar_chaves_metas_manifestos.sql`.
 - Hibernate roda com `spring.jpa.hibernate.ddl-auto=none`; DDL em runtime por Java é proibido.
 - O portal é consumidor read-only do ETL. O backend deve consultar objetos analíticos por nomes simples (`dbo.vw_*`, `dbo.fato_*`, `dbo.dim_*`), sem hardcode de database.
 - Padrões obrigatórios: push-down computation no SQL Server, filtros sargable, paginação/exportação em SQL, DTOs pequenos, validação explícita de período e paridade entre cálculo de KPI e dicionários do frontend.
 - Produção e desenvolvimento são isolados por `.env`, profiles e validações que impedem DEV de conectar no banco `DASHBOARDS`.
 - Exportações CSV baseadas em records Java usam `CsvExportWriter`; quando um DTO precisa de cabeçalho amigável sem alterar o contrato JSON, o componente pode usar `@CsvColumn`, como em `HorarioCorteRowDTO.justificativa` exportado como `Justificativa`.
+- As metas de custo operacional de Manifestos usam `ManifestosCostGoalService` como fronteira canônica de escrita manual/replicação e `ManifestosMetasImportacaoExcelParser` como fronteira de upload; filial, tipo de contrato e classificação são normalizados por `trim().toUpperCase()` antes de persistir, com a migração `V051__normalizar_chaves_metas_manifestos.sql` corrigindo dados legados no banco próprio.
+- A gestão de metas de Manifestos em `ManifestosCostGoalsPanel.tsx` separa filtros de topo por Mês/Ano e Filial, usa esses filtros para o formulário de edição e renderiza os orçamentos cadastrados em tabela relacional por contrato, classificação, meta mensal formatada em moeda e última atualização. O seletor de filial exibe a descrição da dimensão como label, mas usa sempre a sigla operacional curta como `value`, filtra parceiros logísticos e seleciona a primeira filial válida disponível em vez de iniciar em `GLOBAL` quando não há meta global.
 - Dados de negócio, justificativas e auditoria usam exclusão lógica obrigatória; hard delete/`DELETE FROM` físico é proibido. Entidades JPA podem delegar o soft delete ao Hibernate com `@SQLDelete`/`@SQLRestriction`, e queries JDBC nativas devem filtrar registros inativos explicitamente.
 - A série gráfica de Performance de Entrega em Gestão à Vista usa o enum backend `NivelVisaoPerformance` (`RESPONSAVEL`, `REGIAO`, `CIDADE`) como contrato estrito de visão. O DTO expõe `label`, `filtro`, `visao`, totais físicos e percentual; o SQL seleciona e agrupa apenas colunas mapeadas pelo enum.
 - Componentes de seção de Gestão à Vista podem repassar `chartActions` e `chartEvents` ao `ChartWrapper`, permitindo breadcrumbs e drill-down em Apache ECharts sem duplicar wrappers visuais.
@@ -34,6 +38,8 @@
 
 ## Fluxo de Dados e Integrações
 - Fluxo web: React -> hooks React Query -> `src/api/endpoints` -> `clienteAxios` -> controllers Spring -> services -> repositories SQL/JPA -> SQL Server -> DTOs -> cards/gráficos/tabelas.
+- Os filtros globais de filiais trafegam como `f.filiais` e `f.parceirosLogisticos`; `FiltroRequestMapper` consolida os parceiros em `filiais` antes de construir `FiltroConsultaDTO`, preservando os services/repositories existentes sobre a mesma dimensão analítica de filial.
+- `FiltroContext` suporta `setFiltros` para atualizar múltiplos filtros da URL de forma atômica, usado por atalhos de metas que precisam alternar entre filial própria, parceiro logístico e escopo global sem deixar parâmetros órfãos.
 - Autenticação: `/api/auth/login`, `/api/auth/me`, `/api/auth/alterar-senha`, `/api/auth/refresh` e `/api/auth/logout`.
 - Dashboards principais: `/api/painel/coletas`, `/manifestos`, `/fretes`, `/tracking`, `/performance`, `/faturas-por-cliente`, `/contas-a-pagar`, `/cotacoes`, `/executivo`, `/etl-saude`, `/integracoes` e `/indicadores-gestao-a-vista`.
 - Endpoints de apoio: `/api/dimensoes`, `/api/admin/acesso`, `/api/admin/acesso/usuarios/importacao`, `/api/kpi-goals`, `/api/etl/quarentena`, paginação `/api/painel/*/tabela/paginada`, exportação `/api/painel/*/exportacao` e justificativas de Horário de Corte em `/api/painel/indicadores-gestao-a-vista/horarios-corte/justificativas`.
@@ -41,6 +47,7 @@
 - Objetos analíticos lidos do ETL incluem `dbo.vw_coletas_powerbi`, `dbo.vw_fretes_powerbi`, `dbo.vw_manifestos_powerbi`, `dbo.vw_localizacao_cargas_powerbi`, `dbo.vw_contas_a_pagar_powerbi`, `dbo.vw_cotacoes_powerbi`, `dbo.vw_sinistros_powerbi`, `dbo.vw_fato_manifestos_dash`, `dbo.fato_fretes_faturamento`, `dbo.fato_gestao_vista_fretes`, `dbo.fato_gestao_vista_coletores`, `dbo.fato_gestao_vista_faturas`, `dbo.fato_gestao_vista_manifestos`, `dbo.dim_calendario` e `dbo.vw_dim_*`.
 - A região logística de Coletas é resolvida no ETL por `dbo.dim_regiao_logistica_rules` e publicada em `dbo.vw_coletas_powerbi.[Região Logística]`; o Dashboard apenas consome essa coluna por nome simples, sem hardcode de database.
 - Estado próprio em `DASHBOARDS`: schema `acesso` para usuários, papéis, permissões, setores, filiais permitidas, refresh tokens, audit logs, metas de KPI, metas de fretes, metas de custo de manifestos e comunicados; `dbo.viagem_justificativas` para justificativas de viagens Raster usadas pelo indicador de Horário de Corte.
+- Metas de custo de Manifestos entram por cadastro manual, replicação mensal ou importação Excel/CSV; todos os caminhos passam por normalização canônica em caixa alta antes do `saveAndFlush`, e a agregação de orçamento em `ManifestosCostGoalRepository` compara `contract_type_key`/`classification_key` normalizadas para que filtros de classificação como `distribuição` e `DISTRIBUIÇÃO` resolvam a mesma meta. No frontend, a filial selecionada no painel de orçamento é a sigla curta derivada da dimensão ou da própria meta cadastrada, evitando miss entre labels longas como `AGU - ...` e `branch_id = AGU`.
 - Integração adicional: `IntegracaoSateliteClient` aponta para `APP_INTEGRATION_SATELITE_URL` com padrão `http://127.0.0.1:19090`.
 - Builds: dev usa backend 5011 e frontend 5174; produção usa backend 5010 e frontend 5173, com Cloudflare Tunnel previsto.
 - Gestão à Vista: `/api/painel/indicadores-gestao-a-vista/performance-entrega/serie` exige `visao` e aceita `responsavelFiltro`/`regiaoFiltro` para drill-down. O frontend envia esses parâmetros por `indicadoresGestaoAVistaServico.ts`, inclui todos no `queryKey` do TanStack Query e atualiza o gráfico ao clicar em barras.
@@ -62,6 +69,7 @@
 - Usuários administrativos são removidos apenas por inativação lógica (`ativo = false`) com revogação de refresh tokens; não existe endpoint nem serviço de exclusão definitiva de usuário.
 - Rotas backend usam `@PreAuthorize("@acessoSeguranca...")`; frontend espelha permissões em `src/utils/accessControl.ts`.
 - Escopo de filiais por usuário aceita `HERDAR_SETOR`, `TODAS` e `SELECIONADAS`; seleção vazia não é válida em `SELECIONADAS`.
+- Parceiros logísticos não atuam como filiais emissoras nas tabelas fato; por isso a barra global operacional não exibe dropdown/input de parceiros. O frontend preserva o estado `parceirosLogisticos` e o backend segue tratando `filiais` + `parceirosLogisticos` como filtro consolidado de filial para SQL, paginação, exportação e dimensões dependentes.
 - Sessão: access token JWT fica em memória no frontend; refresh token rotativo fica em cookie HttpOnly; 401 tenta refresh silencioso e encerra sessão se falhar.
 - Política de senha: mínimo 12 caracteres, com maiúscula, minúscula, número e símbolo; hashes novos usam Argon2id, com upgrade de hash legado quando aplicável.
 - Login bloqueia após 5 falhas por 15 minutos; troca de senha revoga todos os refresh tokens do usuário.
@@ -70,7 +78,7 @@
 - CORS de produção aceita somente origens públicas HTTPS; origens locais em produção e mistura de origem local com pública causam falha de startup.
 - Metas de fretes: branch `GLOBAL` é `NULL`, ano 2000-2100, mês 1-12 e meta não negativa; replicação só ocorre se destino estiver vazio e origem tiver metas.
 - Metas de KPIs de Gestão à Vista: indicadores válidos são `delivery_performance`, `collector_usage`, `cargo_cubage`, `cargo_indemnity` e `cutoff_time`; metas entre 0 e 100; competência normalizada para primeiro dia do mês; override igual ao global é removido.
-- Metas de custo de manifestos: branch `GLOBAL` vira `NULL`, contrato padrão `Geral/geral`, `classification_key` opcional e normalizada, custo não negativo; filtros sem dimensão orçamentária tornam orçamento inaplicável.
+- Metas de custo de manifestos: branch `GLOBAL` vira `NULL`, contrato padrão `GERAL/GERAL`, `contract_type_key` e `classification_key` são canônicos em caixa alta após `trim`, `classification_key` vazia/`GERAL`/`GLOBAL` vira `NULL`, custo é arredondado para 2 casas e não pode ser negativo; filtros sem dimensão orçamentária tornam orçamento inaplicável.
 - Endpoints com `@RequestBody` administrativo usam `@Valid`; DTOs de metas de fretes e manifestos validam competência, tamanhos máximos e metas não negativas na borda HTTP.
 - Uploads administrativos de usuários, metas de manifestos e horários de corte validam extensão contratual e assinatura/conteúdo real antes de abrir planilhas: OOXML `.xlsx`, OLE2 `.xls` e CSV texto quando aplicável.
 - Performance de Entrega em Gestão à Vista: o ranking/drill-down percorre `RESPONSAVEL -> REGIAO -> CIDADE`. A fonte é `dbo.fato_gestao_vista_fretes`, filtrada por `indicador_codigo = 'PE'`, `data_referencia >= :dataInicio`, `data_referencia < :dataFimExclusivo`, `is_linha_valida_indicador = 1`, `excluido_na_origem = 0` e escopo de filiais. Responsável e região selecionados viram filtros parametrizados; agrupamento, totalizações e Top 50 são calculados no SQL Server.
@@ -93,4 +101,4 @@
 - É proibido incluir saudações, conclusões, explicações fora dos bullets ou reescrever outras seções durante a resposta de planejamento.
 
 ## Tarefas Pendentes
-- Nenhuma tarefa pendente registrada no momento.
+Sem tarefas pendentes.

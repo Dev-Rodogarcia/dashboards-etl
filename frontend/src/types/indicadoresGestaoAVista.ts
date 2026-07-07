@@ -2,6 +2,7 @@ export interface IndicadoresGestaoVistaFiltro {
   dataInicio: string;
   dataFim: string;
   filiais?: string[];
+  parceirosLogisticos?: string[];
   classificacoes?: string[];
 }
 

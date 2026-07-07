@@ -11,6 +11,7 @@ import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/s
 import ChartCard from '../components/shared/ChartCard';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
+import FiliaisParceirosFilter from '../components/shared/FiliaisParceirosFilter';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import TooltipKpi from '../components/shared/TooltipKpi';
@@ -47,6 +48,7 @@ import type {
 import { CORES } from '../utils/chartColors';
 import { buildBaseBarOption, buildBaseDonutOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarDataHoraMinuto, formatarMoeda, formatarNumero, formatarPeso, formatarPorcentagem } from '../utils/formatadores';
+import { isParceiroLogistico } from '../utils/filiais';
 import { formatarStatusOperacional } from '../utils/statusLabels';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
@@ -868,7 +870,7 @@ function TopClientesTableCard({
 }
 
 export default function FaturamentoPage() {
-  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, setFiltros, limparFiltros } = useFiltro();
   const { isDark } = useEchartsTheme();
   const [periodDrillLevel, setPeriodDrillLevel] = useState<PeriodDrillLevel>('dia');
   const [routeDrillLevel, setRouteDrillLevel] = useState<RouteDrillLevel>('rota');
@@ -891,10 +893,11 @@ export default function FaturamentoPage() {
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
+    parceirosLogisticos: filtros.parceirosLogisticos,
     status: filtros.status,
     pagadores: filtros.pagadores,
     responsaveis: filtros.responsaveis,
-  }), [dataFim, dataInicio, filtros.filiais, filtros.pagadores, filtros.responsaveis, filtros.status]);
+  }), [dataFim, dataInicio, filtros.filiais, filtros.pagadores, filtros.parceirosLogisticos, filtros.responsaveis, filtros.status]);
   const filtroPeriodoAnterior = useMemo(
     () => criarFiltroPeriodoAnterior(filtro),
     [filtro],
@@ -906,6 +909,7 @@ export default function FaturamentoPage() {
 
   const activeFilters: ActiveFilter[] = [
     { label: 'Filiais',   count: filtros.filiais?.length   ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Parceiros Logísticos', count: filtros.parceirosLogisticos?.length ?? 0, onRemove: () => setFiltro('parceirosLogisticos', []) },
     { label: 'Pagadores', count: filtros.pagadores?.length ?? 0, onRemove: () => setFiltro('pagadores', []) },
     { label: 'Responsáveis', count: filtros.responsaveis?.length ?? 0, onRemove: () => setFiltro('responsaveis', []) },
     { label: 'Status',    count: filtros.status?.length    ?? 0, onRemove: () => setFiltro('status', []) },
@@ -942,6 +946,7 @@ export default function FaturamentoPage() {
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
+    parceirosLogisticos: filtros.parceirosLogisticos,
     pagadores: filtros.pagadores,
     responsaveis: filtros.responsaveis,
   };
@@ -1051,7 +1056,7 @@ export default function FaturamentoPage() {
     }
     return map;
   }, [metasData]);
-  const usarMetaGlobalNaTabela = (filtros.filiais?.length ?? 0) === 0;
+  const usarMetaGlobalNaTabela = (filtros.filiais?.length ?? 0) + (filtros.parceirosLogisticos?.length ?? 0) === 0;
   const tabelaConteudo = useMemo(() => (
     (tabela.data?.conteudo ?? []).map((row) => {
       const metaFilial = row.filial ? metasPorFilial.get(row.filial) : null;
@@ -1159,11 +1164,12 @@ export default function FaturamentoPage() {
           onDataFimChange={setDataFim}
           onRangeChange={setDataRange}
         />
-        <AsyncMultiSelect
-          label="Filiais"
+        <FiliaisParceirosFilter
           opcoes={filiais.data ?? []}
-          selecionados={filtros.filiais ?? []}
-          onChange={(valores) => setFiltro('filiais', valores)}
+          filiaisSelecionadas={filtros.filiais ?? []}
+          parceirosSelecionados={filtros.parceirosLogisticos ?? []}
+          onFiliaisChange={(valores) => setFiltro('filiais', valores)}
+          onParceirosChange={(valores) => setFiltro('parceirosLogisticos', valores)}
           isLoading={filiais.isLoading}
         />
         <AsyncMultiSelect
@@ -1210,7 +1216,11 @@ export default function FaturamentoPage() {
           onRemove={removerMetaFaturamento}
           onReplicatePreviousMonth={replicarMetasFaturamento}
           onViewScope={(branchId) => {
-            setFiltro('filiais', branchId === 'GLOBAL' ? [] : [branchId]);
+            const isParceiro = isParceiroLogistico(branchId);
+            setFiltros({
+              filiais: branchId !== 'GLOBAL' && !isParceiro ? [branchId] : [],
+              parceirosLogisticos: branchId !== 'GLOBAL' && isParceiro ? [branchId] : [],
+            });
             paginacaoTabela.setPagina(1);
             setGoalsPanelOpen(false);
             window.requestAnimationFrame(() => {

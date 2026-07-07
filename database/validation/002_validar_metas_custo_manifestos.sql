@@ -111,4 +111,18 @@ IF NOT EXISTS (
 )
     THROW 50289, 'Indice unico global por competencia, contrato e classificacao nao encontrado ou invalido.', 1;
 
+IF EXISTS (
+    SELECT 1
+    FROM acesso.manifestos_cost_goals
+    WHERE (branch_id IS NOT NULL
+           AND branch_id COLLATE Latin1_General_BIN2
+               <> UPPER(LTRIM(RTRIM(branch_id))) COLLATE Latin1_General_BIN2)
+       OR contract_type_key COLLATE Latin1_General_BIN2
+               <> UPPER(LTRIM(RTRIM(contract_type_key))) COLLATE Latin1_General_BIN2
+       OR (classification_key IS NOT NULL
+           AND classification_key COLLATE Latin1_General_BIN2
+               <> UPPER(LTRIM(RTRIM(classification_key))) COLLATE Latin1_General_BIN2)
+)
+    THROW 50297, 'Metas de manifestos possuem chaves fora do padrao canonico em caixa alta.', 1;
+
 PRINT 'Metas de custo de manifestos validadas com sucesso.';

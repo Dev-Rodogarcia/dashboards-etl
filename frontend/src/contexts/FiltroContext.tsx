@@ -12,6 +12,7 @@ interface FiltroContexto {
   setDataFim: (data: string) => void;
   setDataRange: (inicio: string, fim: string) => void;
   setFiltro: (chave: string, valores: string[]) => void;
+  setFiltros: (alteracoes: Record<string, string[]>) => void;
   limparFiltros: () => void;
 }
 
@@ -98,6 +99,21 @@ export function FiltroProvider({ children }: { children: ReactNode }) {
     [atualizarParams]
   );
 
+  const setFiltros = useCallback(
+    (alteracoes: Record<string, string[]>) => {
+      atualizarParams((params) => {
+        Object.entries(alteracoes).forEach(([chave, valores]) => {
+          params.delete(`${PREFIXO_FILTRO}${chave}`);
+
+          valores
+            .filter((valor) => valor.trim().length > 0)
+            .forEach((valor) => params.append(`${PREFIXO_FILTRO}${chave}`, valor));
+        });
+      });
+    },
+    [atualizarParams]
+  );
+
   const limparFiltros = useCallback(() => {
     setSearchParams({}, { replace: true });
   }, [setSearchParams]);
@@ -112,6 +128,7 @@ export function FiltroProvider({ children }: { children: ReactNode }) {
         setDataFim,
         setDataRange,
         setFiltro,
+        setFiltros,
         limparFiltros,
       }}
     >

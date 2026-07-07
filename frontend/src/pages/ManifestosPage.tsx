@@ -16,6 +16,7 @@ import AnalyticalDataTable, {
 } from '../components/shared/AnalyticalDataTable';
 import DateRangePicker from '../components/shared/DateRangePicker';
 import ExportButton from '../components/shared/ExportButton';
+import FiliaisParceirosFilter from '../components/shared/FiliaisParceirosFilter';
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import MensagemErro from '../components/ui/MensagemErro';
@@ -212,6 +213,7 @@ export default function ManifestosPage() {
     dataInicio,
     dataFim,
     filiais: filtros.filiais,
+    parceirosLogisticos: filtros.parceirosLogisticos,
     status: filtros.status,
     motoristas: filtros.motoristas,
     veiculos: filtros.veiculos,
@@ -226,6 +228,7 @@ export default function ManifestosPage() {
     filtros.classificacoes,
     filtros.filiais,
     filtros.motoristas,
+    filtros.parceirosLogisticos,
     filtros.status,
     filtros.tipoMotorista,
     filtros.tiposCarga,
@@ -237,11 +240,12 @@ export default function ManifestosPage() {
   const activeFilters: ActiveFilter[] = useMemo(() => [
     { label: 'Manifesto', count: numeroManifestoFiltro ? 1 : 0, onRemove: () => setFiltro('numeroManifesto', []) },
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
+    { label: 'Parceiros Logísticos', count: filtros.parceirosLogisticos?.length ?? 0, onRemove: () => setFiltro('parceirosLogisticos', []) },
     { label: 'Classificação', count: filtros.classificacoes?.length ?? 0, onRemove: () => setFiltro('classificacoes', []) },
     { label: 'Motoristas', count: filtros.motoristas?.length ?? 0, onRemove: () => setFiltro('motoristas', []) },
     { label: 'Veículos', count: filtros.veiculos?.length ?? 0, onRemove: () => setFiltro('veiculos', []) },
     { label: 'Tipos de contrato', count: filtros.tiposContrato?.length ?? 0, onRemove: () => setFiltro('tiposContrato', []) },
-  ], [filtros.classificacoes, filtros.filiais, filtros.motoristas, filtros.tiposContrato, filtros.veiculos, numeroManifestoFiltro, setFiltro]);
+  ], [filtros.classificacoes, filtros.filiais, filtros.motoristas, filtros.parceirosLogisticos, filtros.tiposContrato, filtros.veiculos, numeroManifestoFiltro, setFiltro]);
 
   const classificacoes = useManifestosClassificacoes(filtro);
   const performance = useManifestosPerformance(filtro, nivelTemporal, anoTemporal, mesTemporal);
@@ -460,11 +464,12 @@ export default function ManifestosPage() {
             }}
           />
         </div>
-        <AsyncMultiSelect
-          label="Filiais"
+        <FiliaisParceirosFilter
           opcoes={filiais.data ?? EMPTY_ARRAY}
-          selecionados={filtros.filiais ?? []}
-          onChange={(valores) => setFiltro('filiais', valores)}
+          filiaisSelecionadas={filtros.filiais ?? EMPTY_ARRAY}
+          parceirosSelecionados={filtros.parceirosLogisticos ?? EMPTY_ARRAY}
+          onFiliaisChange={(valores) => setFiltro('filiais', valores)}
+          onParceirosChange={(valores) => setFiltro('parceirosLogisticos', valores)}
           isLoading={filiais.isLoading}
         />
         <AsyncMultiSelect

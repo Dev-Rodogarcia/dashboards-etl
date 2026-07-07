@@ -67,6 +67,7 @@ export interface ContasAPagarFiltro {
   dataInicio: string;
   dataFim: string;
   filiais?: string[];
+  parceirosLogisticos?: string[];
   fornecedores?: string[];
   classificacoes?: string[];
   centrosCusto?: string[];

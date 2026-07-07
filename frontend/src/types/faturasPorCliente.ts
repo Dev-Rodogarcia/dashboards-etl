@@ -49,6 +49,7 @@ export interface FaturasPorClienteFiltro {
   dataInicio: string;
   dataFim: string;
   filiais?: string[];
+  parceirosLogisticos?: string[];
   pagadores?: string[];
   clientesCnpj?: string[];
   statusProcesso?: string[];
