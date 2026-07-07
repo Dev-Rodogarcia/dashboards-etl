@@ -6,7 +6,6 @@ import com.dashboard.api.service.CubagemClientesExcecaoImportacaoService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -33,15 +32,8 @@ public class CubagemClientesExcecaoImportacaoController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CubagemClientesImportacaoResultadoDTO> importar(
-            @RequestPart("arquivo") MultipartFile arquivo,
-            Authentication authentication
+            @RequestPart("arquivo") MultipartFile arquivo
     ) {
-        return ResponseEntity.ok(service.importar(arquivo, authenticationName(authentication)));
-    }
-
-    private String authenticationName(Authentication authentication) {
-        return authentication != null && authentication.getName() != null
-                ? authentication.getName()
-                : "";
+        return ResponseEntity.ok(service.importar(arquivo));
     }
 }

@@ -21,13 +21,16 @@ public class CubagemClientesExcecaoImportacaoService {
 
     private final CubagemClientesExcecaoImportacaoParser parser;
     private final ClienteExcecaoCubagemSqlRepository repository;
+    private final UsuarioAutenticadoContextService usuarioAutenticadoContext;
 
     public CubagemClientesExcecaoImportacaoService(
             CubagemClientesExcecaoImportacaoParser parser,
-            ClienteExcecaoCubagemSqlRepository repository
+            ClienteExcecaoCubagemSqlRepository repository,
+            UsuarioAutenticadoContextService usuarioAutenticadoContext
     ) {
         this.parser = parser;
         this.repository = repository;
+        this.usuarioAutenticadoContext = usuarioAutenticadoContext;
     }
 
     public CubagemClientesImportacaoPreviewResponseDTO preValidar(MultipartFile arquivo) {
@@ -37,7 +40,7 @@ public class CubagemClientesExcecaoImportacaoService {
     }
 
     @Transactional
-    public CubagemClientesImportacaoResultadoDTO importar(MultipartFile arquivo, String authenticationName) {
+    public CubagemClientesImportacaoResultadoDTO importar(MultipartFile arquivo) {
         CubagemClientesExcecaoImportacaoParser.PlanilhaImportada planilha = parser.parse(arquivo);
         List<LinhaAnalise> analise = analisar(planilha.linhas());
 
@@ -70,7 +73,7 @@ public class CubagemClientesExcecaoImportacaoService {
         }
 
         if (!registros.isEmpty()) {
-            repository.merge(registros, normalizarUsuario(authenticationName));
+            repository.merge(registros, usuarioAutenticadoContext.getNomeComPapel());
         }
 
         return new CubagemClientesImportacaoResultadoDTO(
@@ -128,14 +131,6 @@ public class CubagemClientesExcecaoImportacaoService {
                     return new LinhaAnalise(linha, List.copyOf(mensagens));
                 })
                 .toList();
-    }
-
-    private String normalizarUsuario(String authenticationName) {
-        if (authenticationName == null || authenticationName.isBlank()) {
-            return "sistema";
-        }
-        String valor = authenticationName.trim();
-        return valor.length() > 100 ? valor.substring(0, 100) : valor;
     }
 
     private record LinhaAnalise(

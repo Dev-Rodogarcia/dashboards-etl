@@ -531,6 +531,9 @@ GO
 :r database/migrations/V052__criar_excecao_cubagem_clientes.sql
 GO
 
+:r database/migrations/V053__adicionar_soft_delete_excecao_cubagem_clientes.sql
+GO
+
 IF SUSER_ID(N'$(AppLogin)') IS NOT NULL
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'$(AppLogin)')

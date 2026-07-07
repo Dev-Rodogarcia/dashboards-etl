@@ -40,7 +40,7 @@ const baseGestaoPerformance =
   'Considera minutas válidas, com previsão e filial de performance, excluindo cancelamentos, cortesias e registros operacionalmente inelegíveis. Cada minuta aparece uma única vez.';
 
 const baseGestaoCubagem =
-  'Considera minutas válidas, não canceladas, com valor operacional e fora das exceções oficiais de pagadores sem cubagem em dbo.cliente_excecao_cubagem, além do flag legado de exclusão publicado na fato. Cada minuta aparece uma única vez.';
+  'Considera minutas válidas, não canceladas, com valor operacional e fora das exceções oficiais ativas de pagadores sem cubagem em dbo.cliente_excecao_cubagem, além do flag legado de exclusão publicado na fato. Cada minuta aparece uma única vez.';
 
 export const KpiDictionary = {
   coletas: {

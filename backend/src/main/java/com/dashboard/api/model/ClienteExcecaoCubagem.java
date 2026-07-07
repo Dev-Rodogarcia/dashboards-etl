@@ -7,9 +7,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "cliente_excecao_cubagem", schema = "dbo")
+@SQLDelete(sql = "UPDATE dbo.cliente_excecao_cubagem SET ativo = 0 WHERE id = ?")
+@SQLRestriction("ativo = 1")
 public class ClienteExcecaoCubagem {
 
     @Id
@@ -33,6 +37,9 @@ public class ClienteExcecaoCubagem {
 
     @Column(name = "data_atualizacao")
     private OffsetDateTime dataAtualizacao;
+
+    @Column(name = "ativo", nullable = false)
+    private Boolean ativo = true;
 
     public Long getId() {
         return id;
@@ -88,5 +95,13 @@ public class ClienteExcecaoCubagem {
 
     public void setDataAtualizacao(OffsetDateTime dataAtualizacao) {
         this.dataAtualizacao = dataAtualizacao;
+    }
+
+    public Boolean getAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(Boolean ativo) {
+        this.ativo = ativo;
     }
 }

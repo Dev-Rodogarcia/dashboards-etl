@@ -418,9 +418,9 @@ export const chartDictionary = {
   },
   gestaoCubagemRanking: {
     tabelasOrigem: 'dbo.fato_gestao_vista_fretes, dbo.cliente_excecao_cubagem',
-    cruzamentos: 'Filtro anti-semi join por NOT EXISTS entre pagador_documento_key e dbo.cliente_excecao_cubagem.cliente_cnpj.',
+    cruzamentos: 'Filtro anti-semi join por NOT EXISTS entre pagador_documento_key e dbo.cliente_excecao_cubagem.cliente_cnpj, considerando somente exceções ativas.',
     descricao: 'Ranqueia filiais pela proporção de fretes cubados para medir aderência à captura de cubagem.',
-    calculoTecnico: 'COUNT_BIG(1); SUM(CAST(is_cubado AS BIGINT)); percentual Java = fretes_cubados / total_fretes; exclui is_pagador_excluido_cubagem = 1 e CNPJs presentes em dbo.cliente_excecao_cubagem',
+    calculoTecnico: 'COUNT_BIG(1); SUM(CAST(is_cubado AS BIGINT)); percentual Java = fretes_cubados / total_fretes; exclui is_pagador_excluido_cubagem = 1 e CNPJs ativos em dbo.cliente_excecao_cubagem',
     calculoNegocio:
       'Conta fretes por filial depois de retirar pagadores dispensados de cubagem, soma os que possuem cubagem e divide esse volume pelo total de fretes avaliados.',
     agrupamento: 'GROUP BY data_frete_date, filial',

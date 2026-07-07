@@ -17,7 +17,8 @@ class CubagemClientesExcecaoImportacaoServiceTest {
         FakeClienteExcecaoCubagemSqlRepository repository = new FakeClienteExcecaoCubagemSqlRepository();
         CubagemClientesExcecaoImportacaoService service = new CubagemClientesExcecaoImportacaoService(
                 new CubagemClientesExcecaoImportacaoParser(),
-                repository
+                repository,
+                usuarioAutenticado("Operador | admin_plataforma")
         );
         MockMultipartFile arquivo = new MockMultipartFile(
                 "arquivo",
@@ -28,12 +29,12 @@ class CubagemClientesExcecaoImportacaoServiceTest {
                         + "123;Cliente Invalido\n").getBytes(StandardCharsets.UTF_8)
         );
 
-        var resultado = service.importar(arquivo, "operador@empresa.com");
+        var resultado = service.importar(arquivo);
 
         assertThat(resultado.totalProcessados()).isEqualTo(2);
         assertThat(resultado.totalImportados()).isEqualTo(1);
         assertThat(resultado.totalErros()).isEqualTo(1);
-        assertThat(repository.atualizadoPor).isEqualTo("operador@empresa.com");
+        assertThat(repository.atualizadoPor).isEqualTo("Operador | admin_plataforma");
         assertThat(repository.registros)
                 .extracting(ClienteExcecaoCubagemRegistro::clienteCnpj)
                 .containsExactly("43996693000127");
@@ -43,7 +44,8 @@ class CubagemClientesExcecaoImportacaoServiceTest {
     void preValidarDeveBloquearCnpjDuplicadoNaPlanilha() {
         CubagemClientesExcecaoImportacaoService service = new CubagemClientesExcecaoImportacaoService(
                 new CubagemClientesExcecaoImportacaoParser(),
-                new FakeClienteExcecaoCubagemSqlRepository()
+                new FakeClienteExcecaoCubagemSqlRepository(),
+                usuarioAutenticado("Operador | admin_plataforma")
         );
         MockMultipartFile arquivo = new MockMultipartFile(
                 "arquivo",
@@ -60,6 +62,15 @@ class CubagemClientesExcecaoImportacaoServiceTest {
         assertThat(preview.totais().invalidas()).isEqualTo(2);
         assertThat(preview.linhasPreview())
                 .allSatisfy(linha -> assertThat(linha.mensagens()).contains("CNPJ duplicado na planilha."));
+    }
+
+    private static UsuarioAutenticadoContextService usuarioAutenticado(String nomeComPapel) {
+        return new UsuarioAutenticadoContextService(null, null) {
+            @Override
+            public String getNomeComPapel() {
+                return nomeComPapel;
+            }
+        };
     }
 
     private static final class FakeClienteExcecaoCubagemSqlRepository extends ClienteExcecaoCubagemSqlRepository {

@@ -1,0 +1,166 @@
+import { useMemo, useState } from 'react';
+import { AlertCircle, RefreshCw, Trash2, UploadCloud } from 'lucide-react';
+import DataTable, { type ColunaTabela } from '../shared/DataTable';
+import {
+  useClientesExcecaoCubagem,
+  useExcluirClienteExcecaoCubagem,
+} from '../../hooks/queries/useIndicadoresGestaoAVista';
+import type { ClienteExcecaoCubagem } from '../../types/indicadoresGestaoAVista';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { formatarDataHoraMinuto } from '../../utils/formatadores';
+
+interface CubagemClientesExcecaoPanelProps {
+  onImportClick: () => void;
+}
+
+interface ClienteExcecaoCubagemRow extends ClienteExcecaoCubagem {
+  clienteCnpjLabel: string;
+  razaoSocialLabel: string;
+  ultimaAtualizacaoLabel: string;
+  acao: string;
+}
+
+const FOCUS_RING_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
+
+function formatarCnpj(cnpj: string | null | undefined) {
+  const digits = (cnpj ?? '').replace(/\D/g, '');
+  if (digits.length !== 14) {
+    return digits || '-';
+  }
+  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+}
+
+function formatarUltimaAtualizacao(row: ClienteExcecaoCubagem) {
+  const data = row.dataAtualizacao
+    ? formatarDataHoraMinuto(row.dataAtualizacao).replace(/^(\d{2}\/\d{2}\/\d{4}) /, '$1, ')
+    : '-';
+  const usuario = row.atualizadoPor?.trim() || 'Usuário não identificado';
+  return `${data} · ${usuario}`;
+}
+
+export default function CubagemClientesExcecaoPanel({ onImportClick }: CubagemClientesExcecaoPanelProps) {
+  const clientes = useClientesExcecaoCubagem();
+  const exclusao = useExcluirClienteExcecaoCubagem();
+  const [cnpjExcluindo, setCnpjExcluindo] = useState<string | null>(null);
+  const [erroExclusao, setErroExclusao] = useState('');
+
+  const rows = useMemo<ClienteExcecaoCubagemRow[]>(
+    () => (clientes.data ?? []).map((cliente) => ({
+      ...cliente,
+      clienteCnpjLabel: formatarCnpj(cliente.clienteCnpj),
+      razaoSocialLabel: cliente.razaoSocial?.trim() || cliente.nomeFantasia?.trim() || '-',
+      ultimaAtualizacaoLabel: formatarUltimaAtualizacao(cliente),
+      acao: 'excluir',
+    })),
+    [clientes.data],
+  );
+
+  async function handleExcluir(row: ClienteExcecaoCubagemRow) {
+    const confirmacao = window.confirm(`Remover ${row.clienteCnpjLabel} da whitelist de cubagem?`);
+    if (!confirmacao) {
+      return;
+    }
+
+    setErroExclusao('');
+    setCnpjExcluindo(row.clienteCnpj);
+    try {
+      await exclusao.mutateAsync(row.clienteCnpj);
+    } catch (error) {
+      setErroExclusao(getApiErrorMessage(error, 'Não foi possível remover o cliente da whitelist.'));
+    } finally {
+      setCnpjExcluindo(null);
+    }
+  }
+
+  const columns: ColunaTabela<ClienteExcecaoCubagemRow>[] = [
+    { chave: 'clienteCnpjLabel', label: 'CNPJ', largura: '170px', fixo: true },
+    { chave: 'razaoSocialLabel', label: 'Razão Social', largura: '360px' },
+    { chave: 'ultimaAtualizacaoLabel', label: 'Última Atualização', largura: '320px' },
+    {
+      chave: 'acao',
+      label: 'Ações',
+      largura: '96px',
+      alinhamento: 'center',
+      ordenavel: false,
+      formato: (_valor, row) => {
+        const isDeleting = exclusao.isPending && cnpjExcluindo === row.clienteCnpj;
+        return (
+          <button
+            type="button"
+            onClick={() => void handleExcluir(row)}
+            disabled={exclusao.isPending}
+            className={`inline-flex items-center justify-center rounded-lg border p-2 transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING_CLASS}`}
+            style={{ borderColor: '#dc2626', color: '#dc2626', backgroundColor: 'var(--color-card)' }}
+            title="Remover cliente da whitelist"
+            aria-label={`Remover ${row.clienteCnpjLabel} da whitelist de cubagem`}
+          >
+            {isDeleting ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            ) : (
+              <Trash2 size={15} aria-hidden="true" />
+            )}
+          </button>
+        );
+      },
+    },
+  ];
+
+  return (
+    <section
+      className="mb-5 rounded-[20px] border p-4"
+      style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
+      aria-label="Clientes sem cubagem cadastrados"
+    >
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+            Clientes sem cubagem
+          </h3>
+          <p className="mt-1 text-xs" style={{ color: 'var(--color-text-subtle)' }}>
+            Whitelist ativa por CNPJ do pagador, com auditoria do último upload.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void clientes.refetch()}
+            disabled={clientes.isFetching}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING_CLASS}`}
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)', backgroundColor: 'var(--color-card)' }}
+          >
+            <RefreshCw size={14} aria-hidden="true" className={clientes.isFetching ? 'animate-spin' : ''} />
+            Atualizar
+          </button>
+          <button
+            type="button"
+            onClick={onImportClick}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 ${FOCUS_RING_CLASS}`}
+            style={{ backgroundColor: 'var(--color-primary)' }}
+          >
+            <UploadCloud size={14} aria-hidden="true" />
+            Importar clientes sem cubagem
+          </button>
+        </div>
+      </div>
+
+      {erroExclusao ? (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: '#dc2626', color: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)' }}>
+          <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>{erroExclusao}</span>
+        </div>
+      ) : null}
+
+      <DataTable
+        titulo="Whitelist de cubagem"
+        dados={rows}
+        chaveLinha="clienteCnpj"
+        colunas={columns}
+        isLoading={clientes.isLoading}
+        error={clientes.error}
+        errorFallbackMessage="Não foi possível carregar a whitelist de cubagem."
+        tamanhoPaginaInicial={10}
+      />
+    </section>
+  );
+}

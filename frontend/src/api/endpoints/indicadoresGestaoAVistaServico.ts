@@ -5,6 +5,7 @@ import { montarQueryParams } from './queryParams';
 import type { PaginacaoResponse } from '../../types/common';
 import type { TableApiFilters } from '../../types/tableFilters';
 import type {
+  ClienteExcecaoCubagem,
   CubagemClientesImportacaoPreviewResponse,
   CubagemClientesImportacaoResultado,
   CubagemMercadoriasOverview,
@@ -38,6 +39,7 @@ import { normalizarCompetenciaApiOpcional } from '../../utils/competencia';
 
 const BASE = '/api/painel/indicadores-gestao-a-vista';
 const KPI_GOALS_BASE = '/api/kpi-goals';
+const CUBAGEM_CLIENTES_BASE = '/api/painel/gestao-vista/cubagem/clientes';
 const CUBAGEM_CLIENTES_IMPORTACAO_BASE = '/api/painel/gestao-vista/cubagem/clientes/importacao';
 
 export const GLOBAL_KPI_GOAL_BRANCH_ID = 'GLOBAL';
@@ -207,6 +209,15 @@ export async function buscarCubagemMercadoriasTabelaPaginada(
 
 export async function exportarCubagemMercadoriasCsv(filtro: IndicadoresGestaoVistaFiltro): Promise<void> {
   await baixarCsv(`${BASE}/cubagem-mercadorias/exportacao`, filtro, 'indicadores-cubagem-mercadorias');
+}
+
+export async function buscarClientesExcecaoCubagem(): Promise<ClienteExcecaoCubagem[]> {
+  const { data } = await clienteAxios.get<ClienteExcecaoCubagem[]>(CUBAGEM_CLIENTES_BASE);
+  return data;
+}
+
+export async function excluirClienteExcecaoCubagem(cnpj: string): Promise<void> {
+  await clienteAxios.delete(`${CUBAGEM_CLIENTES_BASE}/${encodeURIComponent(cnpj)}`);
 }
 
 export async function preValidarClientesExcecaoCubagem(

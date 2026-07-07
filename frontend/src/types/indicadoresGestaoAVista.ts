@@ -196,6 +196,15 @@ export interface CubagemMercadoriasRow {
   cubado: boolean;
 }
 
+export interface ClienteExcecaoCubagem {
+  clienteCnpj: string;
+  razaoSocial: string | null;
+  nomeFantasia: string | null;
+  cidadeUf: string | null;
+  atualizadoPor: string | null;
+  dataAtualizacao: string | null;
+}
+
 export type CubagemClientesImportacaoStatus = 'PRONTA' | 'ERRO_VALIDACAO';
 
 export interface CubagemClientesImportacaoTotais {

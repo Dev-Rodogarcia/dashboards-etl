@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   atualizarKpiGoalsFilial,
   atualizarKpiGoalsGlobais,
+  buscarClientesExcecaoCubagem,
   buscarCubagemMercadoriasOverview,
   buscarCubagemMercadoriasSerie,
   buscarCubagemMercadoriasTabela,
@@ -22,6 +23,7 @@ import {
   buscarPerformanceEntregaSerie,
   buscarPerformanceEntregaTabela,
   buscarPerformanceEntregaTabelaPaginada,
+  excluirClienteExcecaoCubagem,
   excluirJustificativaHorarioCorte,
   removerKpiGoalsOverride,
   salvarJustificativaHorarioCorte,
@@ -294,6 +296,29 @@ export function useCubagemMercadoriasTabelaPaginada(
   });
 }
 
+export function useClientesExcecaoCubagem(enabled = true) {
+  return useQuery({
+    queryKey: ['indicadores-gestao-a-vista', 'cubagem-clientes-excecao'],
+    queryFn: buscarClientesExcecaoCubagem,
+    staleTime: STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+    enabled,
+  });
+}
+
+export function useExcluirClienteExcecaoCubagem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: excluirClienteExcecaoCubagem,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['indicadores-gestao-a-vista', 'cubagem-clientes-excecao'] });
+      queryClient.invalidateQueries({ queryKey: ['indicadores-gestao-a-vista', 'cubagem-mercadorias'] });
+    },
+  });
+}
+
 export function usePreValidarClientesExcecaoCubagem() {
   return useMutation({
     mutationFn: preValidarClientesExcecaoCubagem,
@@ -306,6 +331,7 @@ export function useImportarClientesExcecaoCubagem() {
   return useMutation({
     mutationFn: importarClientesExcecaoCubagem,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['indicadores-gestao-a-vista', 'cubagem-clientes-excecao'] });
       queryClient.invalidateQueries({ queryKey: ['indicadores-gestao-a-vista', 'cubagem-mercadorias'] });
     },
   });

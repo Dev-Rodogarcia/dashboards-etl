@@ -695,6 +695,7 @@ public class IndicadoresGestaoAVistaSqlRepository {
                           SELECT 1
                           FROM dbo.cliente_excecao_cubagem excecao
                           WHERE excecao.cliente_cnpj = pagador_documento_key
+                            AND excecao.ativo = 1
                       )
                       AND excluido_na_origem = 0
                       AND (:escopoFiliaisVazio = 1 OR filial_emissora_key IN (:escopoFiliais))
