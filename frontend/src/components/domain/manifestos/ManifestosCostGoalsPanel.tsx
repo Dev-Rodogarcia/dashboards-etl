@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { AxiosError } from 'axios';
 import { Copy, Download, FileSpreadsheet, Save, Trash2 } from 'lucide-react';
@@ -139,6 +139,21 @@ function getConfigClassificationLabel(config: ManifestosCostGoalConfig) {
   return normalizeKey(config.classificationKey, 'GERAL');
 }
 
+function getConfigRowKey(config: ManifestosCostGoalConfig) {
+  if (config.id != null) {
+    return `meta-${config.id}`;
+  }
+
+  return [
+    'meta-fallback',
+    getConfigBranchKey(config),
+    config.ano,
+    config.mes,
+    getConfigContractTypeKey(config),
+    getConfigClassificationKey(config),
+  ].join('-');
+}
+
 function getClassificationPayload(value: string) {
   return value === GENERAL_CLASSIFICATION_KEY ? null : normalizeKey(value);
 }
@@ -157,9 +172,39 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
   const [costGoalDraft, setCostGoalDraft] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastIdRef = useRef(0);
 
   const filiais = useFiliais();
-  const metas = useManifestosMetas(ano, mes, open);
+  const branchOptions = useMemo<BranchOption[]>(() => {
+    const options = new Map<string, BranchOption>();
+
+    function upsert(value: string, label?: string | null) {
+      if (!value || value === GLOBAL_BRANCH_ID) {
+        return;
+      }
+      const next = { value, label: branchLabel(value, label) };
+      const current = options.get(value);
+      if (!current || current.label === value) {
+        options.set(value, next);
+      }
+    }
+
+    (filiais.data ?? []).forEach((filial) => {
+      if (isParceiroLogistico(filial)) {
+        return;
+      }
+      const code = extractBranchCode(filial);
+      if (code) {
+        upsert(code, filial);
+      }
+    });
+
+    return Array.from(options.values())
+      .filter((option) => option.value)
+      .sort((left, right) => left.value.localeCompare(right.value, 'pt-BR'));
+  }, [filiais.data]);
+  const selectedBranchId = branchId || (branchOptions[0]?.value ?? '');
+  const metas = useManifestosMetas(selectedBranchId, ano, mes, open && Boolean(selectedBranchId));
   const isLoading = metas.isLoading;
   const error = metas.error;
   const filtroClassificacoes = useMemo(() => ({
@@ -212,61 +257,6 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
 
     return Array.from(options.values());
   }, [classificacoes.data, configsCadastradas]);
-  const branchOptions = useMemo<BranchOption[]>(() => {
-    const options = new Map<string, BranchOption>();
-    const configuredBranches = new Set(
-      configsCadastradas
-        .map(getConfigBranchKey)
-        .filter((value) => value && value !== GLOBAL_BRANCH_ID),
-    );
-
-    function upsert(value: string, label?: string | null) {
-      if (!value) {
-        return;
-      }
-      const next = { value, label: branchLabel(value, label) };
-      const current = options.get(value);
-      if (!current || current.label === value) {
-        options.set(value, next);
-      }
-    }
-
-    (filiais.data ?? []).forEach((filial) => {
-      if (isParceiroLogistico(filial)) {
-        return;
-      }
-      const code = extractBranchCode(filial);
-      if (!code || code === GLOBAL_BRANCH_ID) {
-        return;
-      }
-      if (configuredBranches.size === 0 || configuredBranches.has(code)) {
-        upsert(code, filial);
-      }
-    });
-
-    configsCadastradas.forEach((config) => {
-      const value = getConfigBranchKey(config);
-      if (value === GLOBAL_BRANCH_ID) {
-        upsert(value, GLOBAL_BRANCH_ID);
-        return;
-      }
-      upsert(value, config.branchId);
-    });
-
-    return Array.from(options.values())
-      .sort((left, right) => {
-        if (left.value === GLOBAL_BRANCH_ID) {
-          return 1;
-        }
-        if (right.value === GLOBAL_BRANCH_ID) {
-          return -1;
-        }
-        return left.value.localeCompare(right.value, 'pt-BR');
-      });
-  }, [configsCadastradas, filiais.data]);
-  const selectedBranchId = branchOptions.some((option) => option.value === branchId)
-    ? branchId
-    : branchOptions[0]?.value ?? '';
   const configAtual = useMemo(
     () => configsCadastradas.find((item) =>
       getConfigBranchKey(item) === selectedBranchId
@@ -299,9 +289,11 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
     [selectedBranchId, configsCadastradas],
   );
   const selectedBranchLabel = branchOptions.find((option) => option.value === selectedBranchId)?.label ?? selectedBranchId;
+  const selectedBranchInOptions = branchOptions.some((option) => option.value === selectedBranchId);
 
   function pushToast(message: string, tone: ToastTone) {
-    const id = `${Date.now()}-${Math.random()}`;
+    toastIdRef.current += 1;
+    const id = `manifestos-cost-goal-${toastIdRef.current}`;
     setToasts((current) => [...current, { id, message, tone }]);
     window.setTimeout(() => {
       setToasts((current) => current.filter((item) => item.id !== id));
@@ -314,37 +306,57 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await salvarMeta.mutateAsync({
-      branchId: selectedBranchId,
-      contractType: selectedContractType.label,
-      contractTypeKey: selectedContractType.value,
-      classificationKey: getClassificationPayload(selectedClassification.value),
-      ano,
-      mes,
-      costGoal: normalizeCurrency(costGoalValue),
-    });
-    setCostGoalDraft(null);
+    if (!selectedBranchId) {
+      return;
+    }
+
+    try {
+      await salvarMeta.mutateAsync({
+        branchId: selectedBranchId,
+        contractType: selectedContractType.label,
+        contractTypeKey: selectedContractType.value,
+        classificationKey: getClassificationPayload(selectedClassification.value),
+        ano,
+        mes,
+        costGoal: normalizeCurrency(costGoalValue),
+      });
+      setCostGoalDraft(null);
+    } catch (err) {
+      pushToast(getApiErrorMessage(err, 'Não foi possível salvar a meta.'), 'error');
+    }
   }
 
   async function handleRemove(config: ManifestosCostGoalConfig) {
-    await removerMeta.mutateAsync({
-      branchId: config.branchId,
-      contractTypeKey: getConfigContractTypeKey(config),
-      classificationKey: config.classificationKey ?? null,
-      ano: config.ano,
-      mes: config.mes,
-    });
-    if (
-      getConfigBranchKey(config) === selectedBranchId
-      && getConfigContractTypeKey(config) === contractTypeKey
-      && getConfigClassificationKey(config) === classificationKey
-    ) {
-      setCostGoalDraft(null);
+    if (removerMeta.isPending) {
+      return;
+    }
+
+    try {
+      await removerMeta.mutateAsync({
+        branchId: getConfigBranchKey(config),
+        contractTypeKey: getConfigContractTypeKey(config),
+        classificationKey: getClassificationPayload(getConfigClassificationKey(config)),
+        ano: config.ano,
+        mes: config.mes,
+      });
+      if (
+        getConfigBranchKey(config) === selectedBranchId
+        && getConfigContractTypeKey(config) === contractTypeKey
+        && getConfigClassificationKey(config) === classificationKey
+      ) {
+        setCostGoalDraft(null);
+      }
+    } catch (err) {
+      pushToast(getApiErrorMessage(err, 'Não foi possível remover a meta.'), 'error');
     }
   }
 
   async function handleBaixarTemplate() {
-    await baixarTemplate.mutateAsync();
+    try {
+      await baixarTemplate.mutateAsync();
+    } catch (err) {
+      pushToast(getApiErrorMessage(err, 'Não foi possível baixar o modelo de importação.'), 'error');
+    }
   }
 
   async function handleReplicarMetas() {
@@ -481,6 +493,16 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
                 className={`h-11 rounded-xl border px-3 text-sm ${FOCUS_RING_CLASS}`}
                 style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
               >
+                {!selectedBranchId ? (
+                  <option key="branch-placeholder" value="">
+                    Selecione uma filial
+                  </option>
+                ) : null}
+                {selectedBranchId && !selectedBranchInOptions ? (
+                  <option key={`branch-selected-${selectedBranchId}`} value={selectedBranchId}>
+                    {selectedBranchLabel}
+                  </option>
+                ) : null}
                 {branchOptions.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
@@ -569,7 +591,7 @@ export default function ManifestosCostGoalsPanel({ open }: ManifestosCostGoalsPa
                   <tbody>
                     {configsDaFilialSelecionada.map((config) => (
                       <tr
-                        key={`${config.branchId}-${config.ano}-${config.mes}-${getConfigContractTypeKey(config)}-${getConfigClassificationKey(config)}`}
+                        key={getConfigRowKey(config)}
                         style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text)' }}
                       >
                         <td className="px-3 py-3 font-medium">{getConfigContractTypeLabel(config)}</td>

@@ -52,10 +52,15 @@ interface ManifestosMetasImportacaoModalProps {
 }
 
 interface PreviewRowTable extends ManifestosMetasImportacaoPreviewLinha {
+  previewKey: string;
   competencia: string;
   classificationLabel: string;
   costGoalLabel: string;
   mensagensResumo: string;
+}
+
+interface ErroRowTable extends ManifestosMetasImportacaoErro {
+  erroKey: string;
 }
 
 function SummaryCard({ label, value, accent }: { label: string; value: number; accent: string }) {
@@ -189,8 +194,9 @@ function ManifestosMetasImportacaoModalAberto({ onClose }: Pick<ManifestosMetasI
 
   const previewRows = useMemo<PreviewRowTable[]>(
     () =>
-      (preview?.linhasPreview ?? []).map((row) => ({
+      (preview?.linhasPreview ?? []).map((row, index) => ({
         ...row,
+        previewKey: `preview-row-${index}-${row.linha || 'sem-linha'}-${row.branchId || 'sem-filial'}`,
         competencia: row.ano && row.mes ? `${String(row.mes).padStart(2, '0')}/${row.ano}` : '—',
         classificationLabel: row.classificationKey ?? 'GERAL',
         costGoalLabel: row.costGoal == null ? '—' : formatarMoeda(row.costGoal),
@@ -199,8 +205,12 @@ function ManifestosMetasImportacaoModalAberto({ onClose }: Pick<ManifestosMetasI
     [preview],
   );
 
-  const erroRows = useMemo<ManifestosMetasImportacaoErro[]>(
-    () => resultado?.listaErros ?? [],
+  const erroRows = useMemo<ErroRowTable[]>(
+    () =>
+      (resultado?.listaErros ?? []).map((row, index) => ({
+        ...row,
+        erroKey: `import-error-row-${index}-${row.linha || 'sem-linha'}-${row.tipoErro || 'sem-tipo'}`,
+      })),
     [resultado],
   );
 
@@ -232,7 +242,7 @@ function ManifestosMetasImportacaoModalAberto({ onClose }: Pick<ManifestosMetasI
     },
   ];
 
-  const colunasErros: ColunaTabela<ManifestosMetasImportacaoErro>[] = [
+  const colunasErros: ColunaTabela<ErroRowTable>[] = [
     { chave: 'linha', label: 'Linha', fixo: true },
     { chave: 'tipoErro', label: 'Tipo', largura: '160px' },
     {
@@ -250,6 +260,7 @@ function ManifestosMetasImportacaoModalAberto({ onClose }: Pick<ManifestosMetasI
   return createPortal(
     <AnimatePresence>
       <motion.div
+        key="manifestos-metas-importacao-backdrop"
         className="fixed inset-0 z-[80] bg-slate-950/45 backdrop-blur-[2px]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -258,6 +269,7 @@ function ManifestosMetasImportacaoModalAberto({ onClose }: Pick<ManifestosMetasI
       />
 
       <motion.div
+        key="manifestos-metas-importacao-dialog"
         role="dialog"
         aria-modal="true"
         initial={{ opacity: 0, y: 18 }}
@@ -363,7 +375,7 @@ function ManifestosMetasImportacaoModalAberto({ onClose }: Pick<ManifestosMetasI
                 <DataTable
                   titulo="Preview da importação"
                   dados={previewRows}
-                  chaveLinha="linha"
+                  chaveLinha="previewKey"
                   colunas={colunasPreview}
                   isLoading={preValidacao.isPending}
                 />
@@ -410,7 +422,7 @@ function ManifestosMetasImportacaoModalAberto({ onClose }: Pick<ManifestosMetasI
                 <DataTable
                   titulo="Erros e motivos"
                   dados={erroRows}
-                  chaveLinha="linha"
+                  chaveLinha="erroKey"
                   colunas={colunasErros}
                   semPaginacao={erroRows.length <= 10}
                 />

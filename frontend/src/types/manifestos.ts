@@ -149,6 +149,7 @@ export interface ManifestosFiltro {
 }
 
 export interface ManifestosCostGoalConfig {
+  id: number | null;
   branchId: string;
   contractType?: string;
   contractTypeKey?: string;

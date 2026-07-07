@@ -26,6 +26,11 @@ import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
 const STALE_TIME = 5 * 60 * 1000;
 const QUERY_KEY = ['manifestos'];
+const METAS_QUERY_KEY = ['manifestosMetas'];
+
+export function manifestosMetasQueryKey(branchId: string, mes: number, ano: number) {
+  return [...METAS_QUERY_KEY, branchId, mes, ano] as const;
+}
 
 export function useManifestosOverview(filtro: ManifestosFiltro) {
   return useQuery({
@@ -117,13 +122,13 @@ export function useManifestosTabelaPaginada(
   });
 }
 
-export function useManifestosMetas(ano: number, mes: number, enabled = true) {
+export function useManifestosMetas(branchId: string, ano: number, mes: number, enabled = true) {
   return useQuery({
-    queryKey: [...QUERY_KEY, 'metas', ano, mes],
-    queryFn: () => buscarManifestosMetas(ano, mes),
+    queryKey: manifestosMetasQueryKey(branchId, mes, ano),
+    queryFn: () => buscarManifestosMetas(branchId, ano, mes),
     staleTime: STALE_TIME,
     retry: false,
-    enabled,
+    enabled: enabled && Boolean(branchId),
   });
 }
 
@@ -131,7 +136,11 @@ export function useSaveManifestosMeta() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: ManifestosCostGoalPayload) => salvarManifestosMeta(payload),
-    onSuccess: () => {
+    onSuccess: (_data, payload) => {
+      queryClient.invalidateQueries({
+        queryKey: manifestosMetasQueryKey(payload.branchId, payload.mes, payload.ano),
+        exact: true,
+      });
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
@@ -142,6 +151,7 @@ export function useReplicarManifestosMetasConfiguracoes() {
   return useMutation({
     mutationFn: (payload: ManifestosGoalReplicarPayload) => replicarManifestosMetas(payload.ano, payload.mes),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: METAS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
@@ -157,7 +167,11 @@ export function useDeleteManifestosMeta() {
       contractTypeKey?: string;
       classificationKey?: string | null;
     }) => removerManifestosMeta(branchId, ano, mes, contractTypeKey, classificationKey),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: manifestosMetasQueryKey(variables.branchId, variables.mes, variables.ano),
+        exact: true,
+      });
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
@@ -180,6 +194,7 @@ export function useImportarManifestosMetas() {
   return useMutation({
     mutationFn: importarManifestosMetas,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: METAS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });

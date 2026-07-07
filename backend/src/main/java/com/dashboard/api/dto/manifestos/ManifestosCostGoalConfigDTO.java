@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 public record ManifestosCostGoalConfigDTO(
+        Long id,
         String branchId,
         String contractType,
         String contractTypeKey,
@@ -19,6 +20,7 @@ public record ManifestosCostGoalConfigDTO(
 ) {
     public static ManifestosCostGoalConfigDTO from(ManifestosCostGoalEntity entity) {
         return new ManifestosCostGoalConfigDTO(
+                entity.getId(),
                 entity.getBranchId() == null ? "GLOBAL" : entity.getBranchId(),
                 entity.getContractType() == null ? "GERAL" : entity.getContractType(),
                 entity.getContractTypeKey(),
@@ -35,6 +37,7 @@ public record ManifestosCostGoalConfigDTO(
 
     public static ManifestosCostGoalConfigDTO fallback(int ano, int mes, String mensagem) {
         return new ManifestosCostGoalConfigDTO(
+                null,
                 "GLOBAL",
                 "GERAL",
                 "GERAL",

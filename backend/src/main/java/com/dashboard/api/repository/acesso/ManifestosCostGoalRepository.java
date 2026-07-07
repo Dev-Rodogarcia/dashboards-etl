@@ -47,6 +47,31 @@ public interface ManifestosCostGoalRepository extends JpaRepository<ManifestosCo
     @Query("""
             SELECT g
             FROM ManifestosCostGoalEntity g
+            LEFT JOIN FETCH g.updatedByUser
+            WHERE g.yearMonth = :yearMonth
+              AND g.branchId = :branchId
+            ORDER BY g.contractType,
+                     g.classificationKey
+            """)
+    List<ManifestosCostGoalEntity> findAllByBranchIdAndYearMonthOrdered(
+            @Param("branchId") String branchId,
+            @Param("yearMonth") LocalDate yearMonth
+    );
+
+    @Query("""
+            SELECT g
+            FROM ManifestosCostGoalEntity g
+            LEFT JOIN FETCH g.updatedByUser
+            WHERE g.yearMonth = :yearMonth
+              AND g.branchId IS NULL
+            ORDER BY g.contractType,
+                     g.classificationKey
+            """)
+    List<ManifestosCostGoalEntity> findGlobalByYearMonthOrdered(@Param("yearMonth") LocalDate yearMonth);
+
+    @Query("""
+            SELECT g
+            FROM ManifestosCostGoalEntity g
             WHERE g.yearMonth = :yearMonth
             ORDER BY CASE WHEN g.branchId IS NULL THEN 0 ELSE 1 END,
                      g.branchId,

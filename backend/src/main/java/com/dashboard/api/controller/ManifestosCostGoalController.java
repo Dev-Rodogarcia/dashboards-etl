@@ -44,10 +44,11 @@ public class ManifestosCostGoalController {
     @GetMapping
     @PreAuthorize("@acessoSeguranca.podeGerenciarKpiGoals()")
     public ResponseEntity<List<ManifestosCostGoalConfigDTO>> listar(
+            @RequestParam(required = false) String branchId,
             @RequestParam int ano,
             @RequestParam int mes
     ) {
-        return ResponseEntity.ok(service.listar(ano, mes));
+        return ResponseEntity.ok(service.listar(ano, mes, branchId));
     }
 
     @PostMapping

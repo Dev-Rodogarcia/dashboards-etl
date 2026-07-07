@@ -1,6 +1,7 @@
 package com.dashboard.api.service;
 
 import com.dashboard.api.dto.FiltroConsultaDTO;
+import com.dashboard.api.dto.manifestos.ManifestosCostGoalConfigDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCostGoalConfigRequestDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCustosEvolucaoDTO;
 import com.dashboard.api.dto.manifestos.ManifestosCustosEvolucaoDTO.CustoDiarioDTO;
@@ -286,6 +287,33 @@ class ManifestosCostGoalServiceTest {
         assertThat(salva.get().getContractTypeKey()).isEqualTo("FROTA + PX");
         assertThat(salva.get().getClassificationKey()).isEqualTo("DISTRIBUIÇÃO");
         assertThat(salva.get().getCostGoal()).isEqualByComparingTo("1200.13");
+    }
+
+    @Test
+    void listarComFilialAplicaFiltroNoRepositorio() {
+        LocalDate competencia = LocalDate.of(2026, 7, 1);
+        when(goalRepository.findAllByBranchIdAndYearMonthOrdered("AGU", competencia)).thenReturn(List.of(
+                meta("AGU", competencia, "TERCEIRO", "TERCEIRO", "TRANSFERÊNCIA", "1200.00")
+        ));
+
+        List<ManifestosCostGoalConfigDTO> resultado = service.listar(2026, 7, " agu ");
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado).extracting(ManifestosCostGoalConfigDTO::branchId).containsExactly("AGU");
+        verify(goalRepository).findAllByBranchIdAndYearMonthOrdered("AGU", competencia);
+        verify(goalRepository, never()).findAllByYearMonthOrdered(competencia);
+    }
+
+    @Test
+    void listarComFilialSemMetasRetornaListaVazia() {
+        LocalDate competencia = LocalDate.of(2026, 7, 1);
+        when(goalRepository.findAllByBranchIdAndYearMonthOrdered("AGU", competencia)).thenReturn(List.of());
+
+        List<ManifestosCostGoalConfigDTO> resultado = service.listar(2026, 7, "AGU");
+
+        assertThat(resultado).isEmpty();
+        verify(goalRepository).findAllByBranchIdAndYearMonthOrdered("AGU", competencia);
+        verify(goalRepository, never()).findAllByYearMonthOrdered(competencia);
     }
 
     @Test

@@ -61,9 +61,13 @@ export async function buscarManifestosPerformance(
   return data;
 }
 
-export async function buscarManifestosMetas(ano: number, mes: number): Promise<ManifestosCostGoalConfig[]> {
+export async function buscarManifestosMetas(
+  branchId: string,
+  ano: number,
+  mes: number,
+): Promise<ManifestosCostGoalConfig[]> {
   const { data } = await clienteAxios.get<ManifestosCostGoalConfig[]>('/api/painel/manifestos/metas', {
-    params: { ano, mes },
+    params: { branchId, ano, mes },
   });
   return data;
 }

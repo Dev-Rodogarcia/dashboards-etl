@@ -100,12 +100,28 @@ public class ManifestosCostGoalService {
 
     @Transactional(readOnly = true)
     public List<ManifestosCostGoalConfigDTO> listar(int ano, int mes) {
+        return listar(ano, mes, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ManifestosCostGoalConfigDTO> listar(int ano, int mes, String branchId) {
         LocalDate competencia = competencia(ano, mes);
-        List<ManifestosCostGoalConfigDTO> metas = goalRepository.findAllByYearMonthOrdered(competencia).stream()
+        boolean filtroFilialAtivo = branchId != null && !branchId.isBlank();
+        List<ManifestosCostGoalEntity> metasEntities;
+        if (filtroFilialAtivo) {
+            String normalizedBranchId = normalizarBranchId(branchId);
+            metasEntities = normalizedBranchId == null
+                    ? goalRepository.findGlobalByYearMonthOrdered(competencia)
+                    : goalRepository.findAllByBranchIdAndYearMonthOrdered(normalizedBranchId, competencia);
+        } else {
+            metasEntities = goalRepository.findAllByYearMonthOrdered(competencia);
+        }
+
+        List<ManifestosCostGoalConfigDTO> metas = metasEntities.stream()
                 .map(ManifestosCostGoalConfigDTO::from)
                 .toList();
 
-        if (metas.isEmpty()) {
+        if (metas.isEmpty() && !filtroFilialAtivo) {
             return List.of(ManifestosCostGoalConfigDTO.fallback(
                     ano,
                     mes,
