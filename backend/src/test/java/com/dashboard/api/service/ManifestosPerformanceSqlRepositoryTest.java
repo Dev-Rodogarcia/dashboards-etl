@@ -118,6 +118,34 @@ class ManifestosPerformanceSqlRepositoryTest {
     }
 
     @Test
+    void buscarPerformanceFiltraFilialPelaChaveCurtaCanonicaNoSql() {
+        CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
+        ManifestosPerformanceSqlRepository repository = new ManifestosPerformanceSqlRepository(
+                jdbcTemplate,
+                new ValidadorPeriodoService(),
+                escopoTotal(),
+                PeriodoOffsetDateTimeHelper.padrao()
+        );
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 24),
+                Map.of("filiais", List.of("AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"))
+        );
+
+        repository.buscarPerformance(filtro, "dia", null, null);
+
+        assertThat(jdbcTemplate.sqls)
+                .anySatisfy(sql -> assertThat(sql)
+                        .contains("AS filial_key")
+                        .contains("filial_key COLLATE Latin1_General_CI_AI IN (:filiais)")
+                        .doesNotContain("filial COLLATE Latin1_General_CI_AI IN (:filiais)"));
+        assertThat(jdbcTemplate.parametros)
+                .filteredOn(params -> params.hasValue("filiais"))
+                .anySatisfy(params -> assertThat(params.getValue("filiais"))
+                        .isEqualTo(List.of("agu")));
+    }
+
+    @Test
     void buscarPerformanceAplicaDrillTemporalPorAnoEMesNoSql() {
         CapturandoNamedParameterJdbcTemplate jdbcTemplate = new CapturandoNamedParameterJdbcTemplate();
         ManifestosPerformanceSqlRepository repository = new ManifestosPerformanceSqlRepository(

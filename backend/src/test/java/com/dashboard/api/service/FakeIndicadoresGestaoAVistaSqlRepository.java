@@ -14,7 +14,6 @@ import com.dashboard.api.repository.IndicadoresGestaoAVistaSqlRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.util.List;
-import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -33,7 +32,6 @@ class FakeIndicadoresGestaoAVistaSqlRepository extends IndicadoresGestaoAVistaSq
     long cubagemTotal;
     int cubagemOffset;
     int cubagemLimite;
-    Set<String> cubagemDocsExcluidos = Set.of();
 
     IndenizacaoResumo indenizacaoResumo = new IndenizacaoResumo(null, 0, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
     List<IndenizacaoMercadoriasSeriePointDTO> indenizacaoSerie = List.of();
@@ -84,28 +82,24 @@ class FakeIndicadoresGestaoAVistaSqlRepository extends IndicadoresGestaoAVistaSq
     }
 
     @Override
-    public CubagemResumo buscarCubagemResumo(FiltroConsultaDTO filtro, EscopoFilialService.EscopoFilial escopo, Set<String> pagadorDocsExcluidos) {
-        cubagemDocsExcluidos = pagadorDocsExcluidos;
+    public CubagemResumo buscarCubagemResumo(FiltroConsultaDTO filtro, EscopoFilialService.EscopoFilial escopo) {
         return cubagemResumo;
     }
 
     @Override
-    public List<CubagemMercadoriasSeriePointDTO> buscarCubagemSerie(FiltroConsultaDTO filtro, EscopoFilialService.EscopoFilial escopo, Set<String> pagadorDocsExcluidos) {
-        cubagemDocsExcluidos = pagadorDocsExcluidos;
+    public List<CubagemMercadoriasSeriePointDTO> buscarCubagemSerie(FiltroConsultaDTO filtro, EscopoFilialService.EscopoFilial escopo) {
         return cubagemSerie;
     }
 
     @Override
-    public List<CubagemMercadoriasRowDTO> buscarCubagemLinhas(FiltroConsultaDTO filtro, EscopoFilialService.EscopoFilial escopo, Set<String> pagadorDocsExcluidos, int offset, int limite) {
-        cubagemDocsExcluidos = pagadorDocsExcluidos;
+    public List<CubagemMercadoriasRowDTO> buscarCubagemLinhas(FiltroConsultaDTO filtro, EscopoFilialService.EscopoFilial escopo, int offset, int limite) {
         cubagemOffset = offset;
         cubagemLimite = limite;
         return cubagemLinhas;
     }
 
     @Override
-    public long contarCubagemLinhas(FiltroConsultaDTO filtro, EscopoFilialService.EscopoFilial escopo, Set<String> pagadorDocsExcluidos) {
-        cubagemDocsExcluidos = pagadorDocsExcluidos;
+    public long contarCubagemLinhas(FiltroConsultaDTO filtro, EscopoFilialService.EscopoFilial escopo) {
         return cubagemTotal;
     }
 

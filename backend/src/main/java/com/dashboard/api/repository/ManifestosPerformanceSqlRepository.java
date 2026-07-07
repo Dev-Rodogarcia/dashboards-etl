@@ -11,6 +11,7 @@ import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO.TipoVeiculoDTO;
 import com.dashboard.api.service.ValidadorPeriodoService;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.JanelaOffsetDateTime;
+import com.dashboard.api.util.FilialKeyUtils;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import com.dashboard.api.util.TemporalJsonUtils;
 import java.math.BigDecimal;
@@ -312,7 +313,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                 filtro.dataFim());
 
         aplicarEscopo(ctx);
-        adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "filiais", "filial", filtro.valores("filiais"));
+        adicionarFiltroFiliais(ctx.whereBuilder(), ctx.params(), filtro.valores("filiais"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "status", "status_norm", filtro.valores("status"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "motoristas", "motorista", filtro.valores("motoristas"));
         adicionarFiltroTexto(ctx.whereBuilder(), ctx.params(), "veiculos", "veiculo_placa", filtro.valores("veiculos"));
@@ -329,13 +330,30 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
         if (escopo.acessoTotal()) {
             return;
         }
-        List<String> filiais = normalizar(escopo.filiaisOrdenadas());
+        List<String> filiais = normalizarFiliais(escopo.filiaisOrdenadas());
         if (filiais.isEmpty()) {
             ctx.whereBuilder().append("\n AND 1 = 0");
             return;
         }
         ctx.params().addValue("escopoFiliais", filiais);
-        ctx.whereBuilder().append("\n AND filial COLLATE Latin1_General_CI_AI IN (:escopoFiliais)");
+        ctx.whereBuilder().append("\n AND filial_key COLLATE Latin1_General_CI_AI IN (:escopoFiliais)");
+    }
+
+    private static void adicionarFiltroFiliais(
+            StringBuilder where,
+            MapSqlParameterSource params,
+            Collection<String> valores
+    ) {
+        if (!FilialKeyUtils.possuiTexto(valores)) {
+            return;
+        }
+        List<String> normalizados = normalizarFiliais(valores);
+        if (normalizados.isEmpty()) {
+            where.append("\n AND 1 = 0");
+            return;
+        }
+        params.addValue("filiais", normalizados);
+        where.append("\n AND filial_key COLLATE Latin1_General_CI_AI IN (:filiais)");
     }
 
     private static void adicionarFiltroTexto(
@@ -408,6 +426,10 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                 .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
                 .distinct()
                 .toList();
+    }
+
+    private static List<String> normalizarFiliais(Collection<String> valores) {
+        return FilialKeyUtils.normalizarCodigosParaFiltro(valores);
     }
 
     private TemporalQuery temporalQuery(
@@ -552,12 +574,14 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
 
     private static String baseCte(ManifestosViewColumns colunas) {
         String tipoMotorista = tipoMotoristaSql(colunas);
+        String filialKey = filialKeySql(colunas);
 
         return """
                 WITH manifestos AS (
                     SELECT
                         [Número] AS sequence_code,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), ''), N'Sem filial') AS filial,
+                        %s AS filial_key,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Motorista]))), ''), N'Sem motorista') AS motorista,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Veículo/Placa]))), ''), N'Sem veículo') AS veiculo_placa,
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Tipo Veículo]))), ''), N'Sem tipo') AS tipo_veiculo,
@@ -596,7 +620,36 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
                     WHERE [Data criação] >= :inicioOffset
                       AND [Data criação] < :fimOffset
                 )
-                """.formatted(tipoMotorista, MANIFESTOS_VIEW);
+                """.formatted(filialKey, tipoMotorista, MANIFESTOS_VIEW);
+    }
+
+    private static String filialKeySql(ManifestosViewColumns colunas) {
+        String colunaKey = textoNullableSql(
+                colunas,
+                "filial_key",
+                "Filial key",
+                "Filial Key",
+                "filial_performance_key",
+                "Filial Performance Key"
+        );
+        if (!"NULL".equals(colunaKey)) {
+            return "LOWER(" + colunaKey + ") COLLATE Latin1_General_CI_AI";
+        }
+
+        String filial = "NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')";
+        return """
+                LOWER(
+                    NULLIF(
+                        CASE
+                            WHEN %1$s IS NULL THEN NULL
+                            WHEN CHARINDEX(N'-', %1$s) > 0 THEN LTRIM(RTRIM(LEFT(%1$s, CHARINDEX(N'-', %1$s) - 1)))
+                            WHEN LEN(%1$s) = 3 THEN %1$s
+                            ELSE NULL
+                        END,
+                        N''
+                    )
+                ) COLLATE Latin1_General_CI_AI
+                """.formatted(filial);
     }
 
     private static String tipoMotoristaSql(ManifestosViewColumns colunas) {

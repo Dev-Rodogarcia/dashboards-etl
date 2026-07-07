@@ -30,6 +30,8 @@ import {
   buscarUtilizacaoColetoresSerie,
   buscarUtilizacaoColetoresTabela,
   buscarUtilizacaoColetoresTabelaPaginada,
+  importarClientesExcecaoCubagem,
+  preValidarClientesExcecaoCubagem,
 } from '../../api/endpoints/indicadoresGestaoAVistaServico';
 import type {
   IndicadoresGestaoVistaFiltro,
@@ -289,6 +291,23 @@ export function useCubagemMercadoriasTabelaPaginada(
     retry: false,
     refetchOnWindowFocus: false,
     enabled,
+  });
+}
+
+export function usePreValidarClientesExcecaoCubagem() {
+  return useMutation({
+    mutationFn: preValidarClientesExcecaoCubagem,
+  });
+}
+
+export function useImportarClientesExcecaoCubagem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: importarClientesExcecaoCubagem,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['indicadores-gestao-a-vista', 'cubagem-mercadorias'] });
+    },
   });
 }
 

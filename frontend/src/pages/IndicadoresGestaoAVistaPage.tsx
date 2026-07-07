@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BarChart3, Boxes, CheckCircle2, ChevronRight, ChevronUp, Clock3, Gauge, MessageSquarePlus, PackageCheck, Settings, ShieldAlert, Truck } from 'lucide-react';
+import { AlertCircle, BarChart3, Boxes, CheckCircle2, ChevronRight, ChevronUp, Clock3, Gauge, MessageSquarePlus, PackageCheck, Settings, ShieldAlert, Truck, UploadCloud } from 'lucide-react';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import type { ColunaTabela } from '../components/shared/DataTable';
 import type { ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
@@ -8,6 +8,7 @@ import FiliaisParceirosFilter from '../components/shared/FiliaisParceirosFilter'
 import FilterBar, { type ActiveFilter } from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
 import BranchGoalOverridesBanner from '../components/indicadores-gestao/BranchGoalOverridesBanner';
+import CubagemClientesImportacaoModal from '../components/indicadores-gestao/CubagemClientesImportacaoModal';
 import IndicadoresGestaoPanoramaSection, { type PanoramaOperacionalItem } from '../components/indicadores-gestao/IndicadoresGestaoPanoramaSection';
 import IndicadoresGestaoSection from '../components/indicadores-gestao/IndicadoresGestaoSection';
 import IndicadoresGestaoSummaryCard from '../components/indicadores-gestao/IndicadoresGestaoSummaryCard';
@@ -318,6 +319,7 @@ export default function IndicadoresGestaoAVistaPage() {
   const [goalsPanelBranchId, setGoalsPanelBranchId] = useState('');
   const [goalsPanelCompetencia, setGoalsPanelCompetencia] = useState(() => normalizarCompetenciaApi(dataInicio));
   const [goalsHistoryPage, setGoalsHistoryPage] = useState(1);
+  const [cubagemImportModalOpen, setCubagemImportModalOpen] = useState(false);
   const [horarioCorteJustificativaSelecionada, setHorarioCorteJustificativaSelecionada] = useState<HorarioCorteJustificativaSelecionada | null>(null);
   const [nivelVisaoPerformance, setNivelVisaoPerformance] = useState<NivelVisaoPerformance>('RESPONSAVEL');
   const [responsavelSelecionado, setResponsavelSelecionado] = useState<string | null>(null);
@@ -781,6 +783,17 @@ export default function IndicadoresGestaoAVistaPage() {
           ],
         })
   ), [cubagemRanking, cubagemOverview.data?.pctCubagem, goals, isDark, metaFilial]);
+  const cubagemChartActions = (
+    <button
+      type="button"
+      onClick={() => setCubagemImportModalOpen(true)}
+      className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+      style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)', backgroundColor: 'var(--color-bg)' }}
+    >
+      <UploadCloud size={14} aria-hidden="true" />
+      Importar clientes sem cubagem
+    </button>
+  );
 
   const indenizacaoChartOption = useMemo(() => (
     indenizacaoRanking.length <= 1
@@ -1251,7 +1264,7 @@ export default function IndicadoresGestaoAVistaPage() {
         goalTone={cubagemAssessment.tone}
         error={cubagemOverview.error}
         goalOverridesNotice={goalOverridesNotice('cargo_cubage')}
-        alert={<div className="mb-4 rounded-xl border border-dashed px-3 py-3 text-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>A regra oficial considera `Status != CANCELADO`, cubagem por `Total M3` ou `Peso Cubado` e exclusão pela lista oficial de `Pagador Doc`.</div>}
+        alert={<div className="mb-4 rounded-xl border border-dashed px-3 py-3 text-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>A regra oficial considera `Status != CANCELADO`, cubagem por `Total M3` ou `Peso Cubado` e exclusão pelo flag legado da fato mais a whitelist de clientes sem cubagem importada por CNPJ do pagador.</div>}
         kpis={[
           { definition: KpiDictionary.gestaoAVista.cubagem.minutasCubadas, label: 'Minutas Cubadas', value: formatarNumero(cubagemOverview.data?.fretesCubados ?? 0), icon: <PackageCheck size={16} />, progressPct: cubagemAssessment.progressPct },
           { definition: KpiDictionary.gestaoAVista.cubagem.minutasSemCubagem, label: 'Minutas Sem Cubagem', value: formatarNumero(cubagemNaoCubados), icon: <AlertCircle size={16} />, progressPct: cubagemAssessment.progressPct },
@@ -1261,6 +1274,7 @@ export default function IndicadoresGestaoAVistaPage() {
         chartTitle={cubagemRanking.length <= 1 ? 'Comparativo contra meta' : 'Filiais com menor cubagem por minuta'}
         chartOption={cubagemChartOption}
         chartKey="gestaoCubagemRanking"
+        chartActions={cubagemChartActions}
         chartLoading={cubagemSerie.isLoading}
         chartEmpty={cubagemRanking.length === 0}
         chartError={cubagemSerie.isError ? getApiErrorMessage(cubagemSerie.error, 'Erro ao carregar gráfico.') : null}
@@ -1376,6 +1390,10 @@ export default function IndicadoresGestaoAVistaPage() {
         }}
         onSubmit={salvarJustificativaSm}
         onDelete={excluirJustificativaSm}
+      />
+      <CubagemClientesImportacaoModal
+        open={cubagemImportModalOpen}
+        onClose={() => setCubagemImportModalOpen(false)}
       />
     </div>
   );

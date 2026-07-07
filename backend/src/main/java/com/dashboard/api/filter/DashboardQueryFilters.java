@@ -1,6 +1,7 @@
 package com.dashboard.api.filter;
 
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import com.dashboard.api.util.FilialKeyUtils;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -19,8 +20,21 @@ public final class DashboardQueryFilters {
                 : new ParametroLista(normalizados, 0);
     }
 
+    public static ParametroLista filiais(Collection<String> valores) {
+        List<String> normalizados = FilialKeyUtils.normalizarCodigosParaFiltro(valores);
+        if (!normalizados.isEmpty()) {
+            return new ParametroLista(normalizados, 0);
+        }
+        int vazio = FilialKeyUtils.possuiTexto(valores) ? 0 : 1;
+        return new ParametroLista(List.of(SENTINELA_SEM_FILTRO), vazio);
+    }
+
     public static ParametroLista escopo(EscopoFilialService.EscopoFilial escopo) {
         return escopo.acessoTotal() ? of(List.of()) : of(escopo.filiaisOrdenadas());
+    }
+
+    public static ParametroLista escopoFiliais(EscopoFilialService.EscopoFilial escopo) {
+        return escopo.acessoTotal() ? filiais(List.of()) : filiais(escopo.filiaisOrdenadas());
     }
 
     private static List<String> normalizar(Collection<String> valores) {

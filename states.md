@@ -21,7 +21,7 @@
 - Padrões obrigatórios: push-down computation no SQL Server, filtros sargable, paginação/exportação em SQL, DTOs pequenos, validação explícita de período e paridade entre cálculo de KPI e dicionários do frontend.
 - Produção e desenvolvimento são isolados por `.env`, profiles e validações que impedem DEV de conectar no banco `DASHBOARDS`.
 - Exportações CSV baseadas em records Java usam `CsvExportWriter`; quando um DTO precisa de cabeçalho amigável sem alterar o contrato JSON, o componente pode usar `@CsvColumn`, como em `HorarioCorteRowDTO.justificativa` exportado como `Justificativa`.
-- As metas de custo operacional de Manifestos usam `ManifestosCostGoalService` como fronteira canônica de escrita manual/replicação e `ManifestosMetasImportacaoExcelParser` como fronteira de upload; filial, tipo de contrato e classificação são normalizados por `trim().toUpperCase()` antes de persistir, com a migração `V051__normalizar_chaves_metas_manifestos.sql` corrigindo dados legados no banco próprio.
+- As metas de custo operacional de Manifestos usam `ManifestosCostGoalService` como fronteira canônica de escrita manual/replicação e `ManifestosMetasImportacaoExcelParser` como fronteira de upload; filial passa pela sigla operacional curta via `FilialKeyUtils`, tipo de contrato e classificação são normalizados por `trim().toUpperCase()` antes de persistir, com a migração `V051__normalizar_chaves_metas_manifestos.sql` corrigindo dados legados no banco próprio.
 - A gestão de metas de Manifestos em `ManifestosCostGoalsPanel.tsx` separa filtros de topo por Mês/Ano e Filial, usa esses filtros para o formulário de edição e renderiza os orçamentos cadastrados em tabela relacional por contrato, classificação, meta mensal formatada em moeda e última atualização. O seletor de filial exibe a descrição da dimensão como label, mas usa sempre a sigla operacional curta como `value`, filtra parceiros logísticos e seleciona a primeira filial válida disponível apenas enquanto o usuário ainda não escolheu uma filial. A listagem de metas é consultada por `branchId` curto, `ano` e `mes`, com `queryKey` isolada no formato `['manifestosMetas', filial, mes, ano]` e sem reaproveitar dados de outra filial quando a resposta filtrada vem vazia. As linhas da tabela usam o `id` persistido da meta como `key` React.
 - Dados de negócio, justificativas e auditoria usam exclusão lógica obrigatória; hard delete/`DELETE FROM` físico é proibido. Entidades JPA podem delegar o soft delete ao Hibernate com `@SQLDelete`/`@SQLRestriction`, e queries JDBC nativas devem filtrar registros inativos explicitamente.
 - A série gráfica de Performance de Entrega em Gestão à Vista usa o enum backend `NivelVisaoPerformance` (`RESPONSAVEL`, `REGIAO`, `CIDADE`) como contrato estrito de visão. O DTO expõe `label`, `filtro`, `visao`, totais físicos e percentual; o SQL seleciona e agrupa apenas colunas mapeadas pelo enum.
@@ -38,7 +38,7 @@
 
 ## Fluxo de Dados e Integrações
 - Fluxo web: React -> hooks React Query -> `src/api/endpoints` -> `clienteAxios` -> controllers Spring -> services -> repositories SQL/JPA -> SQL Server -> DTOs -> cards/gráficos/tabelas.
-- Os filtros globais de filiais trafegam como `f.filiais` e `f.parceirosLogisticos`; `FiltroRequestMapper` consolida os parceiros em `filiais` antes de construir `FiltroConsultaDTO`, preservando os services/repositories existentes sobre a mesma dimensão analítica de filial.
+- Os filtros globais de filiais trafegam como `f.filiais` e `f.parceirosLogisticos`; `FiltroRequestMapper` consolida os parceiros em `filiais` antes de construir `FiltroConsultaDTO`, preservando os services/repositories existentes sobre a mesma dimensão analítica de filial. Manifestos aceita a filial global tanto como label longo (`AGU - ...`) quanto como sigla (`AGU`); `ManifestosPerformanceService` preserva o filtro original para a fato e cria uma cópia orçamentária com sigla curta via `FilialKeyUtils` antes de chamar metas.
 - `FiltroContext` suporta `setFiltros` para atualizar múltiplos filtros da URL de forma atômica, usado por atalhos de metas que precisam alternar entre filial própria, parceiro logístico e escopo global sem deixar parâmetros órfãos.
 - Autenticação: `/api/auth/login`, `/api/auth/me`, `/api/auth/alterar-senha`, `/api/auth/refresh` e `/api/auth/logout`.
 - Dashboards principais: `/api/painel/coletas`, `/manifestos`, `/fretes`, `/tracking`, `/performance`, `/faturas-por-cliente`, `/contas-a-pagar`, `/cotacoes`, `/executivo`, `/etl-saude`, `/integracoes` e `/indicadores-gestao-a-vista`.
@@ -47,7 +47,7 @@
 - Objetos analíticos lidos do ETL incluem `dbo.vw_coletas_powerbi`, `dbo.vw_fretes_powerbi`, `dbo.vw_manifestos_powerbi`, `dbo.vw_localizacao_cargas_powerbi`, `dbo.vw_contas_a_pagar_powerbi`, `dbo.vw_cotacoes_powerbi`, `dbo.vw_sinistros_powerbi`, `dbo.vw_fato_manifestos_dash`, `dbo.fato_fretes_faturamento`, `dbo.fato_gestao_vista_fretes`, `dbo.fato_gestao_vista_coletores`, `dbo.fato_gestao_vista_faturas`, `dbo.fato_gestao_vista_manifestos`, `dbo.dim_calendario` e `dbo.vw_dim_*`.
 - A região logística de Coletas é resolvida no ETL por `dbo.dim_regiao_logistica_rules` e publicada em `dbo.vw_coletas_powerbi.[Região Logística]`; o Dashboard apenas consome essa coluna por nome simples, sem hardcode de database.
 - Estado próprio em `DASHBOARDS`: schema `acesso` para usuários, papéis, permissões, setores, filiais permitidas, refresh tokens, audit logs, metas de KPI, metas de fretes, metas de custo de manifestos e comunicados; `dbo.viagem_justificativas` para justificativas de viagens Raster usadas pelo indicador de Horário de Corte.
-- Metas de custo de Manifestos entram por cadastro manual, replicação mensal ou importação Excel/CSV; todos os caminhos passam por normalização canônica em caixa alta antes do `saveAndFlush`, e a agregação de orçamento em `ManifestosCostGoalRepository` compara `contract_type_key`/`classification_key` normalizadas para que filtros de classificação como `distribuição` e `DISTRIBUIÇÃO` resolvam a mesma meta. O endpoint `GET /api/painel/manifestos/metas` aceita `branchId`, `ano` e `mes`; quando `branchId` é informado, o serviço faz push-down estrito por filial e competência no repositório e retorna `[]` quando não houver meta para a filial selecionada, sem fallback global. O DTO de listagem expõe o `id` da entidade para keys estáveis no React. No frontend, a filial selecionada no painel de orçamento é a sigla curta derivada da dimensão, evitando miss entre labels longas como `AGU - ...` e `branch_id = AGU`. O preview de importação de metas cria chaves sintéticas explícitas para linhas e erros antes de entregar os dados ao `DataTable`.
+- Metas de custo de Manifestos entram por cadastro manual, replicação mensal ou importação Excel/CSV; todos os caminhos passam por normalização canônica em caixa alta antes do `saveAndFlush`, e a agregação de orçamento em `ManifestosCostGoalRepository` compara `branch_id`, `contract_type_key` e `classification_key` normalizadas para que filtros como `AGU - ...`/`AGU` e classificações como `distribuição`/`DISTRIBUIÇÃO` resolvam a mesma meta. O endpoint `GET /api/painel/manifestos/metas` aceita `branchId`, `ano` e `mes`; quando `branchId` é informado, o serviço faz push-down estrito por filial e competência no repositório e retorna `[]` quando não houver meta para a filial selecionada, sem fallback global. O DTO de listagem expõe o `id` da entidade para keys estáveis no React. No frontend, a filial selecionada no painel de orçamento é a sigla curta derivada da dimensão, evitando miss entre labels longas como `AGU - ...` e `branch_id = AGU`; na Performance de Manifestos, `ManifestosPerformanceService` passa o filtro original para fatos e um filtro clonado com `filiais` normalizadas para orçamento, enquanto `ManifestosPerformanceSqlRepository`, `VisaoManifestosRepository` e `DashboardExportSqlBuilder` filtram por `filial_key` ou expressão SQL equivalente extraída da fato. O preview de importação de metas cria chaves sintéticas explícitas para linhas e erros antes de entregar os dados ao `DataTable`.
 - Integração adicional: `IntegracaoSateliteClient` aponta para `APP_INTEGRATION_SATELITE_URL` com padrão `http://127.0.0.1:19090`.
 - Builds: dev usa backend 5011 e frontend 5174; produção usa backend 5010 e frontend 5173, com Cloudflare Tunnel previsto.
 - Gestão à Vista: `/api/painel/indicadores-gestao-a-vista/performance-entrega/serie` exige `visao` e aceita `responsavelFiltro`/`regiaoFiltro` para drill-down. O frontend envia esses parâmetros por `indicadoresGestaoAVistaServico.ts`, inclui todos no `queryKey` do TanStack Query e atualiza o gráfico ao clicar em barras.
@@ -101,4 +101,37 @@
 - É proibido incluir saudações, conclusões, explicações fora dos bullets ou reescrever outras seções durante a resposta de planejamento.
 
 ## Tarefas Pendentes
-Sem tarefas pendentes.
+# 📋 TAREFA TÉCNICA: Importador de Exceções de Cubagem de Clientes (Gestão à Vista)
+
+**Atenção, Codex:** Precisamos implementar a funcionalidade de White-list/Exceção para o Indicador de "Cubagem de Mercadorias" na página de Gestão à Vista. O objetivo é permitir que o usuário faça o upload de uma lista de clientes corporativos dispensados de cubagem, desonerando o cálculo analítico de forma indexada.
+
+Você **DEVE OBRIGATORIAMENTE** ler `AGENTS.md` e `CONTEXTO_GLOBAL.md` antes de prosseguir. Respeite as fronteiras de bancos (DDL estrutural de aplicação web pertence ao Flyway do monorepo).
+
+## 🛠️ Escopo de Implementação
+
+### 1. Camada de Banco de Dados & Migrations (DASHBOARDS)
+* Crie uma nova migration Flyway (ex: `V051__criar_tabela_excecao_cubagem_clientes.sql`) para estruturar a tabela de estado da aplicação:
+  - `id` BIGINT IDENTITY(1,1) PRIMARY KEY
+  - `cliente_cnpj` VARCHAR(14) NOT NULL (Armazenar apenas números limpos, indexado e com restrição UNIQUE)
+  - `razao_social` NVARCHAR(255)
+  - `nome_fantasia` NVARCHAR(255)
+  - `cidade_uf` NVARCHAR(150)
+  - `atualizado_por` NVARCHAR(100)
+  - `data_atualizacao` DATETIMEOFFSET DEFAULT SYSDATETIMEOFFSET()
+
+### 2. Camada Java Backend (API / Parser / DTO)
+* Crie a entidade JPA `ClienteExcecaoCubagem.java` amarrada à nova tabela.
+* Crie a rota de Controller REST segura: `POST /api/painel/gestao-vista/cubagem/clientes/importacao`.
+* Implemente a rotina de parser de arquivo (MultipartFile Excel/CSV) com higienização estrita de dados:
+  - O campo `CNPJ` deve sofrer remoção de caracteres não-numéricos antes da validação e gravação (`cnpj.replaceAll("[^0-9]", "")`), forçando o tamanho padrão de 14 dígitos.
+  - O pipeline deve fazer o `MERGE` idempotente (se o CNPJ já existir, atualiza a Razão Social/Data; se não, insere).
+
+### 3. Camada React Frontend (UI Modal de Importação e Grade)
+* Na aba de gerenciamento ou seção do indicador de Cubagem, adicione o botão/modal para `Importar Clientes sem Cubagem` utilizando o design de preview de tabela já consagrado nos módulos de metas.
+* Garanta a renderização do progresso e o sumário clássico do projeto: "Total de linhas", "Válidas para importação", "Com problemas".
+* Mapeie a chave do TanStack Query para invalidar as queries do indicador de cubagem ao finalizar o upload com sucesso.
+
+## 🚦 Critérios de Aceite
+1. O parser deve processar arquivos XLSX ou CSV contendo as colunas de CNPJ e Razão Social sem gerar erros de encoding ou mojibake (opere estritamente em UTF-8).
+2. O banco analítico de fatos deve conseguir cruzar os CNPJs limpos de forma SARGable sem onerar a memória da JVM.
+3. Apresente os Diffs organizados por pacotes estruturais.

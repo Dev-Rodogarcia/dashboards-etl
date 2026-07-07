@@ -189,8 +189,8 @@ public class ManifestosService {
         return new ManifestosConsulta(
                 filtro.dataInicio(),
                 filtro.dataFim().plusDays(1),
-                DashboardQueryFilters.escopo(escopoFilialService.escopoAtual()),
-                DashboardQueryFilters.of(filtro.valores("filiais")),
+                DashboardQueryFilters.escopoFiliais(escopoFilialService.escopoAtual()),
+                DashboardQueryFilters.filiais(filtro.valores("filiais")),
                 DashboardQueryFilters.of(filtro.valores("status")),
                 DashboardQueryFilters.of(filtro.valores("motoristas")),
                 DashboardQueryFilters.of(filtro.valores("veiculos")),

@@ -318,6 +318,22 @@ class DashboardExportSqlBuilderTest {
     }
 
     @Test
+    void buildSelectManifestosDeveFiltrarFilialPorTextoECodigoOperacional() {
+        DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
+                DashboardExportDefinition.MANIFESTOS,
+                filtro(Map.of("filiais", List.of("AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"))),
+                EscopoFilialService.EscopoFilial.comAcessoTotal(),
+                Set.of()
+        );
+
+        assertThat(query.sql()).contains("[Filial] IN (:filtro_filiais)");
+        assertThat(query.sql()).contains("IN (:filtro_filiaisCodigos)");
+        assertThat(query.sql()).contains("CHARINDEX(N'-'");
+        assertThat(query.params().getValues()).containsEntry("filtro_filiais", List.of("agu - rodogarcia transportes rodoviarios ltda"));
+        assertThat(query.params().getValues()).containsEntry("filtro_filiaisCodigos", List.of("agu"));
+    }
+
+    @Test
     void buildSelectTrackingDeveAplicarEscopoDeFiliaisPorTextoECodigoOperacional() {
         DashboardExportSqlBuilder.ExportSql query = builder.buildSelect(
                 DashboardExportDefinition.TRACKING,

@@ -47,6 +47,23 @@ class ManifestosMetasImportacaoExcelParserTest {
     }
 
     @Test
+    void deveExtrairCodigoCurtoDaFilialLongaNaPlanilha() {
+        MockMultipartFile arquivo = new MockMultipartFile(
+                "arquivo",
+                "manifestos-metas.csv",
+                "text/csv",
+                ("Mês/Ano;Filial;Tipo de Contrato;Classificação;Valor da Meta\n"
+                        + "05/2026;AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA;Geral;Geral;123,45\n").getBytes(StandardCharsets.UTF_8)
+        );
+
+        ManifestosMetasImportacaoExcelParser.PlanilhaImportada resultado = parser.parse(arquivo);
+        ManifestosMetasImportacaoExcelParser.LinhaPlanilha linha = resultado.linhas().get(0);
+
+        assertThat(linha.branchId()).isEqualTo("AGU");
+        assertThat(linha.mensagens()).isEmpty();
+    }
+
+    @Test
     void deveRejeitarXlsxComConteudoTextoAntesDeAbrirPlanilha() {
         MockMultipartFile arquivo = new MockMultipartFile(
                 "arquivo",

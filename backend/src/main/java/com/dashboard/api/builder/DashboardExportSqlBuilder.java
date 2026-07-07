@@ -3,6 +3,7 @@ package com.dashboard.api.builder;
 import com.dashboard.api.definition.DashboardExportDefinition;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
+import com.dashboard.api.util.FilialKeyUtils;
 import com.dashboard.api.util.JanelaOffsetDateTime;
 import com.dashboard.api.util.PeriodoOffsetDateTimeHelper;
 import java.math.BigDecimal;
@@ -344,6 +345,11 @@ public class DashboardExportSqlBuilder {
             return;
         }
 
+        if (definition == DashboardExportDefinition.MANIFESTOS) {
+            adicionarFiltroFilialFlexivelManifestos(where, params, "escopoFiliais", "escopoFiliaisCodigos", colunas, escopo.filiaisOrdenadas());
+            return;
+        }
+
         List<String> filiais = normalizar(escopo.filiaisOrdenadas());
         params.addValue("escopoFiliais", filiais);
         where.add("(" + String.join(" OR ", colunas.stream()
@@ -367,6 +373,19 @@ public class DashboardExportSqlBuilder {
 
             if (definition == DashboardExportDefinition.MANIFESTOS && "numeroManifesto".equals(chave)) {
                 adicionarFiltroNumeroManifesto(where, params, filtro.valores(chave));
+                continue;
+            }
+
+            if (definition == DashboardExportDefinition.MANIFESTOS && "filiais".equals(chave)) {
+                String paramName = "filtro_" + chave;
+                adicionarFiltroFilialFlexivelManifestos(
+                        where,
+                        params,
+                        paramName,
+                        paramName + "Codigos",
+                        entry.getValue(),
+                        filtro.valores(chave)
+                );
                 continue;
             }
 
@@ -440,6 +459,35 @@ public class DashboardExportSqlBuilder {
             params.addValue(codigoParamName, codigos);
             predicados.addAll(colunas.stream()
                     .map(coluna -> coluna + " IN (:" + codigoParamName + ")")
+                    .toList());
+        }
+
+        where.add("(" + String.join(" OR ", predicados) + ")");
+    }
+
+    private void adicionarFiltroFilialFlexivelManifestos(
+            List<String> where,
+            MapSqlParameterSource params,
+            String paramName,
+            String codigoParamName,
+            List<String> colunas,
+            Collection<String> valores
+    ) {
+        List<String> normalizados = normalizar(valores);
+        if (normalizados.isEmpty()) {
+            return;
+        }
+
+        params.addValue(paramName, normalizados);
+        List<String> predicados = new ArrayList<>(colunas.stream()
+                .map(coluna -> normalizarSql(coluna) + " IN (:" + paramName + ")")
+                .toList());
+
+        List<String> codigos = codigosFiliais(valores);
+        if (!codigos.isEmpty()) {
+            params.addValue(codigoParamName, codigos);
+            predicados.addAll(colunas.stream()
+                    .map(coluna -> filialCodigoSql(coluna) + " IN (:" + codigoParamName + ")")
                     .toList());
         }
 
@@ -1242,6 +1290,23 @@ public class DashboardExportSqlBuilder {
         return coluna;
     }
 
+    private String filialCodigoSql(String coluna) {
+        String valor = "NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), " + coluna + "))), N'')";
+        return """
+                LOWER(
+                    NULLIF(
+                        CASE
+                            WHEN %1$s IS NULL THEN NULL
+                            WHEN CHARINDEX(N'-', %1$s) > 0 THEN LTRIM(RTRIM(LEFT(%1$s, CHARINDEX(N'-', %1$s) - 1)))
+                            WHEN LEN(%1$s) = 3 THEN %1$s
+                            ELSE NULL
+                        END,
+                        N''
+                    )
+                )
+                """.formatted(valor);
+    }
+
     private List<String> normalizar(Collection<String> valores) {
         return valores.stream()
                 .filter(valor -> valor != null && !valor.isBlank())
@@ -1251,29 +1316,7 @@ public class DashboardExportSqlBuilder {
     }
 
     private List<String> codigosFiliais(Collection<String> valores) {
-        return valores.stream()
-                .filter(valor -> valor != null && !valor.isBlank())
-                .map(valor -> valor.trim().toLowerCase(Locale.ROOT))
-                .map(this::codigoFilial)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-    }
-
-    private String codigoFilial(String valor) {
-        String[] partes = valor.split("\\s*[-–—]\\s*");
-        if (partes.length == 0) {
-            return null;
-        }
-
-        String codigo = partes[0].trim();
-        if ("sem_map".equals(codigo) && partes.length > 1) {
-            codigo = partes[1].trim();
-        }
-        if (codigo.length() < 3) {
-            return null;
-        }
-        return codigo.substring(0, 3);
+        return FilialKeyUtils.normalizarCodigosParaFiltro(valores);
     }
 
     public record ExportSql(@NonNull String sql, @NonNull MapSqlParameterSource params) {

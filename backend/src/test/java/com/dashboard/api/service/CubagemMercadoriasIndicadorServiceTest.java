@@ -25,8 +25,7 @@ class CubagemMercadoriasIndicadorServiceTest {
         service = new CubagemMercadoriasIndicadorService(
                 new ValidadorPeriodoService(),
                 sqlRepository,
-                escopoSemRestricao(),
-                "43.996.693/0001-27; 55.183.248/0010-18"
+                escopoSemRestricao()
         );
     }
 
@@ -46,16 +45,6 @@ class CubagemMercadoriasIndicadorServiceTest {
         assertThat(overview.fretesCubados()).isEqualTo(1);
         assertThat(overview.fretesComPesoReal()).isEqualTo(2);
         assertThat(overview.pctCubagem()).isEqualTo(33.3);
-    }
-
-    @Test
-    void buscarOverviewDeveEnviarDocumentosExcluidosNormalizadosParaSql() {
-        FiltroConsultaDTO filtro = filtroPadrao();
-        sqlRepository.cubagemResumo = new IndicadoresGestaoAVistaSqlRepository.CubagemResumo(null, 0, 0, 0);
-
-        service.buscarOverview(filtro);
-
-        assertThat(sqlRepository.cubagemDocsExcluidos).contains("43996693000127", "55183248001018");
     }
 
     @Test

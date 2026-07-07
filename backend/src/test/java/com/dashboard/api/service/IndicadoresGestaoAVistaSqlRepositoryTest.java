@@ -10,7 +10,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -36,7 +35,7 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
         EscopoFilialService.EscopoFilial escopo = EscopoFilialService.EscopoFilial.comAcessoTotal();
 
         repository.buscarPerformanceEntregaSerie(filtro, escopo);
-        repository.buscarCubagemSerie(filtro, escopo, Set.of("43996693000127"));
+        repository.buscarCubagemSerie(filtro, escopo);
         repository.buscarIndenizacaoSerie(filtro, escopo);
         repository.buscarUtilizacaoColetoresSerie(filtro, escopo);
 
@@ -65,6 +64,8 @@ class IndicadoresGestaoAVistaSqlRepositoryTest {
                 .contains("AND data_referencia >= :dataInicio")
                 .contains("AND data_referencia < :dataFimExclusivo")
                 .contains("AND is_pagador_excluido_cubagem = 0")
+                .contains("FROM dbo.cliente_excecao_cubagem excecao")
+                .contains("excecao.cliente_cnpj = pagador_documento_key")
                 .contains("SUM(CAST(is_cubado AS BIGINT))")
                 .doesNotContain("vw_fretes_powerbi")
                 .doesNotContain("fretes_deduplicados")

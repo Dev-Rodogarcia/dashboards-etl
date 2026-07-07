@@ -14,6 +14,7 @@ import com.dashboard.api.repository.acesso.UsuarioRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.service.acesso.EscopoFilialService.EscopoFilial;
 import com.dashboard.api.util.ConsultaFiltroUtils;
+import com.dashboard.api.util.FilialKeyUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -225,6 +226,16 @@ public class ManifestosCostGoalService {
 
     @Transactional(readOnly = true)
     public ManifestosCustosEvolucaoDTO calcular(FiltroConsultaDTO filtro, BigDecimal custoRealPeriodo) {
+        return calcular(filtro, filtro, custoRealPeriodo);
+    }
+
+    @Transactional(readOnly = true)
+    public ManifestosCustosEvolucaoDTO calcular(
+            FiltroConsultaDTO filtro,
+            FiltroConsultaDTO filtroOrcamento,
+            BigDecimal custoRealPeriodo
+    ) {
+        FiltroConsultaDTO filtroMetas = filtroOrcamento == null ? filtro : filtroOrcamento;
         BigDecimal custoReal = moeda(custoRealPeriodo);
         List<CustoDiarioDTO> serieDiaria = performanceRepository.buscarCustosDiarios(filtro);
         LocalDate inicioCompetencia = filtro.dataInicio().withDayOfMonth(1);
@@ -247,7 +258,7 @@ public class ManifestosCostGoalService {
                 .add(custoMedioDiarioReal.multiply(BigDecimal.valueOf(diasUteisRestantes)))
                 .setScale(2, RoundingMode.HALF_UP);
 
-        AplicabilidadeOrcamento aplicabilidade = resolverAplicabilidade(filtro);
+        AplicabilidadeOrcamento aplicabilidade = resolverAplicabilidade(filtroMetas);
         if (!aplicabilidade.aplicavel()) {
             return montarRespostaSemOrcamento(
                     false,
@@ -381,7 +392,10 @@ public class ManifestosCostGoalService {
         if (GLOBAL_BRANCH_ID.equalsIgnoreCase(normalized)) {
             return null;
         }
-        normalized = normalized.toUpperCase(Locale.ROOT);
+        normalized = FilialKeyUtils.extrairCodigoOperacional(normalized);
+        if (normalized == null) {
+            throw new IllegalArgumentException("Filial da meta deve usar uma sigla operacional válida.");
+        }
         if (normalized.length() > 120) {
             throw new IllegalArgumentException("Filial da meta excede 120 caracteres.");
         }
@@ -521,7 +535,13 @@ public class ManifestosCostGoalService {
 
         List<String> contractTypeKeys = normalizar(filtro.valores("tiposContrato"));
         List<String> classificationKeys = normalizar(filtro.valores("classificacoes"));
-        List<String> filiaisSelecionadas = normalizar(filtro.valores("filiais"));
+        boolean filtroFiliaisAtivo = filtro.temFiltro("filiais");
+        List<String> filiaisSelecionadas = normalizarFiliais(filtro.valores("filiais"));
+        if (filtroFiliaisAtivo && filiaisSelecionadas.isEmpty()) {
+            return AplicabilidadeOrcamento.indisponivel(
+                    "Orçamento indisponível porque as filiais selecionadas não possuem chave orçamentária."
+            );
+        }
         if (escopo.acessoTotal() && filiaisSelecionadas.isEmpty()) {
             return AplicabilidadeOrcamento.global(contractTypeKeys, classificationKeys);
         }
@@ -530,7 +550,7 @@ public class ManifestosCostGoalService {
                 ? filiaisSelecionadas
                 : intersecao(filiaisSelecionadas, escopo.filiaisOrdenadas());
         if (!escopo.acessoTotal() && filiaisSelecionadas.isEmpty()) {
-            filiaisPermitidas = normalizar(escopo.filiaisOrdenadas());
+            filiaisPermitidas = normalizarFiliais(escopo.filiaisOrdenadas());
         }
         if (filiaisPermitidas.isEmpty()) {
             return AplicabilidadeOrcamento.indisponivel(
@@ -541,10 +561,14 @@ public class ManifestosCostGoalService {
     }
 
     private List<String> intersecao(Collection<String> selecionadas, Collection<String> permitidas) {
-        Set<String> permitidasNormalizadas = new LinkedHashSet<>(normalizar(permitidas));
-        return normalizar(selecionadas).stream()
+        Set<String> permitidasNormalizadas = new LinkedHashSet<>(normalizarFiliais(permitidas));
+        return normalizarFiliais(selecionadas).stream()
                 .filter(permitidasNormalizadas::contains)
                 .toList();
+    }
+
+    private List<String> normalizarFiliais(Collection<String> valores) {
+        return FilialKeyUtils.normalizarCodigosParaOrcamento(valores);
     }
 
     private List<String> normalizar(Collection<String> valores) {

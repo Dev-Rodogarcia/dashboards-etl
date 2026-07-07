@@ -21,7 +21,6 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -170,11 +169,9 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     public CubagemResumo buscarCubagemResumo(
             FiltroConsultaDTO filtro,
-            EscopoFilialService.EscopoFilial escopo,
-            Set<String> pagadorDocsExcluidos
+            EscopoFilialService.EscopoFilial escopo
     ) {
         QueryContext ctx = contextoLocalDate(filtro, escopo, false);
-        adicionarDocsExcluidos(ctx.params(), pagadorDocsExcluidos);
         String sql = cubagemCte() + """
                 SELECT
                     CONVERT(NVARCHAR(30), MAX(data_extracao), 126) AS updated_at,
@@ -189,11 +186,9 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     public List<CubagemMercadoriasSeriePointDTO> buscarCubagemSerie(
             FiltroConsultaDTO filtro,
-            EscopoFilialService.EscopoFilial escopo,
-            Set<String> pagadorDocsExcluidos
+            EscopoFilialService.EscopoFilial escopo
     ) {
         QueryContext ctx = contextoLocalDate(filtro, escopo, false);
-        adicionarDocsExcluidos(ctx.params(), pagadorDocsExcluidos);
         String sql = cubagemCte() + """
                 SELECT
                     CONVERT(char(10), data_frete_date, 23) AS date,
@@ -221,12 +216,10 @@ public class IndicadoresGestaoAVistaSqlRepository {
     public List<CubagemMercadoriasRowDTO> buscarCubagemLinhas(
             FiltroConsultaDTO filtro,
             EscopoFilialService.EscopoFilial escopo,
-            Set<String> pagadorDocsExcluidos,
             int offset,
             int limite
     ) {
         QueryContext ctx = contextoLocalDate(filtro, escopo, false);
-        adicionarDocsExcluidos(ctx.params(), pagadorDocsExcluidos);
         ctx.params()
                 .addValue("offsetLinhas", Math.max(0, offset))
                 .addValue("limiteLinhas", Math.max(1, limite));
@@ -239,21 +232,17 @@ public class IndicadoresGestaoAVistaSqlRepository {
 
     public List<CubagemMercadoriasRowDTO> buscarCubagemExportacao(
             FiltroConsultaDTO filtro,
-            EscopoFilialService.EscopoFilial escopo,
-            Set<String> pagadorDocsExcluidos
+            EscopoFilialService.EscopoFilial escopo
     ) {
         QueryContext ctx = contextoLocalDate(filtro, escopo, false);
-        adicionarDocsExcluidos(ctx.params(), pagadorDocsExcluidos);
         return jdbcTemplate.query(cubagemLinhasSql(""), ctx.params(), this::mapearCubagemLinha);
     }
 
     public long contarCubagemLinhas(
             FiltroConsultaDTO filtro,
-            EscopoFilialService.EscopoFilial escopo,
-            Set<String> pagadorDocsExcluidos
+            EscopoFilialService.EscopoFilial escopo
     ) {
         QueryContext ctx = contextoLocalDate(filtro, escopo, false);
-        adicionarDocsExcluidos(ctx.params(), pagadorDocsExcluidos);
         return count(cubagemCte() + "SELECT COUNT_BIG(1) FROM cubagem", ctx.params());
     }
 
@@ -702,6 +691,11 @@ public class IndicadoresGestaoAVistaSqlRepository {
                       AND data_referencia < :dataFimExclusivo
                       AND is_linha_valida_indicador = 1
                       AND is_pagador_excluido_cubagem = 0
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM dbo.cliente_excecao_cubagem excecao
+                          WHERE excecao.cliente_cnpj = pagador_documento_key
+                      )
                       AND excluido_na_origem = 0
                       AND (:escopoFiliaisVazio = 1 OR filial_emissora_key IN (:escopoFiliais))
                       AND (:filiaisVazio = 1 OR filial_emissora_key IN (:filiais))
@@ -892,12 +886,6 @@ public class IndicadoresGestaoAVistaSqlRepository {
                 .addValue("escopoFiliaisVazio", escopoVazio ? 1 : 0)
                 .addValue("filiais", filiaisFiltro)
                 .addValue("filiaisVazio", filtro.temFiltro("filiais") ? 0 : 1);
-    }
-
-    private static void adicionarDocsExcluidos(MapSqlParameterSource params, Set<String> docs) {
-        List<String> normalizados = normalizar(docs);
-        params.addValue("docsExcluidos", normalizados.isEmpty() ? List.of("__sem_docs__") : normalizados)
-                .addValue("docsExcluidosVazio", normalizados.isEmpty() ? 1 : 0);
     }
 
     private PerformanceEntregaRowDTO mapearPerformanceEntregaLinha(ResultSet rs, int rowNum) throws SQLException {

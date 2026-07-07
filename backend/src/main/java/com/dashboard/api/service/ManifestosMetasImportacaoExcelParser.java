@@ -1,5 +1,6 @@
 package com.dashboard.api.service;
 
+import com.dashboard.api.util.FilialKeyUtils;
 import com.dashboard.api.util.UploadFileTypeValidator;
 import com.dashboard.api.util.UploadFileTypeValidator.FileType;
 import java.io.BufferedReader;
@@ -245,10 +246,15 @@ public class ManifestosMetasImportacaoExcelParser {
             return null;
         }
         String normalizado = normalizarUpper(valor);
+        String codigo = FilialKeyUtils.extrairCodigoOperacional(normalizado);
+        if (codigo == null) {
+            mensagens.add("Filial deve usar uma sigla operacional válida.");
+            return normalizado;
+        }
         if (normalizado.length() > 120) {
             mensagens.add("Filial excede 120 caracteres.");
         }
-        return normalizado;
+        return codigo;
     }
 
     private ContractType normalizarContrato(String valor, List<String> mensagens) {

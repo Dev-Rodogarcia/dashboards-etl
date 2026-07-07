@@ -196,6 +196,51 @@ export interface CubagemMercadoriasRow {
   cubado: boolean;
 }
 
+export type CubagemClientesImportacaoStatus = 'PRONTA' | 'ERRO_VALIDACAO';
+
+export interface CubagemClientesImportacaoTotais {
+  totalLinhas: number;
+  validas: number;
+  invalidas: number;
+}
+
+export interface CubagemClientesImportacaoPreviewLinha {
+  linha: number;
+  clienteCnpj: string;
+  razaoSocial: string | null;
+  nomeFantasia: string | null;
+  cidadeUf: string | null;
+  status: CubagemClientesImportacaoStatus;
+  mensagens: string[];
+}
+
+export interface CubagemClientesImportacaoPreviewResponse {
+  nomeArquivo: string;
+  totais: CubagemClientesImportacaoTotais;
+  podeImportar: boolean;
+  linhasPreview: CubagemClientesImportacaoPreviewLinha[];
+}
+
+export interface CubagemClientesImportacaoImportado {
+  linha: number;
+  clienteCnpj: string;
+  razaoSocial: string | null;
+}
+
+export interface CubagemClientesImportacaoErro {
+  linha: number;
+  motivo: string;
+  tipoErro: string;
+}
+
+export interface CubagemClientesImportacaoResultado {
+  totalProcessados: number;
+  totalImportados: number;
+  totalErros: number;
+  listaImportados: CubagemClientesImportacaoImportado[];
+  listaErros: CubagemClientesImportacaoErro[];
+}
+
 export interface IndenizacaoMercadoriasOverview {
   updatedAt: string;
   totalSinistros: number;

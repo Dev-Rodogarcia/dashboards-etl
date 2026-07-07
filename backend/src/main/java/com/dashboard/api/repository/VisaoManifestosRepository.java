@@ -24,7 +24,22 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Classificação]))), '') AS classificacao,
                     LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Classificação]))), '')) AS classificacao_normalizada,
                     NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '') AS filial,
-                    LOWER(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) AS filial_normalizada,
+                    LOWER(
+                        NULLIF(
+                            CASE
+                                WHEN NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '') IS NULL THEN NULL
+                                WHEN CHARINDEX(N'-', NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) > 0
+                                THEN LTRIM(RTRIM(LEFT(
+                                    NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), ''),
+                                    CHARINDEX(N'-', NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) - 1
+                                )))
+                                WHEN LEN(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')) = 3
+                                THEN NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), '')
+                                ELSE NULL
+                            END,
+                            N''
+                        )
+                    ) AS filial_key,
                     [Data criação] AS data_criacao,
                     CAST([Data criação] AS date) AS data_criacao_periodo,
                     TRY_CONVERT(datetimeoffset, [Fechamento]) AS fechamento,
@@ -58,8 +73,8 @@ public interface VisaoManifestosRepository extends JpaRepository<VisaoManifestos
                 FROM manifestos
                 WHERE data_criacao >= :dataInicio
                   AND data_criacao < :dataFimExclusivo
-                  AND (:escopoFiliaisVazio = 1 OR filial_normalizada IN (:escopoFiliais))
-                  AND (:filiaisVazio = 1 OR filial_normalizada IN (:filiais))
+                  AND (:escopoFiliaisVazio = 1 OR filial_key IN (:escopoFiliais))
+                  AND (:filiaisVazio = 1 OR filial_key IN (:filiais))
                   AND (:statusVazio = 1 OR status_normalizado IN (:status))
                   AND (:motoristasVazio = 1 OR motorista_normalizado IN (:motoristas))
                   AND (:veiculosVazio = 1 OR veiculo_placa_normalizado IN (:veiculos))

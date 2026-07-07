@@ -3,6 +3,10 @@ package com.dashboard.api.service;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.dto.manifestos.ManifestosPerformanceDTO;
 import com.dashboard.api.repository.ManifestosPerformanceSqlRepository;
+import com.dashboard.api.util.FilialKeyUtils;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,6 +30,7 @@ public class ManifestosPerformanceService {
             Integer mes
     ) {
         ManifestosPerformanceDTO performance = repository.buscarPerformance(filtro, nivel, ano, mes);
+        FiltroConsultaDTO filtroOrcamento = filtroOrcamentario(filtro);
         return new ManifestosPerformanceDTO(
                 performance.updatedAt(),
                 performance.kpis(),
@@ -35,7 +40,23 @@ public class ManifestosPerformanceService {
                 performance.statusSazonal(),
                 performance.custosContrato(),
                 performance.tiposVeiculo(),
-                costGoalService.calcular(filtro, performance.kpis().custoTotal())
+                costGoalService.calcular(filtro, filtroOrcamento, performance.kpis().custoTotal())
         );
+    }
+
+    private FiltroConsultaDTO filtroOrcamentario(FiltroConsultaDTO filtro) {
+        List<String> filiaisOriginais = filtro.valores("filiais");
+        if (filiaisOriginais.isEmpty()) {
+            return filtro;
+        }
+
+        List<String> filiaisMetas = FilialKeyUtils.normalizarCodigosParaOrcamento(filiaisOriginais);
+        if (filiaisMetas.isEmpty()) {
+            return filtro;
+        }
+
+        Map<String, List<String>> filtrosOrcamento = new LinkedHashMap<>(filtro.filtros());
+        filtrosOrcamento.put("filiais", filiaisMetas);
+        return new FiltroConsultaDTO(filtro.dataInicio(), filtro.dataFim(), filtrosOrcamento);
     }
 }

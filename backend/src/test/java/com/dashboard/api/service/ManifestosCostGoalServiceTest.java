@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -145,6 +146,67 @@ class ManifestosCostGoalServiceTest {
 
         assertThat(resultado.orcamentoCusto()).isEqualByComparingTo("3000000.00");
         verify(goalRepository, never()).aggregateGlobalOrBranches(any(), any(), any(), anyInt(), any(), anyInt());
+    }
+
+    @Test
+    void filtroDeFilialLongaUsaCodigoCurtoParaBuscarMetaOrcamentaria() {
+        FiltroConsultaDTO filtro = new FiltroConsultaDTO(
+                INICIO_MAIO,
+                FIM_MAIO,
+                Map.of("filiais", List.of("AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"))
+        );
+        stubCalendarioECustos(filtro, List.of());
+        when(goalRepository.aggregateByBranches(
+                INICIO_MAIO,
+                LocalDate.of(2026, 6, 1),
+                List.of("AGU"),
+                List.of("__all_contract_types__"),
+                0,
+                List.of("__all_classifications__"),
+                0
+        )).thenReturn(aggregate("1500000.00", 1));
+
+        ManifestosCustosEvolucaoDTO resultado = service.calcular(
+                filtro,
+                new BigDecimal("500000.00")
+        );
+
+        assertThat(resultado.orcamentoAplicavel()).isTrue();
+        assertThat(resultado.orcamentoConfigurado()).isTrue();
+        assertThat(resultado.orcamentoCusto()).isEqualByComparingTo("1500000.00");
+        verify(goalRepository, never()).aggregateGlobalOrBranches(any(), any(), any(), anyInt(), any(), anyInt());
+    }
+
+    @Test
+    void filtroOrcamentarioNormalizadoNaoSubstituiFiltroOriginalDasConsultasDeFato() {
+        FiltroConsultaDTO filtroFato = new FiltroConsultaDTO(
+                INICIO_MAIO,
+                FIM_MAIO,
+                Map.of("filiais", List.of("AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA"))
+        );
+        FiltroConsultaDTO filtroOrcamento = new FiltroConsultaDTO(
+                INICIO_MAIO,
+                FIM_MAIO,
+                Map.of("filiais", List.of("AGU"))
+        );
+        stubCalendarioECustos(filtroFato, List.of());
+        when(goalRepository.aggregateByBranches(
+                INICIO_MAIO,
+                LocalDate.of(2026, 6, 1),
+                List.of("AGU"),
+                List.of("__all_contract_types__"),
+                0,
+                List.of("__all_classifications__"),
+                0
+        )).thenReturn(aggregate("1500000.00", 1));
+
+        service.calcular(filtroFato, filtroOrcamento, new BigDecimal("500000.00"));
+
+        verify(performanceRepository).buscarCustosDiarios(filtroFato);
+        ArgumentCaptor<FiltroConsultaDTO> custoFechadoCaptor = ArgumentCaptor.forClass(FiltroConsultaDTO.class);
+        verify(performanceRepository).buscarCustoTotal(custoFechadoCaptor.capture());
+        assertThat(custoFechadoCaptor.getValue().valores("filiais"))
+                .containsExactly("AGU - RODOGARCIA TRANSPORTES RODOVIARIOS LTDA");
     }
 
     @Test
