@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertCircle, RefreshCw, Trash2, UploadCloud } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, RefreshCw, Trash2, UploadCloud } from 'lucide-react';
 import DataTable, { type ColunaTabela } from '../shared/DataTable';
 import {
   useClientesExcecaoCubagem,
@@ -38,11 +38,18 @@ function formatarUltimaAtualizacao(row: ClienteExcecaoCubagem) {
   return `${data} · ${usuario}`;
 }
 
+function compararDataAtualizacao(left: ClienteExcecaoCubagem, right: ClienteExcecaoCubagem) {
+  const leftTime = left.dataAtualizacao ? new Date(left.dataAtualizacao).getTime() : 0;
+  const rightTime = right.dataAtualizacao ? new Date(right.dataAtualizacao).getTime() : 0;
+  return rightTime - leftTime;
+}
+
 export default function CubagemClientesExcecaoPanel({ onImportClick }: CubagemClientesExcecaoPanelProps) {
   const clientes = useClientesExcecaoCubagem();
   const exclusao = useExcluirClienteExcecaoCubagem();
   const [cnpjExcluindo, setCnpjExcluindo] = useState<string | null>(null);
   const [erroExclusao, setErroExclusao] = useState('');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const rows = useMemo<ClienteExcecaoCubagemRow[]>(
     () => (clientes.data ?? []).map((cliente) => ({
@@ -54,6 +61,18 @@ export default function CubagemClientesExcecaoPanel({ onImportClick }: CubagemCl
     })),
     [clientes.data],
   );
+
+  const resumo = useMemo(() => {
+    const total = rows.length;
+    const ultimoRegistro = [...rows].sort(compararDataAtualizacao)[0] ?? null;
+    const exemplos = rows.slice(0, 3).map((row) => row.razaoSocialLabel).filter((label) => label !== '-');
+
+    return {
+      total,
+      ultimaAtualizacao: ultimoRegistro ? formatarUltimaAtualizacao(ultimoRegistro) : 'Sem atualização registrada',
+      exemplos: exemplos.length > 0 ? exemplos.join(', ') : 'Nenhum cliente ativo cadastrado',
+    };
+  }, [rows]);
 
   async function handleExcluir(row: ClienteExcecaoCubagemRow) {
     const confirmacao = window.confirm(`Remover ${row.clienteCnpjLabel} da whitelist de cubagem?`);
@@ -141,26 +160,70 @@ export default function CubagemClientesExcecaoPanel({ onImportClick }: CubagemCl
             <UploadCloud size={14} aria-hidden="true" />
             Importar clientes sem cubagem
           </button>
+          <button
+            type="button"
+            onClick={() => setIsExpanded((current) => !current)}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 ${FOCUS_RING_CLASS}`}
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)', backgroundColor: 'var(--color-card)' }}
+            aria-expanded={isExpanded}
+          >
+            {isExpanded ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
+            {isExpanded ? 'Minimizar' : 'Mostrar tabela'}
+          </button>
         </div>
       </div>
 
+      {!isExpanded ? (
+        <div className="grid gap-3 text-xs md:grid-cols-3" aria-label="Resumo da whitelist de cubagem">
+          <div className="rounded-xl border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}>
+            <span className="block font-semibold" style={{ color: 'var(--color-text)' }}>
+              {clientes.isLoading ? 'Carregando...' : `${resumo.total} cliente${resumo.total === 1 ? '' : 's'} ativo${resumo.total === 1 ? '' : 's'}`}
+            </span>
+            <span style={{ color: 'var(--color-text-subtle)' }}>CNPJs dispensados do indicador.</span>
+          </div>
+          <div className="rounded-xl border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}>
+            <span className="block font-semibold" style={{ color: 'var(--color-text)' }}>
+              Última atualização
+            </span>
+            <span style={{ color: 'var(--color-text-subtle)' }}>{clientes.isLoading ? 'Carregando...' : resumo.ultimaAtualizacao}</span>
+          </div>
+          <div className="min-w-0 rounded-xl border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}>
+            <span className="block font-semibold" style={{ color: 'var(--color-text)' }}>
+              Dentro da lista
+            </span>
+            <span className="block max-w-full truncate" style={{ color: 'var(--color-text-subtle)' }} title={clientes.isLoading ? undefined : resumo.exemplos}>
+              {clientes.isLoading ? 'Carregando...' : resumo.exemplos}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      {!isExpanded && clientes.error ? (
+        <div className="mt-3 flex items-start gap-2 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: '#dc2626', color: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)' }}>
+          <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>{getApiErrorMessage(clientes.error, 'Não foi possível carregar a whitelist de cubagem.')}</span>
+        </div>
+      ) : null}
+
       {erroExclusao ? (
-        <div className="mb-3 flex items-start gap-2 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: '#dc2626', color: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)' }}>
+        <div className="mt-3 mb-3 flex items-start gap-2 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: '#dc2626', color: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)' }}>
           <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>{erroExclusao}</span>
         </div>
       ) : null}
 
-      <DataTable
-        titulo="Whitelist de cubagem"
-        dados={rows}
-        chaveLinha="clienteCnpj"
-        colunas={columns}
-        isLoading={clientes.isLoading}
-        error={clientes.error}
-        errorFallbackMessage="Não foi possível carregar a whitelist de cubagem."
-        tamanhoPaginaInicial={10}
-      />
+      {isExpanded ? (
+        <DataTable
+          titulo="Whitelist de cubagem"
+          dados={rows}
+          chaveLinha="clienteCnpj"
+          colunas={columns}
+          isLoading={clientes.isLoading}
+          error={clientes.error}
+          errorFallbackMessage="Não foi possível carregar a whitelist de cubagem."
+          tamanhoPaginaInicial={10}
+        />
+      ) : null}
     </section>
   );
 }
