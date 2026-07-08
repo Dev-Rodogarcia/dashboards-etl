@@ -75,7 +75,8 @@ const RESPONSAVEL_DRILL_LEVELS: Array<{ value: ResponsavelDrillLevel; label: str
   { value: 'cidade', label: 'Cidade' },
 ];
 const FATURAMENTO_DATE_HELP = 'Usa a emissão do CT-e quando existir; se não existir, usa a data operacional.';
-const KPI_CARD_HEIGHT_CLASS = 'h-[25rem] min-h-0';
+const MIN_CUSTOM_CHART_HEIGHT = 350;
+const KPI_CARD_HEIGHT_CLASS = 'h-[28rem] min-h-0';
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -186,7 +187,7 @@ function mergeAxis(baseAxis: unknown, optionAxis: unknown) {
 
 function ThemedEChart({
   option,
-  altura = 300,
+  altura = MIN_CUSTOM_CHART_HEIGHT,
   onEvents,
 }: {
   option: EChartsOption;
@@ -207,7 +208,7 @@ function ThemedEChart({
   return (
     <ReactECharts
       option={mergedOption}
-      style={{ height: altura }}
+      style={{ height: altura, minHeight: typeof altura === 'number' ? Math.max(altura, MIN_CUSTOM_CHART_HEIGHT) : MIN_CUSTOM_CHART_HEIGHT, width: '100%' }}
       opts={{ renderer: 'canvas' }}
       onEvents={onEvents}
       notMerge
@@ -732,7 +733,7 @@ function FaturamentoEvolutionCard({
             </TooltipKpi>
           ))}
         </div>
-        <div className="min-h-[12rem] min-w-0 flex-1 lg:min-h-0">
+        <div className="min-h-[350px] min-w-0 flex-1 lg:min-h-0">
           <ThemedEChart option={option} altura="100%" />
         </div>
       </div>
@@ -1241,8 +1242,8 @@ export default function FaturamentoPage() {
         />
       )}
 
-      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-12">
-        <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-5`}>
+      <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-12">
+        <div className={`${KPI_CARD_HEIGHT_CLASS} 2xl:col-span-5`}>
           <FaturamentoEvolutionCard
             chartKey="evolucaoFaturamento"
             dados={serie.data ?? []}
@@ -1257,7 +1258,7 @@ export default function FaturamentoPage() {
             metaDiariaDinamica={metaDiariaDinamica}
           />
         </div>
-        <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-3`}>
+        <div className={`${KPI_CARD_HEIGHT_CLASS} 2xl:col-span-3`}>
           <ChartWrapper
             titulo="Faturamento por Classificação (FTL/LTL/PTL)"
             chartKey="faturamentoClassificacao"
@@ -1274,7 +1275,7 @@ export default function FaturamentoPage() {
             }}
           />
         </div>
-        <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-4`}>
+        <div className={`${KPI_CARD_HEIGHT_CLASS} 2xl:col-span-4`}>
           <ChartWrapper
             titulo="Faturamento por Responsável pela Região de Destino"
             chartKey="faturamentoResponsavel"
@@ -1302,10 +1303,7 @@ export default function FaturamentoPage() {
             }}
           />
         </div>
-      </div>
-
-      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-12">
-        <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-3`}>
+        <div className={`${KPI_CARD_HEIGHT_CLASS} 2xl:col-span-3`}>
           <ChartWrapper
             titulo="Participação de Clientes no Faturamento"
             chartKey="faturamentoParticipacaoClientes"
@@ -1322,14 +1320,14 @@ export default function FaturamentoPage() {
             }}
           />
         </div>
-        <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-5`}>
+        <div className={`${KPI_CARD_HEIGHT_CLASS} 2xl:col-span-5`}>
           <TopClientesTableCard
             atuais={topClientesData}
             anteriores={topClientesPeriodoAnterior.data ?? []}
             isLoading={topClientes.isLoading || topClientesPeriodoAnterior.isLoading}
           />
         </div>
-        <div className={`${KPI_CARD_HEIGHT_CLASS} xl:col-span-4`}>
+        <div className={`${KPI_CARD_HEIGHT_CLASS} 2xl:col-span-4`}>
           <ChartWrapper
             titulo="Faturamento por Rota"
             chartKey="faturamentoRota"

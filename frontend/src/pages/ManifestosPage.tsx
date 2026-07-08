@@ -508,16 +508,13 @@ export default function ManifestosPage() {
       {performance.isError && <MensagemErro mensagem={getApiErrorMessage(performance.error, 'Erro ao carregar indicadores de manifestos.')} tipo={getTipoErro(performance.error)} />}
       <ManifestosKpiGrid kpis={dadosPerformance?.kpis} isLoading={performance.isLoading} />
 
-      <div className="mb-6 grid grid-cols-1 items-stretch gap-4">
-        <div className="min-h-[43rem] lg:min-h-[34rem] xl:h-[25rem] xl:min-h-0">
+      <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+        <div className="col-span-full min-h-[43rem] lg:min-h-[34rem] xl:h-[28rem] xl:min-h-0">
           <ManifestosCustoEvolutionCard
             dados={dadosPerformance?.custosEvolucao}
             isLoading={performance.isLoading}
           />
         </div>
-      </div>
-
-      <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <ManifestosGaugeCard
           titulo="Remuneração (Custo x Receita Transportada)"
           metric={dadosPerformance?.remuneracao}
@@ -539,9 +536,6 @@ export default function ManifestosPage() {
           corDestaque={CORES_GAUGE_MANIFESTOS.efetividade}
           definitions={KpiDictionary.manifestos.efetividade}
         />
-      </div>
-
-      <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <ManifestosTrend
           dados={statusTrend}
           nivel={nivelTemporal}

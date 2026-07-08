@@ -23,6 +23,7 @@ public class IntegracaoSateliteClient {
 
     private static final String ROTA_INTEGRACOES_CLIENTES = "/api/auditoria/integracoes-clientes";
     private static final String ROTA_EVOLUCAO_DIARIA = "/api/auditoria/integracoes-clientes/evolucao-diaria";
+    private static final String ROTA_RESUMO_TABELAS = "/api/auditoria/integracoes-clientes/resumo-tabelas";
     private static final String ROTA_IMAGEM_LOG = "/api/auditoria/logs/{id}/imagem";
     private static final String ROTA_QUARENTENA_ERROS = "/api/etl/quarentena/erros";
 
@@ -81,6 +82,24 @@ public class IntegracaoSateliteClient {
 
         URI uri = UriComponentsBuilder
                 .fromUriString(sateliteBaseUrl + ROTA_EVOLUCAO_DIARIA)
+                .queryParams(parametrosSatelite)
+                .build()
+                .encode()
+                .toUri();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+        return restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+    }
+
+    public ResponseEntity<String> buscarResumoTabelas(String dataInicial, String dataFinal) {
+        MultiValueMap<String, String> parametrosSatelite = new LinkedMultiValueMap<>();
+        adicionarParametroOpcional(parametrosSatelite, "dataInicial", dataInicial);
+        adicionarParametroOpcional(parametrosSatelite, "dataFinal", dataFinal);
+
+        URI uri = UriComponentsBuilder
+                .fromUriString(sateliteBaseUrl + ROTA_RESUMO_TABELAS)
                 .queryParams(parametrosSatelite)
                 .build()
                 .encode()

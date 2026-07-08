@@ -1086,8 +1086,8 @@ export default function PerformancePage() {
         </div>
       )}
 
-      <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="h-[25rem] min-h-0">
+      <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-6">
+        <div className="col-span-full h-[28rem] min-h-0 2xl:col-span-2">
           <ChartWrapper
             titulo="Entregas por dia, mês e ano"
             chartKey="performanceSerieTemporal"
@@ -1107,7 +1107,7 @@ export default function PerformancePage() {
             className="h-full"
           />
         </div>
-        <div className="h-[25rem] min-h-0">
+        <div className="h-[28rem] min-h-0 2xl:col-span-2">
           <ChartWrapper
             titulo="Distribuição por Status"
             chartKey="performanceStatus"
@@ -1120,7 +1120,7 @@ export default function PerformancePage() {
             className="h-full"
           />
         </div>
-        <div className="h-[25rem] min-h-0">
+        <div className="h-[28rem] min-h-0 2xl:col-span-2">
           <ChartWrapper
             titulo="Histórico de Performance"
             chartKey="performanceHistorico"
@@ -1139,10 +1139,7 @@ export default function PerformancePage() {
             className="h-full"
           />
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <div className="flex h-[26rem] min-h-0 flex-col">
+        <div className="flex h-[30rem] min-h-0 flex-col 2xl:col-span-3">
           <DrillUpButton nivel={drillNivel} regiao={drillRegiao} onBack={drillUp} />
           <div className="min-h-0 flex-1">
             <ChartWrapper
@@ -1175,7 +1172,7 @@ export default function PerformancePage() {
             />
           </div>
         </div>
-        <div className="h-[26rem] min-h-0">
+        <div className="h-[30rem] min-h-0 2xl:col-span-3">
           <ChartWrapper
             titulo="Entregas em aberto"
             chartKey="performanceAging"
@@ -1190,7 +1187,7 @@ export default function PerformancePage() {
         </div>
       </div>
 
-      <div className="mt-6 mb-3 flex flex-wrap items-center justify-end gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-3">
         {drillTabelaResumo ? (
           <span
             className="mr-auto inline-flex min-w-0 max-w-full items-center rounded-md border px-3 py-1.5 text-xs font-medium"

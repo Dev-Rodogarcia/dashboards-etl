@@ -163,10 +163,10 @@ export default function ManifestosCustoEvolutionCard({
           ))}
         </aside>
 
-        <div className="min-h-[16rem] min-w-0 lg:min-h-0">
+        <div className="min-h-[350px] min-w-0 lg:min-h-0">
           <ReactECharts
             option={option}
-            style={{ height: '100%', minHeight: 260, width: '100%' }}
+            style={{ height: '100%', minHeight: 350, width: '100%' }}
             opts={ECHARTS_CANVAS_OPTS}
             notMerge
           />

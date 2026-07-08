@@ -51,14 +51,14 @@ export default function ManifestosGaugeCard({
 
   return (
     <ChartCard titulo={titulo} isLoading={isLoading}>
-      <div className="flex h-full min-h-[260px] items-center justify-between gap-0 max-[900px]:min-h-[360px] max-[900px]:flex-col">
+      <div className="flex h-full min-h-[350px] items-center justify-between gap-0 max-[900px]:min-h-[360px] max-[900px]:flex-col">
         <TooltipKpi
           definition={definitions.geral}
           className="max-[900px]:w-full"
           style={{ flex: '1 1 76%' }}
         >
-          <div className="relative min-h-[252px] w-full min-w-0 max-[900px]:min-h-[252px]">
-            <ReactECharts option={option} style={{ height: 252, width: '100%' }} opts={{ renderer: 'canvas' }} notMerge />
+          <div className="relative min-h-[300px] w-full min-w-0 max-[900px]:min-h-[252px]">
+            <ReactECharts option={option} style={{ height: 300, width: '100%' }} opts={{ renderer: 'canvas' }} notMerge />
             <span className="sr-only">Global: {globalFormatado}</span>
           </div>
         </TooltipKpi>

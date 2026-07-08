@@ -42,6 +42,9 @@ const baseGestaoPerformance =
 const baseGestaoCubagem =
   'Considera minutas válidas, não canceladas, com valor operacional e fora das exceções oficiais ativas de pagadores sem cubagem em dbo.cliente_excecao_cubagem, além do flag legado de exclusão publicado na fato. Cada minuta aparece uma única vez.';
 
+const regraHorarioCorteCwbNhb =
+  'Na linha CWB-NHB, o corte operacional vigente é 22h.';
+
 export const KpiDictionary = {
   coletas: {
     totalColetas: {
@@ -940,7 +943,7 @@ export const KpiDictionary = {
         descricao: 'Percentual das saídas realizadas dentro do horário de corte.',
         calculo: 'Saídas no Horário ÷ Total de Saídas Programadas × 100.',
         observacao:
-          `Há tolerância de 10 minutos após o horário de corte da rota. SMs com justificativa ativa contam como no horário; ao excluir logicamente a justificativa, a SM volta ao status original de contabilização. ${percentualSemBase}`,
+          `Há tolerância de 10 minutos após o horário de corte da rota. ${regraHorarioCorteCwbNhb} SMs com justificativa ativa contam como no horário; ao excluir logicamente a justificativa, a SM volta ao status original de contabilização. ${percentualSemBase}`,
       },
     },
 
@@ -1117,7 +1120,7 @@ export const KpiDictionary = {
         descricao: 'Percentual das saídas programadas realizadas dentro do limite.',
         calculo: 'Saídas no Horário, incluindo SMs com justificativa ativa, ÷ Total Programado × 100.',
         observacao:
-          `Há tolerância de 10 minutos após o horário de corte. SMs com justificativa ativa contam como no horário; ao excluir logicamente a justificativa, a SM volta ao status original de contabilização. ${percentualSemBase}`,
+          `Há tolerância de 10 minutos após o horário de corte. ${regraHorarioCorteCwbNhb} SMs com justificativa ativa contam como no horário; ao excluir logicamente a justificativa, a SM volta ao status original de contabilização. ${percentualSemBase}`,
       },
       gapMeta: {
         titulo: 'Gap vs Meta de Horário',

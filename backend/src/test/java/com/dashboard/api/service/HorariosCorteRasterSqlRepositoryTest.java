@@ -46,6 +46,15 @@ class HorariosCorteRasterSqlRepositoryTest {
     }
 
     @Test
+    void queryDeveAplicarCorteDe22HorasSomenteNaRotaCwbNhb() throws ReflectiveOperationException {
+        String sql = sql();
+
+        assertThat(sql).contains("(N'SAO JOSE DOS PINHAIS/PR - RODOGARCIA FILIAL CWB', N'NOVO HAMBURGO/RS - RODOGARCIA FILIAL NHB', CAST(N'22:00:00' AS TIME(0)))");
+        assertThat(sql).doesNotContain("(N'SAO JOSE DOS PINHAIS/PR - RODOGARCIA FILIAL CWB', N'NOVO HAMBURGO/RS - RODOGARCIA FILIAL NHB', CAST(N'18:00:00' AS TIME(0)))");
+        assertThat(sql).contains("(N'NOVO HAMBURGO/RS - RODOGARCIA FILIAL NHB', N'SAO JOSE DOS PINHAIS/PR - RODOGARCIA FILIAL CWB', CAST(N'04:00:00' AS TIME(0)))");
+    }
+
+    @Test
     void queryDeveForcarNoPrazoQuandoSmTemJustificativa() throws ReflectiveOperationException {
         String sql = sql();
         String sqlSerie = sqlSerie();

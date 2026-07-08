@@ -64,6 +64,24 @@ public class IntegracoesController {
                 .body(respostaSatelite.getBody());
     }
 
+    @GetMapping(value = "/resumo-tabelas", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> consultarResumoTabelas(
+            @RequestParam(required = false) String dataInicial,
+            @RequestParam(required = false) String dataFinal
+    ) {
+        ResponseEntity<String> respostaSatelite = integracoesService.consultarResumoTabelas(
+                dataInicial,
+                dataFinal
+        );
+
+        return ResponseEntity
+                .status(respostaSatelite.getStatusCode())
+                .contentType(respostaSatelite.getHeaders().getContentType() != null
+                        ? respostaSatelite.getHeaders().getContentType()
+                        : MediaType.APPLICATION_JSON)
+                .body(respostaSatelite.getBody());
+    }
+
     @GetMapping(value = "/logs/{id}/imagem", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_PLAIN_VALUE })
     public ResponseEntity<String> consultarImagemCanhoto(@PathVariable Long id) {
         ResponseEntity<String> respostaSatelite = integracoesService.consultarImagemCanhoto(id);

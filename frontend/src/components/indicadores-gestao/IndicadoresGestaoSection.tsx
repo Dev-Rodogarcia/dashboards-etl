@@ -203,7 +203,7 @@ export default function IndicadoresGestaoSection<T>({
           isEmpty={chartEmpty}
           erro={chartError}
           emptyMessage="Sem dados para o período selecionado."
-          altura={320}
+          altura={350}
         />
       </div>
 

@@ -10,6 +10,7 @@ import { DATE_RANGE_PRESETS } from '../components/shared/dateRangePresets';
 import ExportButton from '../components/shared/ExportButton';
 import FilterBar from '../components/shared/FilterBar';
 import StatusBadge from '../components/shared/StatusBadge';
+import TableHeaderTooltip from '../components/shared/TableHeaderTooltip';
 import MensagemErro from '../components/ui/MensagemErro';
 import { exportarEtlSaudeCsv } from '../api/endpoints/etlSaudeServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
@@ -24,7 +25,7 @@ import {
 } from '../hooks/queries/useEtlSaude';
 import { normalizarPeriodo } from '../utils/dateUtils';
 import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
-import { formatarDataHora, formatarNumero, formatarPorcentagem } from '../utils/formatadores';
+import { formatarData, formatarDataHora, formatarNumero, formatarPorcentagem } from '../utils/formatadores';
 import type { EtlLogExtracaoAuditoriaRow } from '../types/etlSaude';
 
 type TooltipParam = {
@@ -35,6 +36,8 @@ type TooltipParam = {
   seriesName?: string;
   value?: number | string | Array<number | string | null> | null;
 };
+
+const EXTRACAO_HISTORICA_TOOLTIP = 'Refere-se ao primeiro/último registro contido na base histórica do período filtrado, não ao momento da execução do ETL.';
 
 function formatarInteiro(valor: unknown) {
   return typeof valor === 'number' && Number.isFinite(valor) ? formatarNumero(valor) : '—';
@@ -108,18 +111,23 @@ function ResumoKpi({
   color = 'var(--color-text)',
   detail,
   title,
+  tooltip,
 }: {
   label: string;
   value: ReactNode;
   color?: string;
   detail?: ReactNode;
   title?: string;
+  tooltip?: string;
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-xs font-semibold uppercase" style={{ color: 'var(--color-text-muted)' }}>
-        {label}
-      </p>
+      <div className="flex min-w-0 items-center gap-1">
+        <p className="truncate text-xs font-semibold uppercase" style={{ color: 'var(--color-text-muted)' }}>
+          {label}
+        </p>
+        {tooltip ? <TableHeaderTooltip label={label} content={tooltip} /> : null}
+      </div>
       <p className="mt-1 truncate text-xl font-bold leading-tight" title={title} style={{ color }}>
         {value}
       </p>
@@ -220,6 +228,14 @@ export default function EtlSaudePage() {
           acc.ultimaExtracao = item.ultimaExtracao;
         }
 
+        if (item.menorDataNegocio && (!acc.menorDataNegocio || item.menorDataNegocio < acc.menorDataNegocio)) {
+          acc.menorDataNegocio = item.menorDataNegocio;
+        }
+
+        if (item.maiorDataNegocio && (!acc.maiorDataNegocio || item.maiorDataNegocio > acc.maiorDataNegocio)) {
+          acc.maiorDataNegocio = item.maiorDataNegocio;
+        }
+
         return acc;
       },
       {
@@ -229,6 +245,8 @@ export default function EtlSaudePage() {
         totalRegistrosGravados: 0,
         primeiraExtracao: null as string | null,
         ultimaExtracao: null as string | null,
+        menorDataNegocio: null as string | null,
+        maiorDataNegocio: null as string | null,
         temDetalheStatus: false,
       },
     );
@@ -248,6 +266,8 @@ export default function EtlSaudePage() {
       totalRegistrosGravados: totais.totalRegistrosGravados,
       primeiraExtracao: totais.primeiraExtracao,
       ultimaExtracao: totais.ultimaExtracao,
+      menorDataNegocio: totais.menorDataNegocio,
+      maiorDataNegocio: totais.maiorDataNegocio,
       intervaloExtracao: formatarIntervaloExtracao(totais.primeiraExtracao, totais.ultimaExtracao),
       tabelaMaiorVolume,
       tabelasComFalha,
@@ -380,10 +400,12 @@ export default function EtlSaudePage() {
           start: 0,
           end: zoomEnd,
           width: 14,
+          filterMode: 'none',
         },
         {
           type: 'inside',
           yAxisIndex: 0,
+          filterMode: 'none',
         },
       ] : undefined,
       series: [
@@ -467,10 +489,10 @@ export default function EtlSaudePage() {
           isLoading={taxasDiariasQuery.isLoading}
           isEmpty={taxasDiarias.length === 0}
           erro={erroTaxasDiarias}
-          altura={320}
+          altura={350}
           sideContent={(
             <div
-              className="grid h-full min-h-[320px] grid-cols-2 content-center gap-x-4 gap-y-5 border-t pt-4 lg:grid-cols-1 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0"
+              className="grid h-full min-h-[320px] grid-cols-2 content-center gap-x-4 gap-y-5 border-t pt-4 2xl:grid-cols-1 2xl:border-l 2xl:border-t-0 2xl:pl-5 2xl:pt-0"
               style={{ borderColor: 'var(--color-border)' }}
             >
               <div>
@@ -515,7 +537,7 @@ export default function EtlSaudePage() {
           isLoading={evolucao.isLoading}
           isEmpty={evolucaoDados.length === 0}
           erro={erroEvolucao}
-          altura={320}
+          altura={350}
         />
         <ChartWrapper
           titulo="Resumo por Tabela Alvo"
@@ -524,13 +546,29 @@ export default function EtlSaudePage() {
           isLoading={tabelasResumo.isLoading}
           isEmpty={resumoTabelasDados.length === 0}
           erro={erroResumoTabelas}
-          altura={420}
+          altura={400}
           className="xl:col-span-2"
+          sideContentLayoutClassName="grid h-full min-h-0 grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6"
+          sideContentChartClassName="xl:col-span-2"
+          sideContentAsideClassName="xl:col-span-1"
           sideContent={(
             <div
-              className="flex h-full min-h-[420px] flex-col justify-center gap-4 border-t pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0"
+              className="flex h-full min-h-0 flex-col justify-start gap-3 border-t pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0"
               style={{ borderColor: 'var(--color-border)' }}
             >
+              <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                <ResumoKpi
+                  label="Dados desde"
+                  value={metricasResumoTabelas.menorDataNegocio ? formatarData(metricasResumoTabelas.menorDataNegocio) : '—'}
+                  title={metricasResumoTabelas.menorDataNegocio ? formatarDataHora(metricasResumoTabelas.menorDataNegocio) : undefined}
+                />
+                <ResumoKpi
+                  label="Dados até"
+                  value={metricasResumoTabelas.maiorDataNegocio ? formatarData(metricasResumoTabelas.maiorDataNegocio) : '—'}
+                  title={metricasResumoTabelas.maiorDataNegocio ? formatarDataHora(metricasResumoTabelas.maiorDataNegocio) : undefined}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-x-5 gap-y-4">
                 <ResumoKpi label="Tabelas" value={formatarNumero(metricasResumoTabelas.tabelasMonitoradas)} />
                 <ResumoKpi label="Extrações" value={formatarNumero(metricasResumoTabelas.qtdExtracoes)} />
@@ -545,15 +583,17 @@ export default function EtlSaudePage() {
                   label="Primeira"
                   value={metricasResumoTabelas.primeiraExtracao ? formatarDataHora(metricasResumoTabelas.primeiraExtracao) : '—'}
                   title={metricasResumoTabelas.primeiraExtracao ? formatarDataHora(metricasResumoTabelas.primeiraExtracao) : undefined}
+                  tooltip={EXTRACAO_HISTORICA_TOOLTIP}
                 />
                 <ResumoKpi
                   label="Última"
                   value={metricasResumoTabelas.ultimaExtracao ? formatarDataHora(metricasResumoTabelas.ultimaExtracao) : '—'}
                   title={metricasResumoTabelas.ultimaExtracao ? formatarDataHora(metricasResumoTabelas.ultimaExtracao) : undefined}
+                  tooltip={EXTRACAO_HISTORICA_TOOLTIP}
                 />
               </div>
 
-              <div className="grid gap-4 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="grid grid-cols-2 gap-x-5 gap-y-4 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
                 <ResumoKpi
                   label="Maior Volume"
                   value={formatarNumero(numeroSeguro(metricasResumoTabelas.tabelaMaiorVolume?.totalRegistrosGravados))}

@@ -7,6 +7,7 @@ import type { ChartDictionaryKey } from '../../constants/chartDictionary';
 import { useEchartsTheme } from './useEchartsTheme';
 
 const ECHARTS_CANVAS_OPTS = { renderer: 'canvas' as const };
+const MIN_CHART_HEIGHT = 350;
 
 function mergePlainObject(base: unknown, override: unknown) {
   return { ...(base as object), ...(override as object) };
@@ -60,6 +61,9 @@ interface ChartWrapperProps {
   chartClassName?: string;
   chartKey?: ChartDictionaryKey;
   sideContent?: ReactNode;
+  sideContentLayoutClassName?: string;
+  sideContentChartClassName?: string;
+  sideContentAsideClassName?: string;
 }
 
 function ChartWrapperInner({
@@ -71,12 +75,15 @@ function ChartWrapperInner({
   isEmpty,
   emptyMessage,
   erro,
-  altura = 300,
+  altura = MIN_CHART_HEIGHT,
   className,
   contentClassName,
   chartClassName,
   chartKey,
   sideContent,
+  sideContentLayoutClassName,
+  sideContentChartClassName,
+  sideContentAsideClassName,
 }: ChartWrapperProps) {
   const { baseOption } = useEchartsTheme();
 
@@ -89,16 +96,21 @@ function ChartWrapperInner({
     xAxis: mergeAxis(baseOption.xAxis, option.xAxis),
     yAxis: mergeAxis(baseOption.yAxis, option.yAxis),
   }), [baseOption, option]);
+  const resolvedHeight = typeof altura === 'number' ? Math.max(altura, MIN_CHART_HEIGHT) : altura;
   const chartStyle: CSSProperties = useMemo(() => ({
-    height: altura,
-    minHeight: typeof altura === 'number' ? altura : 300,
+    height: resolvedHeight,
+    minHeight: MIN_CHART_HEIGHT,
     width: '100%',
-  }), [altura]);
+  }), [resolvedHeight]);
+  const resolvedSideContentLayoutClassName = sideContentLayoutClassName
+    ?? 'grid h-full min-h-0 grid-cols-1 gap-4 2xl:grid-cols-3 2xl:gap-6';
+  const resolvedSideContentChartClassName = sideContentChartClassName ?? '2xl:col-span-2';
+  const resolvedSideContentAsideClassName = sideContentAsideClassName ?? '2xl:col-span-1';
 
   return (
     <ChartCard titulo={titulo} actions={actions} isLoading={isLoading} isEmpty={isEmpty} emptyMessage={emptyMessage} erro={erro} className={className} contentClassName={contentClassName} chartKey={chartKey}>
-      <div className={sideContent ? 'grid h-full min-h-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6' : 'h-full min-h-0'}>
-        <div className={`h-full min-h-0 ${sideContent ? 'lg:col-span-2' : ''} ${chartClassName ?? ''}`} style={chartStyle}>
+      <div className={sideContent ? resolvedSideContentLayoutClassName : 'h-full min-h-0'}>
+        <div className={`h-full min-h-0 ${sideContent ? resolvedSideContentChartClassName : ''} ${chartClassName ?? ''}`} style={chartStyle}>
           <ReactECharts
             option={mergedOption}
             style={chartStyle}
@@ -108,7 +120,7 @@ function ChartWrapperInner({
           />
         </div>
         {sideContent ? (
-          <div className="min-h-0 lg:col-span-1">
+          <div className={`min-h-0 ${resolvedSideContentAsideClassName}`}>
             {sideContent}
           </div>
         ) : null}

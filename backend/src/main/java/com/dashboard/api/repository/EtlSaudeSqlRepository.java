@@ -189,6 +189,7 @@ public class EtlSaudeSqlRepository {
                 WITH base_log AS (
                     SELECT
                         COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), log.entidade))), N''), N'Sem entidade') AS target_entity,
+                        LOWER(REPLACE(COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), log.entidade))), N''), N'sem_entidade'), N'dbo.', N'')) AS target_key,
                         CAST(COALESCE(log.registros_extraidos, 0) AS BIGINT)
                             + CAST(COALESCE(log.noop_count, 0) AS BIGINT) AS registros_gravados,
                         %s AS status_normalizado,
@@ -197,17 +198,83 @@ public class EtlSaudeSqlRepository {
                     FROM dbo.log_extracoes log
                     WHERE log.timestamp_inicio >= :dataInicio
                       AND log.timestamp_inicio < :dataFimExclusivo
+                ),
+                datas_negocio AS (
+                    SELECT
+                        N'coletas' AS target_key,
+                        MIN(TRY_CONVERT(DATETIME2, [Solicitacao])) AS menor_data_negocio,
+                        MAX(TRY_CONVERT(DATETIME2, [Solicitacao])) AS maior_data_negocio
+                    FROM dbo.vw_coletas_powerbi
+                    WHERE EXISTS (SELECT 1 FROM base_log WHERE target_key = N'coletas')
+
+                    UNION ALL
+
+                    SELECT
+                        N'fretes' AS target_key,
+                        MIN(TRY_CONVERT(DATETIME2, [Data frete])) AS menor_data_negocio,
+                        MAX(TRY_CONVERT(DATETIME2, [Data frete])) AS maior_data_negocio
+                    FROM dbo.vw_fretes_powerbi
+                    WHERE EXISTS (SELECT 1 FROM base_log WHERE target_key = N'fretes')
+
+                    UNION ALL
+
+                    SELECT
+                        N'manifestos' AS target_key,
+                        MIN(TRY_CONVERT(DATETIME2, [Data criação])) AS menor_data_negocio,
+                        MAX(TRY_CONVERT(DATETIME2, [Data criação])) AS maior_data_negocio
+                    FROM dbo.vw_manifestos_powerbi
+                    WHERE EXISTS (SELECT 1 FROM base_log WHERE target_key = N'manifestos')
+
+                    UNION ALL
+
+                    SELECT
+                        N'cotacoes' AS target_key,
+                        MIN(TRY_CONVERT(DATETIME2, [Data Cotação])) AS menor_data_negocio,
+                        MAX(TRY_CONVERT(DATETIME2, [Data Cotação])) AS maior_data_negocio
+                    FROM dbo.vw_cotacoes_powerbi
+                    WHERE EXISTS (SELECT 1 FROM base_log WHERE target_key = N'cotacoes')
+
+                    UNION ALL
+
+                    SELECT
+                        N'localizacao_cargas' AS target_key,
+                        MIN(TRY_CONVERT(DATETIME2, [Data do frete])) AS menor_data_negocio,
+                        MAX(TRY_CONVERT(DATETIME2, [Data do frete])) AS maior_data_negocio
+                    FROM dbo.vw_localizacao_cargas_powerbi
+                    WHERE EXISTS (SELECT 1 FROM base_log WHERE target_key = N'localizacao_cargas')
+
+                    UNION ALL
+
+                    SELECT
+                        N'contas_a_pagar' AS target_key,
+                        MIN(TRY_CONVERT(DATETIME2, [Emissão])) AS menor_data_negocio,
+                        MAX(TRY_CONVERT(DATETIME2, [Emissão])) AS maior_data_negocio
+                    FROM dbo.vw_contas_a_pagar_powerbi
+                    WHERE EXISTS (SELECT 1 FROM base_log WHERE target_key = N'contas_a_pagar')
+
+                    UNION ALL
+
+                    SELECT
+                        N'faturas_por_cliente' AS target_key,
+                        MIN(TRY_CONVERT(DATETIME2, [Fatura/Emissão Fatura])) AS menor_data_negocio,
+                        MAX(TRY_CONVERT(DATETIME2, [Fatura/Emissão Fatura])) AS maior_data_negocio
+                    FROM dbo.vw_faturas_por_cliente_powerbi
+                    WHERE EXISTS (SELECT 1 FROM base_log WHERE target_key = N'faturas_por_cliente')
                 )
                 SELECT
-                    target_entity,
+                    base_log.target_entity,
                     COUNT_BIG(1) AS total_extracoes,
-                    SUM(CASE WHEN status_normalizado IN (%s) THEN 1 ELSE 0 END) AS total_sucessos,
-                    SUM(CASE WHEN status_normalizado NOT IN (%s) THEN 1 ELSE 0 END) AS total_falhas,
-                    SUM(registros_gravados) AS total_registros_gravados,
-                    MIN(timestamp_inicio) AS primeira_extracao,
-                    MAX(timestamp_fim) AS ultima_extracao
+                    SUM(CASE WHEN base_log.status_normalizado IN (%s) THEN 1 ELSE 0 END) AS total_sucessos,
+                    SUM(CASE WHEN base_log.status_normalizado NOT IN (%s) THEN 1 ELSE 0 END) AS total_falhas,
+                    SUM(base_log.registros_gravados) AS total_registros_gravados,
+                    MIN(base_log.timestamp_inicio) AS primeira_extracao,
+                    MAX(base_log.timestamp_fim) AS ultima_extracao,
+                    MIN(datas_negocio.menor_data_negocio) AS menor_data_negocio,
+                    MAX(datas_negocio.maior_data_negocio) AS maior_data_negocio
                 FROM base_log
-                GROUP BY target_entity
+                LEFT JOIN datas_negocio
+                       ON datas_negocio.target_key = base_log.target_key
+                GROUP BY base_log.target_entity, base_log.target_key
                 ORDER BY total_registros_gravados ASC, target_entity
                 """.formatted(
                 LOG_STATUS_NORMALIZADO_SQL,
@@ -225,7 +292,9 @@ public class EtlSaudeSqlRepository {
                 rs.getLong("total_falhas"),
                 rs.getLong("total_registros_gravados"),
                 localDateTime(rs.getTimestamp("primeira_extracao")),
-                localDateTime(rs.getTimestamp("ultima_extracao"))
+                localDateTime(rs.getTimestamp("ultima_extracao")),
+                localDateTime(rs.getTimestamp("menor_data_negocio")),
+                localDateTime(rs.getTimestamp("maior_data_negocio"))
         ));
     }
 

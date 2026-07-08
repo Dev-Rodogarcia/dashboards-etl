@@ -29,7 +29,7 @@ class CorsConfigTest {
         CorsConfiguration cors = registry.configuracoes().get("/api/**");
         assertThat(cors).isNotNull();
         assertThat(cors.getAllowedOrigins()).contains("https://analytics.rodogarcia.com.br");
-        assertThat(cors.getAllowedHeaders()).contains("Authorization", "Content-Type", "X-API-KEY");
+        assertThat(cors.getAllowedHeaders()).contains("Authorization", "Content-Type", "X-API-KEY", "X-Dashboard-Route");
         assertThat(cors.getExposedHeaders()).contains("Content-Disposition", "Content-Length");
     }
 
@@ -49,7 +49,8 @@ class CorsConfigTest {
         assertThat(cors.checkOrigin("https://analytics.rodogarcia.com.br"))
                 .isEqualTo("https://analytics.rodogarcia.com.br");
         assertThat(cors.checkHttpMethod(HttpMethod.POST)).contains(HttpMethod.POST);
-        assertThat(cors.checkHeaders(List.of("content-type"))).contains("content-type");
+        assertThat(cors.checkHeaders(List.of("content-type", "x-dashboard-route")))
+                .contains("content-type", "x-dashboard-route");
     }
 
     @Test

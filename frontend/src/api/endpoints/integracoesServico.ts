@@ -18,6 +18,14 @@ export interface IntegracaoEvolucaoDiaria {
   erros: number;
 }
 
+export interface ResumoTabelaIntegracao {
+  entidadeTabela: string;
+  totalProcessado: number;
+  totalSucesso: number;
+  totalErro: number;
+  totalQuarentena: number;
+}
+
 export interface IntegracaoPendencia {
   id: number;
   sistemaDestino: string;

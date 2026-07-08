@@ -92,4 +92,5 @@ describe('integracoesServico', () => {
     expect(params.get('dataFinal')).toBe('2026-06-24');
     expect(params.get('escopo')).toBe('SUCESSO');
   });
+
 });

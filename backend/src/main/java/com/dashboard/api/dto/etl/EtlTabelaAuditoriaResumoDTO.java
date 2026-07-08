@@ -12,5 +12,9 @@ public record EtlTabelaAuditoriaResumoDTO(
         @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         LocalDateTime primeiraExtracao,
         @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-        LocalDateTime ultimaExtracao
+        LocalDateTime ultimaExtracao,
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+        LocalDateTime menorDataNegocio,
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+        LocalDateTime maiorDataNegocio
 ) {}

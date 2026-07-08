@@ -27,6 +27,10 @@ public class IntegracoesService {
         return integracaoSateliteClient.buscarEvolucaoDiaria(dataInicial, dataFinal, escopo);
     }
 
+    public ResponseEntity<String> consultarResumoTabelas(String dataInicial, String dataFinal) {
+        return integracaoSateliteClient.buscarResumoTabelas(dataInicial, dataFinal);
+    }
+
     public ResponseEntity<String> consultarImagemCanhoto(Long id) {
         return integracaoSateliteClient.buscarImagemLog(id);
     }

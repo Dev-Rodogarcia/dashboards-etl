@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
+import type { FocusEvent, FormEvent, ReactNode } from 'react';
 import { Eye, MoreHorizontal, Pencil, Upload, UserX } from 'lucide-react';
 import FiliaisPermitidasSplitSelect from '../components/admin/FiliaisPermitidasSplitSelect';
 import PermissionOverrideMatrix from '../components/admin/PermissionOverrideMatrix';
@@ -179,8 +179,27 @@ function renderPasswordStatusBadge(status: UsuarioAdmin['statusSenha'], algoritm
   );
 }
 
-function SummaryCard({ label, value, accent, pulse }: { label: string; value: number; accent: string; pulse?: boolean }) {
-  return (
+interface SummaryCardProps {
+  label: string;
+  value: number;
+  accent: string;
+  pulse?: boolean;
+  tooltip?: ReactNode;
+}
+
+function SummaryCard({ label, value, accent, pulse, tooltip }: SummaryCardProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const tooltipId = useId();
+  const open = Boolean(tooltip) && (isHovered || isFocused);
+
+  function handleBlur(event: FocusEvent<HTMLDivElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setIsFocused(false);
+    }
+  }
+
+  const card = (
     <div className="rounded-lg border px-4 py-3" style={SURFACE_STYLE}>
       <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
         {label}
@@ -190,6 +209,120 @@ function SummaryCard({ label, value, accent, pulse }: { label: string; value: nu
         <div className="text-2xl font-bold" style={{ color: accent }}>
           {value}
         </div>
+      </div>
+    </div>
+  );
+
+  if (!tooltip) {
+    return card;
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          setIsHovered(false);
+          setIsFocused(false);
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <div
+          aria-describedby={open ? tooltipId : undefined}
+          onBlur={handleBlur}
+          onFocus={() => setIsFocused(true)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setIsHovered(false);
+              setIsFocused(false);
+            }
+          }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          tabIndex={0}
+          className={`rounded-lg ${FOCUS_RING_CLASS}`}
+        >
+          {card}
+        </div>
+      </PopoverTrigger>
+      <PopoverContent
+        id={tooltipId}
+        role="tooltip"
+        side="top"
+        align="center"
+        sideOffset={8}
+        collisionPadding={12}
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        className="pointer-events-none p-4"
+        style={{
+          width: 'min(24rem, calc(100vw - 1.5rem))',
+          color: 'var(--color-text)',
+        }}
+      >
+        {tooltip}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function timestampAtividade(valor: string | null): number {
+  if (!valor) return 0;
+
+  const data = new Date(valor);
+  const timestamp = data.getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function formatTempoUltimoPulso(valor: string | null): string {
+  const timestamp = timestampAtividade(valor);
+  if (!timestamp) return 'Sem pulso registrado';
+
+  const segundos = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (segundos < 10) return 'Ativo agora';
+  if (segundos < 60) return `Ativo há ${segundos}s`;
+
+  const minutos = Math.floor(segundos / 60);
+  if (minutos < 60) return `Ativo há ${minutos} min`;
+
+  const horas = Math.floor(minutos / 60);
+  const minutosRestantes = minutos % 60;
+  return `Ativo há ${horas}h ${minutosRestantes}min`;
+}
+
+function UsuariosOnlineTooltip({ usuarios, isLoading }: { usuarios: UsuarioRow[]; isLoading: boolean }) {
+  if (isLoading) {
+    return (
+      <p className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>
+        Carregando usuários online...
+      </p>
+    );
+  }
+
+  if (usuarios.length === 0) {
+    return (
+      <p className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>
+        Nenhum usuário online agora.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
+        Usuários online agora
+      </p>
+      <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+        {usuarios.map((usuario) => (
+          <div key={usuario.id} className="rounded-xl border px-3 py-2" style={SOFT_PANEL_STYLE}>
+            <p className="truncate text-sm font-semibold" title={usuario.nome} style={{ color: 'var(--color-text)' }}>
+              {usuario.nome}
+            </p>
+            <p className="mt-0.5 truncate text-xs" title={formatUltimaAtividade(usuario.ultimaAtividade)} style={{ color: 'var(--color-text-subtle)' }}>
+              {formatTempoUltimoPulso(usuario.ultimaAtividade)}
+            </p>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -589,6 +722,13 @@ export default function AdminUsuariosPage() {
     usuariosInativos: 0,
     usuariosOnline: 0,
   };
+  const usuariosOnlineAgora = useMemo(
+    () =>
+      linhas
+        .filter((usuario) => usuario.isOnline)
+        .sort((a, b) => timestampAtividade(b.ultimaAtividade) - timestampAtividade(a.ultimaAtividade)),
+    [linhas],
+  );
 
   function resetForm() {
     setEditing(null);
@@ -861,7 +1001,13 @@ export default function AdminUsuariosPage() {
             <SummaryCard label="Total de Usuários" value={resumoUsuarios.totalUsuarios} accent="var(--color-text)" />
             <SummaryCard label="Usuários Ativos" value={resumoUsuarios.usuariosAtivos} accent="#10b981" />
             <SummaryCard label="Usuários Inativos" value={resumoUsuarios.usuariosInativos} accent="#ef4444" />
-            <SummaryCard label="Online Agora" value={resumoUsuarios.usuariosOnline} accent="#10b981" pulse />
+            <SummaryCard
+              label="Usuários Online Agora"
+              value={resumoUsuarios.usuariosOnline}
+              accent="#10b981"
+              pulse
+              tooltip={<UsuariosOnlineTooltip usuarios={usuariosOnlineAgora} isLoading={usuarios.isLoading} />}
+            />
           </div>
         </div>
 

@@ -560,9 +560,11 @@ export default function ColetasPage() {
       {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de coletas.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <ColetasKpiGrid overview={overview.data} />}
 
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <ColetasTrend dados={serieData} isLoading={serie.isLoading} />
-        <ChartWrapper titulo="Distribuição por Status" chartKey="coletasStatus" option={statusOption} isLoading={graficos.isLoading} isEmpty={statusData.length === 0} />
+      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2 2xl:grid-cols-6">
+        <div className="col-span-full 2xl:col-span-2">
+          <ColetasTrend dados={serieData} isLoading={serie.isLoading} />
+        </div>
+        <ChartWrapper titulo="Distribuição por Status" chartKey="coletasStatus" option={statusOption} isLoading={graficos.isLoading} isEmpty={statusData.length === 0} className="2xl:col-span-2" />
         <ChartWrapper
           titulo="Histórico da Performance"
           chartKey="coletasHistoricoPerformance"
@@ -571,10 +573,8 @@ export default function ColetasPage() {
           isLoading={historicoPerformanceQuery.isLoading}
           isEmpty={historicoPerformance.length === 0}
           erro={historicoPerformanceQuery.isError ? getApiErrorMessage(historicoPerformanceQuery.error, 'Erro ao carregar histórico de performance de coletas.') : null}
+          className="2xl:col-span-2"
         />
-      </div>
-
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ChartWrapper
           titulo="Coletas por Região Logística e Cidade"
           chartKey="coletasOrigem"
@@ -584,8 +584,9 @@ export default function ColetasPage() {
           isLoading={regiaoLogisticaSelecionada ? cidadesOrigem.isLoading : graficos.isLoading}
           isEmpty={origemData.length === 0}
           emptyMessage={regiaoLogisticaSelecionada ? 'Nenhuma cidade encontrada para a região logística selecionada.' : 'Nenhuma região logística encontrada para o período selecionado.'}
+          className="2xl:col-span-3"
         />
-        <ChartWrapper titulo="Coletas em aberto" chartKey="coletasAging" option={agingOption} isLoading={graficos.isLoading} isEmpty={false} altura={300} />
+        <ChartWrapper titulo="Coletas em aberto" chartKey="coletasAging" option={agingOption} isLoading={graficos.isLoading} isEmpty={false} altura={350} className="2xl:col-span-3" />
       </div>
 
       <div className="mb-3 flex justify-end">

@@ -963,9 +963,9 @@ function TaxasConversaoCard({
       erro={erro}
       isEmpty={!hasData}
       className="h-full min-h-0"
-      contentClassName="h-[300px] max-h-[300px] min-h-0 overflow-hidden"
+      contentClassName="h-[350px] max-h-[350px] min-h-0 overflow-hidden"
     >
-      <div className="grid h-full max-h-full min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2 overflow-hidden lg:grid-cols-[minmax(0,1.2fr)_minmax(17rem,1fr)] lg:grid-rows-1">
+      <div className="grid h-full max-h-full min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2 overflow-hidden 2xl:grid-cols-[minmax(0,1.2fr)_minmax(17rem,1fr)] 2xl:grid-rows-1">
         <div className="flex h-full max-h-full min-h-0 flex-col gap-2 overflow-hidden">
           {chartMetrics.map((metric) => (
             <div key={metric} className={`flex max-h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg px-2 ${isSingleMode ? 'py-2' : 'py-1.5'}`} style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -1221,8 +1221,8 @@ export default function CotacoesPage() {
 
       {activeView === 'analitica' ? (
         <>
-          <div className="mb-4 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-12">
-            <div className="min-h-0 xl:col-span-6">
+          <div className="mb-6 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2 2xl:grid-cols-12">
+            <div className="col-span-full min-h-0 2xl:col-span-6">
               <ChartWrapper
                 titulo="Cotações por Dia, Mês e Ano"
                 chartKey="cotacoesSerie"
@@ -1234,7 +1234,7 @@ export default function CotacoesPage() {
                 altura="100%"
               />
             </div>
-            <div className="min-h-0 xl:col-span-6">
+            <div className="min-h-0 2xl:col-span-6">
               <FunilComercialCard
                 funil={funil}
                 metric={funilMetric}
@@ -1244,10 +1244,7 @@ export default function CotacoesPage() {
                 onPeriodChange={setFunilDrillLevel}
               />
             </div>
-          </div>
-
-          <div className="mb-6 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2 xl:grid-cols-12">
-            <div className="h-[25rem] min-h-0 lg:col-span-2 xl:col-span-5">
+            <div className="h-[28rem] min-h-0 2xl:col-span-5">
               <TaxasConversaoCard
                 buckets={conversionBuckets}
                 tipos={graficos.data?.conversaoPorTipoOperacao ?? []}
@@ -1261,7 +1258,7 @@ export default function CotacoesPage() {
                 onPeriodoChange={setConversionPeriodoMeses}
               />
             </div>
-            <div className="min-h-0 xl:col-span-4">
+            <div className="min-h-0 2xl:col-span-4">
               <ChartWrapper
                 titulo="Trechos Mais Valiosos"
                 chartKey="cotacoesTrechos"
@@ -1291,7 +1288,7 @@ export default function CotacoesPage() {
                 altura="100%"
               />
             </div>
-            <div className="min-h-0 xl:col-span-3">
+            <div className="min-h-0 2xl:col-span-3">
               <ChartWrapper
                 titulo="Motivos de Perda"
                 chartKey="cotacoesMotivosPerda"

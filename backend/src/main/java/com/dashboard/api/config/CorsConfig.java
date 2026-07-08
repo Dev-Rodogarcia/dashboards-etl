@@ -21,6 +21,16 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
+    private static final List<String> HEADERS_PERMITIDOS = List.of(
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Requested-With",
+            "X-API-KEY",
+            "X-Dashboard-Route"
+    );
+
     @Value("${cors.origens-permitidas:${cors.origem-permitida:}}")
     private String origensPermitidas;
 
@@ -70,7 +80,7 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**")
                 .allowedOrigins(parseOrigensPermitidas())
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With", "X-API-KEY")
+                .allowedHeaders(HEADERS_PERMITIDOS.toArray(String[]::new))
                 .exposedHeaders("Content-Disposition", "Content-Length")
                 .allowCredentials(true)
                 .maxAge(3600);
@@ -87,7 +97,7 @@ public class CorsConfig implements WebMvcConfigurer {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(parseOrigensPermitidas()));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With", "X-API-KEY"));
+        configuration.setAllowedHeaders(HEADERS_PERMITIDOS);
         configuration.setExposedHeaders(List.of("Content-Disposition", "Content-Length"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);

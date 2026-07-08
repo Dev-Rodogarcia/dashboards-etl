@@ -30,6 +30,8 @@ export interface EtlTabelaAuditoriaResumoRow {
   totalRegistrosGravados: number;
   primeiraExtracao: string | null;
   ultimaExtracao: string | null;
+  menorDataNegocio: string | null;
+  maiorDataNegocio: string | null;
 }
 
 export interface EtlSaudeOverview {

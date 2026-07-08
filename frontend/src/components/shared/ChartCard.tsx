@@ -18,7 +18,7 @@ interface ChartCardProps {
 
 function ChartSkeleton() {
   return (
-    <div className="flex h-full min-h-64 flex-col justify-end gap-3" aria-hidden="true">
+    <div className="flex h-full min-h-[350px] flex-col justify-end gap-3" aria-hidden="true">
       <div className="flex h-44 items-end gap-3">
         {[52, 88, 64, 112, 76, 132, 96].map((height, index) => (
           <div key={index} className="flex-1 rounded-t-md bg-slate-200/80" style={{ height }} />
@@ -181,11 +181,11 @@ export default function ChartCard({
             <ChartSkeleton />
           </div>
         ) : erro ? (
-          <div className="flex h-full min-h-64 items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm" style={{ borderColor: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)', color: '#dc2626' }}>
+          <div className="flex h-full min-h-[350px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm" style={{ borderColor: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)', color: '#dc2626' }}>
             {erro}
           </div>
         ) : (!isLoading && isEmpty) ? (
-          <div className="flex h-full min-h-64 items-center justify-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
+          <div className="flex h-full min-h-[350px] items-center justify-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
             {emptyMessage ?? 'Nenhum dado disponivel para o periodo selecionado.'}
           </div>
         ) : (
