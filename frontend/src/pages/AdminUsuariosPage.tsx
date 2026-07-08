@@ -12,6 +12,7 @@ import {
   useCriarUsuario,
   useExcluirUsuario,
   usePapeisAdmin,
+  useResumoSessoesUsuariosAdmin,
   useSetoresAdmin,
   useUsuariosAdmin,
 } from '../hooks/queries/useAdminAcesso';
@@ -34,6 +35,7 @@ import {
   permissionSummary,
 } from '../utils/accessControl';
 import { getApiErrorMessage } from '../utils/apiError';
+import { formatarDataHoraMinuto } from '../utils/formatadores';
 import { getPasswordPolicyErrors, PASSWORD_POLICY_HINT } from '../utils/passwordPolicy';
 import {
   DropdownMenu,
@@ -124,6 +126,16 @@ const INACTIVE_BADGE_STYLE = {
   color: '#dc2626',
 };
 
+const ONLINE_BADGE_STYLE = {
+  backgroundColor: 'rgba(22, 163, 74, 0.14)',
+  color: '#15803d',
+};
+
+const OFFLINE_BADGE_STYLE = {
+  backgroundColor: 'rgba(100, 116, 139, 0.14)',
+  color: 'var(--color-text-muted)',
+};
+
 const PASSWORD_STATUS_STYLE = {
   segura: {
     backgroundColor: 'rgba(22, 163, 74, 0.14)',
@@ -167,14 +179,17 @@ function renderPasswordStatusBadge(status: UsuarioAdmin['statusSenha'], algoritm
   );
 }
 
-function SummaryCard({ label, value, accent }: { label: string; value: number; accent: string }) {
+function SummaryCard({ label, value, accent, pulse }: { label: string; value: number; accent: string; pulse?: boolean }) {
   return (
-    <div className="rounded-xl border px-3 py-2.5" style={SURFACE_STYLE}>
+    <div className="rounded-lg border px-4 py-3" style={SURFACE_STYLE}>
       <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
         {label}
       </div>
-      <div className="mt-1 text-xl font-bold" style={{ color: accent }}>
-        {value}
+      <div className="mt-2 flex items-center gap-2">
+        {pulse && <span className="h-2.5 w-2.5 rounded-full bg-[#10b981] motion-safe:animate-pulse" aria-hidden="true" />}
+        <div className="text-2xl font-bold" style={{ color: accent }}>
+          {value}
+        </div>
       </div>
     </div>
   );
@@ -267,6 +282,22 @@ function renderStatusBadge(ativo: boolean) {
   );
 }
 
+function renderOnlineBadge(isOnline: boolean) {
+  return (
+    <span
+      className="inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+      style={isOnline ? ONLINE_BADGE_STYLE : OFFLINE_BADGE_STYLE}
+    >
+      {isOnline && <span className="h-1.5 w-1.5 rounded-full bg-[#10b981] motion-safe:animate-pulse" aria-hidden="true" />}
+      {isOnline ? 'Online' : 'Offline'}
+    </span>
+  );
+}
+
+function formatUltimaAtividade(valor: string | null): string {
+  return valor ? formatarDataHoraMinuto(valor) : 'Sem atividade registrada';
+}
+
 function renderMobileUsuarioCell(row: UsuarioRow) {
   return (
     <div className="min-w-[11rem] whitespace-normal">
@@ -293,6 +324,9 @@ function renderMobileAccessCell(row: UsuarioRow) {
       <div className="space-y-1 break-words">
         <p style={{ color: 'var(--color-text)' }}>{row.papelResumo || 'Sem papel'}</p>
         <p style={{ color: 'var(--color-text-muted)' }}>{row.senhaResumo}</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>
+          Última tela: {row.ultimaRotaAcessada ?? 'Sem registro'}
+        </p>
       </div>
     </div>
   );
@@ -368,6 +402,24 @@ function renderPapelCell(row: UsuarioRow) {
   );
 }
 
+function renderUltimaTelaCell(row: UsuarioRow) {
+  const atividade = formatUltimaAtividade(row.ultimaAtividade);
+
+  return (
+    <div className="min-w-[12rem] max-w-[15rem] space-y-1 whitespace-normal">
+      <div className="flex flex-wrap items-center gap-2">
+        {renderOnlineBadge(row.isOnline)}
+        <span className="truncate text-sm font-medium" style={{ color: 'var(--color-text)' }} title={row.ultimaRotaAcessada ?? undefined}>
+          {row.ultimaRotaAcessada ?? 'Sem registro'}
+        </span>
+      </div>
+      <p className="truncate text-xs" style={{ color: 'var(--color-text-muted)' }} title={atividade}>
+        {atividade}
+      </p>
+    </div>
+  );
+}
+
 function renderUsuarioDetailsPopover(row: UsuarioRow) {
   return (
     <Popover>
@@ -406,6 +458,8 @@ function renderUsuarioDetailsPopover(row: UsuarioRow) {
             <DetailItem label="Papel" value={row.papelResumo || 'Sem papel'} />
             <DetailItem label="Escopo" value={formatEscopoFiliaisTipo(row.escopoFiliaisTipo)} />
             <DetailItem label="Senha" value={row.senhaResumo} />
+            <DetailItem label="Última tela" value={row.ultimaRotaAcessada ?? 'Sem registro'} />
+            <DetailItem label="Última atividade" value={formatUltimaAtividade(row.ultimaAtividade)} />
           </div>
 
           <DetailTextBlock label="Filiais efetivas" value={row.filiaisResumo} fallback="Acesso total" />
@@ -430,6 +484,7 @@ export default function AdminUsuariosPage() {
   const setores = useSetoresAdmin();
   const filiais = useFiliais();
   const usuarios = useUsuariosAdmin();
+  const resumoSessoes = useResumoSessoesUsuariosAdmin();
   const criarUsuario = useCriarUsuario();
   const atualizarUsuario = useAtualizarUsuario();
   const excluirUsuario = useExcluirUsuario();
@@ -528,21 +583,12 @@ export default function AdminUsuariosPage() {
     [catalogo.data, papeis.data, usuarios.data],
   );
 
-  const resumoStatusSenha = useMemo(() => {
-    return linhas.reduce(
-      (acc, usuario) => {
-        acc.total += 1;
-        acc[usuario.statusSenha] += 1;
-        return acc;
-      },
-      {
-        total: 0,
-        segura: 0,
-        migrar_no_login: 0,
-        reset_obrigatorio: 0,
-      },
-    );
-  }, [linhas]);
+  const resumoUsuarios = resumoSessoes.data ?? {
+    totalUsuarios: 0,
+    usuariosAtivos: 0,
+    usuariosInativos: 0,
+    usuariosOnline: 0,
+  };
 
   function resetForm() {
     setEditing(null);
@@ -750,6 +796,12 @@ export default function AdminUsuariosPage() {
       formato: (_, row) => renderPapelCell(row),
     },
     {
+      chave: 'ultimaRotaAcessada',
+      label: 'Última tela',
+      largura: '230px',
+      formato: (_, row) => renderUltimaTelaCell(row),
+    },
+    {
       chave: 'senhaResumo',
       label: 'Senha',
       largura: '180px',
@@ -793,6 +845,7 @@ export default function AdminUsuariosPage() {
       ordenavel: false,
       formato: (_, row) => (
         <div className="flex items-center gap-2">
+          {renderOnlineBadge(row.isOnline)}
           {renderUsuarioDetailsPopover(row)}
           {renderActionMenu(row)}
         </div>
@@ -804,11 +857,11 @@ export default function AdminUsuariosPage() {
     <div className="space-y-5">
       <section className="rounded-[20px] border p-4 shadow-sm sm:p-5" style={SURFACE_STYLE}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryCard label="Usuários monitorados" value={resumoStatusSenha.total} accent="var(--color-text)" />
-            <SummaryCard label="Hash seguro" value={resumoStatusSenha.segura} accent="#10b981" />
-            <SummaryCard label="Migra no login" value={resumoStatusSenha.migrar_no_login} accent="#f97316" />
-            <SummaryCard label="Reset obrigatório" value={resumoStatusSenha.reset_obrigatorio} accent="#ef4444" />
+          <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-4">
+            <SummaryCard label="Total de Usuários" value={resumoUsuarios.totalUsuarios} accent="var(--color-text)" />
+            <SummaryCard label="Usuários Ativos" value={resumoUsuarios.usuariosAtivos} accent="#10b981" />
+            <SummaryCard label="Usuários Inativos" value={resumoUsuarios.usuariosInativos} accent="#ef4444" />
+            <SummaryCard label="Online Agora" value={resumoUsuarios.usuariosOnline} accent="#10b981" pulse />
           </div>
         </div>
 

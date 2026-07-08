@@ -1,5 +1,6 @@
 package com.dashboard.api.security;
 
+import com.dashboard.api.repository.acesso.UsuarioSessaoSqlRepository;
 import com.dashboard.api.service.acesso.AutenticacaoService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,13 +19,20 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class FiltroValidacaoJwt extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(FiltroValidacaoJwt.class);
+    private static final int TAMANHO_MAXIMO_ROTA = 100;
 
     private final GerenciadorTokenJwt gerenciadorToken;
     private final AutenticacaoService autenticacaoService;
+    private final UsuarioSessaoSqlRepository usuarioSessaoSqlRepository;
 
-    public FiltroValidacaoJwt(GerenciadorTokenJwt gerenciadorToken, AutenticacaoService autenticacaoService) {
+    public FiltroValidacaoJwt(
+            GerenciadorTokenJwt gerenciadorToken,
+            AutenticacaoService autenticacaoService,
+            UsuarioSessaoSqlRepository usuarioSessaoSqlRepository
+    ) {
         this.gerenciadorToken = gerenciadorToken;
         this.autenticacaoService = autenticacaoService;
+        this.usuarioSessaoSqlRepository = usuarioSessaoSqlRepository;
     }
 
     @Override
@@ -49,6 +57,9 @@ public class FiltroValidacaoJwt extends OncePerRequestFilter {
 
                         SecurityContextHolder.getContext().setAuthentication(autenticacao);
                     }
+                    if (!authorities.isEmpty()) {
+                        registrarAtividade(usuario, request);
+                    }
                 } catch (Exception ex) {
                     log.error("Falha ao carregar permissões para o usuário '{}': {}", usuario, ex.getMessage(), ex);
                 }
@@ -56,5 +67,40 @@ public class FiltroValidacaoJwt extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void registrarAtividade(String usuario, HttpServletRequest request) {
+        try {
+            usuarioSessaoSqlRepository.registrarAtividade(usuario, extrairRota(request));
+        } catch (Exception ex) {
+            log.warn("Falha ao registrar atividade do usuário '{}': {}", usuario, ex.getMessage());
+        }
+    }
+
+    private String extrairRota(HttpServletRequest request) {
+        String rota = normalizarRota(request.getHeader("X-Dashboard-Route"));
+        if (rota == null) {
+            rota = normalizarRota(request.getRequestURI());
+        }
+        return rota == null ? "/" : rota;
+    }
+
+    private String normalizarRota(String rota) {
+        if (rota == null || rota.isBlank()) {
+            return null;
+        }
+
+        String normalizada = rota.trim();
+        int queryIndex = normalizada.indexOf('?');
+        if (queryIndex >= 0) {
+            normalizada = normalizada.substring(0, queryIndex);
+        }
+        if (!normalizada.startsWith("/")) {
+            return null;
+        }
+        if (normalizada.length() > TAMANHO_MAXIMO_ROTA) {
+            normalizada = normalizada.substring(0, TAMANHO_MAXIMO_ROTA);
+        }
+        return normalizada;
     }
 }

@@ -3,6 +3,7 @@ package com.dashboard.api.service.acesso;
 import com.dashboard.api.dto.acesso.PapelDTO;
 import com.dashboard.api.dto.acesso.UsuarioAcessoDTO;
 import com.dashboard.api.dto.acesso.UsuarioRequestDTO;
+import com.dashboard.api.dto.acesso.UsuarioSessaoResumoDTO;
 import com.dashboard.api.model.acesso.AcaoAudit;
 import com.dashboard.api.model.acesso.PapelEntity;
 import com.dashboard.api.model.acesso.PermissaoEntity;
@@ -121,6 +122,21 @@ public class GestaoUsuarioService {
                         escoposPorUsuario
                 ))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public UsuarioSessaoResumoDTO resumoSessoesUsuarios() {
+        UsuarioRepository.UsuarioSessaoResumoProjection resumo = usuarioRepository.calcularResumoSessoes();
+        if (resumo == null) {
+            return new UsuarioSessaoResumoDTO(0, 0, 0, 0);
+        }
+
+        return new UsuarioSessaoResumoDTO(
+                valorLong(resumo.getTotalUsuarios()),
+                valorLong(resumo.getUsuariosAtivos()),
+                valorLong(resumo.getUsuariosInativos()),
+                valorLong(resumo.getUsuariosOnline())
+        );
     }
 
     @Transactional
@@ -296,7 +312,10 @@ public class GestaoUsuarioService {
                 chavesOverridePorTipo(overrides, "DENY"),
                 chavesOverridePorTipo(overrides, "GRANT"),
                 passwordHashService.statusAdministrativo(usuario.getAlgoritmoHash()).valor(),
-                passwordHashService.algoritmoExibicao(usuario.getAlgoritmoHash())
+                passwordHashService.algoritmoExibicao(usuario.getAlgoritmoHash()),
+                Boolean.TRUE.equals(usuario.getOnline()),
+                usuario.getUltimaAtividade(),
+                formatarRotaNegocio(usuario.getUltimaRotaAcessada())
         );
     }
 
@@ -454,8 +473,69 @@ public class GestaoUsuarioService {
                 permissoesNegadas,
                 permissoesConcedidas,
                 passwordHashService.statusAdministrativo(usuario).valor(),
-                passwordHashService.algoritmoExibicao(usuario)
+                passwordHashService.algoritmoExibicao(usuario),
+                false,
+                usuario.getUltimaAtividade(),
+                formatarRotaNegocio(usuario.getUltimaRotaAcessada())
         );
+    }
+
+    private long valorLong(Long valor) {
+        return valor == null ? 0 : valor;
+    }
+
+    private String formatarRotaNegocio(String rota) {
+        if (rota == null || rota.isBlank()) {
+            return null;
+        }
+
+        String normalizada = rota.trim();
+        int queryIndex = normalizada.indexOf('?');
+        if (queryIndex >= 0) {
+            normalizada = normalizada.substring(0, queryIndex);
+        }
+
+        if (normalizada.equals("/")) {
+            return "Início";
+        }
+        if (normalizada.startsWith("/admin/usuarios") || normalizada.startsWith("/api/admin/acesso/usuarios")) {
+            return "Administração: Usuários";
+        }
+        if (normalizada.startsWith("/api/auth/")) {
+            return "Sessão";
+        }
+
+        String segmento = normalizada;
+        if (segmento.startsWith("/api/painel/")) {
+            segmento = segmento.substring("/api/painel/".length());
+        } else if (segmento.startsWith("/api/")) {
+            segmento = segmento.substring("/api/".length());
+        } else if (segmento.startsWith("/")) {
+            segmento = segmento.substring(1);
+        }
+
+        int barraIndex = segmento.indexOf('/');
+        if (barraIndex >= 0) {
+            segmento = segmento.substring(0, barraIndex);
+        }
+
+        return switch (segmento) {
+            case "coletas" -> "Coletas";
+            case "manifestos" -> "Manifestos";
+            case "fretes" -> "Faturamento/Fretes";
+            case "tracking" -> "Tracking";
+            case "performance" -> "Performance";
+            case "faturas-por-cliente" -> "Faturas por Cliente";
+            case "contas-a-pagar" -> "Contas a Pagar";
+            case "cotacoes" -> "Cotações";
+            case "indicadores-gestao-a-vista", "gestao-vista" -> "Indicadores de Gestão à Vista";
+            case "executivo" -> "Executivo";
+            case "etl-saude" -> "Saúde do ETL";
+            case "integracoes" -> "Integrações";
+            case "dimensoes" -> "Dimensões";
+            case "admin" -> "Administração";
+            default -> normalizada;
+        };
     }
 
     private void aplicarEscopoFiliais(UsuarioEntity usuario, UsuarioRequestDTO request) {

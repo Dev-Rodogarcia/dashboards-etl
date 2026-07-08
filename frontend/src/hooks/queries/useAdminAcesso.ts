@@ -4,6 +4,7 @@ import {
   atualizarUsuario,
   buscarCatalogoPermissoes,
   buscarPapeis,
+  buscarResumoSessoesUsuariosAdmin,
   buscarSetores,
   buscarUsuariosAdmin,
   criarSetor,
@@ -12,6 +13,14 @@ import {
   excluirUsuario,
 } from '../../api/endpoints/adminAcessoServico';
 import type { SetorPayload, UsuarioPayload } from '../../types/access';
+
+const ADMIN_USUARIOS_QUERY_KEY = ['admin', 'acesso', 'usuarios'] as const;
+const ADMIN_USUARIOS_RESUMO_QUERY_KEY = ['admin', 'acesso', 'usuarios', 'resumo-sessoes'] as const;
+
+function invalidateUsuariosAdmin(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ADMIN_USUARIOS_QUERY_KEY });
+  queryClient.invalidateQueries({ queryKey: ADMIN_USUARIOS_RESUMO_QUERY_KEY });
+}
 
 export function useCatalogoPermissoes() {
   return useQuery({
@@ -38,8 +47,15 @@ export function usePapeisAdmin() {
 
 export function useUsuariosAdmin() {
   return useQuery({
-    queryKey: ['admin', 'acesso', 'usuarios'],
+    queryKey: ADMIN_USUARIOS_QUERY_KEY,
     queryFn: buscarUsuariosAdmin,
+  });
+}
+
+export function useResumoSessoesUsuariosAdmin() {
+  return useQuery({
+    queryKey: ADMIN_USUARIOS_RESUMO_QUERY_KEY,
+    queryFn: buscarResumoSessoesUsuariosAdmin,
   });
 }
 
@@ -59,7 +75,7 @@ export function useAtualizarSetor() {
     mutationFn: ({ id, payload }: { id: string; payload: SetorPayload }) => atualizarSetor(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'setores'] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'usuarios'] });
+      invalidateUsuariosAdmin(queryClient);
     },
   });
 }
@@ -70,7 +86,7 @@ export function useExcluirSetor() {
     mutationFn: (id: string) => excluirSetor(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'setores'] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'usuarios'] });
+      invalidateUsuariosAdmin(queryClient);
     },
   });
 }
@@ -80,7 +96,7 @@ export function useCriarUsuario() {
   return useMutation({
     mutationFn: (payload: UsuarioPayload) => criarUsuario(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'usuarios'] });
+      invalidateUsuariosAdmin(queryClient);
     },
   });
 }
@@ -90,7 +106,7 @@ export function useAtualizarUsuario() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: UsuarioPayload }) => atualizarUsuario(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'usuarios'] });
+      invalidateUsuariosAdmin(queryClient);
     },
   });
 }
@@ -100,7 +116,7 @@ export function useExcluirUsuario() {
   return useMutation({
     mutationFn: (id: string) => excluirUsuario(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'usuarios'] });
+      invalidateUsuariosAdmin(queryClient);
     },
   });
 }

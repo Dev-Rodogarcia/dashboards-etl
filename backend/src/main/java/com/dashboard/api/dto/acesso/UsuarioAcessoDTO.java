@@ -1,5 +1,7 @@
 package com.dashboard.api.dto.acesso;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +20,9 @@ public record UsuarioAcessoDTO(
         List<String> permissoesNegadas,
         List<String> permissoesConcedidas,
         String statusSenha,
-        String algoritmoSenha
+        String algoritmoSenha,
+        @JsonProperty("isOnline") boolean online,
+        OffsetDateTime ultimaAtividade,
+        String ultimaRotaAcessada
 ) {
 }

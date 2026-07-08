@@ -30,11 +30,27 @@ let isRefreshing = false;
 let failedQueue: Array<{ resolve: (value?: unknown) => void; reject: (reason?: unknown) => void }> = [];
 let ultimoAlertaInfraestrutura: { chave: string; timestamp: number } | null = null;
 const API_STATUS_ALERT_COOLDOWN_MS = 5000;
+const DASHBOARD_ROUTE_HEADER_MAX_LENGTH = 100;
+
+function obterRotaPainelAtual(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const pathname = window.location.pathname?.trim() || '/';
+  return pathname.length > DASHBOARD_ROUTE_HEADER_MAX_LENGTH
+    ? pathname.slice(0, DASHBOARD_ROUTE_HEADER_MAX_LENGTH)
+    : pathname;
+}
 
 clienteAxios.interceptors.request.use((config) => {
   const accessToken = obterAccessToken();
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
+    const rotaAtual = obterRotaPainelAtual();
+    if (rotaAtual) {
+      config.headers['X-Dashboard-Route'] = rotaAtual;
+    }
   }
   return config;
 });

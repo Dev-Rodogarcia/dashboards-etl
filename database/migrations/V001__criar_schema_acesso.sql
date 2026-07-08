@@ -66,6 +66,8 @@ CREATE TABLE acesso.usuarios (
     identity_source     VARCHAR(30)  NOT NULL DEFAULT 'local',
     external_subject_id VARCHAR(255) NULL,
     mfa_status          VARCHAR(20)  NOT NULL DEFAULT 'disabled',
+    ultima_atividade    DATETIMEOFFSET NULL,
+    ultima_rota_acessada VARCHAR(100) NULL,
     setor_id            BIGINT       NOT NULL REFERENCES acesso.setores(id),
     ativo               BIT          NOT NULL DEFAULT 1,
     criado_em           DATETIME2    NOT NULL DEFAULT SYSUTCDATETIME(),

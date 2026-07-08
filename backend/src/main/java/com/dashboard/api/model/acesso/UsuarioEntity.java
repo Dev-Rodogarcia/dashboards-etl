@@ -2,6 +2,7 @@ package com.dashboard.api.model.acesso;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -51,6 +52,12 @@ public class UsuarioEntity {
 
     @Column(name = "mfa_status", nullable = false, length = 20)
     private String mfaStatus = "disabled";
+
+    @Column(name = "ultima_atividade")
+    private OffsetDateTime ultimaAtividade;
+
+    @Column(name = "ultima_rota_acessada", length = 100)
+    private String ultimaRotaAcessada;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "setor_id", nullable = false)
@@ -111,6 +118,10 @@ public class UsuarioEntity {
     public void setExternalSubjectId(String externalSubjectId) { this.externalSubjectId = externalSubjectId; }
     public String getMfaStatus() { return mfaStatus; }
     public void setMfaStatus(String mfaStatus) { this.mfaStatus = mfaStatus; }
+    public OffsetDateTime getUltimaAtividade() { return ultimaAtividade; }
+    public void setUltimaAtividade(OffsetDateTime ultimaAtividade) { this.ultimaAtividade = ultimaAtividade; }
+    public String getUltimaRotaAcessada() { return ultimaRotaAcessada; }
+    public void setUltimaRotaAcessada(String ultimaRotaAcessada) { this.ultimaRotaAcessada = ultimaRotaAcessada; }
     public SetorEntity getSetor() { return setor; }
     public void setSetor(SetorEntity setor) { this.setor = setor; }
     public String getEscopoFiliaisTipo() { return escopoFiliaisTipo; }

@@ -66,6 +66,9 @@ export interface UsuarioAdmin {
   permissoesConcedidas: PermissionKey[];
   statusSenha: 'segura' | 'migrar_no_login' | 'reset_obrigatorio';
   algoritmoSenha: string;
+  isOnline: boolean;
+  ultimaAtividade: string | null;
+  ultimaRotaAcessada: string | null;
 }
 
 export interface UsuarioPayload {
@@ -87,6 +90,13 @@ export interface PapelAdmin {
   nome: string;
   descricao: string | null;
   nivel: number;
+}
+
+export interface UsuariosSessaoResumo {
+  totalUsuarios: number;
+  usuariosAtivos: number;
+  usuariosInativos: number;
+  usuariosOnline: number;
 }
 
 export interface PermissaoOverride {

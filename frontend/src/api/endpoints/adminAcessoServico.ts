@@ -6,6 +6,7 @@ import type {
   SetorPayload,
   UsuarioAdmin,
   UsuarioPayload,
+  UsuariosSessaoResumo,
 } from '../../types/access';
 
 const POSSIBLE_MOJIBAKE_PATTERN = /[\u00C2\u00C3\uFFFD]/;
@@ -124,7 +125,12 @@ export async function buscarPapeis(): Promise<PapelAdmin[]> {
 
 export async function buscarUsuariosAdmin(): Promise<UsuarioAdmin[]> {
   const { data } = await clienteAxios.get<UsuarioAdmin[]>('/api/admin/acesso/usuarios');
-  return normalizeAdminAccessItems('buscarUsuariosAdmin', 'usuario', data, ['nome', 'setorNome', 'papel']);
+  return normalizeAdminAccessItems('buscarUsuariosAdmin', 'usuario', data, ['nome', 'setorNome', 'papel', 'ultimaRotaAcessada']);
+}
+
+export async function buscarResumoSessoesUsuariosAdmin(): Promise<UsuariosSessaoResumo> {
+  const { data } = await clienteAxios.get<UsuariosSessaoResumo>('/api/admin/acesso/usuarios/resumo-sessoes');
+  return data;
 }
 
 export async function criarUsuario(payload: UsuarioPayload): Promise<UsuarioAdmin> {

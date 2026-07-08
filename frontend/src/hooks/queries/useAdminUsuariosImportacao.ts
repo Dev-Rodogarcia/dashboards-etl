@@ -32,6 +32,7 @@ export function useImportarUsuariosEmMassa() {
     mutationFn: (payload: UserImportBatchRequest) => importarUsuariosEmMassa(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'usuarios'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'usuarios', 'resumo-sessoes'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'acesso', 'setores'] });
     },
   });

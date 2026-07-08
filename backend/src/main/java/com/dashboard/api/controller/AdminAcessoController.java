@@ -8,6 +8,7 @@ import com.dashboard.api.dto.acesso.SetorDTO;
 import com.dashboard.api.dto.acesso.SetorRequestDTO;
 import com.dashboard.api.dto.acesso.UsuarioAcessoDTO;
 import com.dashboard.api.dto.acesso.UsuarioRequestDTO;
+import com.dashboard.api.dto.acesso.UsuarioSessaoResumoDTO;
 import com.dashboard.api.model.acesso.AuditLog;
 import com.dashboard.api.repository.acesso.AuditLogRepository;
 import com.dashboard.api.security.PermissaoCatalogo;
@@ -80,6 +81,11 @@ public class AdminAcessoController {
     @GetMapping("/usuarios")
     public List<UsuarioAcessoDTO> usuarios() {
         return gestaoUsuarioService.listarUsuarios();
+    }
+
+    @GetMapping("/usuarios/resumo-sessoes")
+    public UsuarioSessaoResumoDTO resumoSessoesUsuarios() {
+        return gestaoUsuarioService.resumoSessoesUsuarios();
     }
 
     @PostMapping("/usuarios")

@@ -151,7 +151,10 @@ class UsuarioImportacaoServiceTest {
                 List.of(),
                 List.of(),
                 "segura",
-                "argon2id"
+                "argon2id",
+                false,
+                null,
+                null
         );
 
         var resultado = service.importar(new UsuarioImportacaoLoteRequestDTO("import-1", List.of(
