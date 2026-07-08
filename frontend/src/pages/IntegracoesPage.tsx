@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { EChartsOption } from 'echarts';
 import { Eye } from 'lucide-react';
@@ -128,6 +128,14 @@ function calcularTotalErros(evolucaoDiaria: IntegracaoEvolucaoDiaria[]) {
   return evolucaoDiaria.reduce((total, item) => total + numeroSeguro(item.erros), 0);
 }
 
+function percentualSeguro(parte: number, total: number) {
+  if (!Number.isFinite(parte) || !Number.isFinite(total) || total <= 0) {
+    return 0;
+  }
+
+  return (parte * 100) / total;
+}
+
 function formatarDataEixo(valor: string) {
   const [data] = valor.split('T');
   const partes = data.split('-');
@@ -177,6 +185,87 @@ function buildResumoIntegracoesDados(metricas: IntegracaoMetricaConsolidada[]): 
 
       return a.entidadeTabela.localeCompare(b.entidadeTabela);
     });
+}
+
+function calcularMetricasResumoIntegracoes(dados: ResumoTabelaIntegracao[]) {
+  const totais = dados.reduce(
+    (acc, item) => {
+      acc.totalProcessado += numeroSeguro(item.totalProcessado);
+      acc.totalSucesso += numeroSeguro(item.totalSucesso);
+      acc.totalErro += numeroSeguro(item.totalErro);
+      acc.totalQuarentena += numeroSeguro(item.totalQuarentena);
+
+      return acc;
+    },
+    {
+      totalProcessado: 0,
+      totalSucesso: 0,
+      totalErro: 0,
+      totalQuarentena: 0,
+    },
+  );
+  const etapaMaiorVolume = dados.reduce<ResumoTabelaIntegracao | null>((maior, item) => {
+    if (!maior) return item;
+
+    return numeroSeguro(item.totalProcessado) > numeroSeguro(maior.totalProcessado) ? item : maior;
+  }, null);
+  const etapaCritica = dados.reduce<ResumoTabelaIntegracao | null>((critica, item) => {
+    if (!critica) return item;
+
+    const errosItem = numeroSeguro(item.totalErro) + numeroSeguro(item.totalQuarentena);
+    const errosCritica = numeroSeguro(critica.totalErro) + numeroSeguro(critica.totalQuarentena);
+    if (errosItem !== errosCritica) {
+      return errosItem > errosCritica ? item : critica;
+    }
+
+    const taxaItem = percentualSeguro(errosItem, numeroSeguro(item.totalProcessado));
+    const taxaCritica = percentualSeguro(errosCritica, numeroSeguro(critica.totalProcessado));
+    return taxaItem > taxaCritica ? item : critica;
+  }, null);
+  const totalErroPendencia = totais.totalErro + totais.totalQuarentena;
+  const etapasComErro = dados.filter((item) => numeroSeguro(item.totalErro) + numeroSeguro(item.totalQuarentena) > 0);
+
+  return {
+    etapasMonitoradas: dados.length,
+    totalProcessado: totais.totalProcessado,
+    totalSucesso: totais.totalSucesso,
+    totalErroPendencia,
+    taxaSucesso: percentualSeguro(totais.totalSucesso, totais.totalProcessado),
+    etapasComErroQuantidade: etapasComErro.length,
+    etapaMaiorVolume,
+    etapaCritica,
+    etapaCriticaErros: etapaCritica ? numeroSeguro(etapaCritica.totalErro) + numeroSeguro(etapaCritica.totalQuarentena) : 0,
+  };
+}
+
+function ResumoIntegracoesKpi({
+  label,
+  value,
+  color = 'var(--color-text)',
+  detail,
+  title,
+}: {
+  label: string;
+  value: ReactNode;
+  color?: string;
+  detail?: ReactNode;
+  title?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-xs font-semibold uppercase" style={{ color: 'var(--color-text-muted)' }}>
+        {label}
+      </p>
+      <p className="mt-1 truncate text-xl font-bold leading-tight" title={title} style={{ color }}>
+        {value}
+      </p>
+      {detail ? (
+        <p className="mt-1 truncate text-xs font-semibold" title={title} style={{ color: 'var(--color-text-muted)' }}>
+          {detail}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function buildSazonalidadeOption(dados: IntegracaoEvolucaoDiaria[], isDark: boolean): EChartsOption {
@@ -284,6 +373,7 @@ function buildSaudePorDestinoOption(metricas: IntegracaoMetricaConsolidada[], is
 }
 
 function buildResumoIntegracoesOption(dados: ResumoTabelaIntegracao[], isDark: boolean): EChartsOption {
+  const tokens = getEchartsThemeTokens(isDark);
   const categorias = dados.map((item) => item.entidadeTabela);
   const zoomEnd = dados.length > 12
     ? Math.min(100, (12 / dados.length) * 100)
@@ -291,9 +381,7 @@ function buildResumoIntegracoesOption(dados: ResumoTabelaIntegracao[], isDark: b
 
   return buildBaseBarOption(isDark, {
     legend: {
-      top: 0,
-      right: 8,
-      bottom: undefined,
+      show: false,
     },
     tooltip: {
       trigger: 'axis',
@@ -305,12 +393,13 @@ function buildResumoIntegracoesOption(dados: ResumoTabelaIntegracao[], isDark: b
         const entidade = item?.entidadeTabela ?? String(itens[0]?.axisValueLabel ?? itens[0]?.axisValue ?? '');
         const erros = numeroSeguro(item?.totalErro);
         const quarentena = numeroSeguro(item?.totalQuarentena);
+        const totalProcessado = numeroSeguro(item?.totalProcessado);
         const linhas = [
           entidade,
-          `Total processado: ${formatarNumero(numeroSeguro(item?.totalProcessado))}`,
+          `Total processado: ${formatarNumero(totalProcessado)}`,
           `Sucesso: ${formatarNumero(numeroSeguro(item?.totalSucesso))}`,
           `Erros/Pendências: ${formatarNumero(erros + quarentena)}`,
-          `Erros: ${formatarNumero(erros)}`,
+          `Taxa de sucesso: ${formatarPorcentagem(percentualSeguro(numeroSeguro(item?.totalSucesso), totalProcessado), 1)}`,
         ];
 
         if (quarentena > 0) {
@@ -362,19 +451,15 @@ function buildResumoIntegracoesOption(dados: ResumoTabelaIntegracao[], isDark: b
     ] : undefined,
     series: [
       {
-        name: 'Sucesso',
+        name: 'Total processado',
         type: 'bar',
-        stack: 'integracoes',
-        data: dados.map((item) => numeroSeguro(item.totalSucesso)),
-        itemStyle: { color: 'var(--color-positive-fill)' },
-        emphasis: { focus: 'series' },
-      },
-      {
-        name: 'Erros/Pendências',
-        type: 'bar',
-        stack: 'integracoes',
-        data: dados.map((item) => numeroSeguro(item.totalErro) + numeroSeguro(item.totalQuarentena)),
-        itemStyle: { color: 'var(--color-negative-fill)' },
+        data: dados.map((item) => numeroSeguro(item.totalProcessado)),
+        itemStyle: { color: tokens.palette[0] },
+        label: {
+          show: true,
+          position: 'right',
+          formatter: (params: { value?: unknown }) => formatarNumero(numeroSeguro(params.value)),
+        },
         emphasis: { focus: 'series' },
       },
     ],
@@ -570,6 +655,10 @@ export default function IntegracoesPage() {
     () => buildResumoIntegracoesDados(metricas),
     [metricas],
   );
+  const metricasResumoIntegracoes = useMemo(
+    () => calcularMetricasResumoIntegracoes(resumoTabelasIntegracoes),
+    [resumoTabelasIntegracoes],
+  );
   const volumeTotal = calcularVolumeTotal(metricas);
   const taxaSucessoGlobal = calcularTaxaPonderada(metricas, 'percentualXmlSucesso');
   const taxaSucessoCanhotos = calcularTaxaPonderada(metricas, 'percentualCanhotoSucesso');
@@ -724,6 +813,64 @@ export default function IntegracoesPage() {
               altura={400}
               className="xl:col-span-2"
               chartKey="integracoesResumoEntidade"
+              sideContentLayoutClassName="grid h-full min-h-0 grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6"
+              sideContentChartClassName="xl:col-span-2"
+              sideContentAsideClassName="xl:col-span-1"
+              sideContent={(
+                <div
+                  className="flex h-full min-h-0 flex-col justify-start gap-3 border-t pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                    <ResumoIntegracoesKpi
+                      label="Etapas"
+                      value={formatarNumero(metricasResumoIntegracoes.etapasMonitoradas)}
+                    />
+                    <ResumoIntegracoesKpi
+                      label="Processado"
+                      value={formatarNumero(metricasResumoIntegracoes.totalProcessado)}
+                      color="var(--color-primary)"
+                    />
+                    <ResumoIntegracoesKpi
+                      label="Sucessos"
+                      value={formatarNumero(metricasResumoIntegracoes.totalSucesso)}
+                      color="var(--color-positive-text)"
+                    />
+                    <ResumoIntegracoesKpi
+                      label="Erros/Pend."
+                      value={formatarNumero(metricasResumoIntegracoes.totalErroPendencia)}
+                      color={metricasResumoIntegracoes.totalErroPendencia > 0 ? 'var(--color-negative-fill)' : 'var(--color-positive-text)'}
+                    />
+                    <ResumoIntegracoesKpi
+                      label="Taxa Sucesso"
+                      value={formatarPorcentagem(metricasResumoIntegracoes.taxaSucesso, 1)}
+                      color={metricasResumoIntegracoes.taxaSucesso >= 95 ? 'var(--color-positive-text)' : 'var(--color-warning-fill)'}
+                    />
+                    <ResumoIntegracoesKpi
+                      label="Com Erro"
+                      value={formatarNumero(metricasResumoIntegracoes.etapasComErroQuantidade)}
+                      color={metricasResumoIntegracoes.etapasComErroQuantidade > 0 ? 'var(--color-negative-fill)' : 'var(--color-positive-text)'}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-4 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
+                    <ResumoIntegracoesKpi
+                      label="Maior Volume"
+                      value={formatarNumero(numeroSeguro(metricasResumoIntegracoes.etapaMaiorVolume?.totalProcessado))}
+                      color="var(--color-primary)"
+                      detail={metricasResumoIntegracoes.etapaMaiorVolume?.entidadeTabela ?? '-'}
+                      title={metricasResumoIntegracoes.etapaMaiorVolume?.entidadeTabela ?? undefined}
+                    />
+                    <ResumoIntegracoesKpi
+                      label="Etapa Crítica"
+                      value={formatarNumero(metricasResumoIntegracoes.etapaCriticaErros)}
+                      color={metricasResumoIntegracoes.etapaCriticaErros > 0 ? 'var(--color-negative-fill)' : 'var(--color-positive-text)'}
+                      detail={metricasResumoIntegracoes.etapaCritica?.entidadeTabela ?? '-'}
+                      title={metricasResumoIntegracoes.etapaCritica?.entidadeTabela ?? undefined}
+                    />
+                  </div>
+                </div>
+              )}
             />
           </div>
 

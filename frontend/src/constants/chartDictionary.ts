@@ -353,11 +353,11 @@ export const chartDictionary = {
   },
   integracoesResumoEntidade: {
     ...integracoesBase,
-    descricao: 'Consolida o processamento das integrações por etapa operacional para mostrar onde sucesso, erro e pendência se concentram.',
+    descricao: 'Consolida o volume processado por etapa operacional de integração e destaca, em KPIs laterais, sucesso, erro, taxa e gargalos.',
     calculoTecnico:
       'Leitura das métricas consolidadas do endpoint /api/auditoria/integracoes-clientes no Satélite; totalSucesso = ROUND(totalRegistros * percentualEtapa / 100) para XML/Dados e Canhoto; totalErro = totalRegistros - totalSucesso.',
     calculoNegocio:
-      'Cada sistema destino vira duas etapas operacionais, XML/Dados e Canhoto. O gráfico empilha sucessos em verde e erros/pendências em vermelho a partir dos percentuais consolidados já entregues pela auditoria principal.',
+      'Cada sistema destino vira duas etapas operacionais, XML/Dados e Canhoto. O gráfico horizontal mostra o volume total processado por etapa, enquanto os KPIs laterais resumem sucessos, erros/pendências, taxa de sucesso, maior volume e etapa crítica.',
     agrupamento: 'Agrupado por sistema destino no Satélite e separado no frontend em XML/Dados e Canhoto.',
   },
 
