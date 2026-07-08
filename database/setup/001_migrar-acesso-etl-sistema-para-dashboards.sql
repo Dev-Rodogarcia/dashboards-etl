@@ -535,6 +535,7 @@ GO
 GO
 
 :r database/migrations/V054__adicionar_heartbeat_sessao_usuarios.sql
+:r database/migrations/V055__garantir_colunas_sessao_usuarios.sql
 GO
 
 IF SUSER_ID(N'$(AppLogin)') IS NOT NULL

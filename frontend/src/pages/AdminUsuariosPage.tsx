@@ -24,6 +24,7 @@ import type {
   PermissionMap,
   PermissionOverrideStateMap,
   UsuarioAdmin,
+  UsuarioOnlineResumo,
   UsuarioPayload,
 } from '../types/access';
 import {
@@ -185,9 +186,10 @@ interface SummaryCardProps {
   accent: string;
   pulse?: boolean;
   tooltip?: ReactNode;
+  tooltipSide?: 'top' | 'bottom';
 }
 
-function SummaryCard({ label, value, accent, pulse, tooltip }: SummaryCardProps) {
+function SummaryCard({ label, value, accent, pulse, tooltip, tooltipSide = 'top' }: SummaryCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const tooltipId = useId();
@@ -249,9 +251,9 @@ function SummaryCard({ label, value, accent, pulse, tooltip }: SummaryCardProps)
       <PopoverContent
         id={tooltipId}
         role="tooltip"
-        side="top"
+        side={tooltipSide}
         align="center"
-        sideOffset={8}
+        sideOffset={10}
         collisionPadding={12}
         onOpenAutoFocus={(event) => event.preventDefault()}
         className="pointer-events-none p-4"
@@ -290,7 +292,15 @@ function formatTempoUltimoPulso(valor: string | null): string {
   return `Ativo há ${horas}h ${minutosRestantes}min`;
 }
 
-function UsuariosOnlineTooltip({ usuarios, isLoading }: { usuarios: UsuarioRow[]; isLoading: boolean }) {
+function UsuariosOnlineTooltip({
+  usuarios,
+  isLoading,
+  totalOnline,
+}: {
+  usuarios: UsuarioOnlineResumo[];
+  isLoading: boolean;
+  totalOnline: number;
+}) {
   if (isLoading) {
     return (
       <p className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>
@@ -302,7 +312,9 @@ function UsuariosOnlineTooltip({ usuarios, isLoading }: { usuarios: UsuarioRow[]
   if (usuarios.length === 0) {
     return (
       <p className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>
-        Nenhum usuário online agora.
+        {totalOnline > 0
+          ? `${totalOnline} usuário${totalOnline === 1 ? '' : 's'} online, mas os detalhes ainda não vieram no resumo.`
+          : 'Nenhum usuário online agora.'}
       </p>
     );
   }
@@ -320,6 +332,9 @@ function UsuariosOnlineTooltip({ usuarios, isLoading }: { usuarios: UsuarioRow[]
             </p>
             <p className="mt-0.5 truncate text-xs" title={formatUltimaAtividade(usuario.ultimaAtividade)} style={{ color: 'var(--color-text-subtle)' }}>
               {formatTempoUltimoPulso(usuario.ultimaAtividade)}
+            </p>
+            <p className="mt-0.5 truncate text-[11px]" title={usuario.email} style={{ color: 'var(--color-text-muted)' }}>
+              {usuario.email}
             </p>
           </div>
         ))}
@@ -721,13 +736,13 @@ export default function AdminUsuariosPage() {
     usuariosAtivos: 0,
     usuariosInativos: 0,
     usuariosOnline: 0,
+    usuariosOnlineDetalhes: [],
   };
   const usuariosOnlineAgora = useMemo(
     () =>
-      linhas
-        .filter((usuario) => usuario.isOnline)
+      [...resumoUsuarios.usuariosOnlineDetalhes]
         .sort((a, b) => timestampAtividade(b.ultimaAtividade) - timestampAtividade(a.ultimaAtividade)),
-    [linhas],
+    [resumoUsuarios.usuariosOnlineDetalhes],
   );
 
   function resetForm() {
@@ -1006,7 +1021,14 @@ export default function AdminUsuariosPage() {
               value={resumoUsuarios.usuariosOnline}
               accent="#10b981"
               pulse
-              tooltip={<UsuariosOnlineTooltip usuarios={usuariosOnlineAgora} isLoading={usuarios.isLoading} />}
+              tooltipSide="bottom"
+              tooltip={
+                <UsuariosOnlineTooltip
+                  usuarios={usuariosOnlineAgora}
+                  isLoading={resumoSessoes.isLoading}
+                  totalOnline={resumoUsuarios.usuariosOnline}
+                />
+              }
             />
           </div>
         </div>
@@ -1308,6 +1330,8 @@ export default function AdminUsuariosPage() {
         dados={linhas}
         chaveLinha="id"
         isLoading={usuarios.isLoading}
+        error={usuarios.error}
+        errorFallbackMessage="Não foi possível carregar a lista de usuários."
         colunas={isMobileUsersTable ? colunasUsuariosMobile : colunasUsuariosDesktop}
       />
 

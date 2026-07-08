@@ -18,8 +18,9 @@ import com.dashboard.api.repository.acesso.SetorRepository;
 import com.dashboard.api.repository.acesso.UsuarioPapelVinculoRepository;
 import com.dashboard.api.repository.acesso.UsuarioPermissaoOverrideRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
-import com.dashboard.api.security.acesso.UsuarioSupremo;
 import com.dashboard.api.security.IpClienteResolver;
+import com.dashboard.api.security.acesso.UsuarioSupremo;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -378,6 +379,67 @@ class GestaoUsuarioServiceTest {
         assertThrows(AccessDeniedException.class, () -> service.inativarUsuario(1L));
 
         verify(usuarioRepository, never()).save(supremo);
+    }
+
+    @Test
+    void resumoSessoesUsuariosIncluiDetalhesDosUsuariosOnline() {
+        when(usuarioRepository.calcularResumoSessoes()).thenReturn(new UsuarioRepository.UsuarioSessaoResumoProjection() {
+            @Override
+            public Long getTotalUsuarios() {
+                return 3L;
+            }
+
+            @Override
+            public Long getUsuariosAtivos() {
+                return 2L;
+            }
+
+            @Override
+            public Long getUsuariosInativos() {
+                return 1L;
+            }
+
+            @Override
+            public Long getUsuariosOnline() {
+                return 1L;
+            }
+        });
+        when(usuarioRepository.findUsuariosOnlineResumo()).thenReturn(List.of(new UsuarioRepository.UsuarioOnlineResumoProjection() {
+            @Override
+            public Long getId() {
+                return 99L;
+            }
+
+            @Override
+            public String getNome() {
+                return "Admin Online";
+            }
+
+            @Override
+            public String getEmail() {
+                return "admin@empresa.com";
+            }
+
+            @Override
+            public String getUltimaAtividade() {
+                return "2026-07-08T19:20:10.1234567-03:00";
+            }
+        }));
+
+        var resultado = service.resumoSessoesUsuarios();
+
+        assertEquals(3, resultado.totalUsuarios());
+        assertEquals(2, resultado.usuariosAtivos());
+        assertEquals(1, resultado.usuariosInativos());
+        assertEquals(1, resultado.usuariosOnline());
+        assertEquals(1, resultado.usuariosOnlineDetalhes().size());
+        assertEquals("99", resultado.usuariosOnlineDetalhes().get(0).id());
+        assertEquals("Admin Online", resultado.usuariosOnlineDetalhes().get(0).nome());
+        assertEquals("admin@empresa.com", resultado.usuariosOnlineDetalhes().get(0).email());
+        assertEquals(
+                OffsetDateTime.parse("2026-07-08T19:20:10.1234567-03:00"),
+                resultado.usuariosOnlineDetalhes().get(0).ultimaAtividade()
+        );
     }
 
     private ContextoAtualizacao prepararContextoAtualizacao(String papelSolicitadoNome) {

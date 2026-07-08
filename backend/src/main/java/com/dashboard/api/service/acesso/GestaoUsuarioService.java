@@ -2,6 +2,7 @@ package com.dashboard.api.service.acesso;
 
 import com.dashboard.api.dto.acesso.PapelDTO;
 import com.dashboard.api.dto.acesso.UsuarioAcessoDTO;
+import com.dashboard.api.dto.acesso.UsuarioOnlineResumoDTO;
 import com.dashboard.api.dto.acesso.UsuarioRequestDTO;
 import com.dashboard.api.dto.acesso.UsuarioSessaoResumoDTO;
 import com.dashboard.api.model.acesso.AcaoAudit;
@@ -22,6 +23,8 @@ import com.dashboard.api.repository.acesso.UsuarioPermissaoOverrideRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
 import com.dashboard.api.security.acesso.UsuarioSupremo;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
@@ -87,7 +90,9 @@ public class GestaoUsuarioService {
 
     @Transactional(readOnly = true)
     public List<UsuarioAcessoDTO> listarUsuarios() {
-        List<UsuarioRepository.UsuarioAcessoResumoProjection> usuarios = usuarioRepository.findAcessoResumo();
+        List<UsuarioRepository.UsuarioAcessoResumoProjection> usuarios = Boolean.TRUE.equals(usuarioRepository.existeColunaUltimaRotaAcessada())
+                ? usuarioRepository.findAcessoResumo()
+                : usuarioRepository.findAcessoResumoSemUltimaRota();
         if (usuarios.isEmpty()) {
             return List.of();
         }
@@ -131,11 +136,21 @@ public class GestaoUsuarioService {
             return new UsuarioSessaoResumoDTO(0, 0, 0, 0);
         }
 
+        List<UsuarioOnlineResumoDTO> usuariosOnline = usuarioRepository.findUsuariosOnlineResumo().stream()
+                .map(usuario -> new UsuarioOnlineResumoDTO(
+                        String.valueOf(usuario.getId()),
+                        usuario.getNome(),
+                        usuario.getEmail(),
+                        parseUltimaAtividade(usuario.getUltimaAtividade())
+                ))
+                .toList();
+
         return new UsuarioSessaoResumoDTO(
                 valorLong(resumo.getTotalUsuarios()),
                 valorLong(resumo.getUsuariosAtivos()),
                 valorLong(resumo.getUsuariosInativos()),
-                valorLong(resumo.getUsuariosOnline())
+                valorLong(resumo.getUsuariosOnline()),
+                usuariosOnline
         );
     }
 
@@ -314,7 +329,7 @@ public class GestaoUsuarioService {
                 passwordHashService.statusAdministrativo(usuario.getAlgoritmoHash()).valor(),
                 passwordHashService.algoritmoExibicao(usuario.getAlgoritmoHash()),
                 Boolean.TRUE.equals(usuario.getOnline()),
-                usuario.getUltimaAtividade(),
+                parseUltimaAtividade(usuario.getUltimaAtividade()),
                 formatarRotaNegocio(usuario.getUltimaRotaAcessada())
         );
     }
@@ -482,6 +497,23 @@ public class GestaoUsuarioService {
 
     private long valorLong(Long valor) {
         return valor == null ? 0 : valor;
+    }
+
+    private OffsetDateTime parseUltimaAtividade(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return null;
+        }
+
+        String normalizado = valor.trim();
+        try {
+            return OffsetDateTime.parse(normalizado);
+        } catch (DateTimeParseException ex) {
+            try {
+                return OffsetDateTime.parse(normalizado.replace(' ', 'T'));
+            } catch (DateTimeParseException ignored) {
+                return null;
+            }
+        }
     }
 
     private String formatarRotaNegocio(String rota) {

@@ -1,7 +1,6 @@
 package com.dashboard.api.repository.acesso;
 
 import com.dashboard.api.model.acesso.UsuarioEntity;
-import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +30,7 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
                    s.id AS [setorId],
                    s.nome AS [setorNome],
                    u.algoritmo_hash AS [algoritmoHash],
-                   u.ultima_atividade AS [ultimaAtividade],
+                   CONVERT(varchar(33), u.ultima_atividade, 127) AS [ultimaAtividade],
                    u.ultima_rota_acessada AS [ultimaRotaAcessada],
                    CAST(CASE
                         WHEN u.ultima_atividade >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET()) THEN 1
@@ -42,6 +41,27 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
             ORDER BY LOWER(u.nome)
             """, nativeQuery = true)
     List<UsuarioAcessoResumoProjection> findAcessoResumo();
+
+    @Query(value = """
+            SELECT
+                   u.id AS [id],
+                   u.nome AS [nome],
+                   u.email AS [email],
+                   u.ativo AS [ativo],
+                   s.id AS [setorId],
+                   s.nome AS [setorNome],
+                   u.algoritmo_hash AS [algoritmoHash],
+                   CONVERT(varchar(33), u.ultima_atividade, 127) AS [ultimaAtividade],
+                   CAST(NULL AS varchar(100)) AS [ultimaRotaAcessada],
+                   CAST(CASE
+                        WHEN u.ultima_atividade >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET()) THEN 1
+                        ELSE 0
+                   END AS bit) AS [online]
+            FROM acesso.usuarios u
+            JOIN acesso.setores s ON s.id = u.setor_id
+            ORDER BY LOWER(u.nome)
+            """, nativeQuery = true)
+    List<UsuarioAcessoResumoProjection> findAcessoResumoSemUltimaRota();
 
     @Query(value = """
             SELECT
@@ -56,6 +76,26 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
             """, nativeQuery = true)
     UsuarioSessaoResumoProjection calcularResumoSessoes();
 
+    @Query(value = """
+            SELECT
+                   u.id AS [id],
+                   u.nome AS [nome],
+                   u.email AS [email],
+                   CONVERT(varchar(33), u.ultima_atividade, 127) AS [ultimaAtividade]
+            FROM acesso.usuarios u
+            WHERE u.ultima_atividade >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET())
+            ORDER BY u.ultima_atividade DESC, LOWER(u.nome)
+            """, nativeQuery = true)
+    List<UsuarioOnlineResumoProjection> findUsuariosOnlineResumo();
+
+    @Query(value = """
+            SELECT CAST(CASE
+                   WHEN COL_LENGTH(N'acesso.usuarios', N'ultima_rota_acessada') IS NULL THEN 0
+                   ELSE 1
+            END AS bit)
+            """, nativeQuery = true)
+    Boolean existeColunaUltimaRotaAcessada();
+
     interface UsuarioAcessoResumoProjection {
         Long getId();
         String getNome();
@@ -64,7 +104,7 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
         Long getSetorId();
         String getSetorNome();
         String getAlgoritmoHash();
-        OffsetDateTime getUltimaAtividade();
+        String getUltimaAtividade();
         String getUltimaRotaAcessada();
         Boolean getOnline();
     }
@@ -74,5 +114,12 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
         Long getUsuariosAtivos();
         Long getUsuariosInativos();
         Long getUsuariosOnline();
+    }
+
+    interface UsuarioOnlineResumoProjection {
+        Long getId();
+        String getNome();
+        String getEmail();
+        String getUltimaAtividade();
     }
 }

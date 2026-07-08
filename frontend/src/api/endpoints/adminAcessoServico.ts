@@ -5,6 +5,7 @@ import type {
   SetorAdmin,
   SetorPayload,
   UsuarioAdmin,
+  UsuarioOnlineResumo,
   UsuarioPayload,
   UsuariosSessaoResumo,
 } from '../../types/access';
@@ -130,7 +131,17 @@ export async function buscarUsuariosAdmin(): Promise<UsuarioAdmin[]> {
 
 export async function buscarResumoSessoesUsuariosAdmin(): Promise<UsuariosSessaoResumo> {
   const { data } = await clienteAxios.get<UsuariosSessaoResumo>('/api/admin/acesso/usuarios/resumo-sessoes');
-  return data;
+  const usuariosOnlineDetalhes = normalizeAdminAccessItems<UsuarioOnlineResumo>(
+    'buscarResumoSessoesUsuariosAdmin',
+    'usuario-online',
+    data.usuariosOnlineDetalhes ?? [],
+    ['nome', 'email'],
+  );
+
+  return {
+    ...data,
+    usuariosOnlineDetalhes,
+  };
 }
 
 export async function criarUsuario(payload: UsuarioPayload): Promise<UsuarioAdmin> {
