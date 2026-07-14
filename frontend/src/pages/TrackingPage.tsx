@@ -80,15 +80,15 @@ function rotuloCurtoRegiao(valor: string): string {
 function corStatusRosca(status: string, index: number, isDark: boolean): string {
   const tokens = getEchartsThemeTokens(isDark);
   const statusColors: Record<string, string> = {
-    'no armazém': tokens.palette[1],
-    manifestado: tokens.palette[8],
-    'em transferência': tokens.palette[5],
-    'em entrega': tokens.palette[0],
-    entregue: tokens.palette[7],
-    cancelado: tokens.palette[3],
-    canceled: tokens.palette[3],
-    cancelled: tokens.palette[3],
-    'sem status': tokens.mutedTextColor,
+    'no armazém': '#3bf6b8',       // blue-500    (Estático/Padrão)
+    'manifestado': '#ff0000',      // cyan-500    (Preparado)
+    'em transferência': '#8b5cf6', // violet-500  (Movimentação interna)
+    'em entrega': '#f59e0b',       // amber-500   (Na rua/Atenção)
+    'entregue': '#10b981',         // emerald-500 (Sucesso)
+    'cancelado': '#f43f5e',        // rose-500    (Erro/Exceção)
+    'canceled': '#f43f5e',         // rose-500
+    'cancelled': '#f43f5e',        // rose-500
+    'sem status': tokens.mutedTextColor || '#64748b', // slate-500 (Neutro)
   };
 
   return statusColors[status.toLowerCase()] ?? tokens.palette[index % tokens.palette.length];
@@ -122,7 +122,7 @@ function MatrizRegiaoDestino({
 
   return (
     <section className="mb-6 flex h-full min-h-0 flex-col rounded-[20px] border p-4 shadow-sm" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
-      <div className="mb-3 flex shrink-0 flex-col gap-3 border-b pb-3 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="mb-3 flex shrink-0 flex-col flex-wrap gap-2 border-b pb-3 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: 'var(--color-border)' }}>
         <div className="min-w-0">
           <h2 className="truncate text-sm font-bold" style={{ color: 'var(--color-text)' }}>
             Responsável pela Região de Destino
@@ -132,7 +132,7 @@ function MatrizRegiaoDestino({
           </span>
         </div>
         <div
-          className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border p-1"
+          className="flex max-w-full flex-wrap items-center gap-2 rounded-xl border p-1"
           style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
           aria-label="Filtro rápido de status"
         >
@@ -198,7 +198,7 @@ function MatrizRegiaoDestino({
                   <MetricCell label="Valor Frete" value={formatarMoeda(linha.valorFrete)} />
                   <MetricCell label="Valor NF" value={formatarMoeda(linha.valorNota)} />
                   <MetricCell label="Volumes" value={numeroCurto(linha.volumes)} />
-                  <MetricCell label="Fora do Prazo" value={numeroCurto(linha.foraDoPrazo)} danger={linha.foraDoPrazo > 0} />
+                  <MetricCell label="Fora do Prazo" value={numeroCurto(linha.foraDoPrazo)} danger={linha.foraDoPrazo > 0} className="col-span-2 text-center md:col-span-1 md:text-right" />
                 </div>
               </div>
             );
@@ -265,9 +265,9 @@ function MatrizRegiaoDestino({
   );
 }
 
-function MetricCell({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
+function MetricCell({ label, value, danger = false, className = '' }: { label: string; value: string; danger?: boolean; className?: string }) {
   return (
-    <div className="min-w-0 text-right">
+    <div className={`min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-2 py-2 text-center md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-0 md:text-right ${className}`}>
       <div className="truncate text-[17px] font-bold leading-tight tabular-nums md:text-lg" style={{ color: danger ? 'var(--color-negative-text)' : 'var(--color-text)' }}>
         {value}
       </div>

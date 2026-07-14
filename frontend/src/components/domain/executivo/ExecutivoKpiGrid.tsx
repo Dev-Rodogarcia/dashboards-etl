@@ -16,6 +16,7 @@ interface ExecutivoKpiCardConfig {
   label: string;
   valor: string;
   valorClassName: string;
+  className?: string;
 }
 
 const KPI_VALOR_CLASS = 'text-2xl font-bold truncate';
@@ -106,19 +107,21 @@ export default function ExecutivoKpiGrid({ overview }: ExecutivoKpiGridProps) {
       label: 'Previsão Vencida',
       valor: formatarNumero(overview.cargasPrevisaoVencida),
       valorClassName: valorClass(toneQuantidadeMenorMelhor(overview.cargasPrevisaoVencida, 10)),
+      className: 'lg:col-span-2 xl:col-span-1',
     },
     {
       definition: KpiDictionary.executivo.ocupacaoMediaManifestos,
       label: 'Ocup. Manifestos',
       valor: formatarPorcentagem(overview.ocupacaoMediaManifestos),
       valorClassName: valorClass(toneOcupacaoManifestos(overview.ocupacaoMediaManifestos)),
+      className: 'sm:col-span-2 md:col-span-2 lg:col-span-3 xl:col-span-1',
     },
   ];
 
   return (
     <KpiGrid count={7} singleRowDesktop>
       {cards.map((card) => (
-        <TooltipKpi key={card.label} definition={card.definition}>
+        <TooltipKpi key={card.label} definition={card.definition} className={card.className}>
           <KpiCard
             label={card.label}
             valor={card.valor}

@@ -14,6 +14,7 @@ interface ManifestosKpiCardConfig {
   label: string;
   valor: string;
   size?: 'wide' | 'compact' | 'default';
+  layoutClassName?: string;
 }
 
 function KpiSkeleton() {
@@ -32,7 +33,7 @@ export default function ManifestosKpiGrid({ kpis, isLoading }: ManifestosKpiGrid
         { definition: KpiDictionary.manifestos.emTransito, label: 'Em Trânsito', valor: formatarNumero(kpis.emTransito), size: 'compact' },
         { definition: KpiDictionary.manifestos.pendentes, label: 'Pendentes', valor: formatarNumero(kpis.pendentes), size: 'compact' },
         { definition: KpiDictionary.manifestos.encerrados, label: 'Encerrados', valor: formatarNumero(kpis.encerrados), size: 'compact' },
-        { definition: KpiDictionary.manifestos.kmTotal, label: 'KM Total', valor: formatarNumero(kpis.kmTotal, 0), size: 'compact' },
+        { definition: KpiDictionary.manifestos.kmTotal, label: 'KM Total', valor: formatarNumero(kpis.kmTotal, 0), size: 'compact', layoutClassName: 'col-span-2 lg:col-span-2' },
         { definition: KpiDictionary.manifestos.custoTotal, label: 'Custo Total', valor: formatarMoeda(kpis.custoTotal), size: 'wide' },
         { definition: KpiDictionary.manifestos.custoPorKg, label: 'Custo/KG', valor: formatarMoeda(kpis.custoPorKg), size: 'compact' },
         { definition: KpiDictionary.manifestos.custoPorKm, label: 'Custo/KM', valor: formatarMoeda(kpis.custoPorKm), size: 'compact' },
@@ -42,7 +43,7 @@ export default function ManifestosKpiGrid({ kpis, isLoading }: ManifestosKpiGrid
     : [];
 
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-11">
+    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
       {isLoading
         ? Array.from({ length: 10 }, (_, index) => <KpiSkeleton key={index} />)
         : cards.map((card) => {
@@ -50,7 +51,7 @@ export default function ManifestosKpiGrid({ kpis, isLoading }: ManifestosKpiGrid
           const className = card.size === 'wide'
             ? 'col-span-2 md:col-span-2 lg:col-span-2'
             : compact
-              ? 'col-span-1 lg:col-span-1'
+              ? `col-span-1 lg:col-span-1 ${card.layoutClassName ?? ''}`
               : 'col-span-1 md:col-span-2 lg:col-span-1';
 
           return (

@@ -74,11 +74,11 @@ interface TrendBucket {
 }
 
 const KPI_CARD_HEIGHT_CLASS = 'h-full min-h-0';
-const COTACOES_VIEW_TABS: Array<{ value: CotacoesViewTab; label: string; icon: typeof UserRound }> = [
-  { value: 'usuario', label: 'Por Usuário', icon: UserRound },
-  { value: 'filial', label: 'Por Filial', icon: Building2 },
-  { value: 'clientes', label: 'Top 40 Clientes', icon: UsersRound },
-  { value: 'analitica', label: 'Visão Analítica', icon: Table2 },
+const COTACOES_VIEW_TABS: Array<{ value: CotacoesViewTab; label: string; compactLabel: string; icon: typeof UserRound }> = [
+  { value: 'usuario', label: 'Por Usuário', compactLabel: 'Usuário', icon: UserRound },
+  { value: 'filial', label: 'Por Filial', compactLabel: 'Filial', icon: Building2 },
+  { value: 'clientes', label: 'Top 40 Clientes', compactLabel: 'Clientes', icon: UsersRound },
+  { value: 'analitica', label: 'Visão Analítica', compactLabel: 'Análise', icon: Table2 },
 ];
 const PERIOD_LEVELS: PeriodDrillLevel[] = ['ano', 'mes', 'dia'];
 const CONVERSION_LEVELS: ConversionDrillLevel[] = ['ano', 'mes'];
@@ -378,7 +378,7 @@ function CotacoesViewTabs({
     <div
       role="tablist"
       aria-label="Visões de cotações"
-      className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto rounded-lg border p-0.5"
+      className="grid w-full min-w-0 grid-cols-4 gap-1 overflow-hidden rounded-lg border p-0.5"
       style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
     >
       {COTACOES_VIEW_TABS.map((item) => {
@@ -393,14 +393,15 @@ function CotacoesViewTabs({
             data-state={active ? 'active' : 'inactive'}
             aria-selected={active}
             onClick={() => onChange(item.value)}
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors hover:bg-[var(--color-card)] data-[state=active]:shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            className="inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-md px-1.5 text-xs font-semibold transition-colors hover:bg-[var(--color-card)] data-[state=active]:shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
             style={{
               backgroundColor: active ? 'var(--color-card)' : 'transparent',
               color: active ? 'var(--color-text)' : 'var(--color-text-muted)',
             }}
           >
             <Icon size={14} aria-hidden="true" />
-            {item.label}
+            <span className="truncate lg:hidden">{item.compactLabel}</span>
+            <span className="hidden truncate lg:inline">{item.label}</span>
           </button>
         );
       })}
@@ -965,12 +966,12 @@ function TaxasConversaoCard({
       className="h-full min-h-0"
       contentClassName="h-[350px] max-h-[350px] min-h-0 overflow-hidden"
     >
-      <div className="grid h-full max-h-full min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2 overflow-hidden 2xl:grid-cols-[minmax(0,1.2fr)_minmax(17rem,1fr)] 2xl:grid-rows-1">
+      <div className="grid h-full max-h-full min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2 overflow-hidden lg:grid-cols-[minmax(0,1.2fr)_minmax(17rem,1fr)] lg:grid-rows-1">
         <div className="flex h-full max-h-full min-h-0 flex-col gap-2 overflow-hidden">
           {chartMetrics.map((metric) => (
             <div key={metric} className={`flex max-h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg px-2 ${isSingleMode ? 'py-2' : 'py-1.5'}`} style={{ backgroundColor: 'var(--color-bg)' }}>
               <div className="shrink-0 px-1 text-xs font-semibold leading-tight" style={{ color: 'var(--color-text)' }}>{chartTitles[metric]}</div>
-              <div className="max-h-full min-h-0 flex-1 overflow-hidden pt-1">
+              <div className="max-h-full min-h-[100px] flex-1 overflow-hidden pt-1">
                 <ThemedEChart option={buildConversionOption(buckets, metric, isSingleMode, isDark)} />
               </div>
             </div>

@@ -464,13 +464,13 @@ function buildAgingOption(dados: PerformanceAgingPoint[], isDark: boolean): ECha
 function PerformanceKpiSkeleton() {
   return (
     <div
-      className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-12"
+      className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6"
       aria-hidden="true"
     >
       {Array.from({ length: 9 }).map((_, index) => (
         <div
           key={index}
-          className={`${index >= 6 ? 'xl:col-span-2' : 'xl:col-span-1'} h-[102px] animate-pulse rounded-lg border p-3`}
+          className={`${index === 8 ? 'sm:col-span-2 lg:col-span-2' : index >= 6 ? 'lg:col-span-2' : 'lg:col-span-1'} h-[102px] animate-pulse rounded-lg border p-3`}
           style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
         >
           <div className="mb-4 h-3 w-2/3 rounded bg-slate-200" />
@@ -483,9 +483,13 @@ function PerformanceKpiSkeleton() {
 }
 
 function kpiGridSpan(label: string): string {
-  return label === 'Peso Taxado (t)' || label === 'Comprovante Anexado' || label === 'Valor NF sem Comprovante'
-    ? 'xl:col-span-2'
-    : 'xl:col-span-1';
+  if (label === 'Valor NF sem Comprovante') {
+    return 'sm:col-span-2 lg:col-span-2';
+  }
+
+  return label === 'Peso Taxado (t)' || label === 'Comprovante Anexado'
+    ? 'lg:col-span-2'
+    : 'lg:col-span-1';
 }
 
 function kpiValorToneClassName(tone?: GoalTone): string {
@@ -1069,7 +1073,7 @@ export default function PerformancePage() {
         <PerformanceKpiSkeleton />
       ) : (
         <div
-          className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-12"
+          className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6"
         >
           {kpis.map((kpi) => (
             <div key={kpi.label} className={`min-w-0 ${kpiGridSpan(kpi.label)}`}>

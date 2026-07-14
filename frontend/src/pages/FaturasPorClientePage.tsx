@@ -34,6 +34,11 @@ function rotuloTopCliente(item: FaturasPorClienteTopCliente): string {
   return item.clienteCnpj ? `${item.cliente} - ${item.clienteCnpj}` : item.cliente;
 }
 
+function resumirRotuloTopCliente(rotulo: string): string {
+  const nomeCliente = rotulo.replace(/\s+-\s+\d{11,14}$/, '').trim();
+  return nomeCliente.length > 24 ? `${nomeCliente.slice(0, 23).trimEnd()}…` : nomeCliente;
+}
+
 export default function FaturasPorClientePage() {
   const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro, limparFiltros } = useFiltro();
   const { isDark } = useEchartsTheme();
@@ -106,9 +111,17 @@ export default function FaturasPorClientePage() {
   });
 
   const topClientesOption: EChartsOption = buildBaseBarOption(isDark, {
-    grid: { left: 10, containLabel: true },
+    grid: { left: 16, right: 24, top: 24, bottom: 36, containLabel: true },
     xAxis: { type: 'value' },
-    yAxis: { type: 'category', data: (topClientes.data ?? []).map(rotuloTopCliente).reverse() },
+    yAxis: {
+      type: 'category',
+      data: (topClientes.data ?? []).map(rotuloTopCliente).reverse(),
+      axisLabel: {
+        width: 112,
+        overflow: 'truncate',
+        formatter: resumirRotuloTopCliente,
+      },
+    },
     series: [
       {
         type: 'bar',

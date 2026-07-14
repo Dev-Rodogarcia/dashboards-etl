@@ -481,7 +481,7 @@ export default function EtlSaudePage() {
       {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores do ETL.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <EtlSaudeKpiGrid overview={overview.data} />}
 
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-6 2xl:grid-cols-2">
         <ChartWrapper
           titulo="Sucessos/Falhas por Dia"
           chartKey="etlTaxasDiarias"
@@ -492,7 +492,7 @@ export default function EtlSaudePage() {
           altura={350}
           sideContent={(
             <div
-              className="grid h-full min-h-[320px] grid-cols-2 content-center gap-x-4 gap-y-5 border-t pt-4 2xl:grid-cols-1 2xl:border-l 2xl:border-t-0 2xl:pl-5 2xl:pt-0"
+              className="grid h-full min-h-[320px] grid-cols-2 content-center gap-x-4 gap-y-5 border-t pt-4 sm:min-h-0 sm:grid-cols-4 sm:gap-x-5 sm:gap-y-0 2xl:grid-cols-1 2xl:border-l 2xl:border-t-0 2xl:pl-5 2xl:pt-0"
               style={{ borderColor: 'var(--color-border)' }}
             >
               <div>
@@ -547,7 +547,7 @@ export default function EtlSaudePage() {
           isEmpty={resumoTabelasDados.length === 0}
           erro={erroResumoTabelas}
           altura={400}
-          className="xl:col-span-2"
+          className="2xl:col-span-2"
           sideContentLayoutClassName="grid h-full min-h-0 grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6"
           sideContentChartClassName="xl:col-span-2"
           sideContentAsideClassName="xl:col-span-1"

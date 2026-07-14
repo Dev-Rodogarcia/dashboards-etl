@@ -1,5 +1,4 @@
 import KpiCard from '../../shared/KpiCard';
-import KpiGrid from '../../shared/KpiGrid';
 import TooltipKpi from '../../shared/TooltipKpi';
 import { KpiDictionary, type KpiDefinition } from '../../../constants/kpiDictionary';
 import type { EtlSaudeOverview } from '../../../types/etlSaude';
@@ -16,6 +15,7 @@ interface EtlSaudeKpiCard {
   label: string;
   valor: string;
   valorClassName?: string;
+  className?: string;
 }
 
 const KPI_VALOR_CLASS = 'text-2xl font-bold truncate';
@@ -74,13 +74,14 @@ export default function EtlSaudeKpiGrid({ overview }: EtlSaudeKpiGridProps) {
       label: 'Taxa Sucesso',
       valor: formatarPorcentagem(overview.taxaSucesso),
       valorClassName: valorClass(toneTaxaSucesso(overview.taxaSucesso)),
+      className: 'sm:col-span-2 lg:col-span-1',
     },
   ];
 
   return (
-    <KpiGrid count={5} singleRowDesktop>
+    <div className="mb-4 grid grid-cols-1 items-stretch gap-2 sm:grid-cols-2 lg:grid-cols-5">
       {cards.map((card) => (
-        <TooltipKpi key={card.label} definition={card.definition}>
+        <TooltipKpi key={card.label} definition={card.definition} className={card.className}>
           <KpiCard
             label={card.label}
             valor={card.valor}
@@ -88,6 +89,6 @@ export default function EtlSaudeKpiGrid({ overview }: EtlSaudeKpiGridProps) {
           />
         </TooltipKpi>
       ))}
-    </KpiGrid>
+    </div>
   );
 }
