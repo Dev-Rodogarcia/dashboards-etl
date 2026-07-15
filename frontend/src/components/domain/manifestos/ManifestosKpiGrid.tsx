@@ -43,7 +43,7 @@ export default function ManifestosKpiGrid({ kpis, isLoading }: ManifestosKpiGrid
     : [];
 
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-12">
       {isLoading
         ? Array.from({ length: 10 }, (_, index) => <KpiSkeleton key={index} />)
         : cards.map((card) => {

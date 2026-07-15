@@ -464,7 +464,7 @@ function buildAgingOption(dados: PerformanceAgingPoint[], isDark: boolean): ECha
 function PerformanceKpiSkeleton() {
   return (
     <div
-      className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6"
+      className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6 2xl:grid-cols-12"
       aria-hidden="true"
     >
       {Array.from({ length: 9 }).map((_, index) => (
@@ -1073,7 +1073,7 @@ export default function PerformancePage() {
         <PerformanceKpiSkeleton />
       ) : (
         <div
-          className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6"
+          className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6 2xl:grid-cols-12"
         >
           {kpis.map((kpi) => (
             <div key={kpi.label} className={`min-w-0 ${kpiGridSpan(kpi.label)}`}>
