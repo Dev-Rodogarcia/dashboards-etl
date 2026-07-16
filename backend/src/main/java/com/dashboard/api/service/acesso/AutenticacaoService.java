@@ -84,6 +84,18 @@ public class AutenticacaoService {
 
     @Transactional
     public LoginResponseDTO autenticar(String email, String senha) {
+        UsuarioEntity usuario = autenticarCredenciais(email, senha);
+        if (usuario.isExigeTrocaSenha()) {
+            registrarTrocaSenhaObrigatoriaIniciada(usuario);
+            throw new CredencialInvalidaException("É necessário definir uma nova senha antes de acessar a plataforma.");
+        }
+
+        registrarLoginRealizado(usuario);
+        return gerarSessaoParaUsuario(usuario);
+    }
+
+    @Transactional
+    public UsuarioEntity autenticarCredenciais(String email, String senha) {
         UsuarioEntity usuario = usuarioRepository.findByEmailIgnoreCase(email.trim()).orElse(null);
 
         if (usuario == null || !usuario.isAtivo()) {
@@ -129,9 +141,31 @@ public class AutenticacaoService {
             usuario.setAlgoritmoHash(senhaRehash.algoritmo());
         }
         usuarioRepository.save(usuario);
+        return usuario;
+    }
 
-        auditService.registrar(AcaoAudit.LOGIN, usuario.getId(), usuario.getLogin(), "auth", null);
-        return gerarSessaoParaUsuario(usuario);
+    @Transactional
+    public UsuarioEntity concluirTrocaSenhaObrigatoria(String email, String senhaTemporaria, String novaSenha) {
+        UsuarioEntity usuario = autenticarCredenciais(email, senhaTemporaria);
+        if (!usuario.isExigeTrocaSenha()) {
+            throw new CredencialInvalidaException("Usuário ou senha inválidos.");
+        }
+
+        if (Objects.equals(senhaTemporaria, novaSenha)) {
+            throw new IllegalArgumentException("A nova senha deve ser diferente da senha temporária.");
+        }
+
+        politicaSenhaService.validar(novaSenha);
+        PasswordHashService.PasswordHash senhaHash = passwordHashService.gerarHashSeguro(novaSenha);
+        usuario.setSenhaHash(senhaHash.valor());
+        usuario.setAlgoritmoHash(senhaHash.algoritmo());
+        usuario.setSenhaAlteradaEm(Instant.now());
+        usuario.setExigeTrocaSenha(false);
+        usuarioRepository.save(usuario);
+        refreshTokenService.revogarTodosDoUsuario(Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório."));
+
+        auditService.registrar(AcaoAudit.SENHA_ALTERADA, usuario.getId(), usuario.getLogin(), "auth", "{\"origem\":\"troca_obrigatoria\"}");
+        return usuario;
     }
 
     @Transactional
@@ -163,7 +197,7 @@ public class AutenticacaoService {
     @Transactional(readOnly = true)
     public List<SimpleGrantedAuthority> authoritiesFor(String email) {
         UsuarioEntity usuario = usuarioRepository.findByEmailIgnoreCase(email).orElse(null);
-        if (usuario == null || !usuario.isAtivo()) {
+        if (usuario == null || !usuario.isAtivo() || usuario.isExigeTrocaSenha()) {
             return List.of();
         }
 
@@ -199,21 +233,47 @@ public class AutenticacaoService {
 
     @Transactional(readOnly = true)
     public LoginResponseDTO gerarSessaoParaUsuario(UsuarioEntity usuario) {
-        return gerarSessaoParaUsuario(usuario, null);
+        return gerarSessaoParaUsuarioAtual(usuario.getEmail(), null);
     }
 
     @Transactional(readOnly = true)
     public LoginResponseDTO gerarSessaoParaUsuario(String email, Instant sessaoExpiraEm) {
-        return gerarSessaoParaUsuario(carregarUsuarioAtivoPorEmail(email), sessaoExpiraEm);
+        return gerarSessaoParaUsuarioAtual(email, sessaoExpiraEm);
     }
 
     @Transactional(readOnly = true)
     public LoginResponseDTO gerarSessaoParaUsuario(UsuarioEntity usuario, Instant sessaoExpiraEm) {
+        return gerarSessaoParaUsuarioAtual(usuario.getEmail(), sessaoExpiraEm);
+    }
+
+    private LoginResponseDTO gerarSessaoParaUsuarioAtual(String email, Instant sessaoExpiraEm) {
+        return gerarSessaoParaUsuarioCarregado(carregarUsuarioAtivoPorEmail(email), sessaoExpiraEm);
+    }
+
+    private LoginResponseDTO gerarSessaoParaUsuarioCarregado(UsuarioEntity usuario, Instant sessaoExpiraEm) {
+        if (usuario.isExigeTrocaSenha()) {
+            throw new CredencialInvalidaException("É necessário definir uma nova senha antes de acessar a plataforma.");
+        }
+
         return new LoginResponseDTO(
                 mapearSessao(usuario),
                 gerenciadorToken.gerarToken(usuario.getEmail()),
                 usuario.isExigeTrocaSenha(),
                 sessaoExpiraEm
+        );
+    }
+
+    public void registrarLoginRealizado(UsuarioEntity usuario) {
+        auditService.registrar(AcaoAudit.LOGIN, usuario.getId(), usuario.getLogin(), "auth", null);
+    }
+
+    public void registrarTrocaSenhaObrigatoriaIniciada(UsuarioEntity usuario) {
+        auditService.registrar(
+                AcaoAudit.TROCA_SENHA_OBRIGATORIA_INICIADA,
+                usuario.getId(),
+                usuario.getLogin(),
+                "auth",
+                null
         );
     }
 

@@ -4,6 +4,7 @@ import type {
   AlterarSenhaRequest,
   LoginRequest,
   LoginResponse,
+  NovaSenhaObrigatoriaRequest,
   UsuarioSessao,
 } from '../../types/auth';
 
@@ -31,4 +32,13 @@ export async function logoutUsuario(): Promise<void> {
 
 export async function alterarSenha(payload: AlterarSenhaRequest): Promise<void> {
   await clienteAxios.post('/api/auth/alterar-senha', payload, AUTH_REQUEST_CONFIG);
+}
+
+export async function concluirTrocaSenhaObrigatoria(payload: NovaSenhaObrigatoriaRequest): Promise<LoginResponse> {
+  const { data } = await clienteAxios.post<LoginResponse>(
+    '/api/auth/nova-senha-obrigatoria',
+    payload,
+    AUTH_REQUEST_CONFIG,
+  );
+  return data;
 }

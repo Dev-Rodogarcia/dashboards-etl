@@ -11,8 +11,9 @@ import {
   criarUsuario,
   excluirSetor,
   excluirUsuario,
+  redefinirSenhaUsuario,
 } from '../../api/endpoints/adminAcessoServico';
-import type { SetorPayload, UsuarioPayload } from '../../types/access';
+import type { RedefinirSenhaUsuarioPayload, SetorPayload, UsuarioPayload } from '../../types/access';
 
 const ADMIN_USUARIOS_QUERY_KEY = ['admin', 'acesso', 'usuarios'] as const;
 const ADMIN_USUARIOS_RESUMO_QUERY_KEY = ['admin', 'acesso', 'usuarios', 'resumo-sessoes'] as const;
@@ -115,6 +116,17 @@ export function useExcluirUsuario() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => excluirUsuario(id),
+    onSuccess: () => {
+      invalidateUsuariosAdmin(queryClient);
+    },
+  });
+}
+
+export function useRedefinirSenhaUsuario() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: RedefinirSenhaUsuarioPayload }) =>
+      redefinirSenhaUsuario(id, payload),
     onSuccess: () => {
       invalidateUsuariosAdmin(queryClient);
     },

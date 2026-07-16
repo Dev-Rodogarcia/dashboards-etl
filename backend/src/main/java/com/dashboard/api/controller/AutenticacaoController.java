@@ -3,6 +3,8 @@ package com.dashboard.api.controller;
 import com.dashboard.api.dto.acesso.AlterarSenhaRequestDTO;
 import com.dashboard.api.dto.LoginRequestDTO;
 import com.dashboard.api.dto.LoginResponseDTO;
+import com.dashboard.api.dto.NovaSenhaObrigatoriaRequestDTO;
+import com.dashboard.api.dto.PasswordResetRequiredResponseDTO;
 import com.dashboard.api.dto.SessaoUsuarioDTO;
 import com.dashboard.api.exception.CredencialInvalidaException;
 import com.dashboard.api.exception.RespostaErroPadrao;
@@ -70,11 +72,22 @@ public class AutenticacaoController {
         }
 
         try {
-            LoginResponseDTO resposta = autenticacaoService.autenticar(request.email(), request.senha());
-            var usuario = autenticacaoService.carregarUsuarioAtivoPorEmail(request.email());
+            var usuario = autenticacaoService.autenticarCredenciais(request.email(), request.senha());
+            if (usuario.isExigeTrocaSenha()) {
+                rateLimitService.limparTentativasLogin(ip, request.email());
+                autenticacaoService.registrarTrocaSenhaObrigatoriaIniciada(usuario);
+                log.info("Troca obrigatória de senha iniciada para usuario={}", usuario.getEmail());
+
+                return ResponseEntity.status(HttpStatus.PRECONDITION_REQUIRED)
+                        .header("Set-Cookie", limparRefreshCookie())
+                        .body(new PasswordResetRequiredResponseDTO(usuario.getId()));
+            }
+
+            LoginResponseDTO resposta = autenticacaoService.gerarSessaoParaUsuario(usuario);
             var refresh = refreshTokenService.emitir(usuario, ip, httpRequest.getHeader("User-Agent"));
 
             rateLimitService.limparTentativasLogin(ip, request.email());
+            autenticacaoService.registrarLoginRealizado(usuario);
             log.info("Login realizado com sucesso para usuario={} papel={} setor={}",
                     resposta.usuario().email(),
                     resposta.usuario().papel(),
@@ -97,17 +110,51 @@ public class AutenticacaoController {
                 return respostaLimiteExcedido(falha);
             }
 
-            String mensagem = ex.getMessage() == null || ex.getMessage().isBlank()
-                    ? "Usuario ou senha invalidos."
-                    : ex.getMessage();
+            return respostaCredencialInvalida(ex);
+        }
+    }
 
+    @PostMapping("/nova-senha-obrigatoria")
+    public ResponseEntity<?> novaSenhaObrigatoria(
+            @Valid @RequestBody NovaSenhaObrigatoriaRequestDTO request,
+            HttpServletRequest httpRequest
+    ) {
+        String ip = ipClienteResolver.resolver(httpRequest);
+        RateLimitService.RateLimitDecision decisao = rateLimitService.avaliarTentativaLogin(ip, request.email());
+        if (!decisao.permitido()) {
+            return respostaLimiteExcedido(decisao);
+        }
+
+        try {
+            var usuario = autenticacaoService.concluirTrocaSenhaObrigatoria(
+                    request.email(),
+                    request.senhaTemporaria(),
+                    request.novaSenha()
+            );
+            var refresh = refreshTokenService.emitir(usuario, ip, httpRequest.getHeader("User-Agent"));
+            LoginResponseDTO resposta = autenticacaoService.gerarSessaoParaUsuario(usuario, refresh.expiraEm());
+
+            rateLimitService.limparTentativasLogin(ip, request.email());
+            log.info("Troca obrigatória de senha concluída para usuario={}", usuario.getEmail());
+
+            return ResponseEntity.ok()
+                    .header("Set-Cookie", criarRefreshCookie(refresh.tokenPlano(), refresh.expiraEm()))
+                    .body(resposta);
+        } catch (CredencialInvalidaException ex) {
+            RateLimitService.RateLimitDecision falha = rateLimitService.consumirTentativaLogin(ip, request.email());
+            log.warn("Falha na troca obrigatória de senha para usuario={}", request.email());
+            if (!falha.permitido()) {
+                return respostaLimiteExcedido(falha);
+            }
+            return respostaCredencialInvalida(ex);
+        } catch (IllegalArgumentException ex) {
             RespostaErroPadrao erro = new RespostaErroPadrao(
                     LocalDateTime.now(),
-                    HttpStatus.UNAUTHORIZED.value(),
-                    "Unauthorized",
-                    mensagem
+                    HttpStatus.BAD_REQUEST.value(),
+                    "Bad Request",
+                    ex.getMessage()
             );
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(erro);
+            return ResponseEntity.badRequest().body(erro);
         }
     }
 
@@ -191,6 +238,20 @@ public class AutenticacaoController {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", String.valueOf(decisao.retryAfterSeconds()))
                 .body(erro);
+    }
+
+    private ResponseEntity<RespostaErroPadrao> respostaCredencialInvalida(CredencialInvalidaException ex) {
+        String mensagem = ex.getMessage() == null || ex.getMessage().isBlank()
+                ? "Usuario ou senha invalidos."
+                : ex.getMessage();
+
+        RespostaErroPadrao erro = new RespostaErroPadrao(
+                LocalDateTime.now(),
+                HttpStatus.UNAUTHORIZED.value(),
+                "Unauthorized",
+                mensagem
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(erro);
     }
 
     private static String normalizarSameSite(String valor, boolean secure) {

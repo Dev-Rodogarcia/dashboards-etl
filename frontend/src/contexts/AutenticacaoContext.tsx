@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import {
   alterarSenha as alterarSenhaServico,
   buscarSessaoAtual,
+  concluirTrocaSenhaObrigatoria,
   loginUsuario,
   logoutUsuario,
   restaurarSessao,
@@ -13,6 +14,7 @@ import type {
   IUsuarioSessao,
   LoginRequest,
   LoginResponse,
+  NovaSenhaObrigatoriaRequest,
 } from '../types/auth';
 import {
   deveTentarRestaurarSessao,
@@ -32,6 +34,7 @@ interface AutenticacaoContexto {
   carregandoSessao: boolean;
   login: (credenciais: LoginRequest) => Promise<LoginResponse>;
   alterarSenha: (payload: AlterarSenhaRequest) => Promise<void>;
+  concluirTrocaSenhaObrigatoria: (payload: NovaSenhaObrigatoriaRequest) => Promise<LoginResponse>;
   logout: () => Promise<void>;
 }
 
@@ -203,6 +206,14 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const concluirTrocaSenha = useCallback(async (payload: NovaSenhaObrigatoriaRequest): Promise<LoginResponse> => {
+    const data = await concluirTrocaSenhaObrigatoria(payload);
+    const sessao = salvarSessaoDoLogin(data);
+    setUsuario(sessao);
+    setCarregandoSessao(false);
+    return data;
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await logoutUsuario();
@@ -214,7 +225,14 @@ export function AutenticacaoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AutenticacaoContext.Provider value={{ usuario, carregandoSessao, login, alterarSenha, logout }}>
+    <AutenticacaoContext.Provider value={{
+      usuario,
+      carregandoSessao,
+      login,
+      alterarSenha,
+      concluirTrocaSenhaObrigatoria: concluirTrocaSenha,
+      logout,
+    }}>
       {children}
     </AutenticacaoContext.Provider>
   );

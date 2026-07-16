@@ -91,7 +91,12 @@ public class SegurancaWebConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
-                        .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                        .requestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/refresh",
+                                "/api/auth/logout",
+                                "/api/auth/nova-senha-obrigatoria"
+                        ).permitAll()
                         .requestMatchers("/actuator/health/liveness", "/actuator/health/readiness").permitAll()
                         .requestMatchers("/actuator/**").authenticated()
                         .requestMatchers("/api/interno/**").authenticated()

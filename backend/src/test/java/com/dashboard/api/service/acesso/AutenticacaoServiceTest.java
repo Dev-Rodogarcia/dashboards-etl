@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.Test;
@@ -125,6 +126,59 @@ class AutenticacaoServiceTest {
         assertThat(resposta.sessaoExpiraEm()).isNotNull();
     }
 
+    @Test
+    void gerarSessaoParaUsuarioComEntidadeDesanexadaDeveRecarregarSetor() {
+        UsuarioEntity usuarioDesanexado = new UsuarioEntity();
+        usuarioDesanexado.setId(10L);
+        usuarioDesanexado.setEmail("maria@empresa.com");
+
+        UsuarioEntity usuarioCarregado = criarUsuarioBase();
+        when(usuarioRepository.findByEmailIgnoreCase("maria@empresa.com")).thenReturn(Optional.of(usuarioCarregado));
+        permissaoResolverService.permissoes = Map.of("coletas", true);
+        permissaoResolverService.papel = PermissaoResolverService.PAPEL_USUARIO_COMUM;
+
+        var resposta = service.gerarSessaoParaUsuario(usuarioDesanexado);
+
+        verify(usuarioRepository).findByEmailIgnoreCase("maria@empresa.com");
+        assertThat(resposta.usuario().setor().nome()).isEqualTo("Logística");
+    }
+
+    @Test
+    void concluirTrocaObrigatoriaDeveGerarArgon2idELiberarUsuario() {
+        Argon2PasswordEncoder argon2 = Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
+        UsuarioEntity usuario = criarUsuarioBase();
+        String senhaTemporaria = senhaTemporariaTeste();
+        usuario.setSenhaHash(argon2.encode(senhaTemporaria));
+        usuario.setAlgoritmoHash(PasswordHashService.ALGORITMO_ARGON2ID);
+        usuario.setExigeTrocaSenha(true);
+
+        when(usuarioRepository.findByEmailIgnoreCase("maria@empresa.com")).thenReturn(Optional.of(usuario));
+        when(usuarioRepository.save(anyNonNull(UsuarioEntity.class))).thenReturn(usuario);
+
+        UsuarioEntity atualizado = service.concluirTrocaSenhaObrigatoria(
+                "maria@empresa.com",
+                senhaTemporaria,
+                "NovaSenha@2026"
+        );
+
+        assertThat(atualizado.isExigeTrocaSenha()).isFalse();
+        assertThat(atualizado.getAlgoritmoHash()).isEqualTo(PasswordHashService.ALGORITMO_ARGON2ID);
+        assertThat(argon2.matches("NovaSenha@2026", atualizado.getSenhaHash())).isTrue();
+        verify(refreshTokenSessionRepository).findAllByUsuarioIdAndRevogadoEmIsNull(10L);
+    }
+
+    @Test
+    void usuarioComTrocaObrigatoriaNaoRecebeAuthoritiesNemSessao() {
+        UsuarioEntity usuario = criarUsuarioBase();
+        usuario.setExigeTrocaSenha(true);
+        when(usuarioRepository.findByEmailIgnoreCase("maria@empresa.com")).thenReturn(Optional.of(usuario));
+
+        assertThat(service.authoritiesFor("maria@empresa.com")).isEmpty();
+        assertThatThrownBy(() -> service.gerarSessaoParaUsuario(usuario))
+                .isInstanceOf(CredencialInvalidaException.class)
+                .hasMessage("É necessário definir uma nova senha antes de acessar a plataforma.");
+    }
+
     private UsuarioEntity criarUsuarioBase() {
         SetorEntity setor = new SetorEntity();
         setor.setId(2L);
@@ -140,6 +194,10 @@ class AutenticacaoServiceTest {
         usuario.setSetor(setor);
         usuario.setExigeTrocaSenha(false);
         return usuario;
+    }
+
+    private String senhaTemporariaTeste() {
+        return "T3mp@" + UUID.randomUUID();
     }
 
     @NonNull

@@ -2,8 +2,7 @@ package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.LoginRequestDTO;
 import com.dashboard.api.dto.LoginResponseDTO;
-import com.dashboard.api.dto.SessaoUsuarioDTO;
-import com.dashboard.api.dto.SetorSessaoDTO;
+import com.dashboard.api.dto.PasswordResetRequiredResponseDTO;
 import com.dashboard.api.exception.CredencialInvalidaException;
 import com.dashboard.api.exception.RespostaErroPadrao;
 import com.dashboard.api.model.acesso.SetorEntity;
@@ -25,8 +24,8 @@ import com.dashboard.api.service.acesso.PasswordHashService;
 import com.dashboard.api.service.acesso.PermissaoResolverService;
 import com.dashboard.api.service.acesso.PoliticaSenhaService;
 import com.dashboard.api.service.acesso.RefreshTokenService;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +35,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AutenticacaoControllerTest {
 
@@ -118,6 +118,28 @@ class AutenticacaoControllerTest {
     }
 
     @Test
+    void loginComTrocaObrigatoriaNaoEmiteSessao() {
+        AutenticacaoController controller = new AutenticacaoController(
+                new StubAutenticacaoServiceTrocaObrigatoria(),
+                new RateLimitService(10, 900, 120, 60, 12, 60),
+                new RefreshTokenService(mock(RefreshTokenSessionRepository.class), 24),
+                new IpClienteResolver(false),
+                "dashboard_refresh_token",
+                false,
+                "Lax"
+        );
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
+        request.setRemoteAddr("127.0.0.1");
+
+        ResponseEntity<?> response = controller.login(new LoginRequestDTO("admin@empresa.com", "senha"), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PRECONDITION_REQUIRED);
+        assertThat(response.getHeaders().getFirst("Set-Cookie")).contains("Max-Age=0");
+        assertThat(response.getBody()).isEqualTo(new PasswordResetRequiredResponseDTO("PASSWORD_RESET_REQUIRED", "1"));
+    }
+
+    @Test
     void configuracaoCrossSiteSemSecureFalhaNoStartup() {
         assertThatThrownBy(() -> new AutenticacaoController(
                 new StubAutenticacaoServiceSucesso(),
@@ -150,18 +172,22 @@ class AutenticacaoControllerTest {
         }
 
         @Override
-        public com.dashboard.api.dto.LoginResponseDTO autenticar(String email, String senha) {
+        public UsuarioEntity autenticarCredenciais(String email, String senha) {
             throw new CredencialInvalidaException("Conta temporariamente bloqueada. Tente novamente mais tarde.");
         }
     }
 
-    private static final class StubAutenticacaoServiceSucesso extends AutenticacaoService {
+    private static class StubAutenticacaoServiceSucesso extends AutenticacaoService {
 
-        private final UsuarioEntity usuario = criarUsuario();
+        protected final UsuarioEntity usuario = criarUsuario();
 
-        private StubAutenticacaoServiceSucesso() {
+        protected StubAutenticacaoServiceSucesso() {
+            this(mock(UsuarioRepository.class));
+        }
+
+        private StubAutenticacaoServiceSucesso(UsuarioRepository usuarioRepository) {
             super(
-                    mock(UsuarioRepository.class),
+                    usuarioRepository,
                     new PasswordHashService(
                             Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8(),
                             new BCryptPasswordEncoder()
@@ -172,29 +198,11 @@ class AutenticacaoControllerTest {
                     new PoliticaSenhaService(),
                     new RefreshTokenService(mock(RefreshTokenSessionRepository.class), 24)
             );
+            when(usuarioRepository.findByEmailIgnoreCase(usuario.getEmail())).thenReturn(java.util.Optional.of(usuario));
         }
 
         @Override
-        public LoginResponseDTO autenticar(String email, String senha) {
-            return new LoginResponseDTO(
-                    new SessaoUsuarioDTO(
-                            "1",
-                            "Admin",
-                            email,
-                            "admin_plataforma",
-                            new SetorSessaoDTO("1", "Administração"),
-                            Map.of("coletas", true),
-                            java.util.List.of(),
-                            false
-                    ),
-                    "jwt",
-                    false,
-                    null
-            );
-        }
-
-        @Override
-        public UsuarioEntity carregarUsuarioAtivoPorEmail(String email) {
+        public UsuarioEntity autenticarCredenciais(String email, String senha) {
             return usuario;
         }
 
@@ -211,6 +219,14 @@ class AutenticacaoControllerTest {
             usuario.setSetor(setor);
             usuario.setAtivo(true);
             return usuario;
+        }
+    }
+
+    private static final class StubAutenticacaoServiceTrocaObrigatoria extends StubAutenticacaoServiceSucesso {
+
+        private StubAutenticacaoServiceTrocaObrigatoria() {
+            super();
+            usuario.setExigeTrocaSenha(true);
         }
     }
 

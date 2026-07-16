@@ -61,7 +61,7 @@ public class RefreshTokenService {
         RefreshTokenSession atual = buscarSessaoParaRotacao(tokenPlano, ipAddress, userAgent);
         UsuarioEntity usuario = atual.getUsuario();
 
-        if (!usuario.isAtivo()) {
+        if (!usuario.isAtivo() || usuario.isExigeTrocaSenha()) {
             revogarTodosDoUsuario(Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório."));
             throw new CredencialInvalidaException("Sessão expirada.");
         }

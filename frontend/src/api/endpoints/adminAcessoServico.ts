@@ -7,6 +7,7 @@ import type {
   UsuarioAdmin,
   UsuarioOnlineResumo,
   UsuarioPayload,
+  RedefinirSenhaUsuarioPayload,
   UsuariosSessaoResumo,
 } from '../../types/access';
 
@@ -156,4 +157,11 @@ export async function atualizarUsuario(id: string, payload: UsuarioPayload): Pro
 
 export async function excluirUsuario(id: string): Promise<void> {
   await clienteAxios.delete(`/api/admin/acesso/usuarios/${id}`);
+}
+
+export async function redefinirSenhaUsuario(
+  id: string,
+  payload: RedefinirSenhaUsuarioPayload,
+): Promise<void> {
+  await clienteAxios.post(`/api/usuarios/${id}/reset-senha`, payload);
 }

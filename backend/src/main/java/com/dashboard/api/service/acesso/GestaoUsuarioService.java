@@ -266,6 +266,29 @@ public class GestaoUsuarioService {
         auditService.registrar(AcaoAudit.USUARIO_DESATIVADO, usuarioIdNonNull, usuario.getLogin(), "usuario", null);
     }
 
+    @Transactional
+    public void redefinirSenhaPorAdmin(Long usuarioId, String senhaTemporaria) {
+        Long usuarioIdNonNull = Objects.requireNonNull(usuarioId, "usuarioId é obrigatório.");
+        politicaSenhaService.validar(senhaTemporaria);
+        UsuarioEntity usuario = usuarioRepository.findById(usuarioIdNonNull)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
+
+        validarImutabilidadeUsuarioSupremo(usuario);
+        validarGovernancaDePapel(usuario, permissaoResolver.papel(usuarioIdNonNull));
+
+        PasswordHashService.PasswordHash senhaHash = passwordHashService.gerarHashSeguro(senhaTemporaria);
+        usuario.setSenhaHash(senhaHash.valor());
+        usuario.setAlgoritmoHash(senhaHash.algoritmo());
+        usuario.setSenhaAlteradaEm(Instant.now());
+        usuario.setExigeTrocaSenha(true);
+        usuario.setTentativasFalha(0);
+        usuario.setBloqueadoAte(null);
+        usuarioRepository.save(usuario);
+        refreshTokenService.revogarTodosDoUsuario(usuarioIdNonNull);
+
+        auditService.registrar(AcaoAudit.SENHA_REDEFINIDA_ADMIN, usuarioIdNonNull, usuario.getLogin(), "usuario", null);
+    }
+
     @Transactional(readOnly = true)
     public List<PapelDTO> listarPapeisDisponiveis() {
         UsuarioEntity operador = usuarioAutenticado();

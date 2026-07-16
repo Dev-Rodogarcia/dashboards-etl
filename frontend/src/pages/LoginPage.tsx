@@ -1,11 +1,27 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import { AxiosError } from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { BarChart3, Eye, EyeOff, Loader2, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { useAutenticacao } from '../contexts/AutenticacaoContext';
 import { firstAccessibleRoute } from '../utils/accessControl';
 import { getApiErrorMessage } from '../utils/apiError';
+import { getPasswordPolicyErrors, PASSWORD_POLICY_HINT } from '../utils/passwordPolicy';
+
+interface TrocaSenhaObrigatoriaPendente {
+  email: string;
+  senhaTemporaria: string;
+}
+
+function isPasswordResetRequiredError(error: unknown): boolean {
+  if (!(error instanceof AxiosError) || error.response?.status !== 428) {
+    return false;
+  }
+
+  const data = error.response.data as { status?: unknown } | undefined;
+  return data?.status === 'PASSWORD_RESET_REQUIRED';
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,7 +29,15 @@ export default function LoginPage() {
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const { usuario: sessao, carregandoSessao, login } = useAutenticacao();
+  const [trocaObrigatoria, setTrocaObrigatoria] = useState<TrocaSenhaObrigatoriaPendente | null>(null);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmacaoNovaSenha, setConfirmacaoNovaSenha] = useState('');
+  const {
+    usuario: sessao,
+    carregandoSessao,
+    concluirTrocaSenhaObrigatoria,
+    login,
+  } = useAutenticacao();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
 
@@ -25,7 +49,7 @@ export default function LoginPage() {
     }
   }, [carregandoSessao, navigate, sessao]);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleLogin(e: FormEvent) {
     e.preventDefault();
     setErro('');
     setCarregando(true);
@@ -38,7 +62,51 @@ export default function LoginPage() {
         exigeTrocaSenha: resposta.exigeTrocaSenha ?? resposta.usuario.exigeTrocaSenha,
       }), { replace: true });
     } catch (error) {
+      if (isPasswordResetRequiredError(error)) {
+        setTrocaObrigatoria({ email: email.trim(), senhaTemporaria: senha });
+        setErro('');
+        return;
+      }
       setErro(getApiErrorMessage(error, 'Usuário ou senha inválidos.'));
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function handleNovaSenhaObrigatoria(e: FormEvent) {
+    e.preventDefault();
+    if (!trocaObrigatoria) return;
+
+    setErro('');
+    if (novaSenha !== confirmacaoNovaSenha) {
+      setErro('A confirmação da nova senha não confere.');
+      return;
+    }
+
+    const passwordErrors = getPasswordPolicyErrors(novaSenha);
+    if (passwordErrors.length > 0) {
+      setErro(passwordErrors[0]);
+      return;
+    }
+
+    setCarregando(true);
+    try {
+      const resposta = await concluirTrocaSenhaObrigatoria({
+        email: trocaObrigatoria.email,
+        senhaTemporaria: trocaObrigatoria.senhaTemporaria,
+        novaSenha,
+      });
+      setSenha('');
+      setNovaSenha('');
+      setConfirmacaoNovaSenha('');
+      setTrocaObrigatoria(null);
+      navigate(firstAccessibleRoute({
+        papel: resposta.usuario.papel,
+        permissoesEfetivas: resposta.usuario.permissoesEfetivas,
+        exigeTrocaSenha: false,
+      }), { replace: true });
+    } catch (error) {
+      setErro(getApiErrorMessage(error, 'Não foi possível definir a nova senha.'));
     } finally {
       setCarregando(false);
     }
@@ -81,17 +149,19 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center px-4 py-6">
         <div className="flex w-full max-w-[780px] flex-col items-stretch gap-5 md:flex-row">
           <form
-            onSubmit={handleSubmit}
+            onSubmit={trocaObrigatoria ? handleNovaSenhaObrigatoria : handleLogin}
             className="flex flex-1 flex-col gap-5 rounded-[24px] border p-7 shadow-sm transition-all duration-300 hover:shadow-md"
             style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
           >
             <div className="flex flex-col gap-2">
               <div className="space-y-1">
                 <h1 className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>
-                  Acesso à Plataforma
+                  {trocaObrigatoria ? 'Defina sua nova senha' : 'Acesso à Plataforma'}
                 </h1>
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                  Insira suas credenciais corporativas para entrar na sua conta
+                  {trocaObrigatoria
+                    ? 'A senha temporária foi validada. Crie uma senha privada para continuar.'
+                    : 'Insira suas credenciais corporativas para entrar na sua conta'}
                 </p>
               </div>
 
@@ -119,64 +189,116 @@ export default function LoginPage() {
               </div>
             )}
 
-            <div className="space-y-4">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>E-mail</span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu.email@empresa.com"
-                  className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-                  style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                  required
-                />
-              </label>
-
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>Senha</span>
-                <div className="relative w-full">
-                  <input
-                    type={mostrarSenha ? 'text' : 'password'}
-                    value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full rounded-xl border py-2.5 pl-3.5 pr-11 text-sm outline-none transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-                    style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                    required
-                  />
+            {trocaObrigatoria ? (
+              <>
+                <div className="space-y-4">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>Nova senha</span>
+                    <input
+                      type={mostrarSenha ? 'text' : 'password'}
+                      value={novaSenha}
+                      onChange={(e) => setNovaSenha(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                      style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                      minLength={12}
+                      required
+                    />
+                    <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>{PASSWORD_POLICY_HINT}</span>
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>Confirmar nova senha</span>
+                    <input
+                      type={mostrarSenha ? 'text' : 'password'}
+                      value={confirmacaoNovaSenha}
+                      onChange={(e) => setConfirmacaoNovaSenha(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                      style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                      minLength={12}
+                      required
+                    />
+                  </label>
                   <button
                     type="button"
                     onClick={() => setMostrarSenha((prev) => !prev)}
-                    title={mostrarSenha ? 'Ocultar senha' : 'Exibir senha'}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
-                    style={{ color: 'var(--color-text-muted)' }}
+                    className="text-left text-xs font-semibold transition-colors hover:underline"
+                    style={{ color: 'var(--color-primary)' }}
                   >
-                    {mostrarSenha ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {mostrarSenha ? 'Ocultar senhas' : 'Exibir senhas'}
                   </button>
                 </div>
-              </label>
-            </div>
+                <button
+                  type="submit"
+                  disabled={carregando}
+                  className="w-full cursor-pointer rounded-xl py-3 text-sm font-semibold shadow-sm transition-all duration-150 hover:shadow focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 active:scale-[0.98] disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--color-primary)', color: '#ffffff' }}
+                >
+                  {carregando ? 'Salvando nova senha...' : 'Salvar nova senha e entrar'}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>E-mail</span>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="seu.email@empresa.com"
+                      className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                      style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                      required
+                    />
+                  </label>
 
-            <button
-              type="submit"
-              disabled={carregando}
-              className="w-full cursor-pointer rounded-xl py-3 text-sm font-semibold shadow-sm transition-all duration-150 hover:shadow focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 active:scale-[0.98] disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-primary)', color: '#ffffff' }}
-            >
-              {carregando ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Entrando...</span>
-                </span>
-              ) : (
-                <span>Acessar plataforma</span>
-              )}
-            </button>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>Senha</span>
+                    <div className="relative w-full">
+                      <input
+                        type={mostrarSenha ? 'text' : 'password'}
+                        value={senha}
+                        onChange={(e) => setSenha(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full rounded-xl border py-2.5 pl-3.5 pr-11 text-sm outline-none transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                        style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMostrarSenha((prev) => !prev)}
+                        title={mostrarSenha ? 'Ocultar senha' : 'Exibir senha'}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                        style={{ color: 'var(--color-text-muted)' }}
+                      >
+                        {mostrarSenha ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={carregando}
+                  className="w-full cursor-pointer rounded-xl py-3 text-sm font-semibold shadow-sm transition-all duration-150 hover:shadow focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 active:scale-[0.98] disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--color-primary)', color: '#ffffff' }}
+                >
+                  {carregando ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Entrando...</span>
+                    </span>
+                  ) : (
+                    <span>Acessar plataforma</span>
+                  )}
+                </button>
+              </>
+            )}
 
             {carregando && (
               <p className="text-center text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                Preparando painel e validando credenciais...
+                {trocaObrigatoria ? 'Protegendo sua nova senha...' : 'Preparando painel e validando credenciais...'}
               </p>
             )}
 

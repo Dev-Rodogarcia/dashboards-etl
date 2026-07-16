@@ -10,6 +10,17 @@ export interface AlterarSenhaRequest {
   novaSenha: string;
 }
 
+export interface NovaSenhaObrigatoriaRequest {
+  email: string;
+  senhaTemporaria: string;
+  novaSenha: string;
+}
+
+export interface PasswordResetRequiredResponse {
+  status: 'PASSWORD_RESET_REQUIRED';
+  userId: string;
+}
+
 export interface SetorSessao {
   id: string;
   nome: string;

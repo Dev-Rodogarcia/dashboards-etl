@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +40,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.clearInvocations;
@@ -382,6 +384,45 @@ class GestaoUsuarioServiceTest {
     }
 
     @Test
+    void redefinirSenhaPorAdminDeveUsarArgon2EExigirTrocaNoProximoLogin() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("admin@empresa.com", null, List.of())
+        );
+        UsuarioEntity operador = new UsuarioEntity();
+        operador.setId(99L);
+        operador.setEmail("admin@empresa.com");
+        operador.setAtivo(true);
+
+        UsuarioEntity alvo = new UsuarioEntity();
+        alvo.setId(2L);
+        alvo.setEmail("teste@empresa.com");
+        alvo.setLogin("teste@empresa.com");
+        alvo.setAtivo(true);
+
+        PapelEntity papelOperador = criarPapel(PermissaoResolverService.PAPEL_ADMIN_PLATAFORMA, 100);
+        PapelEntity papelAlvo = criarPapel(PermissaoResolverService.PAPEL_USUARIO_COMUM, 10);
+        Argon2PasswordEncoder argon2 = Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
+        String senhaTemporaria = senhaTemporariaTeste();
+
+        when(usuarioRepository.findByEmailIgnoreCase("admin@empresa.com")).thenReturn(Optional.of(operador));
+        when(usuarioRepository.findById(alvo.getId())).thenReturn(Optional.of(alvo));
+        when(papelVinculoRepository.findAllByUsuarioId(operador.getId())).thenReturn(List.of(criarVinculo(papelOperador)));
+        when(papelVinculoRepository.findAllByUsuarioId(alvo.getId())).thenReturn(List.of(criarVinculo(papelAlvo)));
+        when(papelRepository.findByNome(PermissaoResolverService.PAPEL_USUARIO_COMUM))
+                .thenReturn(Optional.of(papelAlvo));
+        when(usuarioRepository.save(alvo)).thenReturn(alvo);
+
+        service.redefinirSenhaPorAdmin(alvo.getId(), senhaTemporaria);
+
+        assertTrue(alvo.isExigeTrocaSenha());
+        assertEquals(PasswordHashService.ALGORITMO_ARGON2ID, alvo.getAlgoritmoHash());
+        assertTrue(argon2.matches(senhaTemporaria, alvo.getSenhaHash()));
+        assertEquals(0, alvo.getTentativasFalha());
+        assertNull(alvo.getBloqueadoAte());
+        verify(refreshTokenSessionRepository).findAllByUsuarioIdAndRevogadoEmIsNull(alvo.getId());
+    }
+
+    @Test
     void resumoSessoesUsuariosIncluiDetalhesDosUsuariosOnline() {
         when(usuarioRepository.calcularResumoSessoes()).thenReturn(new UsuarioRepository.UsuarioSessaoResumoProjection() {
             @Override
@@ -513,6 +554,10 @@ class GestaoUsuarioServiceTest {
     private boolean foiChamado(Object mock, String nomeMetodo) {
         return mockingDetails(mock).getInvocations().stream()
                 .anyMatch(invocacao -> nomeMetodo.equals(invocacao.getMethod().getName()));
+    }
+
+    private String senhaTemporariaTeste() {
+        return "T3mp@" + UUID.randomUUID();
     }
 
     private <T> T argumentoSalvo(Object mock, Class<T> tipoEsperado) {

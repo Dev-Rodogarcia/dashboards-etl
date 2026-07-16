@@ -92,6 +92,10 @@ export interface UsuarioPayload {
   ativo: boolean;
 }
 
+export interface RedefinirSenhaUsuarioPayload {
+  senhaTemporaria: string;
+}
+
 export interface PapelAdmin {
   id: number;
   nome: string;

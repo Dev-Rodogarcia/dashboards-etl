@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import type { FocusEvent, FormEvent, ReactNode } from 'react';
-import { Eye, MoreHorizontal, Pencil, Upload, UserX } from 'lucide-react';
+import { Eye, KeyRound, MoreHorizontal, Pencil, Upload, UserX } from 'lucide-react';
 import FiliaisPermitidasSplitSelect from '../components/admin/FiliaisPermitidasSplitSelect';
 import PermissionOverrideMatrix from '../components/admin/PermissionOverrideMatrix';
 import UsuariosImportacaoModal from '../components/admin/UsuariosImportacaoModal';
@@ -12,6 +12,7 @@ import {
   useCriarUsuario,
   useExcluirUsuario,
   usePapeisAdmin,
+  useRedefinirSenhaUsuario,
   useResumoSessoesUsuariosAdmin,
   useSetoresAdmin,
   useUsuariosAdmin,
@@ -636,10 +637,16 @@ export default function AdminUsuariosPage() {
   const criarUsuario = useCriarUsuario();
   const atualizarUsuario = useAtualizarUsuario();
   const excluirUsuario = useExcluirUsuario();
+  const redefinirSenhaUsuario = useRedefinirSenhaUsuario();
 
   const [editing, setEditing] = useState<UsuarioAdmin | null>(null);
   const [form, setForm] = useState<UsuarioPayload>(FORM_INICIAL);
   const [erro, setErro] = useState('');
+  const [sucesso, setSucesso] = useState('');
+  const [usuarioParaRedefinirSenha, setUsuarioParaRedefinirSenha] = useState<UsuarioAdmin | null>(null);
+  const [senhaTemporaria, setSenhaTemporaria] = useState('');
+  const [confirmacaoSenhaTemporaria, setConfirmacaoSenhaTemporaria] = useState('');
+  const [erroRedefinicaoSenha, setErroRedefinicaoSenha] = useState('');
   const [overrideState, setOverrideState] = useState<PermissionOverrideStateMap>(createEmptyPermissionOverrideState());
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const isMobileUsersTable = useIsMobileUsersTable();
@@ -671,6 +678,13 @@ export default function AdminUsuariosPage() {
 
     return setorSelecionado?.filiaisPermitidas ?? [];
   }, [escopoComAcessoTotal, form.escopoFiliaisTipo, form.filiaisPermitidasUsuario, setorSelecionado?.filiaisPermitidas]);
+
+  useEffect(() => {
+    if (!sucesso) return undefined;
+
+    const timeoutId = window.setTimeout(() => setSucesso(''), 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [sucesso]);
 
   usePageHeader({
     title: 'Gestão de usuários',
@@ -749,6 +763,7 @@ export default function AdminUsuariosPage() {
     setEditing(null);
     setForm(FORM_INICIAL);
     setErro('');
+    setSucesso('');
     setOverrideState(createEmptyPermissionOverrideState());
   }
 
@@ -821,6 +836,52 @@ export default function AdminUsuariosPage() {
     }
   }
 
+  function abrirRedefinicaoSenha(usuario: UsuarioAdmin) {
+    setUsuarioParaRedefinirSenha(usuario);
+    setSenhaTemporaria('');
+    setConfirmacaoSenhaTemporaria('');
+    setErroRedefinicaoSenha('');
+  }
+
+  function fecharRedefinicaoSenha() {
+    if (redefinirSenhaUsuario.isPending) return;
+
+    setUsuarioParaRedefinirSenha(null);
+    setSenhaTemporaria('');
+    setConfirmacaoSenhaTemporaria('');
+    setErroRedefinicaoSenha('');
+  }
+
+  async function handleRedefinirSenha(event: FormEvent) {
+    event.preventDefault();
+    if (!usuarioParaRedefinirSenha) return;
+
+    setErroRedefinicaoSenha('');
+    if (senhaTemporaria !== confirmacaoSenhaTemporaria) {
+      setErroRedefinicaoSenha('A confirmação da senha temporária não confere.');
+      return;
+    }
+
+    const passwordErrors = getPasswordPolicyErrors(senhaTemporaria);
+    if (passwordErrors.length > 0) {
+      setErroRedefinicaoSenha(passwordErrors[0]);
+      return;
+    }
+
+    setErro('');
+    setSucesso('');
+    try {
+      await redefinirSenhaUsuario.mutateAsync({
+        id: usuarioParaRedefinirSenha.id,
+        payload: { senhaTemporaria },
+      });
+      setSucesso('Senha redefinida. Informe a senha temporária ao usuário por um canal seguro.');
+      fecharRedefinicaoSenha();
+    } catch (error) {
+      setErroRedefinicaoSenha(getApiErrorMessage(error));
+    }
+  }
+
   async function handleTogglePermissaoRapida(usuario: UsuarioAdmin, permissoes: PermissionKey | PermissionKey[], permitir: boolean) {
     const negadas = new Set(usuario.permissoesNegadas);
     const concedidas = new Set(usuario.permissoesConcedidas);
@@ -855,6 +916,7 @@ export default function AdminUsuariosPage() {
   const salvando =
     criarUsuario.isPending
     || atualizarUsuario.isPending
+    || redefinirSenhaUsuario.isPending
     || papeis.isLoading
     || setores.isLoading
     || (form.escopoFiliaisTipo === 'SELECIONADAS' && filiais.isLoading);
@@ -864,7 +926,7 @@ export default function AdminUsuariosPage() {
     const bloqueado = usuarioSupremo || (!podeOperarPapelElevado && row.papel !== 'usuario_comum');
     const podeGerenciarMetas = Boolean(row.permissoesEfetivas.can_manage_kpi_goals);
     const podeGerenciarComunicacoes = Boolean(row.permissoesEfetivas.can_manage_communications || row.permissoesEfetivas.homeComunicados);
-    const operacaoRapidaBloqueada = bloqueado || atualizarUsuario.isPending;
+    const operacaoRapidaBloqueada = bloqueado || atualizarUsuario.isPending || redefinirSenhaUsuario.isPending;
 
     return (
       <DropdownMenu>
@@ -895,6 +957,14 @@ export default function AdminUsuariosPage() {
           >
             <UserX size={14} />
             Inativar
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={bloqueado || redefinirSenhaUsuario.isPending}
+            onSelect={() => abrirRedefinicaoSenha(row)}
+            className="gap-2"
+          >
+            <KeyRound size={14} />
+            Redefinir senha
           </DropdownMenuItem>
           <DropdownMenuSeparator
             className="mx-2 my-1 h-px"
@@ -1010,6 +1080,103 @@ export default function AdminUsuariosPage() {
 
   return (
     <div className="space-y-5">
+      {sucesso && (
+        <div
+          role="status"
+          className="fixed right-4 top-4 z-50 rounded-xl border px-4 py-3 text-sm font-semibold shadow-lg"
+          style={{
+            backgroundColor: 'var(--color-positive-badge-bg)',
+            borderColor: 'var(--color-positive-border)',
+            color: 'var(--color-positive-badge-text)',
+          }}
+        >
+          {sucesso}
+        </div>
+      )}
+      {usuarioParaRedefinirSenha && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <form
+            onSubmit={handleRedefinirSenha}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="redefinir-senha-titulo"
+            className="w-full max-w-md space-y-5 rounded-2xl border p-6 shadow-xl"
+            style={SURFACE_STYLE}
+          >
+            <div className="space-y-1">
+              <h2 id="redefinir-senha-titulo" className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>
+                Redefinir senha
+              </h2>
+              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Defina a senha temporária para {usuarioParaRedefinirSenha.email}. Ela deverá ser informada ao usuário por um canal seguro.
+              </p>
+            </div>
+
+            {erroRedefinicaoSenha && (
+              <p
+                role="alert"
+                className="rounded-xl border px-3 py-2 text-sm"
+                style={{
+                  backgroundColor: 'var(--color-negative-badge-bg)',
+                  borderColor: 'var(--color-negative-border)',
+                  color: 'var(--color-negative-badge-text)',
+                }}
+              >
+                {erroRedefinicaoSenha}
+              </p>
+            )}
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>Senha temporária</span>
+              <input
+                type="password"
+                value={senhaTemporaria}
+                onChange={(event) => setSenhaTemporaria(event.target.value)}
+                autoComplete="new-password"
+                className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                style={FIELD_STYLE}
+                minLength={12}
+                required
+              />
+              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{PASSWORD_POLICY_HINT}</span>
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>Confirmar senha temporária</span>
+              <input
+                type="password"
+                value={confirmacaoSenhaTemporaria}
+                onChange={(event) => setConfirmacaoSenhaTemporaria(event.target.value)}
+                autoComplete="new-password"
+                className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                style={FIELD_STYLE}
+                minLength={12}
+                required
+              />
+            </label>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={fecharRedefinicaoSenha}
+                disabled={redefinirSenhaUsuario.isPending}
+                className={`rounded-xl border px-4 py-2.5 text-sm font-semibold ${FOCUS_RING_CLASS}`}
+                style={SECONDARY_BUTTON_STYLE}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={redefinirSenhaUsuario.isPending}
+                className={`rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 ${FOCUS_RING_CLASS}`}
+                style={{ backgroundColor: 'var(--color-primary)' }}
+              >
+                {redefinirSenhaUsuario.isPending ? 'Redefinindo...' : 'Redefinir senha'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       <section className="rounded-[20px] border p-4 shadow-sm sm:p-5" style={SURFACE_STYLE}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-4">
