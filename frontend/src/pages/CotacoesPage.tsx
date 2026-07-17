@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { Building2, ChevronDown, ChevronUp, Plus, Table2, UserRound, UsersRound } from 'lucide-react';
+import { Building2, ChevronDown, ChevronUp, Table2, UserRound, UsersRound } from 'lucide-react';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import CotacoesKpiGrid from '../components/domain/cotacoes/CotacoesKpiGrid';
 import CotacoesResumoVisualTable, { type CotacoesResumoVisualView } from '../components/domain/cotacoes/CotacoesResumoVisualTable';
-import EslCotacaoModal from '../components/domain/esl/EslCotacaoModal';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import AnalyticalDataTable, { type ColunaTabelaAnalitica } from '../components/shared/AnalyticalDataTable';
 import ChartCard from '../components/shared/ChartCard';
@@ -1034,7 +1033,6 @@ export default function CotacoesPage() {
   const [perdaDrillLevel, setPerdaDrillLevel] = useState<PerdaDrillLevel>('motivo');
   const [selectedTrecho, setSelectedTrecho] = useState<string | null>(null);
   const [selectedPerda, setSelectedPerda] = useState<string | null>(null);
-  const [isEslCotacaoPanelOpen, setIsEslCotacaoPanelOpen] = useState(false);
   const filiais = useFiliais();
   const clientes = useClientes();
 
@@ -1061,7 +1059,6 @@ export default function CotacoesPage() {
     filtros.statusConversao,
     filtros.usuarios,
   ]);
-  const filialEslSelecionada = filtros.filiais?.length === 1 ? filtros.filiais[0] : null;
 
   const conversionFiltro: CotacoesFiltro = useMemo(() => ({
     dataInicio: primeiroDiaMesesAtrasLocal(conversionPeriodoMeses - 1),
@@ -1201,22 +1198,7 @@ export default function CotacoesPage() {
         activeFilters={activeFilters}
         dataInicio={dataInicio}
         dataFim={dataFim}
-        actions={(
-          <>
-            <button
-              type="button"
-              onClick={() => setIsEslCotacaoPanelOpen((current) => !current)}
-              aria-expanded={isEslCotacaoPanelOpen}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-150 hover:bg-[var(--color-bg)] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-              style={{ color: 'var(--color-text)' }}
-            >
-              <Plus size={14} aria-hidden="true" />
-              Nova Cotação ESL
-              <ChevronDown className={isEslCotacaoPanelOpen ? 'rotate-180 transition-transform' : 'transition-transform'} size={13} aria-hidden="true" />
-            </button>
-            <CotacoesViewTabs activeView={activeView} onChange={setActiveView} />
-          </>
-        )}
+        actions={<CotacoesViewTabs activeView={activeView} onChange={setActiveView} />}
       >
         <DateRangePicker dataInicio={dataInicio} dataFim={dataFim} onDataInicioChange={setDataInicio} onDataFimChange={setDataFim} onRangeChange={setDataRange} />
         <FiliaisParceirosFilter
@@ -1234,8 +1216,6 @@ export default function CotacoesPage() {
         <AsyncMultiSelect label="Cidade Destino" opcoes={destinosCotacoes.data ?? []} selecionados={filtros.destinos ?? []} onChange={(valores) => setFiltro('destinos', valores)} isLoading={destinosCotacoes.isLoading} />
         <AsyncMultiSelect label="Usuário" opcoes={usuariosCotacoes.data ?? []} selecionados={filtros.usuarios ?? []} onChange={(valores) => setFiltro('usuarios', valores)} isLoading={usuariosCotacoes.isLoading} />
       </FilterBar>
-
-      <EslCotacaoModal filialSelecionada={filialEslSelecionada} open={isEslCotacaoPanelOpen} onClose={() => setIsEslCotacaoPanelOpen(false)} />
 
       {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de cotações.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <CotacoesKpiGrid overview={overview.data} />}

@@ -59,46 +59,6 @@ class ManipuladorGlobalExcecoesTest {
     }
 
     @Test
-    void deveRetornar504ComCodigoDeResultadoEslDesconhecido() {
-        ManipuladorGlobalExcecoes handler = new ManipuladorGlobalExcecoes();
-
-        var resposta = handler.handleEslGraphqlTimeout(new EslGraphqlTimeoutException(new RuntimeException("timeout")));
-
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT);
-        RespostaErroPadrao body = Objects.requireNonNull(resposta.getBody());
-        assertThat(body.codigo()).isEqualTo("ESL_OUTCOME_UNKNOWN");
-    }
-
-    @Test
-    void deveDiferenciarConfiguracaoEslAusenteDeInstabilidadeDaIntegracao() {
-        ManipuladorGlobalExcecoes handler = new ManipuladorGlobalExcecoes();
-
-        var resposta = handler.handleEslGraphqlConfiguracao(
-                new EslGraphqlConfiguracaoException("Configure ESL_CORPORATION_DOCUMENT")
-        );
-
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-        RespostaErroPadrao body = Objects.requireNonNull(resposta.getBody());
-        assertThat(body.codigo()).isEqualTo("ESL_CONFIGURATION_REQUIRED");
-        assertThat(body.mensagem()).contains("precisa ser configurada");
-    }
-
-    @Test
-    void deveRetornar404E409ParaFalhasDeDominioDoEsl() {
-        ManipuladorGlobalExcecoes handler = new ManipuladorGlobalExcecoes();
-
-        var naoEncontrado = handler.handleEslRecursoNaoEncontrado(
-                new EslRecursoNaoEncontradoException("Nota fiscal não encontrada no ESL.")
-        );
-        var conflito = handler.handleEslConflitoEstado(
-                new EslConflitoEstadoException("A coleta já está cancelada.")
-        );
-
-        assertThat(naoEncontrado.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(conflito.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-    }
-
-    @Test
     void deveRetornar503ParaFalhaDeServicoHttpExterno() {
         ManipuladorGlobalExcecoes handler = new ManipuladorGlobalExcecoes();
 

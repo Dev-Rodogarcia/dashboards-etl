@@ -6,18 +6,6 @@ app:
   integration:
     satelite:
       url: ${APP_INTEGRATION_SATELITE_URL:http://127.0.0.1:19090}
-    esl:
-      # ESL_GRAPHQL_URL mantém compatibilidade com uma URL GraphQL completa.
-      # No ambiente corporativo, o ETL fornece API_BASEURL + API_GRAPHQL_TOKEN.
-      graphql-url: ${ESL_GRAPHQL_URL:${API_GRAPHQL:}}
-      api-base-url: ${API_BASEURL:${ESL_API_BASE_URL:${API_BASE_URL:}}}
-      graphql-endpoint: ${API_GRAPHQL_ENDPOINT:/graphql}
-      bearer-token: ${ESL_GRAPHQL_TOKEN:${API_GRAPHQL_TOKEN:}}
-      corporation-document: ${ESL_CORPORATION_DOCUMENT:}
-      requester-name: ${ESL_REQUESTER_NAME:}
-      requester-email: ${ESL_REQUESTER_EMAIL:}
-      requester-phone: ${ESL_REQUESTER_PHONE:}
-      requester-department: ${ESL_REQUESTER_DEPARTMENT:}
 
 spring:
   application:

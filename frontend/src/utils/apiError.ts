@@ -9,7 +9,6 @@ type RespostaErroBackend = {
   message?: unknown;
   erro?: unknown;
   status?: unknown;
-  codigo?: unknown;
 };
 
 export const SERVER_INSTABILITY_MESSAGE = 'Instabilidade no servidor. Tente novamente em alguns instantes.';
@@ -51,15 +50,6 @@ export function getApiErrorMessage(error: unknown, fallback = 'Não foi possíve
       return Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
         ? `Muitas requisições em pouco tempo. Aguarde ${formatarRetryAfter(retryAfterSeconds)} e tente novamente.`
         : 'Muitas requisições em pouco tempo. Aguarde alguns instantes e tente novamente.';
-    }
-
-    if (
-      status === 503
-      && data?.codigo === 'ESL_CONFIGURATION_REQUIRED'
-      && typeof data.mensagem === 'string'
-      && data.mensagem.trim()
-    ) {
-      return data.mensagem;
     }
 
     if (status === 503) {

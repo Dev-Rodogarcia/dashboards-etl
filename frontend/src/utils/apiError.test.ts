@@ -5,14 +5,12 @@ import { getApiErrorMessage, getTipoErro } from './apiError';
 function criarAxiosError({
   status,
   mensagem,
-  codigo,
   headers,
   code,
   message,
 }: {
   status?: number;
   mensagem?: string;
-  codigo?: string;
   headers?: Record<string, string>;
   code?: string;
   message?: string;
@@ -24,7 +22,7 @@ function criarAxiosError({
     undefined,
     status ? {
       status,
-      data: mensagem ? { mensagem, codigo } : undefined,
+      data: mensagem ? { mensagem } : undefined,
       headers: headers ?? {},
     } as never : undefined,
   );
@@ -62,18 +60,6 @@ describe('apiError', () => {
 
     expect(getApiErrorMessage(error)).toBe('Instabilidade no servidor. Tente novamente em alguns instantes.');
     expect(getTipoErro(error)).toBe('indisponivel');
-  });
-
-  it('preserva a orientacao de configuracao quando o ESL ainda nao esta habilitado', () => {
-    const error = criarAxiosError({
-      status: 503,
-      codigo: 'ESL_CONFIGURATION_REQUIRED',
-      mensagem: 'A integração ESL precisa ser configurada neste ambiente antes de realizar operações.',
-    });
-
-    expect(getApiErrorMessage(error)).toBe(
-      'A integração ESL precisa ser configurada neste ambiente antes de realizar operações.',
-    );
   });
 
   it('traduz 504 como timeout de base de dados', () => {
