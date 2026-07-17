@@ -208,6 +208,85 @@ public class ManipuladorGlobalExcecoes {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(resposta);
     }
 
+    @ExceptionHandler(EslGraphqlOperacaoRecusadaException.class)
+    public ResponseEntity<RespostaErroPadrao> handleEslGraphqlOperacaoRecusada(
+            EslGraphqlOperacaoRecusadaException ex
+    ) {
+        log.warn("Operação GraphQL do ESL recusada: {}", ex.getMessage());
+
+        String mensagem = ex.mensagens().isEmpty()
+                ? "O ESL recusou a operação solicitada."
+                : String.join(" ", ex.mensagens());
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "Unprocessable Entity",
+                mensagem
+        );
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(resposta);
+    }
+
+    @ExceptionHandler(EslGraphqlTimeoutException.class)
+    public ResponseEntity<RespostaErroPadrao> handleEslGraphqlTimeout(EslGraphqlTimeoutException ex) {
+        log.warn("Timeout na integração GraphQL do ESL: {}", ex.getMessage());
+
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.GATEWAY_TIMEOUT,
+                "Gateway Timeout",
+                "A operação no ESL excedeu o tempo limite. O resultado da operação pode ser desconhecido.",
+                "ESL_OUTCOME_UNKNOWN"
+        );
+        return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).body(resposta);
+    }
+
+    @ExceptionHandler(EslRecursoNaoEncontradoException.class)
+    public ResponseEntity<RespostaErroPadrao> handleEslRecursoNaoEncontrado(EslRecursoNaoEncontradoException ex) {
+        log.warn("Recurso ESL não encontrado: {}", ex.getMessage());
+
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.NOT_FOUND,
+                "Not Found",
+                ex.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(resposta);
+    }
+
+    @ExceptionHandler(EslConflitoEstadoException.class)
+    public ResponseEntity<RespostaErroPadrao> handleEslConflitoEstado(EslConflitoEstadoException ex) {
+        log.warn("Conflito de estado no ESL: {}", ex.getMessage());
+
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.CONFLICT,
+                "Conflict",
+                ex.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(resposta);
+    }
+
+    @ExceptionHandler(EslGraphqlConfiguracaoException.class)
+    public ResponseEntity<RespostaErroPadrao> handleEslGraphqlConfiguracao(EslGraphqlConfiguracaoException ex) {
+        log.warn("Integração GraphQL do ESL não configurada: {}", ex.getMessage());
+
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Service Unavailable",
+                "A integração ESL precisa ser configurada neste ambiente antes de realizar operações.",
+                "ESL_CONFIGURATION_REQUIRED"
+        );
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(resposta);
+    }
+
+    @ExceptionHandler(EslGraphqlComunicacaoException.class)
+    public ResponseEntity<RespostaErroPadrao> handleEslGraphqlComunicacao(EslGraphqlComunicacaoException ex) {
+        log.error("Falha na integração GraphQL do ESL: {}", ex.getMessage(), ex);
+
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Service Unavailable",
+                "Serviço de integração ESL temporariamente indisponível."
+        );
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(resposta);
+    }
+
     @ExceptionHandler(UncheckedIOException.class)
     public ResponseEntity<RespostaErroPadrao> handleUncheckedIo(UncheckedIOException ex) {
         log.error("Falha de I/O não tratada (possível arquivo de configuração corrompido): {}", ex.getMessage(), ex);
@@ -241,6 +320,16 @@ public class ManipuladorGlobalExcecoes {
                 status.value(),
                 erro,
                 mensagem
+        );
+    }
+
+    private RespostaErroPadrao criarResposta(HttpStatus status, String erro, String mensagem, String codigo) {
+        return new RespostaErroPadrao(
+                LocalDateTime.now(),
+                status.value(),
+                erro,
+                mensagem,
+                codigo
         );
     }
 }

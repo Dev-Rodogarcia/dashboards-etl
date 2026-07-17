@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
-import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
+import { CalendarDays, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
 import ColetasKpiGrid from '../components/domain/coletas/ColetasKpiGrid';
 import ColetasTrend from '../components/domain/coletas/ColetasTrend';
+import EslColetasOperacoesPanel from '../components/domain/esl/EslColetasOperacoesPanel';
 import ChartWrapper from '../components/charts/ChartWrapper';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
@@ -16,6 +17,7 @@ import MensagemErro from '../components/ui/MensagemErro';
 import { exportarColetasCsv } from '../api/endpoints/coletasServico';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { useFiltro } from '../contexts/FiltroContext';
+import { separarFiliaisParceiros } from '../utils/filiais';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { useClientes, useFiliais, useUsuarios } from '../hooks/queries/useDimensoes';
 import { useColetasCidadesOrigem, useColetasGraficos, useColetasHistoricoPerformance, useColetasOverview, useColetasSerie, useColetasTabelaPaginada } from '../hooks/queries/useColetas';
@@ -107,6 +109,7 @@ export default function ColetasPage() {
   const [regiaoLogisticaEmFoco, setRegiaoLogisticaEmFoco] = useState<string | null>(null);
   const [origemLimite, setOrigemLimite] = useState<(typeof ORIGEM_LIMITES)[number]>(10);
   const [historicoPeriodo, setHistoricoPeriodo] = useState<ColetasHistoricoPeriodo>('dias');
+  const [isEslOperacoesOpen, setIsEslOperacoesOpen] = useState(false);
   const filiais = useFiliais();
   const clientes = useClientes();
   const usuarios = useUsuarios();
@@ -121,6 +124,7 @@ export default function ColetasPage() {
     regioes: filtros.regioes,
     usuarios: filtros.usuarios,
   }), [dataFim, dataInicio, filtros.clientes, filtros.filiais, filtros.parceirosLogisticos, filtros.regioes, filtros.status, filtros.usuarios]);
+  const filialEslSelecionada = filtros.filiais?.length === 1 ? filtros.filiais[0] : null;
 
   const activeFilters: ActiveFilter[] = useMemo(() => [
     { label: 'Filiais', count: filtros.filiais?.length ?? 0, onRemove: () => setFiltro('filiais', []) },
@@ -138,6 +142,10 @@ export default function ColetasPage() {
   const paginacaoResetKey = useMemo(() => JSON.stringify({ filtro, tabela: filtrosTabela.resetKey }), [filtro, filtrosTabela.resetKey]);
   const paginacaoTabela = useTabelaPaginadaState(paginacaoResetKey);
   const tabela = useColetasTabelaPaginada(filtro, paginacaoTabela.pagina, paginacaoTabela.tamanhoPagina, filtrosTabela.apiFilters);
+  const filiaisOperacionaisEsl = useMemo(
+    () => separarFiliaisParceiros(filiais.data ?? EMPTY_ARRAY).filiaisProprias,
+    [filiais.data],
+  );
 
   usePageHeader({
     title: 'Coletas',
@@ -525,7 +533,25 @@ export default function ColetasPage() {
 
   return (
     <div className="w-full">
-      <FilterBar onClear={limparFiltros} activeFilters={activeFilters} dataInicio={dataInicio} dataFim={dataFim}>
+      <FilterBar
+        onClear={limparFiltros}
+        activeFilters={activeFilters}
+        dataInicio={dataInicio}
+        dataFim={dataFim}
+        actions={(
+          <button
+            type="button"
+            onClick={() => setIsEslOperacoesOpen((current) => !current)}
+            aria-expanded={isEslOperacoesOpen}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-150 hover:bg-[var(--color-bg)] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            style={{ color: 'var(--color-text)' }}
+          >
+            <CalendarDays size={14} aria-hidden="true" />
+            Operações ESL
+            <ChevronDown className={isEslOperacoesOpen ? 'rotate-180 transition-transform' : 'transition-transform'} size={13} aria-hidden="true" />
+          </button>
+        )}
+      >
         <DateRangePicker
           dataInicio={dataInicio}
           dataFim={dataFim}
@@ -556,6 +582,14 @@ export default function ColetasPage() {
           isLoading={usuarios.isLoading}
         />
       </FilterBar>
+
+      {isEslOperacoesOpen ? (
+        <EslColetasOperacoesPanel
+          filialSelecionada={filialEslSelecionada}
+          filiaisDisponiveis={filiaisOperacionaisEsl}
+          onFilialChange={(filial) => setFiltro('filiais', filial ? [filial] : [])}
+        />
+      ) : null}
 
       {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de coletas.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <ColetasKpiGrid overview={overview.data} />}

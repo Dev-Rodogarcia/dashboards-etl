@@ -38,6 +38,7 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
             "/api/painel/manifestos",
             "/api/painel/performance",
             "/api/painel/tracking",
+            "/api/esl",
             "/api/admin/acesso"
     );
 
