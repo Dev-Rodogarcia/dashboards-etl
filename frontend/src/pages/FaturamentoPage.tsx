@@ -1146,6 +1146,14 @@ export default function FaturamentoPage() {
         activeFilters={activeFilters}
         dataInicio={dataInicio}
         dataFim={dataFim}
+        dateAccessory={overview.data ? (
+          <span
+            className="font-medium tabular-nums"
+            style={{ color: 'var(--color-text)' }}
+          >
+            {overview.data.totalDiasUteis} Dias Úteis
+          </span>
+        ) : null}
         actions={canManageFaturamentoGoals ? (
           <button
             type="button"

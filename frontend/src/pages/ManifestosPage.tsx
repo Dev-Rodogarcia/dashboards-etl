@@ -419,6 +419,11 @@ export default function ManifestosPage() {
         activeFilters={activeFilters}
         dataInicio={dataInicio}
         dataFim={dataFim}
+        dateAccessory={dadosPerformance ? (
+          <span className="font-medium tabular-nums" style={{ color: 'var(--color-text)' }}>
+            {dadosPerformance.totalDiasUteis} Dias Úteis
+          </span>
+        ) : null}
         actions={canManageManifestosGoals ? (
           <button
             type="button"

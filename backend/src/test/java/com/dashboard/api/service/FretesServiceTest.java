@@ -60,6 +60,7 @@ class FretesServiceTest {
         LocalDate dataFim = LocalDate.of(2026, 5, 19);
         stubOverview(overview(2, "4830280.00", "4830280.00", 2));
         stubRealizados(List.of(realizado("SPO", "2400000.00"), realizado("REC", "2430280.00")));
+        when(repository.buscarResumoDiasPeriodo(dataInicio, dataFim)).thenReturn(periodoDias(19, 13));
         when(repository.contarDiasUteisCalendario(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31)))
                 .thenReturn(21);
         when(repository.contarDiasUteisCalendario(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 19)))
@@ -77,6 +78,8 @@ class FretesServiceTest {
 
         assertThat(overview.updatedAt()).isEqualTo("2026-05-19T09:00:00-03:00");
         assertThat(overview.receitaBruta()).isEqualByComparingTo("4830280.00");
+        assertThat(overview.totalDiasCivis()).isEqualTo(19);
+        assertThat(overview.totalDiasUteis()).isEqualTo(13);
         assertThat(overview.faturamentoDiario().totalDiasUteisMes()).isEqualTo(21);
         assertThat(overview.faturamentoDiario().diasUteisDecorridos()).isEqualTo(13);
         assertThat(overview.faturamentoDiario().diasUteisRestantes()).isEqualTo(8);
@@ -231,6 +234,13 @@ class FretesServiceTest {
             @Override public int getCteEmitidos() { return 0; }
             @Override public int getNfseEmitidas() { return 0; }
             @Override public int getFretesPrevisaoVencida() { return 0; }
+        };
+    }
+
+    private static VisaoFretesRepository.PeriodoDiasProjection periodoDias(int civis, int uteis) {
+        return new VisaoFretesRepository.PeriodoDiasProjection() {
+            @Override public int getTotalDiasCivis() { return civis; }
+            @Override public int getTotalDiasUteis() { return uteis; }
         };
     }
 

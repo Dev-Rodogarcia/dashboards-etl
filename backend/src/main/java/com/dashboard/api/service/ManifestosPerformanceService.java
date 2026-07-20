@@ -33,6 +33,7 @@ public class ManifestosPerformanceService {
         FiltroConsultaDTO filtroOrcamento = filtroOrcamentario(filtro);
         return new ManifestosPerformanceDTO(
                 performance.updatedAt(),
+                diasUteisNoPeriodo(filtro),
                 performance.kpis(),
                 performance.remuneracao(),
                 performance.aproveitamento(),
@@ -42,6 +43,11 @@ public class ManifestosPerformanceService {
                 performance.tiposVeiculo(),
                 costGoalService.calcular(filtro, filtroOrcamento, performance.kpis().custoTotal())
         );
+    }
+
+    private int diasUteisNoPeriodo(FiltroConsultaDTO filtro) {
+        Integer total = repository.contarDiasUteisCalendario(filtro.dataInicio(), filtro.dataFim());
+        return total == null ? 0 : total;
     }
 
     private FiltroConsultaDTO filtroOrcamentario(FiltroConsultaDTO filtro) {

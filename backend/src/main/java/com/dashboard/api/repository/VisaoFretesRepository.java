@@ -107,6 +107,19 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
             @Param("dataFim") LocalDate dataFim
     );
 
+    @Query(value = """
+            SELECT
+                CAST(COUNT_BIG(1) AS INT) AS totalDiasCivis,
+                CAST(COALESCE(SUM(CAST(is_dia_util AS INT)), 0) AS INT) AS totalDiasUteis
+            FROM dbo.dim_calendario
+            WHERE data >= :dataInicio
+              AND data <= :dataFim
+            """, nativeQuery = true)
+    PeriodoDiasProjection buscarResumoDiasPeriodo(
+            @Param("dataInicio") LocalDate dataInicio,
+            @Param("dataFim") LocalDate dataFim
+    );
+
     @Query(value = FRETES_FILTRADOS_SQL + """
             SELECT
                 MAX(data_extracao) AS updatedAt,
@@ -723,6 +736,11 @@ public interface VisaoFretesRepository extends JpaRepository<VisaoFretesEntity, 
             ORDER BY cliente
             """, nativeQuery = true)
     List<String> findDistinctClientesByFilialIn(@Param("filiais") List<String> filiais);
+
+    interface PeriodoDiasProjection {
+        int getTotalDiasCivis();
+        int getTotalDiasUteis();
+    }
 
     interface FretesOverviewProjection {
         LocalDateTime getUpdatedAt();

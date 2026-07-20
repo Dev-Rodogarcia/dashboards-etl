@@ -38,6 +38,8 @@ export interface FretesOverview {
   pctCteEmitido: number;
   pctNfseEmitida: number;
   fretesPrevisaoVencida: number;
+  totalDiasCivis: number;
+  totalDiasUteis: number;
   metaFaturamento: number;
   percentualAtingimentoFaturamento: number;
   faturamentoDiario: FretesFaturamentoDiario;

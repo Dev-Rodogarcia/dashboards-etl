@@ -13,6 +13,8 @@ public record FretesOverviewDTO(
     double pctCteEmitido,
     double pctNfseEmitida,
     int fretesPrevisaoVencida,
+    Integer totalDiasCivis,
+    Integer totalDiasUteis,
     BigDecimal metaFaturamento,
     double percentualAtingimentoFaturamento,
     FretesFaturamentoDiarioDTO faturamentoDiario

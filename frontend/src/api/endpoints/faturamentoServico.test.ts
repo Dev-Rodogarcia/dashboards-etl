@@ -19,6 +19,8 @@ describe('faturamentoServico', () => {
       pctCteEmitido: 95,
       pctNfseEmitida: 10,
       fretesPrevisaoVencida: 2,
+      totalDiasCivis: 31,
+      totalDiasUteis: 21,
       metaFaturamento: 1200,
       percentualAtingimentoFaturamento: 83.33,
       faturamentoDiario: {

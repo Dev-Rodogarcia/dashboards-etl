@@ -19,6 +19,8 @@ interface FilterBarProps {
   /** Se fornecidos, exibe data compacta na barra recolhida */
   dataInicio?: string;
   dataFim?: string;
+  /** Conteúdo exibido imediatamente após o intervalo compacto de datas. */
+  dateAccessory?: ReactNode;
 }
 
 // ── helpers ───────────────────────────────────────────────────────────
@@ -72,6 +74,7 @@ export default function FilterBar({
   actions,
   dataInicio,
   dataFim,
+  dateAccessory,
 }: FilterBarProps) {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -105,6 +108,12 @@ export default function FilterBar({
             <span className="font-medium tabular-nums" style={{ color: 'var(--color-text)' }}>{fmtData(dataInicio)}</span>
             <span aria-hidden="true">→</span>
             <span className="font-medium tabular-nums" style={{ color: 'var(--color-text)' }}>{fmtData(dataFim)}</span>
+            {dateAccessory ? (
+              <>
+                <span className="mx-1 h-4 w-px" style={{ backgroundColor: 'var(--color-border)' }} aria-hidden="true" />
+                {dateAccessory}
+              </>
+            ) : null}
           </div>
           <div className="hidden h-5 w-px shrink-0 sm:block" style={{ backgroundColor: 'var(--color-border)' }} aria-hidden="true" />
         </>

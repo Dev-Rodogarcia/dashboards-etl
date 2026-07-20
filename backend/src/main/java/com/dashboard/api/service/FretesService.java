@@ -99,6 +99,7 @@ public class FretesService {
 
         FretesConsulta consulta = consulta(filtro);
         VisaoFretesRepository.FretesOverviewProjection overview = buscarOverviewAgregado(consulta);
+        PeriodoDiasResumo diasPeriodo = buscarResumoDiasPeriodo(filtro.dataInicio(), filtro.dataFim());
         int totalFretes = overview != null ? overview.getTotalFretes() : 0;
         FretesGoalSummaryDTO metas = buscarResumoMetas(filtro);
         LocalDate referenciaFechadaTendencia = referenciaFechadaTendencia(filtro.dataFim());
@@ -108,6 +109,8 @@ public class FretesService {
                     TemporalJsonUtils.formatarIsoComOffset(null),
                     0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
                     BigDecimal.ZERO, 0, 0.0, 0.0, 0,
+                    diasPeriodo.totalDiasCivis(),
+                    diasPeriodo.totalDiasUteis(),
                     metas.metaFaturamento(),
                     metas.percentualAtingimentoFaturamento(),
                     calcularFaturamentoDiario(
@@ -145,6 +148,8 @@ public class FretesService {
                 percentual(overview.getCteEmitidos(), totalFretes),
                 percentual(overview.getNfseEmitidas(), totalFretes),
                 overview.getFretesPrevisaoVencida(),
+                diasPeriodo.totalDiasCivis(),
+                diasPeriodo.totalDiasUteis(),
                 metas.metaFaturamento(),
                 metas.percentualAtingimentoFaturamento(),
                 calcularFaturamentoDiario(
@@ -155,6 +160,18 @@ public class FretesService {
                         receitaBrutaFechadaTendencia
                 )
         );
+    }
+
+    private PeriodoDiasResumo buscarResumoDiasPeriodo(LocalDate dataInicio, LocalDate dataFim) {
+        try {
+            VisaoFretesRepository.PeriodoDiasProjection resumo = repository.buscarResumoDiasPeriodo(dataInicio, dataFim);
+            if (resumo != null) {
+                return new PeriodoDiasResumo(resumo.getTotalDiasCivis(), resumo.getTotalDiasUteis());
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Não foi possível consultar dias do período na dim_calendario. Motivo: {}", ex.getMessage());
+        }
+        return new PeriodoDiasResumo(0, 0);
     }
 
     public FretesGoalSummaryDTO buscarResumoMetas(FiltroConsultaDTO filtro) {
@@ -439,6 +456,8 @@ public class FretesService {
         DayOfWeek dia = data.getDayOfWeek();
         return dia != DayOfWeek.SATURDAY && dia != DayOfWeek.SUNDAY;
     }
+
+    private record PeriodoDiasResumo(int totalDiasCivis, int totalDiasUteis) {}
 
     private BigDecimal dividir(BigDecimal valor, int divisor) {
         if (divisor <= 0) {

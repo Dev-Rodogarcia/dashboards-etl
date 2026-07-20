@@ -82,6 +82,7 @@ export interface ManifestosCustosEvolucao {
 
 export interface PerformanceVeiculosDados {
   updatedAt?: string | null;
+  totalDiasUteis: number;
   kpis: KPIsManifestos;
   remuneracao: GaugeMetric;
   aproveitamento: GaugeMetric;

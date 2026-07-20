@@ -80,6 +80,7 @@ public class ManifestosPerformanceSqlRepository implements ManifestosCostDataRep
 
         return new ManifestosPerformanceDTO(
                 TemporalJsonUtils.garantirIsoComOffset(texto(overview, "updated_at")),
+                0,
                 kpis,
                 gauges.remuneracao(),
                 gauges.aproveitamento(),

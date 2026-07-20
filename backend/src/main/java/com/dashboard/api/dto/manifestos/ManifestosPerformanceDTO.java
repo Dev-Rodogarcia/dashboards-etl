@@ -5,6 +5,7 @@ import java.util.List;
 
 public record ManifestosPerformanceDTO(
         String updatedAt,
+        int totalDiasUteis,
         KpisManifestosDTO kpis,
         GaugeMetricDTO remuneracao,
         GaugeMetricDTO aproveitamento,

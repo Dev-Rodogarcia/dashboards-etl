@@ -45,6 +45,7 @@ class ManifestosPerformanceServiceTest {
         assertThat(costGoalService.filtroOrcamentoRecebido.valores("filiais")).containsExactly("AGU");
         assertThat(costGoalService.filtroOrcamentoRecebido.valores("status")).containsExactly("ENCERRADO");
         assertThat(costGoalService.custoRealRecebido).isEqualByComparingTo("500000.00");
+        assertThat(resultado.totalDiasUteis()).isEqualTo(13);
         assertThat(resultado.custosEvolucao()).isSameAs(custosEvolucao);
     }
 
@@ -73,6 +74,11 @@ class ManifestosPerformanceServiceTest {
             this.anoRecebido = ano;
             this.mesRecebido = mes;
             return response;
+        }
+
+        @Override
+        public Integer contarDiasUteisCalendario(LocalDate dataInicio, LocalDate dataFim) {
+            return 13;
         }
     }
 
@@ -104,6 +110,7 @@ class ManifestosPerformanceServiceTest {
     private static ManifestosPerformanceDTO performance() {
         return new ManifestosPerformanceDTO(
                 "2026-05-19T12:00:00",
+                0,
                 new KpisManifestosDTO(
                         10,
                         1,
