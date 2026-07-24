@@ -9,14 +9,14 @@ interface PermissionMatrixProps {
 
 export default function PermissionMatrix({ catalogo, valor, onChange, disabled }: PermissionMatrixProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
       {catalogo.map((item) => {
         const ativo = Boolean(valor[item.chave]);
 
         return (
           <label
             key={item.chave}
-            className={`flex items-start gap-3 rounded-2xl border px-4 py-3 transition-colors ${disabled ? 'opacity-60' : ''}`}
+            className={`flex min-h-[122px] min-w-0 items-start gap-2.5 rounded-xl border px-3.5 py-3 transition-colors ${disabled ? 'opacity-60' : ''}`}
             style={
               ativo
                 ? {
@@ -42,10 +42,10 @@ export default function PermissionMatrix({ catalogo, valor, onChange, disabled }
               className="mt-1 h-4 w-4 rounded border-[var(--color-border)]"
               style={{ accentColor: 'var(--color-primary)' }}
             />
-            <div>
+            <div className="min-w-0">
               <div className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{item.nome}</div>
-              <div className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>{item.descricao}</div>
-              {item.rota && <div className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>{item.rota}</div>}
+              <div className="mt-0.5 line-clamp-2 text-xs leading-4" title={item.descricao} style={{ color: 'var(--color-text-subtle)' }}>{item.descricao}</div>
+              {item.rota && <div className="mt-1 truncate text-xs" title={item.rota} style={{ color: 'var(--color-text-muted)' }}>{item.rota}</div>}
             </div>
           </label>
         );

@@ -403,7 +403,7 @@ export default function AdminSetoresPage() {
     <div className="space-y-5">
       <section className="rounded-[20px] border p-4 shadow-sm sm:p-5" style={SURFACE_STYLE}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid items-start gap-4 border-b pb-4 xl:grid-cols-[minmax(11rem,1fr)_minmax(11rem,1fr)_13rem_minmax(24rem,2fr)]" style={{ borderColor: 'var(--color-border)' }}>
             <label className="space-y-1">
               <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>Nome do setor</span>
               <input
@@ -426,13 +426,12 @@ export default function AdminSetoresPage() {
                 placeholder="Resumo do setor"
               />
             </label>
-          </div>
 
-          <div className="space-y-3">
-            <div>
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Escopo de filiais</h2>
-              <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>Usuários deste setor só verão dados das filiais selecionadas.</p>
+            <div className="space-y-1 xl:mt-1 xl:min-h-16 xl:border-l xl:pl-4" style={{ borderColor: 'var(--color-border)' }}>
+              <span className="block text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>Escopo de filiais</span>
+              <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>Dados das filiais selecionadas.</p>
             </div>
+
             <FiliaisPermitidasSplitSelect
               opcoes={filiaisDisponiveis}
               selecionadas={form.filiaisPermitidas}

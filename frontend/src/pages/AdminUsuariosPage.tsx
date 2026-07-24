@@ -1,6 +1,7 @@
-import { useEffect, useId, useMemo, useState } from 'react';
-import type { FocusEvent, FormEvent, ReactNode } from 'react';
-import { Eye, KeyRound, MoreHorizontal, Pencil, Upload, UserX } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
+import { CircleHelp, Clock3, Eye, KeyRound, MapPin, MoreHorizontal, Pencil, Upload, UserCheck, UserX, Users } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import FiliaisPermitidasSplitSelect from '../components/admin/FiliaisPermitidasSplitSelect';
 import PermissionOverrideMatrix from '../components/admin/PermissionOverrideMatrix';
 import UsuariosImportacaoModal from '../components/admin/UsuariosImportacaoModal';
@@ -25,7 +26,6 @@ import type {
   PermissionMap,
   PermissionOverrideStateMap,
   UsuarioAdmin,
-  UsuarioOnlineResumo,
   UsuarioPayload,
 } from '../types/access';
 import {
@@ -183,87 +183,51 @@ function renderPasswordStatusBadge(status: UsuarioAdmin['statusSenha'], algoritm
 
 interface SummaryCardProps {
   label: string;
+  detail: string;
   value: number;
   accent: string;
-  pulse?: boolean;
-  tooltip?: ReactNode;
-  tooltipSide?: 'top' | 'bottom';
+  iconSurface: string;
+  icon: LucideIcon;
+  listTitle: string;
+  usuarios: Array<Pick<UsuarioAdmin, 'id' | 'nome' | 'email'>>;
+  emptyMessage: string;
 }
 
-function SummaryCard({ label, value, accent, pulse, tooltip, tooltipSide = 'top' }: SummaryCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  const tooltipId = useId();
-  const open = Boolean(tooltip) && (isHovered || isFocused);
-
-  function handleBlur(event: FocusEvent<HTMLDivElement>) {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-      setIsFocused(false);
-    }
-  }
-
-  const card = (
-    <div className="rounded-lg border px-4 py-3" style={SURFACE_STYLE}>
-      <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>
-        {label}
-      </div>
-      <div className="mt-2 flex items-center gap-2">
-        {pulse && <span className="h-2.5 w-2.5 rounded-full bg-[#10b981] motion-safe:animate-pulse" aria-hidden="true" />}
-        <div className="text-2xl font-bold" style={{ color: accent }}>
-          {value}
-        </div>
-      </div>
-    </div>
-  );
-
-  if (!tooltip) {
-    return card;
-  }
+function SummaryCard({ label, detail, value, accent, iconSurface, icon: Icon, listTitle, usuarios, emptyMessage }: SummaryCardProps) {
+  const [open, setOpen] = useState(false);
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) {
-          setIsHovered(false);
-          setIsFocused(false);
-        }
-      }}
-    >
-      <PopoverTrigger asChild>
-        <div
-          aria-describedby={open ? tooltipId : undefined}
-          onBlur={handleBlur}
-          onFocus={() => setIsFocused(true)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              setIsHovered(false);
-              setIsFocused(false);
-            }
-          }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          tabIndex={0}
-          className={`rounded-lg ${FOCUS_RING_CLASS}`}
-        >
-          {card}
+    <Popover open={open} onOpenChange={setOpen}>
+      <div className="grid min-h-[92px] grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border px-4 py-3.5" style={SURFACE_STYLE}>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: iconSurface, color: accent }}>
+          <Icon size={19} strokeWidth={2.2} aria-hidden="true" />
         </div>
-      </PopoverTrigger>
-      <PopoverContent
-        id={tooltipId}
-        role="tooltip"
-        side={tooltipSide}
-        align="center"
-        sideOffset={10}
-        collisionPadding={12}
-        onOpenAutoFocus={(event) => event.preventDefault()}
-        className="pointer-events-none p-4"
-        style={{
-          width: 'min(24rem, calc(100vw - 1.5rem))',
-          color: 'var(--color-text)',
-        }}
-      >
-        {tooltip}
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold leading-none" style={{ color: accent }}>{value}</span>
+            <span className="truncate text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{label}</span>
+          </div>
+          <div className="mt-1 truncate text-xs" style={{ color: 'var(--color-text-muted)' }}>{detail}</div>
+        </div>
+        <PopoverTrigger asChild>
+          <button type="button" aria-label={`Ver ${listTitle.toLowerCase()}`} title={`Ver ${listTitle.toLowerCase()}`} className={`self-start rounded-full p-1.5 ${FOCUS_RING_CLASS}`} style={{ color: 'var(--color-primary)' }}>
+            <CircleHelp size={16} aria-hidden="true" />
+          </button>
+        </PopoverTrigger>
+      </div>
+      <PopoverContent side="bottom" align="start" sideOffset={10} collisionPadding={12} className="p-0 shadow-xl" style={{ width: 'min(22rem, calc(100vw - 1.5rem))', color: 'var(--color-text)', backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
+        <div className="border-b px-4 py-3" style={{ borderColor: 'var(--color-border)' }}>
+          <h2 className="text-sm font-bold">{listTitle}</h2>
+          <p className="mt-0.5 text-xs" style={{ color: 'var(--color-text-subtle)' }}>{usuarios.length} usuário{usuarios.length === 1 ? '' : 's'}</p>
+        </div>
+        <div className="max-h-64 space-y-1 overflow-y-auto p-2">
+          {usuarios.length > 0 ? usuarios.map((usuario) => (
+            <div key={usuario.id} className="rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--color-bg)' }}>
+              <p className="truncate text-sm font-semibold" title={usuario.nome}>{usuario.nome}</p>
+              <p className="truncate text-xs" title={usuario.email} style={{ color: 'var(--color-text-subtle)' }}>{usuario.email}</p>
+            </div>
+          )) : <p className="px-3 py-6 text-center text-sm" style={{ color: 'var(--color-text-subtle)' }}>{emptyMessage}</p>}
+        </div>
       </PopoverContent>
     </Popover>
   );
@@ -272,8 +236,7 @@ function SummaryCard({ label, value, accent, pulse, tooltip, tooltipSide = 'top'
 function timestampAtividade(valor: string | null): number {
   if (!valor) return 0;
 
-  const data = new Date(valor);
-  const timestamp = data.getTime();
+  const timestamp = new Date(valor).getTime();
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
@@ -289,58 +252,119 @@ function formatTempoUltimoPulso(valor: string | null): string {
   if (minutos < 60) return `Ativo há ${minutos} min`;
 
   const horas = Math.floor(minutos / 60);
-  const minutosRestantes = minutos % 60;
-  return `Ativo há ${horas}h ${minutosRestantes}min`;
+  return `Ativo há ${horas}h ${minutos % 60}min`;
 }
 
-function UsuariosOnlineTooltip({
+function PresenceUserRow({ usuario, online }: {
+  usuario: Pick<UsuarioAdmin, 'id' | 'nome' | 'email' | 'ultimaAtividade' | 'ultimaRotaAcessada'>;
+  online: boolean;
+}) {
+  const initial = usuario.nome.trim().charAt(0).toUpperCase() || '?';
+
+  return (
+    <div className="flex gap-3 rounded-xl border p-3" style={SOFT_PANEL_STYLE}>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold" style={{ backgroundColor: online ? 'rgba(16, 185, 129, 0.16)' : 'rgba(100, 116, 139, 0.14)', color: online ? '#059669' : 'var(--color-text-subtle)' }} aria-hidden="true">{initial}</div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2"><p className="truncate text-sm font-semibold" title={usuario.nome} style={{ color: 'var(--color-text)' }}>{usuario.nome}</p>{online && <span className="h-2 w-2 shrink-0 rounded-full bg-[#10b981] motion-safe:animate-pulse" aria-label="Online agora" />}</div>
+        <p className="truncate text-xs" title={usuario.email} style={{ color: 'var(--color-text-subtle)' }}>{usuario.email}</p>
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+          <span className="inline-flex items-center gap-1"><Clock3 size={12} aria-hidden="true" />{online ? formatTempoUltimoPulso(usuario.ultimaAtividade) : usuario.ultimaAtividade ? formatarDataHoraMinuto(usuario.ultimaAtividade) : 'Sem atividade registrada'}</span>
+          {usuario.ultimaRotaAcessada && <span className="inline-flex min-w-0 items-center gap-1"><MapPin size={12} aria-hidden="true" /><span className="max-w-36 truncate" title={usuario.ultimaRotaAcessada}>{usuario.ultimaRotaAcessada}</span></span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AccessSummaryItem({
+  label,
+  value,
+  expandable = false,
+  className = '',
+}: {
+  label: string;
+  value: string;
+  expandable?: boolean;
+  className?: string;
+}) {
+  const canExpand = expandable && value.length > 76;
+
+  return (
+    <div className={`min-w-0 rounded-xl border px-3 py-2 ${className}`} style={SURFACE_STYLE}>
+      <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>{label}</div>
+      <div className="mt-1 flex min-w-0 items-center gap-1.5">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium" title={value} style={{ color: 'var(--color-text)' }}>{value}</span>
+        {canExpand && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" className={`shrink-0 rounded-md p-1 ${FOCUS_RING_CLASS}`} aria-label={`Ver todas as ${label.toLowerCase()}`} title={`Ver todas as ${label.toLowerCase()}`} style={{ color: 'var(--color-primary)' }}>
+                <MoreHorizontal size={17} aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent side="bottom" align="start" sideOffset={8} className="p-3" style={{ width: 'min(28rem, calc(100vw - 1.5rem))', color: 'var(--color-text)', backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
+              <h4 className="text-sm font-bold">{label}</h4>
+              <p className="mt-2 text-sm leading-6" style={{ color: 'var(--color-text-subtle)' }}>{value}</p>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OnlineUsersCard({
   usuarios,
+  recentes,
   isLoading,
   totalOnline,
 }: {
-  usuarios: UsuarioOnlineResumo[];
+  usuarios: Array<Pick<UsuarioAdmin, 'id' | 'nome' | 'email' | 'ultimaAtividade' | 'ultimaRotaAcessada'>>;
+  recentes: UsuarioAdmin[];
   isLoading: boolean;
   totalOnline: number;
 }) {
-  if (isLoading) {
-    return (
-      <p className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>
-        Carregando usuários online...
-      </p>
-    );
-  }
-
-  if (usuarios.length === 0) {
-    return (
-      <p className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>
-        {totalOnline > 0
-          ? `${totalOnline} usuário${totalOnline === 1 ? '' : 's'} online, mas os detalhes ainda não vieram no resumo.`
-          : 'Nenhum usuário online agora.'}
-      </p>
-    );
-  }
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-        Usuários online agora
-      </p>
-      <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
-        {usuarios.map((usuario) => (
-          <div key={usuario.id} className="rounded-xl border px-3 py-2" style={SOFT_PANEL_STYLE}>
-            <p className="truncate text-sm font-semibold" title={usuario.nome} style={{ color: 'var(--color-text)' }}>
-              {usuario.nome}
-            </p>
-            <p className="mt-0.5 truncate text-xs" title={formatUltimaAtividade(usuario.ultimaAtividade)} style={{ color: 'var(--color-text-subtle)' }}>
-              {formatTempoUltimoPulso(usuario.ultimaAtividade)}
-            </p>
-            <p className="mt-0.5 truncate text-[11px]" title={usuario.email} style={{ color: 'var(--color-text-muted)' }}>
-              {usuario.email}
-            </p>
+    <Popover open={open} onOpenChange={setOpen}>
+      <div className="grid min-h-[92px] grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border px-4 py-3.5" style={SURFACE_STYLE}>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: 'rgba(16, 185, 129, 0.14)', color: '#10b981' }}>
+          <Users size={19} strokeWidth={2.2} aria-hidden="true" />
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold leading-none" style={{ color: '#10b981' }}>{totalOnline}</span>
+            <span className="truncate text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Online agora</span>
           </div>
-        ))}
+          <div className="mt-1 flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-text-muted)' }}><span className="h-2 w-2 rounded-full bg-[#10b981] motion-safe:animate-pulse" aria-hidden="true" />Em atividade</div>
+        </div>
+        <PopoverTrigger asChild>
+          <button type="button" aria-label="Ver detalhes de presença" title="Ver detalhes de presença" className={`self-start rounded-full p-1.5 ${FOCUS_RING_CLASS}`} style={{ color: 'var(--color-primary)' }}>
+            <CircleHelp size={16} aria-hidden="true" />
+          </button>
+        </PopoverTrigger>
       </div>
-    </div>
+      <PopoverContent side="bottom" align="end" sideOffset={10} collisionPadding={12} className="overflow-hidden p-0 shadow-xl" style={{ width: 'min(48rem, calc(100vw - 1.5rem))', color: 'var(--color-text)', backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
+        <div className="border-b px-5 py-4" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="flex items-center gap-2"><Users size={18} style={{ color: 'var(--color-primary)' }} aria-hidden="true" /><h2 className="text-base font-bold">Presença de usuários</h2></div>
+          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-subtle)' }}>Acompanhe quem está ativo e as últimas atividades registradas.</p>
+        </div>
+        <div className="grid gap-0 md:grid-cols-2">
+          <section className="p-4 md:border-r" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-bold">Online agora</h3><span className="rounded-full px-2 py-0.5 text-xs font-bold" style={ONLINE_BADGE_STYLE}>{totalOnline}</span></div>
+            <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+              {isLoading ? <p className="py-6 text-center text-sm" style={{ color: 'var(--color-text-subtle)' }}>Carregando presença...</p> : usuarios.length > 0 ? usuarios.map((usuario) => <PresenceUserRow key={usuario.id} usuario={usuario} online />) : <p className="py-6 text-center text-sm" style={{ color: 'var(--color-text-subtle)' }}>Nenhum usuário online agora.</p>}
+            </div>
+          </section>
+          <section className="border-t p-4 md:border-l-0 md:border-t-0" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="mb-3"><h3 className="text-sm font-bold">Vistos recentemente</h3><p className="mt-0.5 text-xs" style={{ color: 'var(--color-text-subtle)' }}>Últimas pessoas que ficaram offline.</p></div>
+            <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+              {recentes.length > 0 ? recentes.map((usuario) => <PresenceUserRow key={usuario.id} usuario={usuario} online={false} />) : <p className="py-6 text-center text-sm" style={{ color: 'var(--color-text-subtle)' }}>Ainda não há atividades recentes.</p>}
+            </div>
+          </section>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -529,13 +553,10 @@ function DetailTextBlock({ label, value, fallback }: { label: string; value: str
 
 function renderUsuarioIdentityCell(row: UsuarioRow) {
   return (
-    <div className="min-w-[14rem] whitespace-normal">
-      <div className="flex items-center gap-2">
-        <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--color-text)' }}>
-          {row.nome}
-        </p>
-        {renderStatusBadge(row.ativo)}
-      </div>
+    <div className="min-w-[12rem] whitespace-normal">
+      <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--color-text)' }}>
+        {row.nome}
+      </p>
       <p className="mt-1 break-all text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
         {row.email}
       </p>
@@ -545,7 +566,7 @@ function renderUsuarioIdentityCell(row: UsuarioRow) {
 
 function renderPapelCell(row: UsuarioRow) {
   return (
-    <div className="max-w-[15rem] whitespace-normal text-sm leading-relaxed" style={{ color: 'var(--color-text)' }}>
+    <div className="max-w-[12rem] whitespace-normal text-sm leading-relaxed" style={{ color: 'var(--color-text)' }}>
       {row.papelResumo || 'Sem papel'}
     </div>
   );
@@ -555,7 +576,7 @@ function renderUltimaTelaCell(row: UsuarioRow) {
   const atividade = formatUltimaAtividade(row.ultimaAtividade);
 
   return (
-    <div className="min-w-[12rem] max-w-[15rem] space-y-1 whitespace-normal">
+    <div className="min-w-[10rem] max-w-[12rem] space-y-1 whitespace-normal">
       <div className="flex flex-wrap items-center gap-2">
         {renderOnlineBadge(row.isOnline)}
         <span className="truncate text-sm font-medium" style={{ color: 'var(--color-text)' }} title={row.ultimaRotaAcessada ?? undefined}>
@@ -757,6 +778,33 @@ export default function AdminUsuariosPage() {
       [...resumoUsuarios.usuariosOnlineDetalhes]
         .sort((a, b) => timestampAtividade(b.ultimaAtividade) - timestampAtividade(a.ultimaAtividade)),
     [resumoUsuarios.usuariosOnlineDetalhes],
+  );
+  const usuariosVistosRecentemente = useMemo(
+    () =>
+      (usuarios.data ?? [])
+        .filter((usuario) => !usuario.isOnline && Boolean(usuario.ultimaAtividade))
+        .sort((a, b) => timestampAtividade(b.ultimaAtividade) - timestampAtividade(a.ultimaAtividade))
+        .slice(0, 12),
+    [usuarios.data],
+  );
+  const usuariosOnlineComDetalhes = useMemo(
+    () => usuariosOnlineAgora.map((usuario) => ({
+      ...usuario,
+      ultimaRotaAcessada: usuarios.data?.find((item) => item.id === usuario.id)?.ultimaRotaAcessada ?? null,
+    })),
+    [usuarios.data, usuariosOnlineAgora],
+  );
+  const usuariosOrdenadosPorNome = useMemo(
+    () => [...(usuarios.data ?? [])].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+    [usuarios.data],
+  );
+  const usuariosAtivos = useMemo(
+    () => usuariosOrdenadosPorNome.filter((usuario) => usuario.ativo),
+    [usuariosOrdenadosPorNome],
+  );
+  const usuariosInativos = useMemo(
+    () => usuariosOrdenadosPorNome.filter((usuario) => !usuario.ativo),
+    [usuariosOrdenadosPorNome],
   );
 
   function resetForm() {
@@ -1010,40 +1058,47 @@ export default function AdminUsuariosPage() {
       chave: 'nome',
       label: 'Usuário',
       fixo: true,
-      largura: '260px',
+      largura: '220px',
       formato: (_, row) => renderUsuarioIdentityCell(row),
     },
-    { chave: 'setorNome', label: 'Setor', largura: '180px' },
+    { chave: 'setorNome', label: 'Setor', largura: '130px' },
+    {
+      chave: 'ativo',
+      label: 'Status',
+      largura: '84px',
+      alinhamento: 'center',
+      formato: (_, row) => renderStatusBadge(row.ativo),
+    },
     {
       chave: 'papelResumo',
       label: 'Papel',
-      largura: '240px',
+      largura: '190px',
       formato: (_, row) => renderPapelCell(row),
     },
     {
       chave: 'ultimaRotaAcessada',
       label: 'Última tela',
-      largura: '230px',
+      largura: '190px',
       formato: (_, row) => renderUltimaTelaCell(row),
     },
     {
       chave: 'senhaResumo',
       label: 'Senha',
-      largura: '180px',
+      largura: '120px',
       ordenavel: false,
       formato: (_, row) => renderPasswordStatusBadge(row.statusSenha, row.algoritmoSenha),
     },
     {
       chave: 'detalhes',
       label: 'Detalhes',
-      largura: '120px',
+      largura: '100px',
       ordenavel: false,
       formato: (_, row) => renderUsuarioDetailsPopover(row),
     },
     {
       chave: 'acoes',
       label: 'Ações',
-      largura: '80px',
+      largura: '64px',
       ordenavel: false,
       formato: (_, row) => renderActionMenu(row),
     },
@@ -1179,23 +1234,15 @@ export default function AdminUsuariosPage() {
       )}
       <section className="rounded-[20px] border p-4 shadow-sm sm:p-5" style={SURFACE_STYLE}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-4">
-            <SummaryCard label="Total de Usuários" value={resumoUsuarios.totalUsuarios} accent="var(--color-text)" />
-            <SummaryCard label="Usuários Ativos" value={resumoUsuarios.usuariosAtivos} accent="#10b981" />
-            <SummaryCard label="Usuários Inativos" value={resumoUsuarios.usuariosInativos} accent="#ef4444" />
-            <SummaryCard
-              label="Usuários Online Agora"
-              value={resumoUsuarios.usuariosOnline}
-              accent="#10b981"
-              pulse
-              tooltipSide="bottom"
-              tooltip={
-                <UsuariosOnlineTooltip
-                  usuarios={usuariosOnlineAgora}
-                  isLoading={resumoSessoes.isLoading}
-                  totalOnline={resumoUsuarios.usuariosOnline}
-                />
-              }
+          <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-4 md:gap-4">
+            <SummaryCard label="Total" detail="usuários cadastrados" value={resumoUsuarios.totalUsuarios} accent="var(--color-primary)" iconSurface="rgba(33, 71, 138, 0.14)" icon={Users} listTitle="Todos os usuários" usuarios={usuariosOrdenadosPorNome} emptyMessage="Nenhum usuário cadastrado." />
+            <SummaryCard label="Ativos" detail="com acesso liberado" value={resumoUsuarios.usuariosAtivos} accent="#10b981" iconSurface="rgba(16, 185, 129, 0.14)" icon={UserCheck} listTitle="Usuários ativos" usuarios={usuariosAtivos} emptyMessage="Nenhum usuário ativo." />
+            <SummaryCard label="Inativos" detail="com acesso suspenso" value={resumoUsuarios.usuariosInativos} accent="#ef4444" iconSurface="rgba(239, 68, 68, 0.14)" icon={UserX} listTitle="Usuários inativos" usuarios={usuariosInativos} emptyMessage="Nenhum usuário inativo." />
+            <OnlineUsersCard
+              usuarios={usuariosOnlineComDetalhes}
+              recentes={usuariosVistosRecentemente}
+              isLoading={resumoSessoes.isLoading}
+              totalOnline={resumoUsuarios.usuariosOnline}
             />
           </div>
         </div>
@@ -1266,7 +1313,7 @@ export default function AdminUsuariosPage() {
                 type="password"
                 value={form.confirmacaoSenha ?? ''}
                 onChange={(e) => setForm((atual) => ({ ...atual, confirmacaoSenha: e.target.value }))}
-                className="w-full rounded-xl border px-3 py-2.5"
+                className="h-11 w-full rounded-xl border px-3"
                 style={FIELD_STYLE}
                 minLength={12}
                 required={!editing}
@@ -1278,7 +1325,7 @@ export default function AdminUsuariosPage() {
               <select
                 value={form.setorId}
                 onChange={(e) => setForm((atual) => ({ ...atual, setorId: e.target.value }))}
-                className="w-full rounded-xl border px-3 py-2.5"
+                className="h-11 w-full rounded-xl border px-3"
                 style={FIELD_STYLE}
                 required
               >
@@ -1291,8 +1338,13 @@ export default function AdminUsuariosPage() {
               </select>
             </label>
 
-            <div className="flex flex-col justify-end gap-3 rounded-2xl border px-4 py-3" style={SOFT_PANEL_STYLE}>
-              <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text)' }}>
+            <div className="space-y-1">
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>Status da conta</span>
+              <label
+                className="flex h-11 cursor-pointer items-center justify-between rounded-xl border px-3 text-sm font-semibold"
+                style={form.ativo ? { ...FIELD_STYLE, borderColor: 'var(--color-primary)' } : FIELD_STYLE}
+              >
+                <span style={{ color: 'var(--color-text)' }}>Usuário ativo</span>
                 <input
                   type="checkbox"
                   checked={form.ativo}
@@ -1300,11 +1352,7 @@ export default function AdminUsuariosPage() {
                   className="h-4 w-4 rounded border-[var(--color-border)]"
                   style={{ accentColor: 'var(--color-primary)' }}
                 />
-                Usuário ativo
               </label>
-              <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>
-                O papel é único e o e-mail será usado como login da conta.
-              </p>
             </div>
           </div>
 
@@ -1426,35 +1474,14 @@ export default function AdminUsuariosPage() {
                 </span>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Setor</div>
-                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{setorSelecionado?.nome ?? 'Selecione um setor'}</div>
-                </div>
-                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Papel</div>
-                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{formatRoleName(form.papel)}</div>
-                </div>
-                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Filiais efetivas</div>
-                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{formatFiliaisResumo(filiaisEfetivasPreview, escopoComAcessoTotal)}</div>
-                </div>
-                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Baseline herdado</div>
-                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{permissionSummary(baseline, catalogo.data ?? []) || 'Sem permissões'}</div>
-                </div>
-                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Negações</div>
-                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{negacoesPreview}</div>
-                </div>
-                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Concessões individuais</div>
-                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{concessoesPreview}</div>
-                </div>
-                <div className="rounded-xl border px-3 py-2" style={SURFACE_STYLE}>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-subtle)' }}>Permissões efetivas</div>
-                  <div className="mt-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{permissionSummary(permissoesEfetivasPreview, catalogo.data ?? []) || 'Sem permissões'}</div>
-                </div>
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <AccessSummaryItem label="Setor" value={setorSelecionado?.nome ?? 'Selecione um setor'} />
+                <AccessSummaryItem label="Papel" value={formatRoleName(form.papel)} />
+                <AccessSummaryItem label="Filiais efetivas" value={formatFiliaisResumo(filiaisEfetivasPreview, escopoComAcessoTotal)} />
+                <AccessSummaryItem label="Baseline herdado" value={permissionSummary(baseline, catalogo.data ?? []) || 'Sem permissões'} />
+                <AccessSummaryItem label="Negações" value={negacoesPreview} />
+                <AccessSummaryItem label="Concessões individuais" value={concessoesPreview} />
+                <AccessSummaryItem label="Permissões efetivas" value={permissionSummary(permissoesEfetivasPreview, catalogo.data ?? []) || 'Sem permissões'} expandable className="sm:col-span-2" />
               </div>
             </div>
 

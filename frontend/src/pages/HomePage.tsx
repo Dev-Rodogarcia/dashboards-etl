@@ -4,7 +4,8 @@ import { noticeToForm, noticeToPayload } from '../api/endpoints/homeComunicadosS
 import CommunicationsPanel from '../components/home/CommunicationsPanel';
 import DashboardCatalog from '../components/home/DashboardCatalog';
 import HomeHero from '../components/home/HomeHero';
-import HomeMetricGrid from '../components/home/HomeMetricGrid';
+import HomeRequestPanel from '../components/home/HomeRequestPanel';
+import HomeRequestsAdminPanel from '../components/home/HomeRequestsAdminPanel';
 import HomeSearch from '../components/home/HomeSearch';
 import { useAutenticacao } from '../contexts/AutenticacaoContext';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -15,8 +16,15 @@ import {
   useCriarHomeComunicado,
   useHomeComunicados,
 } from '../hooks/queries/useHomeComunicados';
+import {
+  useArquivarHomeSolicitacao,
+  useConcluirHomeSolicitacao,
+  useCriarHomeSolicitacao,
+  useHomeSolicitacoes,
+} from '../hooks/queries/useHomeSolicitacoes';
 import { usePermissions } from '../hooks/usePermissions';
-import type { HomeDashboardFilter, HomeDashboardItem, HomeMetric, HomeNotice, HomeNoticeFormState } from '../types/home';
+import type { HomeDashboardFilter, HomeDashboardItem, HomeMetric, HomeNotice, HomeNoticeFormState, HomeRequestFormState } from '../types/home';
+import { requestToPayload } from '../api/endpoints/homeSolicitacoesServico';
 import { getApiErrorMessage } from '../utils/apiError';
 import { canManageCommunications } from '../utils/accessControl';
 import {
@@ -46,11 +54,16 @@ export default function HomePage() {
   const [editingNoticeId, setEditingNoticeId] = useState<string | null>(null);
   const [showNoticeForm, setShowNoticeForm] = useState(false);
   const [noticeMutationError, setNoticeMutationError] = useState<string | null>(null);
+  const [requestMutationError, setRequestMutationError] = useState<string | null>(null);
+  const [requestsModalOpen, setRequestsModalOpen] = useState(false);
 
   const comunicadosQuery = useHomeComunicados();
   const criarComunicado = useCriarHomeComunicado();
   const atualizarComunicado = useAtualizarHomeComunicado();
   const arquivarComunicado = useArquivarHomeComunicado();
+  const criarSolicitacao = useCriarHomeSolicitacao();
+  const concluirSolicitacao = useConcluirHomeSolicitacao();
+  const arquivarSolicitacao = useArquivarHomeSolicitacao();
 
   usePageHeader({
     title: 'Home',
@@ -121,6 +134,8 @@ export default function HomePage() {
   const noticeError = noticeMutationError;
   const noticeSaving = criarComunicado.isPending || atualizarComunicado.isPending || arquivarComunicado.isPending;
   const canManageHomeComunicados = HOME_COMUNICADOS_API_ENABLED && hasHomeComunicadosApiData && canManageCommunications(usuario);
+  const canManageHomeRequests = canManageCommunications(usuario);
+  const solicitacoesQuery = useHomeSolicitacoes(canManageHomeRequests);
 
   const metrics: HomeMetric[] = [
     {
@@ -228,8 +243,37 @@ export default function HomePage() {
     }
   }
 
+  async function handleRequestSubmit(form: HomeRequestFormState) {
+    setRequestMutationError(null);
+    try {
+      await criarSolicitacao.mutateAsync(requestToPayload(form));
+    } catch (error) {
+      setRequestMutationError(getApiErrorMessage(error, 'Não foi possível enviar a solicitação.'));
+      throw error;
+    }
+  }
+
+  async function completeRequest(id: string) {
+    setRequestMutationError(null);
+    try {
+      await concluirSolicitacao.mutateAsync(id);
+    } catch (error) {
+      setRequestMutationError(getApiErrorMessage(error, 'Não foi possível concluir a solicitação.'));
+    }
+  }
+
+  async function archiveRequest(id: string) {
+    if (!window.confirm('Arquivar esta solicitação? Ela continuará preservada no histórico interno.')) return;
+    setRequestMutationError(null);
+    try {
+      await arquivarSolicitacao.mutateAsync(id);
+    } catch (error) {
+      setRequestMutationError(getApiErrorMessage(error, 'Não foi possível arquivar a solicitação.'));
+    }
+  }
+
   return (
-    <div className="min-h-[calc(100vh-4rem)] w-full overflow-x-hidden">
+    <div className="min-h-[calc(100vh-4rem)] w-full">
       <div className="flex flex-col gap-6">
         <HomeHero
           nome={usuario?.nome ?? 'usuário'}
@@ -237,13 +281,19 @@ export default function HomePage() {
           setorLabel={setorLabel}
           filiaisLabel={filiaisLabel}
           dashboardsLabel={String(accessibleDashboards.length)}
+          metrics={metrics}
+          search={<HomeSearch value={query} onChange={setQuery} onClear={() => setQuery('')} compact />}
         />
 
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch 2xl:gap-8">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-stretch 2xl:gap-6">
           <main className="min-w-0 flex-1 space-y-6">
-            <HomeSearch value={query} onChange={setQuery} onClear={() => setQuery('')} />
-
-            <HomeMetricGrid metrics={metrics} />
+            <HomeRequestPanel
+              saving={criarSolicitacao.isPending}
+              error={requestMutationError}
+              pendingCount={solicitacoesQuery.data?.filter((request) => request.status === 'ABERTA').length}
+              onOpenRequests={canManageHomeRequests ? () => setRequestsModalOpen(true) : undefined}
+              onSubmit={handleRequestSubmit}
+            />
 
             <DashboardCatalog
               dashboards={filteredDashboards}
@@ -255,25 +305,39 @@ export default function HomePage() {
             />
           </main>
 
-          <CommunicationsPanel
-            className="lg:w-[360px] lg:flex-none lg:self-stretch 2xl:w-[440px]"
-            notices={notices}
-            isLoading={comunicadosQuery.isLoading}
-            error={noticeError}
-            isAdmin={canManageHomeComunicados}
-            form={noticeForm}
-            showForm={showNoticeForm}
-            editingNoticeId={editingNoticeId}
-            saving={noticeSaving}
-            onFormChange={setNoticeForm}
-            onStartCreate={startCreateNotice}
-            onStartEdit={startEditNotice}
-            onCancelForm={cancelNoticeForm}
-            onSubmit={(event) => void handleNoticeSubmit(event)}
-            onArchive={(id) => void archiveNotice(id)}
-          />
+          <aside className="flex w-full flex-col gap-4 xl:w-[380px] xl:flex-none xl:self-stretch" aria-label="Apoio e comunicações">
+            <CommunicationsPanel
+              className="xl:self-start xl:flex-none"
+              notices={notices}
+              isLoading={comunicadosQuery.isLoading}
+              error={noticeError}
+              isAdmin={canManageHomeComunicados}
+              form={noticeForm}
+              showForm={showNoticeForm}
+              editingNoticeId={editingNoticeId}
+              saving={noticeSaving}
+              onFormChange={setNoticeForm}
+              onStartCreate={startCreateNotice}
+              onStartEdit={startEditNotice}
+              onCancelForm={cancelNoticeForm}
+              onSubmit={(event) => void handleNoticeSubmit(event)}
+              onArchive={(id) => void archiveNotice(id)}
+            />
+          </aside>
         </div>
       </div>
+      {canManageHomeRequests && (
+        <HomeRequestsAdminPanel
+          open={requestsModalOpen}
+          onClose={() => setRequestsModalOpen(false)}
+          requests={solicitacoesQuery.data ?? []}
+          isLoading={solicitacoesQuery.isLoading}
+          saving={concluirSolicitacao.isPending || arquivarSolicitacao.isPending}
+          error={requestMutationError}
+          onComplete={(id) => void completeRequest(id)}
+          onArchive={(id) => void archiveRequest(id)}
+        />
+      )}
     </div>
   );
 }

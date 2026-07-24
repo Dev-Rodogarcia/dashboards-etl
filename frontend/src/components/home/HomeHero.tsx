@@ -1,5 +1,8 @@
 import { Building2, LayoutDashboard, MapPinned, ShieldCheck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
+import HomeMetricGrid from './HomeMetricGrid';
+import type { HomeMetric } from '../../types/home';
 
 function cleanDisplayName(nome: string) {
   return nome.split('|')[0]?.trim() || nome;
@@ -39,39 +42,50 @@ export default function HomeHero({
   setorLabel,
   filiaisLabel,
   dashboardsLabel,
+  metrics,
+  search,
 }: {
   nome: string;
   roleLabel: string;
   setorLabel: string;
   filiaisLabel: string;
   dashboardsLabel: string;
+  metrics: HomeMetric[];
+  search: ReactNode;
 }) {
   const displayName = cleanDisplayName(nome);
 
   return (
     <section
-      className="w-full rounded-[22px] border px-5 py-5 shadow-sm sm:px-6"
+      className="w-full rounded-[20px] border px-4 py-3 shadow-sm sm:px-5"
       style={{
         backgroundColor: 'var(--color-card)',
         borderColor: 'var(--color-border)',
       }}
     >
       <div className="min-w-0">
-        <h1 className="text-2xl font-extrabold leading-tight sm:text-[1.8rem]" style={{ color: 'var(--color-text)' }}>
-          Home
-        </h1>
+        <div className="grid gap-3 xl:grid-cols-[minmax(17rem,18rem)_minmax(26rem,1fr)_auto] xl:items-center">
+          <div className="xl:border-r xl:pr-5" style={{ borderColor: 'var(--color-border)' }}>
+            <h1 className="text-base font-extrabold leading-tight sm:text-lg" style={{ color: 'var(--color-text)' }}>
+              Bem-vindo, {displayName}
+            </h1>
+            <p className="mt-1 hidden text-xs font-medium sm:block" style={{ color: 'var(--color-text-muted)' }}>
+              Seu espaço de trabalho está pronto para hoje.
+            </p>
+          </div>
 
-        <div className="mt-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <p className="shrink-0 text-sm font-semibold sm:text-base" style={{ color: 'var(--color-text-muted)' }}>
-            Olá, {displayName} <span aria-hidden="true">|</span> {roleLabel}
-          </p>
+          <div className="min-w-0 xl:pl-2">{search}</div>
 
-          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:flex-wrap xl:justify-end">
+          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:flex-wrap xl:justify-end">
             <InfoChip label="Setor" value={setorLabel} Icon={Building2} />
             <InfoChip label="Perfil" value={roleLabel} Icon={ShieldCheck} />
             <InfoChip label="Filiais" value={filiaisLabel} Icon={MapPinned} />
             <InfoChip label="Dashboards" value={dashboardsLabel} Icon={LayoutDashboard} />
           </div>
+        </div>
+
+        <div className="mt-2 border-t pt-2" style={{ borderColor: 'var(--color-border)' }}>
+          <HomeMetricGrid metrics={metrics} />
         </div>
       </div>
     </section>

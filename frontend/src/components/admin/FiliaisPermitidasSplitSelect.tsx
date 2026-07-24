@@ -28,8 +28,8 @@ export default function FiliaisPermitidasSplitSelect({
   }
 
   return (
-    <div className="my-12 flex w-full max-w-4xl flex-col gap-3 md:flex-row">
-      <div className="min-w-0 flex-0.4">
+    <div className="flex w-full flex-col gap-3 md:flex-row">
+      <div className="min-w-0 flex-1">
         <AsyncMultiSelect
           label="Filiais Próprias Permitidas"
           opcoes={filiaisProprias}
@@ -40,7 +40,7 @@ export default function FiliaisPermitidasSplitSelect({
         />
       </div>
 
-      <div className="min-w-0 flex-0.4">
+      <div className="min-w-0 flex-1">
         <AsyncMultiSelect
           label="Parceiros Logísticos Permitidos"
           opcoes={parceirosLogisticos}

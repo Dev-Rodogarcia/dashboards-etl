@@ -72,7 +72,7 @@ export default function PermissionOverrideMatrix({
   disabled,
 }: PermissionOverrideMatrixProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
       {catalogo.map((item) => {
         const herdado = Boolean(baseline[item.chave]);
         const negado = valor[item.chave] === 'deny';
@@ -90,16 +90,16 @@ export default function PermissionOverrideMatrix({
         return (
           <div
             key={item.chave}
-            className={`rounded-2xl border px-4 py-3 ${disabled ? 'opacity-60' : ''}`}
+            className={`flex min-h-[154px] min-w-0 flex-col rounded-xl border p-3.5 ${disabled ? 'opacity-60' : ''}`}
             style={cardStyle}
           >
-            <div>
-              <div className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{item.nome}</div>
-              <div className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>{item.descricao}</div>
-              {item.rota && <div className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>{item.rota}</div>}
+            <div className="min-h-[61px] min-w-0">
+              <div className="truncate text-[15px] font-semibold leading-5" title={item.nome} style={{ color: 'var(--color-text)' }}>{item.nome}</div>
+              <div className="mt-0.5 truncate text-xs leading-4" title={item.descricao} style={{ color: 'var(--color-text-subtle)' }}>{item.descricao}</div>
+              {item.rota && <div className="mt-1 truncate text-xs leading-4" title={item.rota} style={{ color: 'var(--color-text-muted)' }}>{item.rota}</div>}
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            <div className="mt-auto flex flex-wrap gap-1.5 text-xs">
               <span
                 className="rounded-full px-2 py-1 font-medium"
                 style={
@@ -121,7 +121,7 @@ export default function PermissionOverrideMatrix({
               </span>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2.5 flex items-center gap-1.5">
               {OPCOES.map((opcao) => {
                 const ativo = valor[item.chave] === opcao.valor;
                 return (

@@ -61,3 +61,39 @@ export interface HomeMetric {
   value: string;
   helper: string;
 }
+
+export type HomeRequestType = 'MELHORIA' | 'AUTOMACAO' | 'DASHBOARD' | 'CORRECAO' | 'OUTRO';
+export type HomeRequestStatus = 'ABERTA' | 'CONCLUIDA';
+
+export interface HomeRequestFormState {
+  type: HomeRequestType;
+  title: string;
+  description: string;
+  expectedResult: string;
+}
+
+export interface HomeRequestPayload {
+  tipo: HomeRequestType;
+  titulo: string;
+  descricao: string;
+  resultadoEsperado: string;
+}
+
+export interface HomeRequestApi {
+  id: string;
+  tipo: HomeRequestType;
+  titulo: string;
+  descricao: string;
+  resultadoEsperado?: string | null;
+  status: HomeRequestStatus;
+  solicitanteNome: string;
+  solicitanteEmail: string;
+  criadoEm: string;
+  concluidoEm?: string | null;
+  atualizadoPor?: string | null;
+}
+
+export interface HomeRequest extends Omit<HomeRequestApi, 'resultadoEsperado' | 'concluidoEm'> {
+  expectedResult: string;
+  completedAt?: string | null;
+}

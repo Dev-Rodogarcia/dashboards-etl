@@ -5,14 +5,6 @@ import type { HomeDashboardCategory, HomeDashboardFilter, HomeDashboardItem } fr
 const focusRingClass =
   'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]';
 
-const CATEGORY_BADGE_STYLE: Record<HomeDashboardCategory, { backgroundColor: string; color: string }> = {
-  Operação: { backgroundColor: 'rgba(37, 99, 235, 0.14)', color: '#1d4ed8' },
-  Financeiro: { backgroundColor: 'rgba(124, 58, 237, 0.14)', color: '#6d28d9' },
-  Comercial: { backgroundColor: 'rgba(249, 115, 22, 0.16)', color: '#ea580c' },
-  Executivo: { backgroundColor: 'rgba(79, 70, 229, 0.14)', color: '#4338ca' },
-  'TI/ETL': { backgroundColor: 'rgba(220, 38, 38, 0.14)', color: '#b91c1c' },
-};
-
 function hexToRgba(hex: string, alpha: number) {
   const normalized = hex.replace('#', '');
   if (normalized.length !== 6) {
@@ -24,21 +16,6 @@ function hexToRgba(hex: string, alpha: number) {
   const blue = Number.parseInt(normalized.slice(4, 6), 16);
 
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}
-
-function CategoryTag({ item }: { item: HomeDashboardItem }) {
-  const style = item.isAccessible
-    ? CATEGORY_BADGE_STYLE[item.category]
-    : { backgroundColor: 'rgba(71, 85, 105, 0.14)', color: '#475569' };
-
-  return (
-    <span
-      className="inline-flex w-fit max-w-full justify-self-start rounded-full px-[0.72em] py-[0.34em] text-[11px] font-semibold uppercase leading-none tracking-wide"
-      style={style}
-    >
-      {item.category}
-    </span>
-  );
 }
 
 function FavoriteButton({
@@ -70,7 +47,7 @@ function OpenButton({ item }: { item: HomeDashboardItem }) {
   if (!item.isAccessible) {
     return (
       <span
-        className="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-1.5 text-xs font-bold leading-none"
+        className="inline-flex h-8 items-center justify-center rounded-lg px-2 text-xs font-bold leading-none"
         style={{
           backgroundColor: 'rgba(220, 38, 38, 0.12)',
           color: '#dc2626',
@@ -78,7 +55,6 @@ function OpenButton({ item }: { item: HomeDashboardItem }) {
         aria-label={`${item.label} sem acesso para este perfil`}
       >
         <Lock className="shrink-0" size={14} strokeWidth={2.4} />
-        Sem acesso
       </span>
     );
   }
@@ -86,10 +62,11 @@ function OpenButton({ item }: { item: HomeDashboardItem }) {
   return (
     <Link
       to={item.path}
-      className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border px-3 text-xs font-bold text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)] hover:text-white ${focusRingClass}`}
+      className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)] hover:text-white ${focusRingClass}`}
       style={{ borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-card)' }}
+      aria-label={`Abrir ${item.label}`}
+      title={`Abrir ${item.label}`}
     >
-      Abrir
       <ExternalLink size={13} />
     </Link>
   );
@@ -107,12 +84,11 @@ function DashboardRow({
   const Icon = item.Icon;
   const locked = !item.isAccessible;
   const textColor = locked ? 'var(--color-text-muted)' : 'var(--color-text)';
-  const subtleColor = locked ? 'var(--color-text-muted)' : 'var(--color-text-subtle)';
 
   return (
     <div
-      className={`grid gap-3 border-b px-5 py-4 last:border-b-0 xl:grid-cols-[minmax(230px,1fr)_132px_minmax(260px,1.2fr)_100px] xl:items-center ${
-        locked ? '' : 'transition-colors hover:bg-[var(--color-bg)]'
+      className={`flex min-h-[76px] min-w-0 items-center gap-3 rounded-2xl border p-3 ${
+        locked ? '' : 'transition-colors hover:-translate-y-0.5 hover:shadow-sm'
       }`}
       style={{
         backgroundColor: locked ? 'var(--color-bg)' : 'var(--color-card)',
@@ -120,7 +96,7 @@ function DashboardRow({
       }}
       aria-disabled={locked}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3" title={item.description}>
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border"
           style={{
@@ -132,14 +108,7 @@ function DashboardRow({
           <Icon size={17} />
         </span>
         <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-2">
-            {item.isAccessible && (
-              <FavoriteButton item={item} favorite={favorite} onToggleFavorite={onToggleFavorite} />
-            )}
-            <h3 className="truncate text-sm font-bold" style={{ color: textColor }}>
-              {item.label}
-            </h3>
-          </div>
+          <h3 className="truncate text-sm font-bold" style={{ color: textColor }}>{item.label}</h3>
           {locked && (
             <p className="mt-1 text-[11px] font-semibold uppercase" style={{ color: 'var(--color-text-muted)' }}>
               Disponível mediante liberação de acesso
@@ -147,16 +116,8 @@ function DashboardRow({
           )}
         </div>
       </div>
-
-      <CategoryTag item={item} />
-
-      <p className="text-sm leading-relaxed" style={{ color: subtleColor }}>
-        {item.description}
-      </p>
-
-      <div className="flex justify-start xl:justify-end">
-        <OpenButton item={item} />
-      </div>
+      {item.isAccessible && <FavoriteButton item={item} favorite={favorite} onToggleFavorite={onToggleFavorite} />}
+      <OpenButton item={item} />
     </div>
   );
 }
@@ -222,24 +183,7 @@ export default function DashboardCatalog({
         )}
       </div>
 
-      <div
-        className="overflow-hidden rounded-[24px] border shadow-sm"
-        style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
-      >
-        <div
-          className="hidden min-h-11 grid-cols-[minmax(230px,1fr)_132px_minmax(260px,1.2fr)_100px] items-center gap-3 border-b px-5 text-[11px] font-bold uppercase xl:grid"
-          style={{
-            backgroundColor: 'var(--color-bg)',
-            borderColor: 'var(--color-border)',
-            color: 'var(--color-text-muted)',
-          }}
-        >
-          <span>Nome</span>
-          <span>Área</span>
-          <span>Resumo</span>
-          <span className="text-right">Ação</span>
-        </div>
-
+      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
         {dashboards.length > 0 ? (
           dashboards.map((item) => (
             <DashboardRow
@@ -250,7 +194,7 @@ export default function DashboardCatalog({
             />
           ))
         ) : (
-          <div className="px-6 py-12 text-center text-sm" style={{ color: 'var(--color-text-subtle)' }}>
+          <div className="col-span-full rounded-[20px] border px-6 py-12 text-center text-sm" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-subtle)' }}>
             {emptyMessage}
           </div>
         )}

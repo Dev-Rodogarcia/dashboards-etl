@@ -33,6 +33,7 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
             "/api/painel/fretes",
             "/api/etl/quarentena",
             "/api/painel/home/comunicados",
+            "/api/painel/home/solicitacoes",
             "/api/painel/indicadores-gestao-a-vista",
             "/api/painel/integracoes",
             "/api/painel/manifestos",

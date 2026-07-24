@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Archive, Bell, CheckCircle2, Megaphone, Pencil, Plus, Save, X } from 'lucide-react';
+import { Archive, Bell, CircleAlert, Megaphone, Pencil, Plus, Save, Sparkles, X } from 'lucide-react';
 import type {
   HomeCommunicationPriority,
   HomeCommunicationTab,
@@ -17,6 +17,12 @@ const TAB_LABELS: Record<HomeCommunicationTab, string> = {
   atualizacoes: 'Atualizações',
   pendencias: 'Pendências',
 };
+
+const TAB_ICONS = {
+  avisos: Bell,
+  atualizacoes: Sparkles,
+  pendencias: CircleAlert,
+} as const;
 
 function tagLabel(tag: HomeNoticeTag): string {
   const labels: Record<HomeNoticeTag, string> = {
@@ -93,14 +99,12 @@ export default function CommunicationsPanel({
 }) {
   const [activeTab, setActiveTab] = useState<HomeCommunicationTab>('avisos');
   const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
 
   const filteredNotices = useMemo(() => filterByTab(notices, activeTab), [activeTab, notices]);
-  const visibleNotices = showAll ? filteredNotices : filteredNotices.slice(0, 5);
+  const visibleNotices = filteredNotices;
 
   function handleTabChange(tab: HomeCommunicationTab) {
     setActiveTab(tab);
-    setShowAll(false);
     setSelectedNoticeId(null);
   }
 
@@ -110,14 +114,14 @@ export default function CommunicationsPanel({
       aria-label="Comunicações"
     >
       <section
-        className="flex min-h-[38rem] flex-1 flex-col overflow-hidden rounded-[30px] border shadow-[0_22px_48px_rgba(15,23,42,0.10)]"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border shadow-[0_16px_34px_rgba(33,71,138,0.13)]"
         style={{
           backgroundColor: 'var(--color-card)',
-          borderColor: 'var(--color-border)',
+          borderColor: 'rgba(33, 71, 138, 0.38)',
         }}
       >
         <div
-          className="sticky top-0 z-10 border-b px-5 py-5 backdrop-blur"
+          className="sticky top-0 z-10 border-b px-4 py-4"
           style={{
             backgroundColor: 'var(--color-card)',
             borderColor: 'var(--color-border)',
@@ -125,10 +129,10 @@ export default function CommunicationsPanel({
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-primary)' }}>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: '#1d4ed8' }}>
                 Command Center
               </p>
-              <h2 className="mt-1 text-xl font-extrabold" style={{ color: 'var(--color-text)' }}>
+              <h2 className="mt-1 text-lg font-extrabold" style={{ color: 'var(--color-text)' }}>
                 Comunicações
               </h2>
               <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--color-text-subtle)' }}>
@@ -147,21 +151,24 @@ export default function CommunicationsPanel({
             </span>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-1 rounded-2xl border p-1" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="mt-4 grid grid-cols-3 gap-2">
             {(Object.keys(TAB_LABELS) as HomeCommunicationTab[]).map((tab) => {
               const active = activeTab === tab;
+              const TabIcon = TAB_ICONS[tab];
               return (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => handleTabChange(tab)}
-                  className={`h-9 rounded-xl text-[11px] font-bold transition-all duration-200 ${focusRingClass}`}
+                  className={`flex h-10 items-center justify-center gap-1.5 rounded-xl border text-[10px] font-bold transition-all duration-200 ${focusRingClass}`}
                   style={{
-                    backgroundColor: active ? 'var(--color-primary)' : 'transparent',
-                    color: active ? '#FFFFFF' : 'var(--color-text-muted)',
+                    backgroundColor: active ? 'var(--color-primary)' : 'rgba(33, 71, 138, 0.05)',
+                    borderColor: active ? 'var(--color-primary)' : 'rgba(33, 71, 138, 0.16)',
+                    color: active ? '#FFFFFF' : 'var(--color-text)',
                   }}
                   aria-pressed={active}
                 >
+                  <TabIcon size={13} />
                   {TAB_LABELS[tab]}
                 </button>
               );
@@ -172,7 +179,7 @@ export default function CommunicationsPanel({
             <button
               type="button"
               onClick={onStartCreate}
-              className={`mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl px-3 text-xs font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:opacity-95 ${focusRingClass}`}
+            className={`mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl px-3 text-xs font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:opacity-95 ${focusRingClass}`}
               style={{ backgroundColor: 'var(--color-primary)' }}
             >
               <Plus size={14} />
@@ -181,13 +188,22 @@ export default function CommunicationsPanel({
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-5">
+        <div
+          className="communications-scroll max-h-[39rem] flex-1 overflow-y-auto px-4 py-4"
+        >
           {showForm && isAdmin && (
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
+              role="presentation"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) onCancelForm();
+              }}
+            >
             <form
               onSubmit={onSubmit}
-              className="mb-5 space-y-3 rounded-[22px] border p-4"
+              className="max-h-[calc(100vh-2rem)] w-full max-w-xl space-y-3 overflow-y-auto rounded-[22px] border p-5 shadow-2xl"
               style={{
-                backgroundColor: 'var(--color-bg)',
+                backgroundColor: 'var(--color-card)',
                 borderColor: 'var(--color-border)',
               }}
             >
@@ -264,6 +280,7 @@ export default function CommunicationsPanel({
                 </button>
               </div>
             </form>
+            </div>
           )}
 
           {error && (
@@ -369,17 +386,6 @@ export default function CommunicationsPanel({
           </div>
         </div>
 
-        <div className="border-t px-5 py-4" style={{ borderColor: 'var(--color-border)' }}>
-          <button
-            type="button"
-            onClick={() => setShowAll((current) => !current)}
-            className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border text-xs font-bold transition-all duration-200 hover:bg-[var(--color-bg)] ${focusRingClass}`}
-            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-          >
-            <CheckCircle2 size={15} />
-            {showAll ? 'Mostrar menos' : 'Ver todas'}
-          </button>
-        </div>
       </section>
     </aside>
   );
