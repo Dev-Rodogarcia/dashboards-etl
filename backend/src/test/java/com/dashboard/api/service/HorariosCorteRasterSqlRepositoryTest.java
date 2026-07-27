@@ -55,6 +55,15 @@ class HorariosCorteRasterSqlRepositoryTest {
     }
 
     @Test
+    void queryDeveAplicarCorteDe22HorasNaRotaRjrSpo() throws ReflectiveOperationException {
+        String sql = sql();
+
+        assertThat(sql).contains("(N'DUQUE DE CAXIAS/RJ - RODOGARCIA FILIAL RJR', N'OSASCO/SP - RODOGARCIA FILIAL SPO', CAST(N'22:00:00' AS TIME(0)))");
+        assertThat(sql).doesNotContain("(N'DUQUE DE CAXIAS/RJ - RODOGARCIA FILIAL RJR', N'OSASCO/SP - RODOGARCIA FILIAL SPO', CAST(N'05:00:00' AS TIME(0)))");
+        assertThat(sql).contains("(N'OSASCO/SP - RODOGARCIA FILIAL SPO', N'DUQUE DE CAXIAS/RJ - RODOGARCIA FILIAL RJR', CAST(N'23:30:00' AS TIME(0)))");
+    }
+
+    @Test
     void queryDeveForcarNoPrazoQuandoSmTemJustificativa() throws ReflectiveOperationException {
         String sql = sql();
         String sqlSerie = sqlSerie();
@@ -133,9 +142,9 @@ class HorariosCorteRasterSqlRepositoryTest {
     @Test
     void regraDeToleranciaDeveAceitarAteDezMinutosAposCorte() throws ReflectiveOperationException {
         int toleranciaMinutos = toleranciaHorarioCorteMinutos();
-        LocalDateTime horarioCorte = LocalDateTime.of(2026, 6, 5, 20, 30);
-        LocalDateTime saidaDentroTolerancia = LocalDateTime.of(2026, 6, 5, 20, 38);
-        LocalDateTime saidaForaTolerancia = LocalDateTime.of(2026, 6, 5, 20, 41);
+        LocalDateTime horarioCorte = LocalDateTime.of(2026, 6, 5, 22, 0);
+        LocalDateTime saidaDentroTolerancia = LocalDateTime.of(2026, 6, 5, 22, 10);
+        LocalDateTime saidaForaTolerancia = LocalDateTime.of(2026, 6, 5, 22, 11);
         LocalDateTime limiteComTolerancia = horarioCorte.plusMinutes(toleranciaMinutos);
 
         assertThat(toleranciaMinutos).isEqualTo(10);

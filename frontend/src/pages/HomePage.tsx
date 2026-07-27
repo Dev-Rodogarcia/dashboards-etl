@@ -21,10 +21,11 @@ import {
   useConcluirHomeSolicitacao,
   useCriarHomeSolicitacao,
   useHomeSolicitacoes,
+  useMinhasHomeSolicitacoes,
 } from '../hooks/queries/useHomeSolicitacoes';
 import { usePermissions } from '../hooks/usePermissions';
-import type { HomeDashboardFilter, HomeDashboardItem, HomeMetric, HomeNotice, HomeNoticeFormState, HomeRequestFormState } from '../types/home';
-import { requestToPayload } from '../api/endpoints/homeSolicitacoesServico';
+import type { HomeDashboardFilter, HomeDashboardItem, HomeMetric, HomeNotice, HomeNoticeFormState, HomeRequestAttachment, HomeRequestFormState } from '../types/home';
+import { baixarHomeSolicitacaoAnexo } from '../api/endpoints/homeSolicitacoesServico';
 import { getApiErrorMessage } from '../utils/apiError';
 import { canManageCommunications } from '../utils/accessControl';
 import {
@@ -136,6 +137,10 @@ export default function HomePage() {
   const canManageHomeComunicados = HOME_COMUNICADOS_API_ENABLED && hasHomeComunicadosApiData && canManageCommunications(usuario);
   const canManageHomeRequests = canManageCommunications(usuario);
   const solicitacoesQuery = useHomeSolicitacoes(canManageHomeRequests);
+  const minhasSolicitacoesQuery = useMinhasHomeSolicitacoes();
+  const requestsForCurrentUser = canManageHomeRequests
+    ? solicitacoesQuery.data ?? []
+    : minhasSolicitacoesQuery.data ?? [];
 
   const metrics: HomeMetric[] = [
     {
@@ -246,7 +251,7 @@ export default function HomePage() {
   async function handleRequestSubmit(form: HomeRequestFormState) {
     setRequestMutationError(null);
     try {
-      await criarSolicitacao.mutateAsync(requestToPayload(form));
+      await criarSolicitacao.mutateAsync(form);
     } catch (error) {
       setRequestMutationError(getApiErrorMessage(error, 'Não foi possível enviar a solicitação.'));
       throw error;
@@ -263,12 +268,21 @@ export default function HomePage() {
   }
 
   async function archiveRequest(id: string) {
-    if (!window.confirm('Arquivar esta solicitação? Ela continuará preservada no histórico interno.')) return;
+    if (!window.confirm('Arquivar esta solicitação? Os anexos serão removidos imediatamente e o registro ficará apenas para auditoria.')) return;
     setRequestMutationError(null);
     try {
       await arquivarSolicitacao.mutateAsync(id);
     } catch (error) {
       setRequestMutationError(getApiErrorMessage(error, 'Não foi possível arquivar a solicitação.'));
+    }
+  }
+
+  async function downloadRequestAttachment(requestId: string, attachment: HomeRequestAttachment) {
+    setRequestMutationError(null);
+    try {
+      await baixarHomeSolicitacaoAnexo(requestId, attachment);
+    } catch (error) {
+      setRequestMutationError(getApiErrorMessage(error, 'Não foi possível baixar o anexo.'));
     }
   }
 
@@ -290,8 +304,9 @@ export default function HomePage() {
             <HomeRequestPanel
               saving={criarSolicitacao.isPending}
               error={requestMutationError}
-              pendingCount={solicitacoesQuery.data?.filter((request) => request.status === 'ABERTA').length}
-              onOpenRequests={canManageHomeRequests ? () => setRequestsModalOpen(true) : undefined}
+              requestCount={requestsForCurrentUser.length}
+              requestsLabel={canManageHomeRequests ? 'Gerenciar solicitações' : 'Ver minhas solicitações'}
+              onOpenRequests={() => setRequestsModalOpen(true)}
               onSubmit={handleRequestSubmit}
             />
 
@@ -326,16 +341,18 @@ export default function HomePage() {
           </aside>
         </div>
       </div>
-      {canManageHomeRequests && (
+      {requestsModalOpen && (
         <HomeRequestsAdminPanel
           open={requestsModalOpen}
           onClose={() => setRequestsModalOpen(false)}
-          requests={solicitacoesQuery.data ?? []}
-          isLoading={solicitacoesQuery.isLoading}
+          requests={requestsForCurrentUser}
+          isLoading={canManageHomeRequests ? solicitacoesQuery.isLoading : minhasSolicitacoesQuery.isLoading}
           saving={concluirSolicitacao.isPending || arquivarSolicitacao.isPending}
           error={requestMutationError}
-          onComplete={(id) => void completeRequest(id)}
-          onArchive={(id) => void archiveRequest(id)}
+          isAdmin={canManageHomeRequests}
+          onComplete={canManageHomeRequests ? (id) => void completeRequest(id) : undefined}
+          onArchive={canManageHomeRequests ? (id) => void archiveRequest(id) : undefined}
+          onDownloadAttachment={(requestId, attachment) => void downloadRequestAttachment(requestId, attachment)}
         />
       )}
     </div>

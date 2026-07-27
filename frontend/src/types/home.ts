@@ -70,6 +70,8 @@ export interface HomeRequestFormState {
   title: string;
   description: string;
   expectedResult: string;
+  applicationLocation: string;
+  attachments: File[];
 }
 
 export interface HomeRequestPayload {
@@ -77,6 +79,7 @@ export interface HomeRequestPayload {
   titulo: string;
   descricao: string;
   resultadoEsperado: string;
+  localAplicacao: string;
 }
 
 export interface HomeRequestApi {
@@ -85,15 +88,30 @@ export interface HomeRequestApi {
   titulo: string;
   descricao: string;
   resultadoEsperado?: string | null;
+  localAplicacao?: string | null;
   status: HomeRequestStatus;
   solicitanteNome: string;
   solicitanteEmail: string;
   criadoEm: string;
   concluidoEm?: string | null;
   atualizadoPor?: string | null;
+  anexos?: HomeRequestAttachmentApi[];
 }
 
-export interface HomeRequest extends Omit<HomeRequestApi, 'resultadoEsperado' | 'concluidoEm'> {
+export interface HomeRequestAttachmentApi {
+  id: number;
+  nomeOriginal: string;
+  tipoConteudo: string;
+  tamanhoBytes: number;
+}
+
+export interface HomeRequestAttachment extends Omit<HomeRequestAttachmentApi, 'id'> {
+  id: string;
+}
+
+export interface HomeRequest extends Omit<HomeRequestApi, 'resultadoEsperado' | 'localAplicacao' | 'concluidoEm' | 'anexos'> {
   expectedResult: string;
+  applicationLocation: string;
   completedAt?: string | null;
+  attachments: HomeRequestAttachment[];
 }

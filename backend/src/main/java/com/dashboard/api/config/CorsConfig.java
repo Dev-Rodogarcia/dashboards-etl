@@ -79,7 +79,7 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(@NonNull CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins(parseOrigensPermitidas())
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders(HEADERS_PERMITIDOS.toArray(String[]::new))
                 .exposedHeaders("Content-Disposition", "Content-Length")
                 .allowCredentials(true)
@@ -96,7 +96,7 @@ public class CorsConfig implements WebMvcConfigurer {
     private CorsConfiguration criarConfiguracaoCors() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(parseOrigensPermitidas()));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(HEADERS_PERMITIDOS);
         configuration.setExposedHeaders(List.of("Content-Disposition", "Content-Length"));
         configuration.setAllowCredentials(true);

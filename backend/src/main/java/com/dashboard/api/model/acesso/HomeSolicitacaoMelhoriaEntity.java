@@ -30,6 +30,9 @@ public class HomeSolicitacaoMelhoriaEntity {
     @Column(name = "resultado_esperado", length = 1000)
     private String resultadoEsperado;
 
+    @Column(name = "local_aplicacao", length = 500)
+    private String localAplicacao;
+
     @Column(nullable = false, length = 20)
     private String status = "ABERTA";
 
@@ -73,6 +76,8 @@ public class HomeSolicitacaoMelhoriaEntity {
     public void setDescricao(String descricao) { this.descricao = descricao; }
     public String getResultadoEsperado() { return resultadoEsperado; }
     public void setResultadoEsperado(String resultadoEsperado) { this.resultadoEsperado = resultadoEsperado; }
+    public String getLocalAplicacao() { return localAplicacao; }
+    public void setLocalAplicacao(String localAplicacao) { this.localAplicacao = localAplicacao; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public String getSolicitanteNome() { return solicitanteNome; }

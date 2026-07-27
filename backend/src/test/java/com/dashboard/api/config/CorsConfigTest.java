@@ -49,6 +49,7 @@ class CorsConfigTest {
         assertThat(cors.checkOrigin("https://analytics.rodogarcia.com.br"))
                 .isEqualTo("https://analytics.rodogarcia.com.br");
         assertThat(cors.checkHttpMethod(HttpMethod.POST)).contains(HttpMethod.POST);
+        assertThat(cors.checkHttpMethod(HttpMethod.PATCH)).contains(HttpMethod.PATCH);
         assertThat(cors.checkHeaders(List.of("content-type", "x-dashboard-route")))
                 .contains("content-type", "x-dashboard-route");
     }

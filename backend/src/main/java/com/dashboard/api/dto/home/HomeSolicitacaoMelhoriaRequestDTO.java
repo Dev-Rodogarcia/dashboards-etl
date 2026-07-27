@@ -18,6 +18,9 @@ public record HomeSolicitacaoMelhoriaRequestDTO(
         String descricao,
 
         @Size(max = 1000, message = "O resultado esperado deve ter no maximo 1000 caracteres")
-        String resultadoEsperado
+        String resultadoEsperado,
+
+        @Size(max = 500, message = "O local de aplicacao deve ter no maximo 500 caracteres")
+        String localAplicacao
 ) {
 }

@@ -1102,7 +1102,7 @@ export const KpiDictionary = {
         calculo:
           'Contagem de Saídas com Início Real até Horário de Corte + 10 minutos, incluindo SMs com justificativa ativa.',
         observacao:
-          'A data-base é a partida programada; quando ela não existe, é usada a data do início real.',
+          'A data-base é a partida programada; quando ela não existe, é usada a data do início real. A rota RJR → SPO possui corte operacional às 22h.',
       },
       saidasForaHorario: {
         titulo: 'Saídas Fora do Horário',

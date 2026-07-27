@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { ClipboardList, Lightbulb, Send } from 'lucide-react';
+import { ClipboardList, Lightbulb, Paperclip, Send, X } from 'lucide-react';
 import type { HomeRequestFormState, HomeRequestType } from '../../types/home';
 
 const REQUEST_TYPES: Array<{ value: HomeRequestType; label: string }> = [
@@ -11,34 +11,63 @@ const REQUEST_TYPES: Array<{ value: HomeRequestType; label: string }> = [
   { value: 'OUTRO', label: 'Outro' },
 ];
 
-const EMPTY_FORM: HomeRequestFormState = { type: 'MELHORIA', title: '', description: '', expectedResult: '' };
+const EMPTY_FORM: HomeRequestFormState = { type: 'MELHORIA', title: '', description: '', expectedResult: '', applicationLocation: '', attachments: [] };
 const focusRingClass = 'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]';
+const MAX_ATTACHMENTS = 5;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENTS_BYTES = 20 * 1024 * 1024;
 
 export default function HomeRequestPanel({
   saving,
   error,
-  pendingCount,
+  requestCount,
+  requestsLabel = 'Ver solicitações',
   onOpenRequests,
   onSubmit,
 }: {
   saving: boolean;
   error: string | null;
-  pendingCount?: number;
+  requestCount?: number;
+  requestsLabel?: string;
   onOpenRequests?: () => void;
   onSubmit: (form: HomeRequestFormState) => Promise<void>;
 }) {
   const [form, setForm] = useState<HomeRequestFormState>(EMPTY_FORM);
   const [submitted, setSubmitted] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       await onSubmit(form);
       setForm(EMPTY_FORM);
+      setAttachmentError(null);
       setSubmitted(true);
     } catch {
       // O erro é apresentado no próprio formulário.
     }
+  }
+
+  function selectAttachments(files: FileList | null) {
+    const selected = Array.from(files ?? []);
+    if (selected.length === 0) return;
+
+    const attachments = [...form.attachments, ...selected];
+    if (attachments.length > MAX_ATTACHMENTS) {
+      setAttachmentError('Envie no máximo 5 anexos por solicitação.');
+      return;
+    }
+    if (attachments.some((attachment) => attachment.size > MAX_ATTACHMENT_BYTES)) {
+      setAttachmentError('Cada anexo pode ter no máximo 10 MB.');
+      return;
+    }
+    if (attachments.reduce((total, attachment) => total + attachment.size, 0) > MAX_TOTAL_ATTACHMENTS_BYTES) {
+      setAttachmentError('Os anexos somados podem ter no máximo 20 MB.');
+      return;
+    }
+
+    setForm({ ...form, attachments });
+    setAttachmentError(null);
   }
 
   return (
@@ -52,7 +81,7 @@ export default function HomeRequestPanel({
           {onOpenRequests && (
             <button type="button" onClick={onOpenRequests} className={`mt-6 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors hover:bg-white/40 ${focusRingClass}`} style={{ borderColor: 'rgba(5, 150, 105, 0.30)', color: '#047857' }}>
               <ClipboardList size={15} />
-              Ver solicitações{pendingCount != null ? ` (${pendingCount} pendente${pendingCount === 1 ? '' : 's'})` : ''}
+              {requestsLabel}{requestCount != null ? ` (${requestCount})` : ''}
             </button>
           )}
         </div>
@@ -76,6 +105,23 @@ export default function HomeRequestPanel({
             <span className="text-[11px] font-bold uppercase" style={{ color: 'var(--color-text-muted)' }}>Resultado esperado <span className="normal-case font-medium">(opcional)</span></span>
             <input value={form.expectedResult} onChange={(event) => setForm({ ...form, expectedResult: event.target.value })} maxLength={1000} className={`h-10 w-full rounded-xl border px-3 text-sm ${focusRingClass}`} style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }} placeholder="Como seria a solução ideal para você?" />
           </label>
+          <label className="space-y-1 md:col-span-2">
+            <span className="text-[11px] font-bold uppercase" style={{ color: 'var(--color-text-muted)' }}>Onde será aplicado? <span className="normal-case font-medium">(opcional)</span></span>
+            <input value={form.applicationLocation} onChange={(event) => setForm({ ...form, applicationLocation: event.target.value })} maxLength={500} className={`h-10 w-full rounded-xl border px-3 text-sm ${focusRingClass}`} style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }} placeholder="Ex.: dashboard de Faturamento, tela de Coletas ou rotina de emissão de manifestos" />
+          </label>
+          <div className="space-y-2 md:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] font-bold uppercase" style={{ color: 'var(--color-text-muted)' }}>Anexos <span className="normal-case font-medium">(opcional)</span></span>
+              <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>PDF, PNG/JPG ou XLS/XLSX · até 5 arquivos</span>
+            </div>
+            <label className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-colors hover:bg-white/40 ${focusRingClass}`} style={{ borderColor: 'rgba(5, 150, 105, 0.30)', color: '#047857' }}>
+              <Paperclip size={14} />
+              Adicionar anexos
+              <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.xls,.xlsx,application/pdf,image/png,image/jpeg,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={(event) => { selectAttachments(event.target.files); event.currentTarget.value = ''; }} />
+            </label>
+            {form.attachments.length > 0 && <div className="flex flex-wrap gap-2">{form.attachments.map((attachment, index) => <span key={`${attachment.name}-${attachment.size}-${index}`} className="inline-flex max-w-full items-center gap-1 rounded-lg border px-2 py-1 text-[11px]" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-subtle)' }}><Paperclip size={12} /><span className="max-w-52 truncate">{attachment.name}</span><button type="button" onClick={() => setForm({ ...form, attachments: form.attachments.filter((_, attachmentIndex) => attachmentIndex !== index) })} className={`rounded p-0.5 hover:bg-black/5 ${focusRingClass}`} aria-label={`Remover ${attachment.name}`}><X size={12} /></button></span>)}</div>}
+            {attachmentError && <p className="text-xs" style={{ color: '#dc2626' }}>{attachmentError}</p>}
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1 md:col-span-2">
             <div>{error && <p className="rounded-xl px-3 py-2 text-xs" style={{ backgroundColor: 'rgba(239, 68, 68, 0.10)', color: '#dc2626' }}>{error}</p>}{submitted && !error && <p className="text-xs font-medium" style={{ color: '#059669' }}>Solicitação enviada. Obrigado por ajudar a melhorar o portal.</p>}</div>
             <button type="submit" disabled={saving} className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-xs font-bold text-white disabled:opacity-60 ${focusRingClass}`} style={{ backgroundColor: '#059669' }}><Send size={14} />{saving ? 'Enviando...' : 'Enviar solicitação'}</button>
