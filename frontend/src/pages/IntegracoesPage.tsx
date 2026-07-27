@@ -740,7 +740,7 @@ export default function IntegracoesPage() {
         <QuarentenaErrosPanel />
       ) : (
         <>
-          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <TooltipKpi kpiName="integracoes.volumeOperacional">
               <KpiCard
                 label="Volume Operacional"
@@ -778,7 +778,7 @@ export default function IntegracoesPage() {
             </TooltipKpi>
           </div>
 
-          <div className="mb-6 mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <div className="mb-6 mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <ChartWrapper
               titulo="Sazonalidade de Integrações"
               option={sazonalidadeOption}
@@ -811,7 +811,7 @@ export default function IntegracoesPage() {
                 ? getApiErrorMessage(integracoes.error, 'Erro ao carregar resumo por entidade de integração.')
                 : null}
               altura={400}
-              className="xl:col-span-2"
+              className="lg:col-span-2"
               chartKey="integracoesResumoEntidade"
               sideContentLayoutClassName="grid h-full min-h-0 grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6"
               sideContentChartClassName="xl:col-span-2"

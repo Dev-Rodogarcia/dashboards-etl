@@ -1222,7 +1222,7 @@ export default function CotacoesPage() {
 
       {activeView === 'analitica' ? (
         <>
-          <div className="mb-6 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2 2xl:grid-cols-12">
+          <div className="mb-6 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2 2xl:grid-cols-12">
             <div className="col-span-full min-h-0 2xl:col-span-6">
               <ChartWrapper
                 titulo="Cotações por Dia, Mês e Ano"

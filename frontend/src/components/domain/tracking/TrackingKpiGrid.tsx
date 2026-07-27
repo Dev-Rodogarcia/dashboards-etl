@@ -18,7 +18,7 @@ export default function TrackingKpiGrid({ overview }: TrackingKpiGridProps) {
   ];
 
   return (
-    <div className="mb-4 grid grid-cols-2 items-stretch gap-4 md:grid-cols-3 xl:grid-cols-6">
+    <div className="mb-4 grid grid-cols-2 items-stretch gap-4 md:grid-cols-3 lg:grid-cols-6">
       {cards.map((card) => (
         <TooltipKpi key={card.label} definition={card.definition} className={card.className}>
           <KpiCard label={card.label} valor={card.valor} />

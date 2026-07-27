@@ -64,8 +64,8 @@ export default function HomeHero({
       }}
     >
       <div className="min-w-0">
-        <div className="grid gap-3 xl:grid-cols-[minmax(17rem,18rem)_minmax(26rem,1fr)_auto] xl:items-center">
-          <div className="xl:border-r xl:pr-5" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="grid gap-3 lg:grid-cols-[minmax(15rem,18rem)_minmax(20rem,1fr)_auto] lg:items-center">
+          <div className="lg:border-r lg:pr-5" style={{ borderColor: 'var(--color-border)' }}>
             <h1 className="text-base font-extrabold leading-tight sm:text-lg" style={{ color: 'var(--color-text)' }}>
               Bem-vindo, {displayName}
             </h1>
@@ -74,9 +74,9 @@ export default function HomeHero({
             </p>
           </div>
 
-          <div className="min-w-0 xl:pl-2">{search}</div>
+          <div className="min-w-0 lg:pl-2">{search}</div>
 
-          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:flex-wrap xl:justify-end">
+          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:justify-end">
             <InfoChip label="Setor" value={setorLabel} Icon={Building2} />
             <InfoChip label="Perfil" value={roleLabel} Icon={ShieldCheck} />
             <InfoChip label="Filiais" value={filiaisLabel} Icon={MapPinned} />

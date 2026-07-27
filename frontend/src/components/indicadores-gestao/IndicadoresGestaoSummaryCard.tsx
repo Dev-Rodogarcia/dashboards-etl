@@ -34,18 +34,18 @@ export default function IndicadoresGestaoSummaryCard({
   return (
     <TooltipKpi definition={definition} className="h-full">
       <div
-        className="h-full w-full rounded-[20px] border p-4 shadow-sm transition-colors"
+        className="flex h-full w-full flex-col rounded-[20px] border p-4 shadow-sm transition-colors"
         style={{
           backgroundColor: 'var(--color-card)',
           borderColor: tone === 'neutral' ? 'var(--color-border)' : style.border,
         }}
       >
-        <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="mb-3 flex min-h-[76px] items-start justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+            <h3 className="min-h-10 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
               {title}
             </h3>
-            <p className="mt-1 min-h-[32px] text-xs leading-4 line-clamp-2" style={{ color: 'var(--color-text-subtle)' }}>
+            <p className="mt-1 min-h-8 text-xs leading-4 line-clamp-2" style={{ color: 'var(--color-text-subtle)' }}>
               {description}
             </p>
           </div>
@@ -67,11 +67,11 @@ export default function IndicadoresGestaoSummaryCard({
         <div className="text-xs font-medium" style={{ color: 'var(--color-text-subtle)' }}>
           {goalLabel}
         </div>
-        <div className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+        <div className="mt-1 min-h-10 text-xs leading-5 line-clamp-2" style={{ color: 'var(--color-text-muted)' }}>
           {detail}
         </div>
         {progressPct != null ? (
-          <div className="mt-3">
+          <div className="mt-auto pt-3">
             <div className="mb-1 flex items-center justify-between text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
               <span>Cobertura da meta</span>
               <span>{widthPct.toLocaleString('pt-BR', { maximumFractionDigits: widthPct % 1 === 0 ? 0 : 1 })}%</span>

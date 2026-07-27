@@ -46,7 +46,7 @@ export default function IndicadoresGestaoPanoramaSection({
   return (
     <section
       aria-label={title}
-      className="mb-7 rounded-[26px] border px-5 py-4 shadow-sm xl:mb-8 xl:min-h-[400px] xl:px-6 xl:py-5"
+      className="mb-7 rounded-[26px] border px-5 py-4 shadow-sm lg:mb-8 lg:px-6 lg:py-5"
       style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
     >
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
@@ -76,13 +76,13 @@ export default function IndicadoresGestaoPanoramaSection({
               style={{ flex: '0 0 auto' }}
             >
               <article
-                className="w-full rounded-[20px] border px-4 py-[14px] transition-colors xl:px-5 xl:py-4"
+                className="w-full rounded-[20px] border px-4 py-[14px] transition-colors lg:px-5 lg:py-3"
                 style={{
                   backgroundColor: 'var(--color-bg)',
                   borderColor: item.tone === 'neutral' ? 'var(--color-border)' : style.border,
                 }}
               >
-                <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1.55fr)_auto_auto_minmax(320px,1.95fr)] xl:items-center">
+                <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.55fr)_auto_auto_minmax(320px,1.95fr)] lg:items-center">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       {item.icon ? (
@@ -96,13 +96,13 @@ export default function IndicadoresGestaoPanoramaSection({
                     </div>
                   </div>
 
-                  <div className="text-left xl:text-right">
+                  <div className="text-left lg:text-right">
                     <div className="text-xl font-bold leading-none" style={{ color: 'var(--color-text)' }}>
                       {item.value}
                     </div>
                   </div>
 
-                  <div className="xl:justify-self-start">
+                  <div className="lg:justify-self-start">
                     <span
                       className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
                       style={{ backgroundColor: style.badgeBg, color: style.badgeText }}

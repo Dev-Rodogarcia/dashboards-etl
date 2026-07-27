@@ -560,7 +560,7 @@ export default function ColetasPage() {
       {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de coletas.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <ColetasKpiGrid overview={overview.data} />}
 
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2 2xl:grid-cols-6">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-6">
         <div className="col-span-full 2xl:col-span-2">
           <ColetasTrend dados={serieData} isLoading={serie.isLoading} />
         </div>

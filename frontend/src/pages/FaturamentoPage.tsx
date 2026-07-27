@@ -1250,8 +1250,8 @@ export default function FaturamentoPage() {
         />
       )}
 
-      <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-12">
-        <div className={`${KPI_CARD_HEIGHT_CLASS} 2xl:col-span-5`}>
+      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-12">
+        <div className={`${KPI_CARD_HEIGHT_CLASS} lg:col-span-full 2xl:col-span-5`}>
           <FaturamentoEvolutionCard
             chartKey="evolucaoFaturamento"
             dados={serie.data ?? []}
@@ -1311,6 +1311,13 @@ export default function FaturamentoPage() {
             }}
           />
         </div>
+        <div className={`${KPI_CARD_HEIGHT_CLASS} lg:col-span-full 2xl:col-span-5`}>
+          <TopClientesTableCard
+            atuais={topClientesData}
+            anteriores={topClientesPeriodoAnterior.data ?? []}
+            isLoading={topClientes.isLoading || topClientesPeriodoAnterior.isLoading}
+          />
+        </div>
         <div className={`${KPI_CARD_HEIGHT_CLASS} 2xl:col-span-3`}>
           <ChartWrapper
             titulo="Participação de Clientes no Faturamento"
@@ -1326,13 +1333,6 @@ export default function FaturamentoPage() {
                 setSelectedCliente((current) => current === name ? null : name);
               },
             }}
-          />
-        </div>
-        <div className={`${KPI_CARD_HEIGHT_CLASS} 2xl:col-span-5`}>
-          <TopClientesTableCard
-            atuais={topClientesData}
-            anteriores={topClientesPeriodoAnterior.data ?? []}
-            isLoading={topClientes.isLoading || topClientesPeriodoAnterior.isLoading}
           />
         </div>
         <div className={`${KPI_CARD_HEIGHT_CLASS} 2xl:col-span-4`}>

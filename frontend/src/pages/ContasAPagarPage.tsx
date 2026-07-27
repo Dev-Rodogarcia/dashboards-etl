@@ -140,12 +140,12 @@ export default function ContasAPagarPage() {
       {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores de contas a pagar.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <ContasAPagarKpiGrid overview={overview.data} />}
 
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartWrapper titulo="Pagos x Abertos por Mes" chartKey="contasPagarSerie" option={serieOption} isLoading={serie.isLoading} isEmpty={(serie.data ?? []).length === 0} />
         <ChartWrapper titulo="Top Fornecedores" chartKey="contasPagarTopFornecedores" option={fornecedorOption} isLoading={graficos.isLoading} isEmpty={rankingFornecedor.length === 0} />
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartWrapper titulo="Centro de Custo" chartKey="contasPagarCentroCusto" option={centroOption} isLoading={graficos.isLoading} isEmpty={centroCusto.length === 0} />
         <ChartWrapper titulo="Conciliação" chartKey="contasPagarConciliacao" option={conciliacaoOption} isLoading={graficos.isLoading} isEmpty={conciliacao.length === 0} />
       </div>

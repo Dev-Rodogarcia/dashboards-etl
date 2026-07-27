@@ -1,5 +1,4 @@
 import KpiCard from '../../shared/KpiCard';
-import KpiGrid from '../../shared/KpiGrid';
 import TooltipKpi from '../../shared/TooltipKpi';
 import { KpiDictionary } from '../../../constants/kpiDictionary';
 import type { FaturamentoDiario, FaturamentoOverview } from '../../../types/faturamento';
@@ -88,7 +87,7 @@ export default function FaturamentoKpiGrid({
   const tendenciaValorTone = tendenciaPercentual < 0 ? 'text-negative' : 'text-positive';
 
   return (
-    <KpiGrid count={8}>
+    <div className="mb-4 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <TooltipKpi definition={KpiDictionary.faturamento.totalMinutas}>
         <KpiCard label="Minutas" valor={formatarNumero(overview.totalFretes)} />
       </TooltipKpi>
@@ -124,6 +123,6 @@ export default function FaturamentoKpiGrid({
           helperText={`Tendência: ${formatarMoeda(faturamentoDiario?.tendenciaFaturamento ?? 0)}`}
         />
       </TooltipKpi>
-    </KpiGrid>
+    </div>
   );
 }

@@ -1090,7 +1090,7 @@ export default function PerformancePage() {
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-6">
         <div className="col-span-full h-[28rem] min-h-0 2xl:col-span-2">
           <ChartWrapper
             titulo="Entregas por dia, mês e ano"

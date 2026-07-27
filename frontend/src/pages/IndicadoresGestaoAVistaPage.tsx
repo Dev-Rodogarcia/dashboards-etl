@@ -1106,7 +1106,7 @@ export default function IndicadoresGestaoAVistaPage() {
         />
       ) : null}
 
-      <div className="mb-5 grid grid-cols-1 gap-3 xl:grid-cols-5">
+      <div className="mb-5 grid grid-cols-1 gap-3 lg:grid-cols-5">
         <IndicadoresGestaoSummaryCard
           definition={KpiDictionary.gestaoAVista.resumo.performanceFretes}
           title="Nova Tela de Fretes = Performance"

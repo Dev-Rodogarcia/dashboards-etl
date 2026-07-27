@@ -481,7 +481,7 @@ export default function EtlSaudePage() {
       {overview.isError && <MensagemErro mensagem={getApiErrorMessage(overview.error, 'Erro ao carregar indicadores do ETL.')} tipo={getTipoErro(overview.error)} />}
       {overview.data && <EtlSaudeKpiGrid overview={overview.data} />}
 
-      <div className="mb-6 grid grid-cols-1 gap-6 2xl:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartWrapper
           titulo="Sucessos/Falhas por Dia"
           chartKey="etlTaxasDiarias"
@@ -547,7 +547,7 @@ export default function EtlSaudePage() {
           isEmpty={resumoTabelasDados.length === 0}
           erro={erroResumoTabelas}
           altura={400}
-          className="2xl:col-span-2"
+          className="lg:col-span-2"
           sideContentLayoutClassName="grid h-full min-h-0 grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6"
           sideContentChartClassName="xl:col-span-2"
           sideContentAsideClassName="xl:col-span-1"

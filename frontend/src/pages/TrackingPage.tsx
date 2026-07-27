@@ -465,7 +465,7 @@ export default function TrackingPage() {
       {dashboard.isError && <MensagemErro mensagem={getApiErrorMessage(dashboard.error, 'Erro ao carregar localização de cargas.')} tipo={getTipoErro(dashboard.error)} />}
       {dashboard.data && <TrackingKpiGrid overview={dashboard.data.overview} />}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.18fr)_minmax(360px,0.82fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.18fr)_minmax(360px,0.82fr)]">
         <MatrizRegiaoDestino linhas={matriz} statusSelecionados={filtros.statusCarga ?? []} onToggleStatus={alternarStatus} />
         <div className="grid grid-cols-1 gap-6">
           <ChartWrapper titulo="Distribuição de Status" chartKey="trackingStatus" option={statusOption} isLoading={dashboard.isLoading} isEmpty={statusData.length === 0} altura={350} />

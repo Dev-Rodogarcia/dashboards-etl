@@ -285,7 +285,7 @@ export default function HomePage() {
           search={<HomeSearch value={query} onChange={setQuery} onClear={() => setQuery('')} compact />}
         />
 
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-stretch 2xl:gap-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch 2xl:gap-6">
           <main className="min-w-0 flex-1 space-y-6">
             <HomeRequestPanel
               saving={criarSolicitacao.isPending}
@@ -305,9 +305,9 @@ export default function HomePage() {
             />
           </main>
 
-          <aside className="flex w-full flex-col gap-4 xl:w-[380px] xl:flex-none xl:self-stretch" aria-label="Apoio e comunicações">
+          <aside className="flex w-full flex-col gap-4 lg:w-[320px] lg:flex-none lg:self-stretch 2xl:w-[380px]" aria-label="Apoio e comunicações">
             <CommunicationsPanel
-              className="xl:self-start xl:flex-none"
+              className="lg:self-stretch lg:flex-1 2xl:self-start 2xl:flex-none"
               notices={notices}
               isLoading={comunicadosQuery.isLoading}
               error={noticeError}

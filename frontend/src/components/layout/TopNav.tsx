@@ -196,6 +196,17 @@ export default function TopNav() {
     });
   }, []);
 
+  const scrollDrawerNavigation = useCallback((direction: 'up' | 'down') => {
+    const element = drawerNavRef.current;
+    if (!element) return;
+
+    const distance = Math.max(180, Math.floor(element.clientHeight * 0.65));
+    element.scrollBy({
+      top: direction === 'up' ? -distance : distance,
+      behavior: 'smooth',
+    });
+  }, []);
+
   useEffect(() => {
     const previousPathname = previousPathnameRef.current;
     previousPathnameRef.current = currentLocation.pathname;
@@ -443,25 +454,33 @@ export default function TopNav() {
                     </div>
                   </nav>
 
-                  <div
-                    className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pb-8 pt-3 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--top"
+                  <button
+                    type="button"
+                    onClick={() => scrollDrawerNavigation('up')}
+                    disabled={!drawerScrollState.canScrollUp}
+                    aria-label="Subir a navegação do menu"
+                    className={`absolute inset-x-0 top-0 z-10 flex justify-center pb-8 pt-3 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--top ${focusRingClass}`}
                     style={{
                       opacity: drawerScrollState.canScrollUp ? 1 : 0,
                       transform: drawerScrollState.canScrollUp ? 'translateY(0)' : 'translateY(-8px)',
                     }}
                   >
                     <ChevronUp size={18} />
-                  </div>
+                  </button>
 
-                  <div
-                    className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-3 pt-8 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--bottom"
+                  <button
+                    type="button"
+                    onClick={() => scrollDrawerNavigation('down')}
+                    disabled={!drawerScrollState.canScrollDown}
+                    aria-label="Descer a navegação do menu"
+                    className={`absolute inset-x-0 bottom-0 z-10 flex justify-center pb-3 pt-8 top-nav__drawer-scroll-indicator top-nav__drawer-scroll-indicator--bottom ${focusRingClass}`}
                     style={{
                       opacity: drawerScrollState.canScrollDown ? 1 : 0,
                       transform: drawerScrollState.canScrollDown ? 'translateY(0)' : 'translateY(8px)',
                     }}
                   >
                     <ChevronDown size={18} />
-                  </div>
+                  </button>
                 </div>
               </motion.aside>
             </>
