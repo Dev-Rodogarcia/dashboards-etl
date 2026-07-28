@@ -96,6 +96,7 @@
 - Saúde do ETL expõe `/api/painel/etl-saude/tabelas/resumo` para o consolidado cross-table de auditoria (`tabelaAlvo`, `qtdExtracoes`, `qtdSucessos`, `qtdFalhas`, `totalRegistrosGravados`, `primeiraExtracao`, `ultimaExtracao`, `menorDataNegocio`, `maiorDataNegocio`); o hook `useEtlSaudeTabelasResumo` inclui o período no `queryKey`.
 - Integrações mantém `PENDENCIAS` e `SUCESSO` como escopos de query para `/api/painel/integracoes`, mas no frontend esses escopos atuam como tabs de status da tabela; a aba superior `Integrações` preserva o último status selecionado ao voltar de `Quarentena`.
 - O gráfico "Resumo por Entidade de Integração" não realiza chamada HTTP própria; ele usa `metricasConsolidadas` do endpoint `/api/painel/integracoes`, separando cada sistema destino em `XML/Dados` e `Canhoto` no frontend para evitar 404 quando o Satélite em execução ainda não expõe `/api/auditoria/integracoes-clientes/resumo-tabelas`.
+- O contador de Gerenciar solicitações na Home considera exclusivamente solicitações ativas com status `ABERTA`; concluídas e arquivadas não entram no número exibido.
 
 ## Regras de Negócio Consolidadas
 - O Dashboard não é dono do banco analítico; alterações em views/tabelas/fatos do ETL devem ser feitas em `etl-extracao-dados`.

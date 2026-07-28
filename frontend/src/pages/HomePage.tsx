@@ -141,6 +141,7 @@ export default function HomePage() {
   const requestsForCurrentUser = canManageHomeRequests
     ? solicitacoesQuery.data ?? []
     : minhasSolicitacoesQuery.data ?? [];
+  const openRequestsCount = requestsForCurrentUser.filter((request) => request.status === 'ABERTA').length;
 
   const metrics: HomeMetric[] = [
     {
@@ -304,7 +305,7 @@ export default function HomePage() {
             <HomeRequestPanel
               saving={criarSolicitacao.isPending}
               error={requestMutationError}
-              requestCount={requestsForCurrentUser.length}
+              requestCount={openRequestsCount}
               requestsLabel={canManageHomeRequests ? 'Gerenciar solicitações' : 'Ver minhas solicitações'}
               onOpenRequests={() => setRequestsModalOpen(true)}
               onSubmit={handleRequestSubmit}
