@@ -536,6 +536,11 @@ GO
 
 :r database/migrations/V054__adicionar_heartbeat_sessao_usuarios.sql
 :r database/migrations/V055__garantir_colunas_sessao_usuarios.sql
+:r database/migrations/V056__criar_home_solicitacoes_melhoria.sql
+:r database/migrations/V057__indexar_solicitacoes_melhoria_por_solicitante.sql
+:r database/migrations/V058__adicionar_anexos_solicitacoes_melhoria.sql
+:r database/migrations/V059__adicionar_local_aplicacao_solicitacoes_melhoria.sql
+:r database/migrations/V060__gerenciar_ciclo_vida_solicitacoes_melhoria.sql
 GO
 
 IF SUSER_ID(N'$(AppLogin)') IS NOT NULL

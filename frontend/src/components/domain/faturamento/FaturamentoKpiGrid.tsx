@@ -87,7 +87,7 @@ export default function FaturamentoKpiGrid({
   const tendenciaValorTone = tendenciaPercentual < 0 ? 'text-negative' : 'text-positive';
 
   return (
-    <div className="mb-4 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mb-4 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-[0.8fr_2fr_2fr_1fr_1.1fr_1fr_2fr_1.25fr]">
       <TooltipKpi definition={KpiDictionary.faturamento.totalMinutas}>
         <KpiCard label="Minutas" valor={formatarNumero(overview.totalFretes)} />
       </TooltipKpi>

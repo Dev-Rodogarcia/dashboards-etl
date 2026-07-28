@@ -22,6 +22,12 @@ export interface NavItem {
   description?: string;
 }
 
+const ADMINISTRATIVE_DASHBOARD_PATHS = new Set(['/executivo', '/etl-saude']);
+
+export function isAdministrativeDashboardNavItem(item: NavItem): boolean {
+  return ADMINISTRATIVE_DASHBOARD_PATHS.has(item.path);
+}
+
 export const DASHBOARD_NAV_ITEMS: NavItem[] = [
   { label: 'Coletas', path: '/coletas', permission: 'coletas' },
   { label: 'Manifestos - Performan. Veículos', path: '/manifestos', permission: 'manifestos' },

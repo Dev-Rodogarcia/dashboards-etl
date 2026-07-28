@@ -36,7 +36,7 @@ function toneTaxaFalha(execucoesComErro: number, totalExecucoes: number): KpiVal
   const taxaFalha = (execucoesComErro * 100) / totalExecucoes;
   if (taxaFalha > 10) return 'text-negative';
   if (taxaFalha > 2) return 'text-warning';
-  return 'text-positive';
+  return 'text-warning';
 }
 
 function toneTempoMedio(segundos: number): KpiValorTone {

@@ -1,13 +1,21 @@
 import { NavLink } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
-import { ADMIN_NAV_ITEMS, DASHBOARD_NAV_ITEMS } from '../../utils/accessControl';
+import { ADMIN_NAV_ITEMS, DASHBOARD_NAV_ITEMS, isAdministrativeDashboardNavItem } from '../../utils/accessControl';
 
 export default function BarraLateral() {
   const { canAccess, isAdminAcesso } = usePermissions();
 
-  const dashboardsVisiveis = DASHBOARD_NAV_ITEMS.filter((item) =>
-    item.permission ? canAccess(item.permission) : true,
-  );
+  const dashboardsVisiveis = DASHBOARD_NAV_ITEMS
+    .filter((item) => !isAdministrativeDashboardNavItem(item))
+    .filter((item) => item.permission ? canAccess(item.permission) : true)
+    .sort((left, right) => left.label.localeCompare(right.label, 'pt-BR'));
+  const adminItems = [
+    ...DASHBOARD_NAV_ITEMS.filter((item) => (
+      isAdministrativeDashboardNavItem(item)
+      && (item.permission ? canAccess(item.permission) : true)
+    )),
+    ...(isAdminAcesso ? ADMIN_NAV_ITEMS : []),
+  ].sort((left, right) => left.label.localeCompare(right.label, 'pt-BR'));
 
   return (
     <aside className="min-h-screen w-64 border-r border-gray-200 bg-gray-50">
@@ -58,13 +66,13 @@ export default function BarraLateral() {
           </div>
         </div>
 
-        {isAdminAcesso && (
+        {adminItems.length > 0 && (
           <div>
             <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
               Administração
             </div>
             <div className="space-y-1">
-              {ADMIN_NAV_ITEMS.map((item) => (
+              {adminItems.map((item) => (
                 <NavLink
                   key={item.path}
                   to={item.path}

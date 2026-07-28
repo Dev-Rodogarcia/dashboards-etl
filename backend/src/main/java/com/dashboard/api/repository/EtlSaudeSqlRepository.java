@@ -52,21 +52,30 @@ public class EtlSaudeSqlRepository {
     }
 
     public EtlSaudeOverviewDTO buscarOverview(FiltroConsultaDTO filtro) {
-        DashboardExportSqlBuilder.ExportSql source = source(filtro);
         String sql = """
-                WITH base_filtrada AS (
-                    SELECT *
-                    %s
+                WITH base_log AS (
+                    SELECT
+                        log.timestamp_inicio,
+                        log.timestamp_fim,
+                        CAST(COALESCE(log.registros_extraidos, 0) AS BIGINT)
+                            + CAST(COALESCE(log.noop_count, 0) AS BIGINT) AS registros_processados,
+                        %s AS status_normalizado
+                    FROM dbo.log_extracoes log
+                    WHERE log.timestamp_inicio >= :dataInicio
+                      AND log.timestamp_inicio < :dataFimExclusivo
                 ),
                 agregado AS (
                     SELECT
-                        CAST(NULL AS DATETIME2) AS updated_at,
+                        MAX(timestamp_fim) AS updated_at,
                         COUNT(1) AS total_execucoes,
-                        AVG(CAST(%s AS FLOAT)) AS tempo_medio_execucao_segundos,
-                        SUM(CASE WHEN %s THEN 1 ELSE 0 END) AS execucoes_com_erro,
-                        SUM(%s) AS volume_processado_total,
-                        SUM(CASE WHEN %s THEN 1 ELSE 0 END) AS execucoes_sucesso
-                    FROM base_filtrada
+                        AVG(CAST(CASE
+                            WHEN timestamp_fim >= timestamp_inicio THEN DATEDIFF_BIG(SECOND, timestamp_inicio, timestamp_fim)
+                            ELSE 0
+                        END AS FLOAT)) AS tempo_medio_execucao_segundos,
+                        SUM(CASE WHEN status_normalizado NOT IN (%s) THEN 1 ELSE 0 END) AS execucoes_com_erro,
+                        SUM(registros_processados) AS volume_processado_total,
+                        SUM(CASE WHEN status_normalizado IN (%s) THEN 1 ELSE 0 END) AS execucoes_sucesso
+                    FROM base_log
                 )
                 SELECT
                     updated_at,
@@ -77,14 +86,15 @@ public class EtlSaudeSqlRepository {
                     CAST(COALESCE(CAST(execucoes_sucesso AS FLOAT) * 100.0 / NULLIF(total_execucoes, 0), 0) AS DECIMAL(19,2)) AS taxa_sucesso
                 FROM agregado
                 """.formatted(
-                source.sql(),
-                DURACAO_SEGUNDOS_SQL,
-                STATUS_ERRO_SQL,
-                TOTAL_REGISTROS_SQL,
-                STATUS_SUCESSO_SQL
+                LOG_STATUS_NORMALIZADO_SQL,
+                LOG_STATUS_SUCESSO_LISTA_SQL,
+                LOG_STATUS_SUCESSO_LISTA_SQL
         );
 
-        return jdbcTemplate.queryForObject(sql, copiarParams(source), (rs, rowNum) -> new EtlSaudeOverviewDTO(
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("dataInicio", filtro.dataInicio())
+                .addValue("dataFimExclusivo", filtro.dataFim().plusDays(1));
+        return jdbcTemplate.queryForObject(sql, params, (rs, rowNum) -> new EtlSaudeOverviewDTO(
                 updatedAt(rs.getTimestamp("updated_at")),
                 decimalDouble(rs.getBigDecimal("tempo_medio_execucao_segundos")),
                 rs.getInt("execucoes_com_erro"),

@@ -27,7 +27,7 @@ import {
 import { useAutenticacao } from '../../contexts/AutenticacaoContext';
 import { usePageHeader } from '../../contexts/PageHeaderContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import { ADMIN_NAV_ITEMS, DASHBOARD_NAV_ITEMS } from '../../utils/accessControl';
+import { ADMIN_NAV_ITEMS, DASHBOARD_NAV_ITEMS, isAdministrativeDashboardNavItem } from '../../utils/accessControl';
 import type { NavItem } from '../../utils/accessControl';
 import { formatarDataHoraMinuto } from '../../utils/formatadores';
 
@@ -162,10 +162,17 @@ export default function TopNav() {
   const panelId = useId();
   const drawerTitleId = `${panelId}-title`;
 
-  const dashboardsVisiveis = DASHBOARD_NAV_ITEMS.filter((item) =>
-    item.permission ? canAccess(item.permission) : true,
-  );
-  const adminItems = isAdminAcesso ? ADMIN_NAV_ITEMS : [];
+  const dashboardsVisiveis = DASHBOARD_NAV_ITEMS
+    .filter((item) => !isAdministrativeDashboardNavItem(item))
+    .filter((item) => item.permission ? canAccess(item.permission) : true)
+    .sort((left, right) => left.label.localeCompare(right.label, 'pt-BR'));
+  const adminItems = [
+    ...DASHBOARD_NAV_ITEMS.filter((item) => (
+      isAdministrativeDashboardNavItem(item)
+      && (item.permission ? canAccess(item.permission) : true)
+    )),
+    ...(isAdminAcesso ? ADMIN_NAV_ITEMS : []),
+  ].sort((left, right) => left.label.localeCompare(right.label, 'pt-BR'));
   const navSections = [
     { title: 'Principal', items: [HOME_NAV_ITEM] },
     { title: 'Dashboards', items: dashboardsVisiveis },

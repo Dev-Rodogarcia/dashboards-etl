@@ -189,7 +189,7 @@ export default function CommunicationsPanel({
         </div>
 
         <div
-          className="communications-scroll max-h-[39rem] flex-1 overflow-y-auto px-4 py-4 lg:max-h-none 2xl:max-h-[39rem]"
+          className="communications-scroll max-h-[39rem] flex-1 overflow-y-auto px-4 py-4 lg:max-h-none"
         >
           {showForm && isAdmin && (
             <div

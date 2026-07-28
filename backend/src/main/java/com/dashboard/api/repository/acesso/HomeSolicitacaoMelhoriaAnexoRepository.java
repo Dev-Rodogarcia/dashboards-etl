@@ -38,4 +38,20 @@ public interface HomeSolicitacaoMelhoriaAnexoRepository extends JpaRepository<Ho
             @Param("solicitacaoId") Long solicitacaoId,
             @Param("removidoEm") Instant removidoEm
     );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update HomeSolicitacaoMelhoriaAnexoEntity anexo
+            set anexo.ativo = false,
+                anexo.conteudo = null,
+                anexo.removidoEm = :removidoEm
+            where anexo.ativo = true
+              and anexo.solicitacao.ativo = true
+              and anexo.solicitacao.status = 'CONCLUIDA'
+              and anexo.solicitacao.concluidoEm < :limiteConclusao
+            """)
+    int removerConteudosDasConcluidasAntes(
+            @Param("limiteConclusao") Instant limiteConclusao,
+            @Param("removidoEm") Instant removidoEm
+    );
 }

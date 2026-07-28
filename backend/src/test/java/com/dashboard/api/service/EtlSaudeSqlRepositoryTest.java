@@ -40,15 +40,16 @@ class EtlSaudeSqlRepositoryTest {
         verify(jdbcTemplate).queryForObject(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
 
         assertThat(sqlCaptor.getValue())
-                .contains("FROM [vw_bi_monitoramento] base")
-                .contains("[Data] >= :dataInicio AND [Data] < :dataFimExclusivo")
+                .contains("FROM dbo.log_extracoes log")
+                .contains("log.timestamp_inicio >= :dataInicio")
+                .contains("log.timestamp_inicio < :dataFimExclusivo")
                 .contains("COUNT(1) AS total_execucoes")
-                .contains("AVG(CAST(COALESCE(TRY_CONVERT(INT, [Duracao (s)]), 0) AS FLOAT)) AS tempo_medio_execucao_segundos")
-                .contains("SUM(CASE WHEN COALESCE(NULLIF(LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))), N''), N'') <> N'success' THEN 1 ELSE 0 END) AS execucoes_com_erro")
-                .contains("SUM(COALESCE(TRY_CONVERT(INT, [Total Registros]), 0)) AS volume_processado_total")
-                .contains("SUM(CASE WHEN COALESCE(NULLIF(LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))), N''), N'') = N'success' THEN 1 ELSE 0 END) AS execucoes_sucesso")
-                .contains("CAST(NULL AS DATETIME2) AS updated_at")
-                .doesNotContain("SYSDATETIME() AS updated_at");
+                .contains("DATEDIFF_BIG(SECOND, timestamp_inicio, timestamp_fim)")
+                .contains("SUM(CASE WHEN status_normalizado NOT IN (N'COMPLETO', N'SUCCESS', N'SUCESSO') THEN 1 ELSE 0 END) AS execucoes_com_erro")
+                .contains("SUM(registros_processados) AS volume_processado_total")
+                .contains("SUM(CASE WHEN status_normalizado IN (N'COMPLETO', N'SUCCESS', N'SUCESSO') THEN 1 ELSE 0 END) AS execucoes_sucesso")
+                .contains("MAX(timestamp_fim) AS updated_at")
+                .doesNotContain("vw_bi_monitoramento");
     }
 
     @Test

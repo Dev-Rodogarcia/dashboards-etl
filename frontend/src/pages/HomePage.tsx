@@ -269,7 +269,7 @@ export default function HomePage() {
   }
 
   async function archiveRequest(id: string) {
-    if (!window.confirm('Arquivar esta solicitação? Os anexos serão removidos imediatamente e o registro ficará apenas para auditoria.')) return;
+    if (!window.confirm('Arquivar esta solicitação? Ela ficará disponível em Arquivadas por até 60 dias. Os anexos serão removidos imediatamente.')) return;
     setRequestMutationError(null);
     try {
       await arquivarSolicitacao.mutateAsync(id);
@@ -300,30 +300,34 @@ export default function HomePage() {
           search={<HomeSearch value={query} onChange={setQuery} onClear={() => setQuery('')} compact />}
         />
 
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch 2xl:gap-6">
-          <main className="min-w-0 flex-1 space-y-6">
-            <HomeRequestPanel
-              saving={criarSolicitacao.isPending}
-              error={requestMutationError}
-              requestCount={openRequestsCount}
-              requestsLabel={canManageHomeRequests ? 'Gerenciar solicitações' : 'Ver minhas solicitações'}
-              onOpenRequests={() => setRequestsModalOpen(true)}
-              onSubmit={handleRequestSubmit}
-            />
+        <div className="relative flex flex-col gap-5 lg:block">
+          <main className="min-w-0 space-y-6 lg:mr-[344px] 2xl:mr-[404px]">
+            <div>
+              <HomeRequestPanel
+                saving={criarSolicitacao.isPending}
+                error={requestMutationError}
+                requestCount={openRequestsCount}
+                requestsLabel={canManageHomeRequests ? 'Gerenciar solicitações' : 'Ver minhas solicitações'}
+                onOpenRequests={() => setRequestsModalOpen(true)}
+                onSubmit={handleRequestSubmit}
+              />
+            </div>
 
-            <DashboardCatalog
-              dashboards={filteredDashboards}
-              favorites={favoritePathSet}
-              categories={visibleCategories}
-              activeCategory={safeActiveCategory}
-              onCategoryChange={setActiveCategory}
-              onToggleFavorite={toggleFavorite}
-            />
+            <div>
+              <DashboardCatalog
+                dashboards={filteredDashboards}
+                favorites={favoritePathSet}
+                categories={visibleCategories}
+                activeCategory={safeActiveCategory}
+                onCategoryChange={setActiveCategory}
+                onToggleFavorite={toggleFavorite}
+              />
+            </div>
           </main>
 
-          <aside className="flex w-full flex-col gap-4 lg:w-[320px] lg:flex-none lg:self-stretch 2xl:w-[380px]" aria-label="Apoio e comunicações">
+          <aside className="flex min-h-0 w-full flex-col gap-4 lg:absolute lg:inset-y-0 lg:right-0 lg:w-[320px] 2xl:w-[380px]" aria-label="Apoio e comunicações">
             <CommunicationsPanel
-              className="lg:self-stretch lg:flex-1 2xl:self-start 2xl:flex-none"
+              className="min-h-0 lg:h-full"
               notices={notices}
               isLoading={comunicadosQuery.isLoading}
               error={noticeError}

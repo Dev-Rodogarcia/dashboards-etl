@@ -9,6 +9,8 @@ import com.dashboard.api.repository.acesso.HomeSolicitacaoMelhoriaAnexoRepositor
 import com.dashboard.api.model.acesso.UsuarioEntity;
 import com.dashboard.api.repository.acesso.HomeSolicitacaoMelhoriaRepository;
 import com.dashboard.api.repository.acesso.UsuarioRepository;
+import com.dashboard.api.util.UploadFileTypeValidator;
+import com.dashboard.api.util.UploadFileTypeValidator.FileType;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -36,7 +38,8 @@ public class HomeSolicitacaoMelhoriaService {
             "jpg", "image/jpeg",
             "jpeg", "image/jpeg",
             "xls", "application/vnd.ms-excel",
-            "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "csv", "text/csv"
     );
     private final HomeSolicitacaoMelhoriaRepository repository;
     private final HomeSolicitacaoMelhoriaAnexoRepository anexoRepository;
@@ -103,7 +106,8 @@ public class HomeSolicitacaoMelhoriaService {
     @Transactional
     public void arquivar(Long id, String usuarioLogin) {
         HomeSolicitacaoMelhoriaEntity entity = buscarAtiva(id);
-        entity.setAtivo(false);
+        entity.setStatus("ARQUIVADA");
+        entity.setArquivadoEm(Instant.now());
         entity.setAtualizadoPor(normalizarLogin(usuarioLogin));
         repository.save(entity);
         anexoRepository.removerConteudosDaSolicitacao(id, Instant.now());
@@ -191,11 +195,11 @@ public class HomeSolicitacaoMelhoriaService {
             String extensao = extensao(nomeOriginal);
             String tipoConteudo = TIPOS_ANEXO_POR_EXTENSAO.get(extensao);
             if (tipoConteudo == null) {
-                throw new IllegalArgumentException("Formato inválido. Envie PDF, imagem PNG/JPG ou planilha XLS/XLSX.");
+                throw new IllegalArgumentException("Formato inválido. Envie PDF, imagem PNG/JPG ou planilha XLS/XLSX/CSV.");
             }
 
             byte[] conteudo = lerConteudo(arquivo);
-            if (!assinaturaCompativel(extensao, conteudo)) {
+            if (!conteudoCompativel(arquivo, extensao, conteudo)) {
                 throw new IllegalArgumentException("O conteúdo do anexo não corresponde ao formato informado.");
             }
             validados.add(new AnexoValidado(nomeOriginal, tipoConteudo, conteudo));
@@ -242,7 +246,20 @@ public class HomeSolicitacaoMelhoriaService {
         }
     }
 
-    private boolean assinaturaCompativel(String extensao, byte[] conteudo) {
+    private boolean conteudoCompativel(MultipartFile arquivo, String extensao, byte[] conteudo) {
+        if ("csv".equals(extensao)) {
+            try {
+                UploadFileTypeValidator.validarAssinatura(
+                        arquivo,
+                        UploadFileTypeValidator.tipos(FileType.CSV),
+                        "O conteúdo do anexo não corresponde ao formato informado."
+                );
+                return true;
+            } catch (IllegalArgumentException ex) {
+                return false;
+            }
+        }
+
         return switch (extensao) {
             case "pdf" -> iniciaCom(conteudo, "%PDF-".getBytes(StandardCharsets.US_ASCII));
             case "png" -> iniciaCom(conteudo, new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A});
@@ -276,6 +293,7 @@ public class HomeSolicitacaoMelhoriaService {
                 entity.getSolicitanteEmail(),
                 entity.getCriadoEm(),
                 entity.getConcluidoEm(),
+                entity.getArquivadoEm(),
                 entity.getAtualizadoPor(),
                 anexoRepository.listarMetadadosAtivos(entity.getId())
         );

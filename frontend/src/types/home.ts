@@ -63,7 +63,7 @@ export interface HomeMetric {
 }
 
 export type HomeRequestType = 'MELHORIA' | 'AUTOMACAO' | 'DASHBOARD' | 'CORRECAO' | 'OUTRO';
-export type HomeRequestStatus = 'ABERTA' | 'CONCLUIDA';
+export type HomeRequestStatus = 'ABERTA' | 'CONCLUIDA' | 'ARQUIVADA';
 
 export interface HomeRequestFormState {
   type: HomeRequestType;
@@ -94,6 +94,7 @@ export interface HomeRequestApi {
   solicitanteEmail: string;
   criadoEm: string;
   concluidoEm?: string | null;
+  arquivadoEm?: string | null;
   atualizadoPor?: string | null;
   anexos?: HomeRequestAttachmentApi[];
 }
@@ -109,9 +110,10 @@ export interface HomeRequestAttachment extends Omit<HomeRequestAttachmentApi, 'i
   id: string;
 }
 
-export interface HomeRequest extends Omit<HomeRequestApi, 'resultadoEsperado' | 'localAplicacao' | 'concluidoEm' | 'anexos'> {
+export interface HomeRequest extends Omit<HomeRequestApi, 'resultadoEsperado' | 'localAplicacao' | 'concluidoEm' | 'arquivadoEm' | 'anexos'> {
   expectedResult: string;
   applicationLocation: string;
   completedAt?: string | null;
+  archivedAt?: string | null;
   attachments: HomeRequestAttachment[];
 }

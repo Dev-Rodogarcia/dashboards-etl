@@ -19,6 +19,7 @@ export function mapRequestFromApi(request: HomeRequestApi): HomeRequest {
     expectedResult: request.resultadoEsperado ?? '',
     applicationLocation: request.localAplicacao ?? '',
     completedAt: request.concluidoEm,
+    archivedAt: request.arquivadoEm,
     attachments: (request.anexos ?? []).map((attachment) => ({ ...attachment, id: String(attachment.id) })),
   };
 }

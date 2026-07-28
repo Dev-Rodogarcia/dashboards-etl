@@ -51,6 +51,12 @@ public class HomeSolicitacaoMelhoriaEntity {
     @Column(name = "concluido_em")
     private Instant concluidoEm;
 
+    @Column(name = "arquivado_em")
+    private Instant arquivadoEm;
+
+    @Column(name = "excluido_em")
+    private Instant excluidoEm;
+
     @Column(name = "atualizado_por", length = 120)
     private String atualizadoPor;
 
@@ -89,6 +95,10 @@ public class HomeSolicitacaoMelhoriaEntity {
     public Instant getCriadoEm() { return criadoEm; }
     public Instant getConcluidoEm() { return concluidoEm; }
     public void setConcluidoEm(Instant concluidoEm) { this.concluidoEm = concluidoEm; }
+    public Instant getArquivadoEm() { return arquivadoEm; }
+    public void setArquivadoEm(Instant arquivadoEm) { this.arquivadoEm = arquivadoEm; }
+    public Instant getExcluidoEm() { return excluidoEm; }
+    public void setExcluidoEm(Instant excluidoEm) { this.excluidoEm = excluidoEm; }
     public String getAtualizadoPor() { return atualizadoPor; }
     public void setAtualizadoPor(String atualizadoPor) { this.atualizadoPor = atualizadoPor; }
 }

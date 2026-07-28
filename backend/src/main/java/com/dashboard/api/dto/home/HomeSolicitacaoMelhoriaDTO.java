@@ -15,6 +15,7 @@ public record HomeSolicitacaoMelhoriaDTO(
         String solicitanteEmail,
         Instant criadoEm,
         Instant concluidoEm,
+        Instant arquivadoEm,
         String atualizadoPor,
         List<HomeSolicitacaoMelhoriaAnexoDTO> anexos
 ) {

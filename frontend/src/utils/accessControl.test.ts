@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { canAccess, canManageCommunications, createEmptyPermissionMap, firstAccessibleRoute } from './accessControl';
+import {
+  DASHBOARD_NAV_ITEMS,
+  canAccess,
+  canManageCommunications,
+  createEmptyPermissionMap,
+  firstAccessibleRoute,
+  isAdministrativeDashboardNavItem,
+} from './accessControl';
 
 describe('accessControl', () => {
   it('inclui a permissão indicadoresGestaoAVista no mapa vazio', () => {
@@ -65,5 +72,13 @@ describe('accessControl', () => {
     };
 
     expect(canManageCommunications(usuario)).toBe(true);
+  });
+
+  it('classifica Executivo e ETL Saúde no agrupamento administrativo da navegação', () => {
+    const labelsAdministrativos = DASHBOARD_NAV_ITEMS
+      .filter(isAdministrativeDashboardNavItem)
+      .map((item) => item.label);
+
+    expect(labelsAdministrativos).toEqual(['Executivo', 'ETL Saúde']);
   });
 });
