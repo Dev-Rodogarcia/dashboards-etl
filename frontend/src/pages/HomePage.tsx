@@ -14,6 +14,7 @@ import {
   useArquivarHomeComunicado,
   useAlternarCurtidaHomeComunicado,
   useCriarComentarioHomeComunicado,
+  useExcluirComentarioHomeComunicado,
   useHomeComunicadoComentarios,
   useAtualizarHomeComunicado,
   useCriarHomeComunicado,
@@ -69,6 +70,7 @@ export default function HomePage() {
   const alternarCurtidaComunicado = useAlternarCurtidaHomeComunicado();
   const comentariosComunicado = useHomeComunicadoComentarios(commentsNoticeId);
   const criarComentarioComunicado = useCriarComentarioHomeComunicado();
+  const excluirComentarioComunicado = useExcluirComentarioHomeComunicado();
   const criarSolicitacao = useCriarHomeSolicitacao();
   const concluirSolicitacao = useConcluirHomeSolicitacao();
   const arquivarSolicitacao = useArquivarHomeSolicitacao();
@@ -276,6 +278,16 @@ export default function HomePage() {
     }
   }
 
+  async function deleteNoticeComment(id: string, commentId: string) {
+    setNoticeMutationError(null);
+    try {
+      await excluirComentarioComunicado.mutateAsync({ id, commentId });
+    } catch (error) {
+      setNoticeMutationError(getApiErrorMessage(error, 'Não foi possível excluir o comentário.'));
+      throw error;
+    }
+  }
+
   async function handleRequestSubmit(form: HomeRequestFormState) {
     setRequestMutationError(null);
     try {
@@ -375,8 +387,10 @@ export default function HomePage() {
               comments={commentsNoticeId ? comentariosComunicado.data ?? [] : []}
               commentsLoading={comentariosComunicado.isLoading}
               commenting={criarComentarioComunicado.isPending}
+              deletingCommentId={excluirComentarioComunicado.isPending ? excluirComentarioComunicado.variables?.commentId ?? null : null}
               onOpenComments={setCommentsNoticeId}
               onSubmitComment={(id, body) => createNoticeComment(id, body)}
+              onDeleteComment={(id, commentId) => deleteNoticeComment(id, commentId)}
             />
           </aside>
         </div>

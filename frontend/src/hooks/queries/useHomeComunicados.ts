@@ -7,6 +7,7 @@ import {
   alternarCurtidaHomeComunicado,
   buscarComentariosHomeComunicado,
   criarComentarioHomeComunicado,
+  excluirComentarioHomeComunicado,
 } from '../../api/endpoints/homeComunicadosServico';
 import { HOME_COMUNICADOS_API_ENABLED } from '../../config/api';
 import type { HomeNoticePayload } from '../../types/home';
@@ -76,6 +77,16 @@ export function useCriarComentarioHomeComunicado() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: string }) => criarComentarioHomeComunicado(id, body),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [...HOME_COMUNICADOS_QUERY_KEY, variables.id, 'comentarios'] });
+    },
+  });
+}
+
+export function useExcluirComentarioHomeComunicado() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, commentId }: { id: string; commentId: string }) => excluirComentarioHomeComunicado(id, commentId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [...HOME_COMUNICADOS_QUERY_KEY, variables.id, 'comentarios'] });
     },

@@ -74,7 +74,10 @@ export default function HomeRequestPanel({
     <section className="overflow-hidden rounded-[24px] border shadow-[0_14px_30px_rgba(5,150,105,0.10)]" style={{ backgroundColor: 'var(--color-card)', borderColor: 'rgba(16, 185, 129, 0.38)' }} aria-label="Enviar solicitação de melhoria">
       <div className="grid gap-5 p-5 2xl:grid-cols-[minmax(17rem,0.9fr)_minmax(0,1.55fr)] 2xl:items-stretch">
         <div className="rounded-[20px] p-5 2xl:flex 2xl:h-full 2xl:flex-col 2xl:p-6" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.24), rgba(5, 150, 105, 0.08))', border: '1px solid rgba(16, 185, 129, 0.20)' }}>
-          <span className="home-request-idea-icon flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm 2xl:h-14 2xl:w-14" style={{ backgroundColor: '#059669', color: '#fff' }}><Lightbulb size={22} /></span>
+          <span className="home-request-idea-icon flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm 2xl:h-14 2xl:w-14" style={{ backgroundColor: '#059669', color: '#fff' }}>
+            <span className="home-request-idea-rays" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /></span>
+            <Lightbulb size={22} />
+          </span>
           <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: '#047857' }}>Melhoria contínua</p>
           <h2 className="mt-1 text-xl font-extrabold leading-tight 2xl:text-2xl" style={{ color: 'var(--color-text)' }}>O que podemos facilitar na sua rotina?</h2>
           <p className="mt-2 max-w-sm text-sm leading-relaxed 2xl:text-[15px]" style={{ color: 'var(--color-text-subtle)' }}>Registre a ideia com o contexto. A equipe recebe informações suficientes para avaliar a melhor solução.</p>

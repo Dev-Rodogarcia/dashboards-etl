@@ -8,10 +8,5 @@
     "css.lint.unknownAtRules": "ignore",
     "scss.lint.unknownAtRules": "ignore",
     "less.lint.unknownAtRules": "ignore",
-    "github.copilot.chat.localeOverride": "pt-BR",
-    "github.copilot.chat.commitMessageGeneration.instructions": [
-        {
-            "text": "Sempre gere a mensagem de commit em portugues do Brasil (pt-BR), incluindo titulo e descricao quando houver."
-        }
-    ]
+    "github.copilot.chat.localeOverride": "pt-BR"
 }

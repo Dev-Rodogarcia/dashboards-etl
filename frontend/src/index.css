@@ -290,19 +290,20 @@ body {
   position: relative;
   isolation: isolate;
   will-change: transform, box-shadow;
-  animation: home-idea-attention 4.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  animation: home-idea-attention 5.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
 .home-request-idea-icon::before {
   content: '';
   position: absolute;
-  inset: -9px;
+  inset: -5px;
   z-index: -1;
-  border: 1px solid rgba(110, 231, 183, 0.82);
+  border: 1px solid rgba(167, 243, 208, 0.62);
   border-radius: inherit;
   opacity: 0;
   pointer-events: none;
-  animation: home-idea-halo 4.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  box-shadow: 0 0 12px rgba(110, 231, 183, 0.34);
+  animation: home-idea-halo 5.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
 .home-request-idea-icon > svg {
@@ -310,8 +311,36 @@ body {
   z-index: 1;
   transform-origin: 50% 72%;
   will-change: transform;
-  animation: home-idea-bulb 4.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  animation: home-idea-bulb 5.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
+
+.home-request-idea-rays {
+  position: absolute;
+  inset: -11px;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.78);
+  animation: home-idea-rays 5.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.home-request-idea-rays i {
+  position: absolute;
+  width: 2px;
+  height: 7px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.85);
+}
+
+.home-request-idea-rays i:nth-child(1) { left: 50%; top: 0; transform: translateX(-50%); }
+.home-request-idea-rays i:nth-child(2) { right: 4px; top: 4px; transform: rotate(45deg); }
+.home-request-idea-rays i:nth-child(3) { right: 0; top: 50%; transform: translateY(-50%) rotate(90deg); }
+.home-request-idea-rays i:nth-child(4) { right: 4px; bottom: 4px; transform: rotate(-45deg); }
+.home-request-idea-rays i:nth-child(5) { bottom: 0; left: 50%; transform: translateX(-50%); }
+.home-request-idea-rays i:nth-child(6) { bottom: 4px; left: 4px; transform: rotate(45deg); }
+.home-request-idea-rays i:nth-child(7) { left: 0; top: 50%; transform: translateY(-50%) rotate(90deg); }
+.home-request-idea-rays i:nth-child(8) { left: 4px; top: 4px; transform: rotate(-45deg); }
 
 @keyframes notice-like-attention {
   0%, 7%, 24%, 100% { transform: translateY(0) scale(1); box-shadow: none; }
@@ -350,23 +379,27 @@ body {
 }
 
 @keyframes home-idea-attention {
-  0%, 12%, 42%, 100% { transform: translateY(0) scale(1); box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2); }
-  19%, 33% { transform: translateY(-3px) scale(1.08); box-shadow: 0 0 0 7px rgba(52, 211, 153, 0.2), 0 14px 26px rgba(5, 150, 105, 0.38); }
-  25% { transform: translateY(-1px) scale(0.98); box-shadow: 0 3px 8px rgba(5, 150, 105, 0.22); }
+  0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 2px 5px rgba(5, 150, 105, 0.26); }
+  27% { transform: translateY(-1px) scale(1.025); box-shadow: 0 0 0 4px rgba(110, 231, 183, 0.14), 0 8px 15px rgba(5, 150, 105, 0.3); }
+  42% { transform: translateY(0) scale(1); box-shadow: 0 2px 5px rgba(5, 150, 105, 0.26); }
 }
 
 @keyframes home-idea-halo {
-  0%, 12%, 42%, 100% { opacity: 0; transform: scale(0.78); }
-  19% { opacity: 0.95; transform: scale(1); }
-  33% { opacity: 0; transform: scale(1.5); }
+  0%, 100% { opacity: 0; transform: scale(0.92); }
+  27% { opacity: 0.48; transform: scale(1); }
+  44% { opacity: 0; transform: scale(1.15); }
 }
 
 @keyframes home-idea-bulb {
-  0%, 12%, 42%, 100% { transform: scale(1) rotate(0); }
-  18% { transform: scale(1.2) rotate(-9deg); }
-  23% { transform: scale(0.97) rotate(6deg); }
-  29% { transform: scale(1.14) rotate(-6deg); }
-  35% { transform: scale(1.04) rotate(3deg); }
+  0%, 100% { transform: scale(1) rotate(0); }
+  27% { transform: scale(1.08) rotate(-3deg); }
+  38% { transform: scale(1) rotate(0); }
+}
+
+@keyframes home-idea-rays {
+  0%, 20%, 100% { opacity: 0; transform: scale(0.78); }
+  28% { opacity: 1; transform: scale(1); }
+  44% { opacity: 0; transform: scale(1.16); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -375,9 +408,10 @@ body {
   .notice-action-cue__item,
   .notice-comment-typing,
   .notice-comment-typing i,
-  .home-request-idea-icon,
-  .home-request-idea-icon::before,
-  .home-request-idea-icon > svg {
+  .home-request-idea-icon--respect-reduced-motion,
+  .home-request-idea-icon--respect-reduced-motion::before,
+  .home-request-idea-icon--respect-reduced-motion > svg,
+  .home-request-idea-icon--respect-reduced-motion .home-request-idea-rays {
     animation: none;
   }
 }

@@ -52,6 +52,7 @@ export interface HomeNoticeComment {
   authorName: string;
   body: string;
   createdAt: string;
+  canDelete: boolean;
 }
 
 export interface HomeNoticeCommentApi {
@@ -59,6 +60,7 @@ export interface HomeNoticeCommentApi {
   autorNome: string;
   corpo: string;
   criadoEm: string;
+  podeExcluir: boolean;
 }
 
 export interface HomeNoticePayload {

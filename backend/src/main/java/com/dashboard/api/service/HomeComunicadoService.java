@@ -108,10 +108,19 @@ public class HomeComunicadoService {
     }
 
     @Transactional(readOnly = true)
-    public List<HomeComunicadoComentarioDTO> listarComentarios(Long id) {
+    public List<HomeComunicadoComentarioDTO> listarComentarios(Long id, String usuarioEmail, boolean podeGerenciar) {
         buscarAtivo(id);
+        Long usuarioId = usuarioRepository.findByEmailIgnoreCaseAndAtivoTrue(usuarioEmail)
+                .map(usuario -> usuario.getId())
+                .orElse(-1L);
         return comentarioRepository.listarAtivos(id).stream()
-                .map(item -> new HomeComunicadoComentarioDTO(String.valueOf(item.getId()), item.getAutorNome(), item.getCorpo(), item.getCriadoEm()))
+                .map(item -> new HomeComunicadoComentarioDTO(
+                        String.valueOf(item.getId()),
+                        item.getAutorNome(),
+                        item.getCorpo(),
+                        item.getCriadoEm(),
+                        podeGerenciar || usuarioId.equals(item.getUsuarioId())
+                ))
                 .toList();
     }
 
@@ -128,7 +137,25 @@ public class HomeComunicadoService {
         comentario.setCriadoEm(Instant.now());
         comentario.setAtualizadoEm(Instant.now());
         HomeComunicadoComentarioEntity salvo = comentarioRepository.save(comentario);
-        return new HomeComunicadoComentarioDTO(String.valueOf(salvo.getId()), usuario.getNome(), salvo.getCorpo(), salvo.getCriadoEm());
+        return new HomeComunicadoComentarioDTO(String.valueOf(salvo.getId()), usuario.getNome(), salvo.getCorpo(), salvo.getCriadoEm(), true);
+    }
+
+    @Transactional
+    public void excluirComentario(Long comunicadoId, Long comentarioId, String usuarioEmail, boolean podeGerenciar) {
+        buscarAtivo(comunicadoId);
+        var usuario = usuarioRepository.findByEmailIgnoreCaseAndAtivoTrue(usuarioEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário autenticado não encontrado."));
+        HomeComunicadoComentarioEntity comentario = comentarioRepository.findById(comentarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Comentário não encontrado."));
+        if (!comentario.isAtivo() || !comentario.getComunicadoId().equals(comunicadoId)) {
+            throw new IllegalArgumentException("Comentário não encontrado.");
+        }
+        if (!podeGerenciar && !comentario.getUsuarioId().equals(usuario.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException("Você não pode excluir este comentário.");
+        }
+        comentario.setAtivo(false);
+        comentario.setAtualizadoEm(Instant.now());
+        comentarioRepository.save(comentario);
     }
 
     private HomeComunicadoEntity buscarAtivo(Long id) {

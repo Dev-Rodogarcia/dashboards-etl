@@ -108,7 +108,7 @@ echo [OK] Frontend    : %DIST_DIR%
 echo [OK] Build info  : %BUILD_INFO_FILE%
 echo.
 echo [PROXIMO PASSO] Para aplicar as mudancas em background, execute:
-echo                pm2 restart ecosystem.config.js
+echo                pm2 startOrRestart ecosystem.config.js --update-env
 echo.
 exit /b 0
 

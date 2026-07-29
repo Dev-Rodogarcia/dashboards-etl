@@ -88,6 +88,8 @@ export default function CommunicationsPanel({
   commenting,
   onOpenComments,
   onSubmitComment,
+  onDeleteComment,
+  deletingCommentId,
   className = '',
 }: {
   notices: HomeNotice[];
@@ -112,6 +114,8 @@ export default function CommunicationsPanel({
   commenting: boolean;
   onOpenComments: (id: string | null) => void;
   onSubmitComment: (id: string, body: string) => Promise<void>;
+  onDeleteComment: (noticeId: string, commentId: string) => Promise<void>;
+  deletingCommentId: string | null;
   className?: string;
 }) {
   const [activeTab, setActiveTab] = useState<HomeCommunicationTab>('avisos');
@@ -470,7 +474,12 @@ export default function CommunicationsPanel({
                         {!commentsLoading && comments.length === 0 && <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Seja a primeira pessoa a comentar.</p>}
                         {comments.map((comment) => (
                           <div key={comment.id} className="rounded-xl border p-2.5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}>
-                            <p className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>{comment.authorName}</p>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>{comment.authorName}</p>
+                              {comment.canDelete && (
+                                <button type="button" onClick={() => onDeleteComment(notice.id, comment.id).catch(() => undefined)} disabled={deletingCommentId === comment.id} aria-label={`Excluir comentário de ${comment.authorName}`} title="Excluir comentário" className={`-mr-1 -mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/30 ${focusRingClass}`} style={{ color: 'var(--color-text-muted)' }}>×</button>
+                              )}
+                            </div>
                             <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--color-text-subtle)' }}>{comment.body}</p>
                           </div>
                         ))}

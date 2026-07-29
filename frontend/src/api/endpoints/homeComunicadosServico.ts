@@ -75,7 +75,7 @@ export async function alternarCurtidaHomeComunicado(id: string): Promise<HomeNot
 }
 
 function mapCommentFromApi(comment: HomeNoticeCommentApi): HomeNoticeComment {
-  return { id: comment.id, authorName: comment.autorNome, body: comment.corpo, createdAt: comment.criadoEm };
+  return { id: comment.id, authorName: comment.autorNome, body: comment.corpo, createdAt: comment.criadoEm, canDelete: comment.podeExcluir };
 }
 
 export async function buscarComentariosHomeComunicado(id: string): Promise<HomeNoticeComment[]> {
@@ -86,4 +86,8 @@ export async function buscarComentariosHomeComunicado(id: string): Promise<HomeN
 export async function criarComentarioHomeComunicado(id: string, body: string): Promise<HomeNoticeComment> {
   const { data } = await clienteAxios.post<HomeNoticeCommentApi>(`${HOME_COMUNICADOS_ENDPOINT}/${id}/comentarios`, { corpo: body.trim() });
   return mapCommentFromApi(data);
+}
+
+export async function excluirComentarioHomeComunicado(id: string, commentId: string): Promise<void> {
+  await clienteAxios.delete(`${HOME_COMUNICADOS_ENDPOINT}/${id}/comentarios/${commentId}`);
 }

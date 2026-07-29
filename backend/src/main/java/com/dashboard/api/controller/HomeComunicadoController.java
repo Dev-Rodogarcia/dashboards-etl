@@ -4,6 +4,7 @@ import com.dashboard.api.dto.home.HomeComunicadoDTO;
 import com.dashboard.api.dto.home.HomeComunicadoRequestDTO;
 import com.dashboard.api.dto.home.HomeComunicadoComentarioDTO;
 import com.dashboard.api.dto.home.HomeComunicadoComentarioRequestDTO;
+import com.dashboard.api.security.AcessoSeguranca;
 import com.dashboard.api.service.HomeComunicadoService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -24,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class HomeComunicadoController {
 
     private final HomeComunicadoService service;
+    private final AcessoSeguranca acessoSeguranca;
 
-    public HomeComunicadoController(HomeComunicadoService service) {
+    public HomeComunicadoController(HomeComunicadoService service, AcessoSeguranca acessoSeguranca) {
         this.service = service;
+        this.acessoSeguranca = acessoSeguranca;
     }
 
     @GetMapping
@@ -66,8 +69,8 @@ public class HomeComunicadoController {
     }
 
     @GetMapping("/{id}/comentarios")
-    public List<HomeComunicadoComentarioDTO> listarComentarios(@PathVariable Long id) {
-        return service.listarComentarios(id);
+    public List<HomeComunicadoComentarioDTO> listarComentarios(@PathVariable Long id, Authentication authentication) {
+        return service.listarComentarios(id, usuarioLogin(authentication), acessoSeguranca.podeGerenciarHomeComunicados());
     }
 
     @PostMapping("/{id}/comentarios")
@@ -77,6 +80,16 @@ public class HomeComunicadoController {
             Authentication authentication
     ) {
         return ResponseEntity.ok(service.comentar(id, request, usuarioLogin(authentication)));
+    }
+
+    @DeleteMapping("/{id}/comentarios/{comentarioId}")
+    public ResponseEntity<Void> excluirComentario(
+            @PathVariable Long id,
+            @PathVariable Long comentarioId,
+            Authentication authentication
+    ) {
+        service.excluirComentario(id, comentarioId, usuarioLogin(authentication), acessoSeguranca.podeGerenciarHomeComunicados());
+        return ResponseEntity.noContent().build();
     }
 
     private String usuarioLogin(Authentication authentication) {
