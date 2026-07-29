@@ -30,15 +30,9 @@ public class EtlSaudeSqlRepository {
 
     private static final DateTimeFormatter ISO_LOCAL_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     private static final ZoneId ZONE_ID_APLICACAO = ZoneId.of("America/Sao_Paulo");
-    private static final String STATUS_NORMALIZADO_SQL =
-            "COALESCE(NULLIF(LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))), N''), N'')";
-    private static final String STATUS_SUCESSO_SQL = STATUS_NORMALIZADO_SQL + " = N'success'";
-    private static final String STATUS_ERRO_SQL = STATUS_NORMALIZADO_SQL + " <> N'success'";
     private static final String LOG_STATUS_NORMALIZADO_SQL =
             "COALESCE(NULLIF(UPPER(LTRIM(RTRIM(CONVERT(NVARCHAR(40), log.status_final)))), N''), N'')";
     private static final String LOG_STATUS_SUCESSO_LISTA_SQL = "N'COMPLETO', N'SUCCESS', N'SUCESSO'";
-    private static final String DURACAO_SEGUNDOS_SQL = "COALESCE(TRY_CONVERT(INT, [Duracao (s)]), 0)";
-    private static final String TOTAL_REGISTROS_SQL = "COALESCE(TRY_CONVERT(INT, [Total Registros]), 0)";
 
     private final NamedParameterJdbcOperations jdbcTemplate;
     private final DashboardExportSqlBuilder sqlBuilder;

@@ -11,6 +11,7 @@
 ## Arquitetura e Padrões
 - Arquitetura em camadas Spring MVC no backend e SPA React no frontend.
 - Backend: `controller` expõe fronteiras HTTP; `service` orquestra regras; `repository` concentra SQL/JPA; `dto` define contratos; `model` representa entidades; `security` concentra JWT, API key e rate limit; `config` define infraestrutura; `policy` guarda regras reutilizáveis; `util` contém helpers puros.
+- Repositórios SQL e testes mantêm somente constantes e imports efetivamente usados, para preservar diagnósticos Java sem avisos de código morto; a limpeza de `EtlSaudeSqlRepository` e `RetencaoHomeSolicitacoesServiceTest` foi aplicada.
 - Frontend: `src/App.tsx` define rotas lazy e proteção de acesso; `contexts` guarda sessão/filtros/cabeçalho; `api` centraliza Axios e endpoints; `hooks/queries` encapsula React Query; `pages` monta dashboards; `components/shared` padroniza filtros, cards, tabelas, exportação, gráficos e estados.
 - Filtros globais de dashboards que usam a dimensão de filiais exibem apenas filiais próprias em `components/shared/FiliaisParceirosFilter.tsx`, reutilizando a classificação `| parceiro` centralizada em `utils/filiais.ts` para ocultar parceiros logísticos da barra operacional; a administração continua usando `FiliaisPermitidasSplitSelect` com a mesma regra segregada.
 - A dimensão de filiais (`DimensoesService.listarFiliais`) normaliza os nomes para maiúsculas na leitura, tanto no cache global quanto no escopo restrito de usuário, sem hardcode de filiais específicas.
