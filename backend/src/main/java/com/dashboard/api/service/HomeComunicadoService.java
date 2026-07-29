@@ -4,9 +4,17 @@ import com.dashboard.api.dto.home.HomeComunicadoDTO;
 import com.dashboard.api.dto.home.HomeComunicadoRequestDTO;
 import com.dashboard.api.model.acesso.HomeComunicadoEntity;
 import com.dashboard.api.repository.acesso.HomeComunicadoRepository;
+import com.dashboard.api.repository.acesso.HomeComunicadoCurtidaRepository;
+import com.dashboard.api.repository.acesso.UsuarioRepository;
+import com.dashboard.api.model.acesso.HomeComunicadoCurtidaEntity;
+import com.dashboard.api.model.acesso.HomeComunicadoComentarioEntity;
+import com.dashboard.api.dto.home.HomeComunicadoComentarioDTO;
+import com.dashboard.api.dto.home.HomeComunicadoComentarioRequestDTO;
+import com.dashboard.api.repository.acesso.HomeComunicadoComentarioRepository;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -17,15 +25,34 @@ public class HomeComunicadoService {
 
     private static final Set<String> TAGS_VALIDAS = Set.of("NOVO", "ATENCAO", "FIXADO");
     private final HomeComunicadoRepository repository;
+    private final HomeComunicadoCurtidaRepository curtidaRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final HomeComunicadoComentarioRepository comentarioRepository;
 
-    public HomeComunicadoService(HomeComunicadoRepository repository) {
+    public HomeComunicadoService(
+            HomeComunicadoRepository repository,
+            HomeComunicadoCurtidaRepository curtidaRepository,
+            UsuarioRepository usuarioRepository,
+            HomeComunicadoComentarioRepository comentarioRepository
+    ) {
         this.repository = repository;
+        this.curtidaRepository = curtidaRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.comentarioRepository = comentarioRepository;
     }
 
     @Transactional(readOnly = true)
-    public List<HomeComunicadoDTO> listarAtivos() {
-        return repository.listarAtivosOrdenados().stream()
-                .map(this::toDto)
+    public List<HomeComunicadoDTO> listarAtivos(String usuarioEmail) {
+        List<HomeComunicadoEntity> comunicados = repository.listarAtivosOrdenados();
+        Long usuarioId = usuarioRepository.findByEmailIgnoreCaseAndAtivoTrue(usuarioEmail)
+                .map(usuario -> usuario.getId())
+                .orElse(-1L);
+        if (comunicados.isEmpty()) return List.of();
+        Map<Long, HomeComunicadoCurtidaRepository.ResumoCurtidasProjection> curtidasPorComunicado = curtidaRepository
+                .resumirAtivasPorComunicado(comunicados.stream().map(HomeComunicadoEntity::getId).toList(), usuarioId).stream()
+                .collect(java.util.stream.Collectors.toMap(HomeComunicadoCurtidaRepository.ResumoCurtidasProjection::getComunicadoId, resumo -> resumo));
+        return comunicados.stream()
+                .map(comunicado -> toDto(comunicado, curtidasPorComunicado.get(comunicado.getId())))
                 .toList();
     }
 
@@ -37,7 +64,7 @@ public class HomeComunicadoService {
         entity.setPublicadoEm(Instant.now());
         entity.setCriadoPor(usuarioLogin);
         entity.setAtualizadoPor(usuarioLogin);
-        return toDto(repository.save(entity));
+        return toDto(repository.save(entity), null);
     }
 
     @Transactional
@@ -45,7 +72,7 @@ public class HomeComunicadoService {
         HomeComunicadoEntity entity = buscarAtivo(id);
         aplicarRequest(entity, request);
         entity.setAtualizadoPor(usuarioLogin);
-        return toDto(repository.save(entity));
+        return toDto(repository.save(entity), null);
     }
 
     @Transactional
@@ -54,6 +81,54 @@ public class HomeComunicadoService {
         entity.setAtivo(false);
         entity.setAtualizadoPor(usuarioLogin);
         repository.save(entity);
+    }
+
+    @Transactional
+    public HomeComunicadoDTO alternarCurtida(Long id, String usuarioEmail) {
+        HomeComunicadoEntity comunicado = buscarAtivo(id);
+        Long usuarioId = usuarioRepository.findByEmailIgnoreCaseAndAtivoTrue(usuarioEmail)
+                .map(usuario -> usuario.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário autenticado não encontrado."));
+        HomeComunicadoCurtidaEntity curtida = curtidaRepository.findByComunicadoIdAndUsuarioId(id, usuarioId)
+                .orElseGet(() -> {
+                    HomeComunicadoCurtidaEntity novaCurtida = new HomeComunicadoCurtidaEntity();
+                    novaCurtida.setComunicadoId(id);
+                    novaCurtida.setUsuarioId(usuarioId);
+                    novaCurtida.setCriadoEm(Instant.now());
+                    return novaCurtida;
+                });
+        boolean curtidaExistente = curtida.getId() != null;
+        curtida.setAtivo(!curtidaExistente || !curtida.isAtivo());
+        curtida.setAtualizadoEm(Instant.now());
+        curtidaRepository.save(curtida);
+        return listarAtivos(usuarioEmail).stream()
+                .filter(item -> item.id().equals(String.valueOf(comunicado.getId())))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    @Transactional(readOnly = true)
+    public List<HomeComunicadoComentarioDTO> listarComentarios(Long id) {
+        buscarAtivo(id);
+        return comentarioRepository.listarAtivos(id).stream()
+                .map(item -> new HomeComunicadoComentarioDTO(String.valueOf(item.getId()), item.getAutorNome(), item.getCorpo(), item.getCriadoEm()))
+                .toList();
+    }
+
+    @Transactional
+    public HomeComunicadoComentarioDTO comentar(Long id, HomeComunicadoComentarioRequestDTO request, String usuarioEmail) {
+        buscarAtivo(id);
+        var usuario = usuarioRepository.findByEmailIgnoreCaseAndAtivoTrue(usuarioEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário autenticado não encontrado."));
+        HomeComunicadoComentarioEntity comentario = new HomeComunicadoComentarioEntity();
+        comentario.setComunicadoId(id);
+        comentario.setUsuarioId(usuario.getId());
+        comentario.setCorpo(request.corpo().trim());
+        comentario.setAtivo(true);
+        comentario.setCriadoEm(Instant.now());
+        comentario.setAtualizadoEm(Instant.now());
+        HomeComunicadoComentarioEntity salvo = comentarioRepository.save(comentario);
+        return new HomeComunicadoComentarioDTO(String.valueOf(salvo.getId()), usuario.getNome(), salvo.getCorpo(), salvo.getCriadoEm());
     }
 
     private HomeComunicadoEntity buscarAtivo(Long id) {
@@ -86,7 +161,13 @@ public class HomeComunicadoService {
         return semAcento.trim().toUpperCase(Locale.ROOT);
     }
 
-    private HomeComunicadoDTO toDto(HomeComunicadoEntity entity) {
+    private HomeComunicadoDTO toDto(
+            HomeComunicadoEntity entity,
+            HomeComunicadoCurtidaRepository.ResumoCurtidasProjection curtidas
+    ) {
+        List<String> curtidoPor = curtidas == null || curtidas.getCurtidoPor() == null
+                ? List.of()
+                : List.of(curtidas.getCurtidoPor().split("\\|"));
         return new HomeComunicadoDTO(
                 String.valueOf(entity.getId()),
                 entity.getTitulo(),
@@ -95,7 +176,10 @@ public class HomeComunicadoService {
                 entity.getPublicoAlvo(),
                 entity.getPublicadoEm(),
                 entity.getAtualizadoPor(),
-                entity.getAtualizadoEm()
+                entity.getAtualizadoEm(),
+                curtidas == null || curtidas.getTotalCurtidas() == null ? 0 : curtidas.getTotalCurtidas(),
+                curtidoPor,
+                curtidas != null && Boolean.TRUE.equals(curtidas.getCurtidoPeloUsuarioAtual())
         );
     }
 }

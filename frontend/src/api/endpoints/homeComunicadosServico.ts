@@ -1,5 +1,5 @@
 import clienteAxios from '../clienteAxios';
-import type { HomeNotice, HomeNoticeApi, HomeNoticeFormState, HomeNoticePayload } from '../../types/home';
+import type { HomeNotice, HomeNoticeApi, HomeNoticeComment, HomeNoticeCommentApi, HomeNoticeFormState, HomeNoticePayload } from '../../types/home';
 
 const HOME_COMUNICADOS_ENDPOINT = '/api/painel/home/comunicados';
 
@@ -26,6 +26,9 @@ export function mapNoticeFromApi(notice: HomeNoticeApi): HomeNotice {
     date: formatNoticeDate(notice.publicadoEm),
     publishedAt: notice.publicadoEm,
     updatedBy: notice.atualizadoPor,
+    likeCount: notice.totalCurtidas ?? 0,
+    likedBy: notice.curtidoPor ?? [],
+    likedByCurrentUser: notice.curtidoPeloUsuarioAtual ?? false,
   };
 }
 
@@ -64,4 +67,23 @@ export async function atualizarHomeComunicado(id: string, payload: HomeNoticePay
 
 export async function arquivarHomeComunicado(id: string): Promise<void> {
   await clienteAxios.delete(`${HOME_COMUNICADOS_ENDPOINT}/${id}`);
+}
+
+export async function alternarCurtidaHomeComunicado(id: string): Promise<HomeNotice> {
+  const { data } = await clienteAxios.post<HomeNoticeApi>(`${HOME_COMUNICADOS_ENDPOINT}/${id}/curtidas`);
+  return mapNoticeFromApi(data);
+}
+
+function mapCommentFromApi(comment: HomeNoticeCommentApi): HomeNoticeComment {
+  return { id: comment.id, authorName: comment.autorNome, body: comment.corpo, createdAt: comment.criadoEm };
+}
+
+export async function buscarComentariosHomeComunicado(id: string): Promise<HomeNoticeComment[]> {
+  const { data } = await clienteAxios.get<HomeNoticeCommentApi[]>(`${HOME_COMUNICADOS_ENDPOINT}/${id}/comentarios`);
+  return data.map(mapCommentFromApi);
+}
+
+export async function criarComentarioHomeComunicado(id: string, body: string): Promise<HomeNoticeComment> {
+  const { data } = await clienteAxios.post<HomeNoticeCommentApi>(`${HOME_COMUNICADOS_ENDPOINT}/${id}/comentarios`, { corpo: body.trim() });
+  return mapCommentFromApi(data);
 }

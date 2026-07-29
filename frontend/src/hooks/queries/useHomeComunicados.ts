@@ -4,6 +4,9 @@ import {
   atualizarHomeComunicado,
   buscarHomeComunicados,
   criarHomeComunicado,
+  alternarCurtidaHomeComunicado,
+  buscarComentariosHomeComunicado,
+  criarComentarioHomeComunicado,
 } from '../../api/endpoints/homeComunicadosServico';
 import { HOME_COMUNICADOS_API_ENABLED } from '../../config/api';
 import type { HomeNoticePayload } from '../../types/home';
@@ -47,6 +50,34 @@ export function useArquivarHomeComunicado() {
     mutationFn: (id: string) => arquivarHomeComunicado(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: HOME_COMUNICADOS_QUERY_KEY });
+    },
+  });
+}
+
+export function useAlternarCurtidaHomeComunicado() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => alternarCurtidaHomeComunicado(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: HOME_COMUNICADOS_QUERY_KEY });
+    },
+  });
+}
+
+export function useHomeComunicadoComentarios(id: string | null) {
+  return useQuery({
+    queryKey: [...HOME_COMUNICADOS_QUERY_KEY, id, 'comentarios'],
+    queryFn: () => buscarComentariosHomeComunicado(id!),
+    enabled: Boolean(id && /^\d+$/.test(id)),
+  });
+}
+
+export function useCriarComentarioHomeComunicado() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: string }) => criarComentarioHomeComunicado(id, body),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [...HOME_COMUNICADOS_QUERY_KEY, variables.id, 'comentarios'] });
     },
   });
 }

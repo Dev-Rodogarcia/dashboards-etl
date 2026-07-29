@@ -31,6 +31,9 @@ export const FALLBACK_HOME_NOTICES: HomeNotice[] = [
     tag: 'NOVO',
     audience: 'Operação, TI e Diretoria',
     date: 'Atualização recente',
+    likeCount: 0,
+    likedBy: [],
+    likedByCurrentUser: false,
   },
   {
     id: 'governanca',
@@ -39,6 +42,9 @@ export const FALLBACK_HOME_NOTICES: HomeNotice[] = [
     tag: 'FIXADO',
     audience: 'Todos',
     date: 'Fixado',
+    likeCount: 0,
+    likedBy: [],
+    likedByCurrentUser: false,
   },
   {
     id: 'status-etl',
@@ -47,6 +53,9 @@ export const FALLBACK_HOME_NOTICES: HomeNotice[] = [
     tag: 'ATENCAO',
     audience: 'TI e administradores',
     date: 'Publicado hoje',
+    likeCount: 0,
+    likedBy: [],
+    likedByCurrentUser: false,
   },
 ];
 

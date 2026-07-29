@@ -1,6 +1,7 @@
 package com.dashboard.api.dto.home;
 
 import java.time.Instant;
+import java.util.List;
 
 public record HomeComunicadoDTO(
         String id,
@@ -10,6 +11,9 @@ public record HomeComunicadoDTO(
         String publicoAlvo,
         Instant publicadoEm,
         String atualizadoPor,
-        Instant atualizadoEm
+        Instant atualizadoEm,
+        long totalCurtidas,
+        List<String> curtidoPor,
+        boolean curtidoPeloUsuarioAtual
 ) {
 }

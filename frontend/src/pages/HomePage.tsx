@@ -12,6 +12,9 @@ import { usePageHeader } from '../contexts/PageHeaderContext';
 import { HOME_COMUNICADOS_API_ENABLED } from '../config/api';
 import {
   useArquivarHomeComunicado,
+  useAlternarCurtidaHomeComunicado,
+  useCriarComentarioHomeComunicado,
+  useHomeComunicadoComentarios,
   useAtualizarHomeComunicado,
   useCriarHomeComunicado,
   useHomeComunicados,
@@ -57,11 +60,15 @@ export default function HomePage() {
   const [noticeMutationError, setNoticeMutationError] = useState<string | null>(null);
   const [requestMutationError, setRequestMutationError] = useState<string | null>(null);
   const [requestsModalOpen, setRequestsModalOpen] = useState(false);
+  const [commentsNoticeId, setCommentsNoticeId] = useState<string | null>(null);
 
   const comunicadosQuery = useHomeComunicados();
   const criarComunicado = useCriarHomeComunicado();
   const atualizarComunicado = useAtualizarHomeComunicado();
   const arquivarComunicado = useArquivarHomeComunicado();
+  const alternarCurtidaComunicado = useAlternarCurtidaHomeComunicado();
+  const comentariosComunicado = useHomeComunicadoComentarios(commentsNoticeId);
+  const criarComentarioComunicado = useCriarComentarioHomeComunicado();
   const criarSolicitacao = useCriarHomeSolicitacao();
   const concluirSolicitacao = useConcluirHomeSolicitacao();
   const arquivarSolicitacao = useArquivarHomeSolicitacao();
@@ -249,6 +256,26 @@ export default function HomePage() {
     }
   }
 
+  async function toggleNoticeLike(id: string) {
+    if (!isPersistedNoticeId(id)) return;
+    setNoticeMutationError(null);
+    try {
+      await alternarCurtidaComunicado.mutateAsync(id);
+    } catch (error) {
+      setNoticeMutationError(getApiErrorMessage(error, 'Não foi possível registrar sua curtida.'));
+    }
+  }
+
+  async function createNoticeComment(id: string, body: string) {
+    setNoticeMutationError(null);
+    try {
+      await criarComentarioComunicado.mutateAsync({ id, body });
+    } catch (error) {
+      setNoticeMutationError(getApiErrorMessage(error, 'Não foi possível publicar o comentário.'));
+      throw error;
+    }
+  }
+
   async function handleRequestSubmit(form: HomeRequestFormState) {
     setRequestMutationError(null);
     try {
@@ -336,12 +363,20 @@ export default function HomePage() {
               showForm={showNoticeForm}
               editingNoticeId={editingNoticeId}
               saving={noticeSaving}
+              likingNoticeId={alternarCurtidaComunicado.isPending ? alternarCurtidaComunicado.variables ?? null : null}
               onFormChange={setNoticeForm}
               onStartCreate={startCreateNotice}
               onStartEdit={startEditNotice}
               onCancelForm={cancelNoticeForm}
               onSubmit={(event) => void handleNoticeSubmit(event)}
               onArchive={(id) => void archiveNotice(id)}
+              onToggleLike={(id) => void toggleNoticeLike(id)}
+              commentsNoticeId={commentsNoticeId}
+              comments={commentsNoticeId ? comentariosComunicado.data ?? [] : []}
+              commentsLoading={comentariosComunicado.isLoading}
+              commenting={criarComentarioComunicado.isPending}
+              onOpenComments={setCommentsNoticeId}
+              onSubmitComment={(id, body) => createNoticeComment(id, body)}
             />
           </aside>
         </div>

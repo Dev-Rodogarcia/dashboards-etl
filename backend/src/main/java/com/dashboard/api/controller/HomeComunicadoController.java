@@ -2,6 +2,8 @@ package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.home.HomeComunicadoDTO;
 import com.dashboard.api.dto.home.HomeComunicadoRequestDTO;
+import com.dashboard.api.dto.home.HomeComunicadoComentarioDTO;
+import com.dashboard.api.dto.home.HomeComunicadoComentarioRequestDTO;
 import com.dashboard.api.service.HomeComunicadoService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -28,8 +30,8 @@ public class HomeComunicadoController {
     }
 
     @GetMapping
-    public List<HomeComunicadoDTO> listar() {
-        return service.listarAtivos();
+    public List<HomeComunicadoDTO> listar(Authentication authentication) {
+        return service.listarAtivos(usuarioLogin(authentication));
     }
 
     @PostMapping
@@ -56,6 +58,25 @@ public class HomeComunicadoController {
     public ResponseEntity<Void> arquivar(@PathVariable Long id, Authentication authentication) {
         service.arquivar(id, usuarioLogin(authentication));
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/curtidas")
+    public ResponseEntity<HomeComunicadoDTO> alternarCurtida(@PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(service.alternarCurtida(id, usuarioLogin(authentication)));
+    }
+
+    @GetMapping("/{id}/comentarios")
+    public List<HomeComunicadoComentarioDTO> listarComentarios(@PathVariable Long id) {
+        return service.listarComentarios(id);
+    }
+
+    @PostMapping("/{id}/comentarios")
+    public ResponseEntity<HomeComunicadoComentarioDTO> comentar(
+            @PathVariable Long id,
+            @Valid @RequestBody HomeComunicadoComentarioRequestDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(service.comentar(id, request, usuarioLogin(authentication)));
     }
 
     private String usuarioLogin(Authentication authentication) {

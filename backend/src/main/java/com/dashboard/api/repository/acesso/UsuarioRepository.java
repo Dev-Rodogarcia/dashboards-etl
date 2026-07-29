@@ -11,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
     Optional<UsuarioEntity> findByEmailIgnoreCase(String email);
 
+    Optional<UsuarioEntity> findByEmailIgnoreCaseAndAtivoTrue(String email);
+
     boolean existsByLoginIgnoreCase(String login);
     boolean existsByEmailIgnoreCase(String email);
     boolean existsByLoginIgnoreCaseAndIdNot(String login, Long id);

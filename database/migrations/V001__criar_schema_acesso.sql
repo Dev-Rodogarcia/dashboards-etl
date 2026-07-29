@@ -75,6 +75,52 @@ CREATE TABLE acesso.usuarios (
 );
 
 -- -------------------------------------------------------------
+-- COMUNICADOS DA HOME E CURTIDAS (interação por usuário)
+-- -------------------------------------------------------------
+CREATE TABLE acesso.home_comunicados (
+    id             BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    titulo         NVARCHAR(140)        NOT NULL,
+    corpo          NVARCHAR(700)        NOT NULL,
+    tag            VARCHAR(20)          NOT NULL,
+    publico_alvo   NVARCHAR(140)        NOT NULL DEFAULT N'Todos',
+    publicado_em   DATETIME2(0)         NOT NULL DEFAULT SYSUTCDATETIME(),
+    ativo          BIT                  NOT NULL DEFAULT 1,
+    criado_por     NVARCHAR(120)        NULL,
+    criado_em      DATETIME2(0)         NOT NULL DEFAULT SYSUTCDATETIME(),
+    atualizado_por NVARCHAR(120)        NULL,
+    atualizado_em  DATETIME2(0)         NULL
+);
+
+CREATE TABLE acesso.home_comunicado_curtidas (
+    id              BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    comunicado_id   BIGINT NOT NULL REFERENCES acesso.home_comunicados(id),
+    usuario_id      BIGINT NOT NULL REFERENCES acesso.usuarios(id),
+    ativo           BIT NOT NULL DEFAULT 1,
+    criado_em       DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+    atualizado_em   DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
+CREATE UNIQUE INDEX UX_home_comunicado_curtidas_ativa
+    ON acesso.home_comunicado_curtidas (comunicado_id, usuario_id)
+    WHERE ativo = 1;
+
+CREATE INDEX IX_home_comunicado_curtidas_comunicado_ativo
+    ON acesso.home_comunicado_curtidas (comunicado_id, ativo, usuario_id);
+
+CREATE TABLE acesso.home_comunicado_comentarios (
+    id              BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    comunicado_id   BIGINT NOT NULL REFERENCES acesso.home_comunicados(id),
+    usuario_id      BIGINT NOT NULL REFERENCES acesso.usuarios(id),
+    corpo           NVARCHAR(700) NOT NULL,
+    ativo           BIT NOT NULL DEFAULT 1,
+    criado_em       DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+    atualizado_em   DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
+CREATE INDEX IX_home_comunicado_comentarios_comunicado_ativo_criado
+    ON acesso.home_comunicado_comentarios (comunicado_id, ativo, criado_em, id);
+
+-- -------------------------------------------------------------
 -- SETOR_PERMISSAO_TEMPLATES (baseline de permissoes por setor)
 -- -------------------------------------------------------------
 CREATE TABLE acesso.setor_permissao_templates (

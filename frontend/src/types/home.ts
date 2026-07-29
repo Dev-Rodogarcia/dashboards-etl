@@ -29,6 +29,9 @@ export interface HomeNotice {
   date: string;
   publishedAt?: string | null;
   updatedBy?: string | null;
+  likeCount: number;
+  likedBy: string[];
+  likedByCurrentUser: boolean;
 }
 
 export interface HomeNoticeApi {
@@ -39,6 +42,23 @@ export interface HomeNoticeApi {
   publicoAlvo: string;
   publicadoEm: string;
   atualizadoPor?: string | null;
+  totalCurtidas?: number;
+  curtidoPor?: string[];
+  curtidoPeloUsuarioAtual?: boolean;
+}
+
+export interface HomeNoticeComment {
+  id: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface HomeNoticeCommentApi {
+  id: string;
+  autorNome: string;
+  corpo: string;
+  criadoEm: string;
 }
 
 export interface HomeNoticePayload {

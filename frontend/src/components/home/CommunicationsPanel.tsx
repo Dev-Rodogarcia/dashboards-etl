@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
-import { Archive, Bell, CircleAlert, Megaphone, Pencil, Plus, Save, Sparkles, X } from 'lucide-react';
+import type { CSSProperties, FormEvent } from 'react';
+import { Archive, Bell, ChevronDown, CircleAlert, Heart, Megaphone, MessageCircle, Pencil, Plus, Save, Send, Sparkles, X } from 'lucide-react';
 import type {
   HomeCommunicationPriority,
   HomeCommunicationTab,
   HomeNotice,
   HomeNoticeFormState,
   HomeNoticeTag,
+  HomeNoticeComment,
 } from '../../types/home';
 
 const focusRingClass =
@@ -79,6 +80,14 @@ export default function CommunicationsPanel({
   onCancelForm,
   onSubmit,
   onArchive,
+  onToggleLike,
+  likingNoticeId,
+  commentsNoticeId,
+  comments,
+  commentsLoading,
+  commenting,
+  onOpenComments,
+  onSubmitComment,
   className = '',
 }: {
   notices: HomeNotice[];
@@ -95,10 +104,20 @@ export default function CommunicationsPanel({
   onCancelForm: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onArchive: (id: string) => void;
+  onToggleLike: (id: string) => void;
+  likingNoticeId: string | null;
+  commentsNoticeId: string | null;
+  comments: HomeNoticeComment[];
+  commentsLoading: boolean;
+  commenting: boolean;
+  onOpenComments: (id: string | null) => void;
+  onSubmitComment: (id: string, body: string) => Promise<void>;
   className?: string;
 }) {
   const [activeTab, setActiveTab] = useState<HomeCommunicationTab>('avisos');
   const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
+  const [commentBody, setCommentBody] = useState('');
+  const [burstNoticeId, setBurstNoticeId] = useState<string | null>(null);
 
   const filteredNotices = useMemo(() => filterByTab(notices, activeTab), [activeTab, notices]);
   const visibleNotices = filteredNotices;
@@ -106,6 +125,14 @@ export default function CommunicationsPanel({
   function handleTabChange(tab: HomeCommunicationTab) {
     setActiveTab(tab);
     setSelectedNoticeId(null);
+  }
+
+  function handleLike(id: string, alreadyLiked: boolean) {
+    if (!alreadyLiked) {
+      setBurstNoticeId(id);
+      window.setTimeout(() => setBurstNoticeId((current) => current === id ? null : current), 850);
+    }
+    onToggleLike(id);
   }
 
   return (
@@ -193,7 +220,7 @@ export default function CommunicationsPanel({
         >
           {showForm && isAdmin && (
             <div
-              className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
               role="presentation"
               onMouseDown={(event) => {
                 if (event.target === event.currentTarget) onCancelForm();
@@ -219,7 +246,7 @@ export default function CommunicationsPanel({
                 />
               </label>
 
-              <div className="grid gap-3 2xl:grid-cols-[1fr_1.25fr]">
+              <div className="grid gap-3 sm:grid-cols-[1fr_1.25fr]">
                 <label className="space-y-1">
                   <span className="text-xs font-bold uppercase" style={{ color: 'var(--color-text-muted)' }}>Tipo</span>
                   <select
@@ -297,17 +324,20 @@ export default function CommunicationsPanel({
           )}
 
           <div className="space-y-3" role="list">
-            {visibleNotices.map((notice) => {
+            {visibleNotices.map((notice, noticeIndex) => {
               const priority = priorityForNotice(notice);
               const selected = selectedNoticeId === notice.id;
               const isNew = notice.tag === 'NOVO';
+              const isExpanded = selected;
+              const likedNames = notice.likedBy.join(', ');
+              const commentsOpen = commentsNoticeId === notice.id;
 
               return (
                 <article key={notice.id} role="listitem">
                   <button
                     type="button"
                     onClick={() => setSelectedNoticeId(selected ? null : notice.id)}
-                    className={`group w-full rounded-[20px] border p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${focusRingClass}`}
+                    className={`group w-full rounded-[20px] border p-4 text-left shadow-sm transition-all duration-200 hover:shadow-md ${focusRingClass}`}
                     style={{
                       backgroundColor: selected
                         ? 'var(--color-bg)'
@@ -333,7 +363,11 @@ export default function CommunicationsPanel({
                     <h3 className="text-sm font-bold leading-snug" style={{ color: 'var(--color-text)' }}>
                       {notice.title}
                     </h3>
-                    <p className="mt-2 line-clamp-3 text-sm leading-relaxed" style={{ color: 'var(--color-text-subtle)' }}>
+                    <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold" style={{ color: 'var(--color-primary)' }}>
+                      <ChevronDown size={14} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      {isExpanded ? 'Recolher texto' : 'Ver mais'}
+                    </span>
+                    <p className={`mt-2 text-sm leading-relaxed ${isExpanded ? '' : 'line-clamp-3'}`} style={{ color: 'var(--color-text-subtle)' }}>
                       {notice.body}
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
@@ -343,8 +377,70 @@ export default function CommunicationsPanel({
                     </div>
                   </button>
 
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                    <div className="group/likes relative">
+                      <button
+                        type="button"
+                        onClick={() => handleLike(notice.id, notice.likedByCurrentUser)}
+                        disabled={likingNoticeId === notice.id || !/^\d+$/.test(notice.id)}
+                        aria-pressed={notice.likedByCurrentUser}
+                        aria-label={notice.likedByCurrentUser ? 'Remover curtida' : 'Curtir comunicado'}
+                        className={`notice-like-button group/like-cue relative inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${!notice.likedByCurrentUser ? 'notice-like-button--idle' : ''} ${focusRingClass}`}
+                        style={{
+                          borderColor: notice.likedByCurrentUser ? 'rgba(225, 29, 72, 0.45)' : 'var(--color-border)',
+                          color: notice.likedByCurrentUser ? '#e11d48' : 'var(--color-text-muted)',
+                          backgroundColor: notice.likedByCurrentUser ? 'rgba(225, 29, 72, 0.08)' : 'transparent',
+                          '--like-delay': `${-1 - noticeIndex * 2.35}s`,
+                          '--like-duration': `${12 + (noticeIndex % 3) * 1.8}s`,
+                        } as CSSProperties}
+                      >
+                        <Heart size={14} fill={notice.likedByCurrentUser ? 'currentColor' : 'none'} />
+                        {notice.likeCount > 0 ? notice.likeCount : 'Curtir'}
+                        {burstNoticeId === notice.id && (
+                          <span className="notice-like-burst" aria-hidden="true">
+                            <Heart className="notice-like-burst__heart notice-like-burst__heart--one" size={13} fill="currentColor" />
+                            <Heart className="notice-like-burst__heart notice-like-burst__heart--two" size={10} fill="currentColor" />
+                            <Heart className="notice-like-burst__heart notice-like-burst__heart--three" size={12} fill="currentColor" />
+                            <Heart className="notice-like-burst__heart notice-like-burst__heart--four" size={9} fill="currentColor" />
+                          </span>
+                        )}
+                        <span className="notice-action-cue notice-action-cue--heart" aria-hidden="true">
+                          <Heart className="notice-action-cue__item notice-action-cue__item--one" size={11} fill="currentColor" />
+                          <Heart className="notice-action-cue__item notice-action-cue__item--two" size={9} fill="currentColor" />
+                          <Heart className="notice-action-cue__item notice-action-cue__item--three" size={12} fill="currentColor" />
+                        </span>
+                      </button>
+                      {notice.likeCount > 0 && (
+                        <div className="pointer-events-none absolute bottom-full left-0 z-20 mb-2 w-56 rounded-xl border p-3 text-xs opacity-0 shadow-xl transition-opacity group-hover/likes:opacity-100 group-focus-within/likes:opacity-100" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}>
+                          <p className="font-bold">Curtido por {notice.likeCount} pessoa{notice.likeCount === 1 ? '' : 's'}</p>
+                          <p className="mt-1 leading-relaxed" style={{ color: 'var(--color-text-subtle)' }}>{likedNames || 'Carregando nomes...'}</p>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!/^\d+$/.test(notice.id)}
+                      onClick={() => {
+                        onOpenComments(commentsOpen ? null : notice.id);
+                        setCommentBody('');
+                      }}
+                      aria-expanded={commentsOpen}
+                      className={`group/comment-cue relative inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${focusRingClass}`}
+                      style={{ borderColor: commentsOpen ? 'var(--color-primary)' : 'var(--color-border)', color: commentsOpen ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
+                    >
+                      <MessageCircle size={14} />
+                      Comentar
+                      <span className="notice-comment-typing" aria-hidden="true">
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                    </button>
+                    </div>
+
                   {selected && isAdmin && (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => onStartEdit(notice)}
@@ -365,6 +461,25 @@ export default function CommunicationsPanel({
                         Arquivar
                       </button>
                     </div>
+                  )}
+                  </div>
+                  {commentsOpen && (
+                    <section className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }} aria-label={`Comentários de ${notice.title}`}>
+                      <div className="max-h-48 space-y-3 overflow-y-auto pr-1">
+                        {commentsLoading && <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Carregando comentários...</p>}
+                        {!commentsLoading && comments.length === 0 && <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Seja a primeira pessoa a comentar.</p>}
+                        {comments.map((comment) => (
+                          <div key={comment.id} className="rounded-xl border p-2.5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}>
+                            <p className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>{comment.authorName}</p>
+                            <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--color-text-subtle)' }}>{comment.body}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <form className="mt-3 flex gap-2" onSubmit={(event) => { event.preventDefault(); if (!commentBody.trim()) return; onSubmitComment(notice.id, commentBody).then(() => setCommentBody('')).catch(() => undefined); }}>
+                        <input value={commentBody} onChange={(event) => setCommentBody(event.target.value)} maxLength={700} placeholder="Escreva um comentário" className={`h-9 min-w-0 flex-1 rounded-lg border px-3 text-xs ${focusRingClass}`} style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }} />
+                        <button type="submit" disabled={commenting || !commentBody.trim()} className={`inline-flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-bold text-white disabled:opacity-60 ${focusRingClass}`} style={{ backgroundColor: 'var(--color-primary)' }}><Send size={13} /> Enviar</button>
+                      </form>
+                    </section>
                   )}
                 </article>
               );
