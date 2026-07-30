@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,7 @@ public class RateLimitService {
     private final int passwordResetMaxRequests;
     private final int passwordResetWindowSeconds;
 
+    @Autowired
     public RateLimitService(
             @Value("${security.rate-limit.login.max-attempts:10}") int loginMaxAttempts,
             @Value("${security.rate-limit.login.window-seconds:900}") int loginWindowSeconds,
