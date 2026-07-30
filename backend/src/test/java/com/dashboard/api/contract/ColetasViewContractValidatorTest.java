@@ -20,7 +20,7 @@ class ColetasViewContractValidatorTest {
     @Test
     @SuppressWarnings("unchecked")
     void validarSolicitacaoNativaAceitaTipoDate() {
-        when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class))).thenReturn("date", "nvarchar(100)");
+        when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class))).thenReturn("date", "nvarchar(100)", "bit");
 
         ColetasViewContractValidator validator = new ColetasViewContractValidator(jdbcTemplate);
 
@@ -39,5 +39,19 @@ class ColetasViewContractValidatorTest {
                 .hasMessageContaining("vw_coletas_powerbi.[Solicitacao]")
                 .hasMessageContaining("tipo de data nativo")
                 .hasMessageContaining("nvarchar");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void validarSolicitacaoNativaRejeitaFlagDeExclusaoComTipoInvalido() {
+        when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class))).thenReturn("date", "nvarchar(100)", "int");
+
+        ColetasViewContractValidator validator = new ColetasViewContractValidator(jdbcTemplate);
+
+        assertThatThrownBy(validator::validarSolicitacaoNativa)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("vw_coletas_powerbi.[Excluída na Origem]")
+                .hasMessageContaining("deve ser bit")
+                .hasMessageContaining("int");
     }
 }

@@ -13,7 +13,7 @@ const percentualSemBase =
   'Quando o denominador é zero, o indicador retorna 0%.';
 
 const periodoColetas =
-  'O período considera a data de solicitação. Solicitações repetidas são consolidadas pelo identificador, preservando a versão mais recente.';
+  'O período considera a data de solicitação. Solicitações repetidas são consolidadas pelo identificador, preservando a versão mais recente. Coletas que não são mais retornadas pelo ESL permanecem na tabela e exportação como "Excluída", mas não participam dos indicadores.';
 
 const periodoManifestos =
   'O período considera a competência operacional do manifesto: data de saída; quando a saída não existe, usa a data de criação.';
@@ -86,7 +86,7 @@ export const KpiDictionary = {
       calculo:
         'Soma dos dias completos entre Solicitação e Finalização ÷ Coletas finalizadas com as duas datas.',
       observacao:
-        'Somente coletas finalizadas ou coletadas com data de solicitação e data de finalização participam da média.',
+        `${periodoColetas} Somente coletas finalizadas ou coletadas com data de solicitação e data de finalização participam da média.`,
     },
     tentativasMedias: {
       titulo: 'Tentativas Médias',

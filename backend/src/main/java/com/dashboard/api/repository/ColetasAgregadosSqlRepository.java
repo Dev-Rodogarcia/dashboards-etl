@@ -33,6 +33,8 @@ public class ColetasAgregadosSqlRepository {
 
     private static final String REGIAO_LOGISTICA_SEM_MAPEAMENTO = "Sem regiao logistica";
     private static final String CIDADE_SEM_MAPEAMENTO = "Sem cidade";
+    private static final String FILTRO_STATUS_EXCLUIDA_SQL =
+            "LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) <> N'excluída'";
     private static final List<String> ORDEM_AGING = List.of("0-2 dias", "3-5 dias", "6-10 dias", "11+ dias");
 
     private final NamedParameterJdbcOperations jdbcTemplate;
@@ -129,6 +131,7 @@ public class ColetasAgregadosSqlRepository {
                         LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) AS status_normalizado
                     FROM base_deduplicada
                     WHERE [Solicitacao] IS NOT NULL
+                      AND %s
                 )
                 SELECT
                     data_solicitacao,
@@ -139,7 +142,7 @@ public class ColetasAgregadosSqlRepository {
                 FROM base_metricas
                 GROUP BY data_solicitacao
                 ORDER BY data_solicitacao
-                """.formatted(source.sql());
+                """.formatted(source.sql(), FILTRO_STATUS_EXCLUIDA_SQL);
 
         return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new ColetasTrendPointDTO(
                 data(rs.getDate("data_solicitacao")),
@@ -270,9 +273,10 @@ public class ColetasAgregadosSqlRepository {
                     COUNT(DISTINCT [Coleta]) AS total_coletas,
                     SUM(COALESCE([Peso Taxado], 0)) AS peso_taxado
                 FROM base_deduplicada
+                WHERE %s
                 GROUP BY %s
                 ORDER BY total_coletas DESC, regiao_logistica ASC
-                """.formatted(source.sql(), regiaoLogisticaSql, regiaoLogisticaSql);
+                """.formatted(source.sql(), regiaoLogisticaSql, FILTRO_STATUS_EXCLUIDA_SQL, regiaoLogisticaSql);
 
         return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new ColetasRegiaoOrigemDTO(
                 rs.getString("regiao_logistica"),
@@ -311,10 +315,11 @@ public class ColetasAgregadosSqlRepository {
                     COUNT(DISTINCT [Coleta]) AS total_coletas,
                     SUM(COALESCE([Peso Taxado], 0)) AS peso_taxado
                 FROM base_deduplicada
-                WHERE %s = :regiaoLogisticaSelecionada
+                WHERE %s
+                  AND %s = :regiaoLogisticaSelecionada
                 GROUP BY %s
                 ORDER BY total_coletas DESC, cidade ASC
-                """.formatted(source.sql(), cidadeSql, regiaoLogisticaSql, cidadeSql);
+                """.formatted(source.sql(), cidadeSql, FILTRO_STATUS_EXCLUIDA_SQL, regiaoLogisticaSql, cidadeSql);
 
         return jdbcTemplate.query(sql, params, (rs, rowNum) -> new ColetasCidadeOrigemDTO(
                 rs.getString("cidade"),
@@ -360,11 +365,12 @@ public class ColetasAgregadosSqlRepository {
                     FROM base_deduplicada
                     WHERE [Solicitacao] IS NOT NULL
                       AND LOWER(LTRIM(RTRIM([Status]))) IN (:statusPendentes)
+                      AND %s
                 )
                 SELECT faixa, COUNT(DISTINCT [Coleta]) AS total
                 FROM aging
                 GROUP BY faixa
-                """.formatted(sourceSql);
+                """.formatted(sourceSql, FILTRO_STATUS_EXCLUIDA_SQL);
 
         Map<String, Integer> totais = new LinkedHashMap<>();
         jdbcTemplate.query(sql, params, rs -> {
@@ -429,8 +435,9 @@ public class ColetasAgregadosSqlRepository {
                         base_deduplicada.*,
                         LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) AS status_normalizado
                     FROM base_deduplicada
+                    WHERE %s
                 )
-                """.formatted(source.sql());
+                """.formatted(source.sql(), FILTRO_STATUS_EXCLUIDA_SQL);
     }
 
     private MapSqlParameterSource copiarParams(DashboardExportSqlBuilder.ExportSql source) {

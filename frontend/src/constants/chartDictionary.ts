@@ -19,7 +19,8 @@ const cotacoesBase = {
 
 const coletasBase = {
   tabelasOrigem: 'vw_coletas_powerbi',
-  cruzamentos: 'Nenhum JOIN; CTE base_filtrada -> base_deduplicada por ROW_NUMBER() PARTITION BY [ID].',
+  cruzamentos:
+    'Nenhum JOIN; CTE base_filtrada -> base_deduplicada por ROW_NUMBER() PARTITION BY [ID]. Antes das agregações, o SQL remove o status "Excluída"; a linha continua disponível apenas na tabela e na exportação para auditoria.',
 } as const;
 
 const trackingBase = {

@@ -53,6 +53,7 @@ public class ColetasViewContractValidator {
         }
 
         validarRegiaoLogisticaPublicada();
+        validarExclusaoOrigemPublicada();
         validado = true;
     }
 
@@ -72,6 +73,33 @@ public class ColetasViewContractValidator {
             throw new IllegalStateException(
                     "Contrato invalido: vw_coletas_powerbi.[Região Logística] nao encontrada. "
                             + "Republique a view no repositorio etl-extracao-dados antes de iniciar o Dashboard."
+            );
+        }
+    }
+
+    private void validarExclusaoOrigemPublicada() {
+        String tipo = jdbcTemplate.query("""
+                SELECT system_type_name
+                FROM sys.dm_exec_describe_first_result_set(
+                    N'SELECT TOP (0) [Excluída na Origem] FROM dbo.vw_coletas_powerbi',
+                    NULL,
+                    0
+                )
+                WHERE error_number IS NULL
+                  AND name = N'Excluída na Origem'
+                """, rs -> rs.next() ? rs.getString(1) : null);
+
+        if (tipo == null || tipo.isBlank()) {
+            throw new IllegalStateException(
+                    "Contrato invalido: vw_coletas_powerbi.[Excluída na Origem] nao encontrada. "
+                            + "Republique a view no repositorio etl-extracao-dados antes de iniciar o Dashboard."
+            );
+        }
+
+        if (!"bit".equalsIgnoreCase(tipo.trim())) {
+            throw new IllegalStateException(
+                    "Contrato invalido: vw_coletas_powerbi.[Excluída na Origem] deve ser bit, mas veio como "
+                            + tipo + ". Corrija dbo.vw_coletas_powerbi no repositorio etl-extracao-dados."
             );
         }
     }

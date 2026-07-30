@@ -69,6 +69,7 @@ class ColetasAgregadosSqlRepositoryTest {
                 .contains("SUM(CASE WHEN status_normalizado IN (N'finalizada', N'coletada')")
                 .contains("AVG(CASE")
                 .contains("[Solicitacao] >= :dataInicio AND [Solicitacao] < :dataFimExclusivo")
+                .contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) <> N'excluída'")
                 .doesNotContain("TRY_CONVERT(date, [Solicitacao])");
     }
 
@@ -94,6 +95,7 @@ class ColetasAgregadosSqlRepositoryTest {
         assertThat(sqlCaptor.getValue())
                 .contains("COUNT(DISTINCT [Coleta]) AS total_coletas")
                 .contains("SUM(COALESCE([Peso Taxado], 0)) AS peso_taxado")
+                .contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) <> N'excluída'")
                 .contains("GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Região Logística])))");
     }
 
@@ -120,6 +122,7 @@ class ColetasAgregadosSqlRepositoryTest {
                 .contains("COUNT(1) AS total")
                 .contains("GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))")
                 .contains("ROW_NUMBER() OVER")
+                .contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) <> N'excluída'")
                 .doesNotContain("TRY_CONVERT(date, [Solicitacao])");
     }
 
@@ -146,6 +149,7 @@ class ColetasAgregadosSqlRepositoryTest {
                 .contains("COUNT(1) AS total_coletas")
                 .contains("SUM(CASE WHEN status_normalizado IN (N'finalizada', N'coletada') THEN 1 ELSE 0 END) AS finalizadas")
                 .contains("GROUP BY data_solicitacao")
+                .contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) <> N'excluída'")
                 .doesNotContain("performance_percentual")
                 .doesNotContain("meta_percentual")
                 .doesNotContain("TRY_CONVERT(date, [Solicitacao])");
@@ -185,6 +189,7 @@ class ColetasAgregadosSqlRepositoryTest {
                 .contains("fora_do_prazo AS foraDoPrazo")
                 .contains("GROUP BY data_solicitacao")
                 .contains("ORDER BY data_bucket")
+                .contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) <> N'excluída'")
                 .doesNotContain("SELECT TOP (8)")
                 .doesNotContain("GROUP BY NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Filial]))), N'')")
                 .doesNotContain("AS performance_percentual")
@@ -230,6 +235,7 @@ class ColetasAgregadosSqlRepositoryTest {
                 .contains("AS metaPercentual")
                 .contains("[Solicitacao] >= :historicoDataInicio")
                 .contains("[Solicitacao] < :historicoDataFimExclusivo")
+                .contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) <> N'excluída'")
                 .doesNotContain("[Solicitacao] >= :dataInicio")
                 .doesNotContain("[Solicitacao] < :dataFimExclusivo")
                 .doesNotContain("FORMAT(")
@@ -259,10 +265,37 @@ class ColetasAgregadosSqlRepositoryTest {
         assertThat(sqlCaptor.getValue())
                 .contains("DATEDIFF(day, [Solicitacao], :dataReferencia)")
                 .contains("IN (:statusPendentes)")
+                .contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) <> N'excluída'")
                 .doesNotContain("GETDATE()")
                 .doesNotContain("TRY_CONVERT(date, [Solicitacao])");
         assertThat(paramsCaptor.getValue().getValue("dataReferencia")).isEqualTo(LocalDate.of(2026, 5, 23));
         assertThat(paramsCaptor.getValue().getValue("statusPendentes")).isEqualTo(List.of("pendente", "em aberto"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void buscarCidadesOrigemDeveExcluirColetasExcluidasDosTotais() {
+        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(List.of());
+
+        ColetasAgregadosSqlRepository repository = new ColetasAgregadosSqlRepository(
+                jdbcTemplate,
+                new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao()),
+                escopoSemRestricao()
+        );
+
+        repository.buscarCidadesOrigem(
+                new FiltroConsultaDTO(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Map.of()),
+                "Sudeste"
+        );
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
+
+        assertThat(sqlCaptor.getValue())
+                .contains("COUNT(DISTINCT [Coleta]) AS total_coletas")
+                .contains("LOWER(LTRIM(RTRIM(CONVERT(NVARCHAR(100), [Status])))) <> N'excluída'")
+                .contains(":regiaoLogisticaSelecionada");
     }
 
     private static EscopoFilialService escopoSemRestricao() {

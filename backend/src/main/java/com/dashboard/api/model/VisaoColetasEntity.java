@@ -33,6 +33,9 @@ public class VisaoColetasEntity {
     @Column(name = "[Status]")
     private String status;
 
+    @Column(name = "[Excluída na Origem]")
+    private Boolean excluidaNaOrigem;
+
     @Column(name = "[Volumes]")
     private Integer volumes;
 
@@ -100,6 +103,10 @@ public class VisaoColetasEntity {
 
     public String getStatus() {
         return status;
+    }
+
+    public Boolean getExcluidaNaOrigem() {
+        return excluidaNaOrigem;
     }
 
     public Integer getVolumes() {
