@@ -17,7 +17,7 @@
 - A dimensão de filiais (`DimensoesService.listarFiliais`) normaliza os nomes para maiúsculas na leitura, tanto no cache global quanto no escopo restrito de usuário, sem hardcode de filiais específicas.
 - Modais animados com múltiplos filhos diretos em `AnimatePresence` devem declarar `key` explícita e estável por elemento; o modal de justificativa de Horário de Corte identifica backdrop e diálogo pela SM selecionada para evitar chaves vazias no React/Framer Motion.
 - Banco `DASHBOARDS` é gerido exclusivamente por Flyway em `database/migrations`, com baseline 22 e migrations atuais até `V060__gerenciar_ciclo_vida_solicitacoes_melhoria.sql`.
-- A migração `V063__adicionar_solicitacao_redefinicao_senha.sql` adiciona `acesso.usuarios.password_reset_requested_at`, também presente no baseline `V001`, para registrar pedidos de redefinição sem expor credenciais.
+- A migração `V063__adicionar_solicitacao_redefinicao_senha.sql` adiciona `acesso.usuarios.password_reset_requested_at`, também presente no baseline `V001`, para registrar pedidos de redefinição sem expor credenciais; os lotes DDL são separados por `GO` para que o SQL Server resolva a nova coluna antes da criação do índice filtrado.
 - Hibernate roda com `spring.jpa.hibernate.ddl-auto=none`; DDL em runtime por Java é proibido.
 - O portal é consumidor read-only do ETL. O backend deve consultar objetos analíticos por nomes simples (`dbo.vw_*`, `dbo.fato_*`, `dbo.dim_*`), sem hardcode de database.
 - Padrões obrigatórios: push-down computation no SQL Server, filtros sargable, paginação/exportação em SQL, DTOs pequenos, validação explícita de período e paridade entre cálculo de KPI e dicionários do frontend.

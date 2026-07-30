@@ -4,6 +4,8 @@ BEGIN
         ADD password_reset_requested_at DATETIME2 NULL;
 END;
 
+GO
+
 IF NOT EXISTS (
     SELECT 1
     FROM sys.indexes
