@@ -17,6 +17,7 @@
 - A dimensão de filiais (`DimensoesService.listarFiliais`) normaliza os nomes para maiúsculas na leitura, tanto no cache global quanto no escopo restrito de usuário, sem hardcode de filiais específicas.
 - Modais animados com múltiplos filhos diretos em `AnimatePresence` devem declarar `key` explícita e estável por elemento; o modal de justificativa de Horário de Corte identifica backdrop e diálogo pela SM selecionada para evitar chaves vazias no React/Framer Motion.
 - Banco `DASHBOARDS` é gerido exclusivamente por Flyway em `database/migrations`, com baseline 22 e migrations atuais até `V060__gerenciar_ciclo_vida_solicitacoes_melhoria.sql`.
+- A migração `V063__adicionar_solicitacao_redefinicao_senha.sql` adiciona `acesso.usuarios.password_reset_requested_at`, também presente no baseline `V001`, para registrar pedidos de redefinição sem expor credenciais.
 - Hibernate roda com `spring.jpa.hibernate.ddl-auto=none`; DDL em runtime por Java é proibido.
 - O portal é consumidor read-only do ETL. O backend deve consultar objetos analíticos por nomes simples (`dbo.vw_*`, `dbo.fato_*`, `dbo.dim_*`), sem hardcode de database.
 - Padrões obrigatórios: push-down computation no SQL Server, filtros sargable, paginação/exportação em SQL, DTOs pequenos, validação explícita de período e paridade entre cálculo de KPI e dicionários do frontend.
@@ -125,6 +126,8 @@
 - Parceiros logísticos não atuam como filiais emissoras nas tabelas fato; por isso a barra global operacional não exibe dropdown/input de parceiros. O frontend preserva o estado `parceirosLogisticos` e o backend segue tratando `filiais` + `parceirosLogisticos` como filtro consolidado de filial para SQL, paginação, exportação e dimensões dependentes.
 - Sessão: access token JWT fica em memória no frontend; refresh token rotativo fica em cookie HttpOnly; 401 tenta refresh silencioso e encerra sessão se falhar.
 - Troca obrigatória de senha: o administrador informa uma senha temporária única no modal de `POST /api/usuarios/{usuarioId}/reset-senha`, validada pela política de senha e persistida apenas como hash Argon2id. O usuário só obtém nova sessão após enviá-la junto da nova senha válida para `/api/auth/nova-senha-obrigatoria`; contas marcadas não recebem authorities no filtro JWT e não podem renovar sessão.
+- Redefinição solicitada: `POST /api/auth/password-reset-request` aceita somente JSON e origem CORS permitida, aplica limite de cinco pedidos por IP a cada hora e sempre retorna a mensagem genérica de registro. Apenas contas ativas existentes recebem `password_reset_requested_at`; o campo é devolvido exclusivamente quando o solicitante da gestão de usuários é o usuário supremo. A redefinição administrativa, a troca obrigatória concluída e a alteração de senha no cadastro removem a solicitação, revogam sessões quando aplicável e mantêm `exige_troca_senha` até a senha privada ser criada.
+- Os contratos Java mantêm construtores compatíveis para testes e consumidores internos: `RateLimitService` de seis parâmetros aplica os valores padrão do limite de redefinição, e o construtor anterior de `UsuarioAcessoDTO` preenche `passwordResetRequestedAt` com `null`.
 - Online administrativo significa `ultima_atividade >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET())`; a contagem e o status da listagem são calculados por SQL nativo, sem varredura de usuários ou timeout em memória na JVM.
 - A lista exibida no hover de "Usuários Online Agora" é derivada de `usuariosOnlineDetalhes` do resumo de sessões e considera `ultima_atividade >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET())`; o tempo exibido é uma formatação amigável de `Date.now() - ultimaAtividade`, com fallback seguro quando o pulso não tem data válida.
 - Política de senha: mínimo 12 caracteres, com maiúscula, minúscula, número e símbolo; hashes novos usam Argon2id, com upgrade de hash legado quando aplicável.
@@ -161,5 +164,5 @@
 - É proibido incluir saudações, conclusões, explicações fora dos bullets ou reescrever outras seções durante a resposta de planejamento.
 
 ## Tarefas Pendentes
-- [Operacional] Gestor validar no painel os status das coletas 103224, 103524 e 104203 e confirmar a ausência controlada da 105879; o banco já está coerente com o ESL nesta primeira reconciliação.
-- [Operacional] Acompanhar a próxima reconciliação histórica completa de Coletas. Somente então as 126 ausências atualmente em confirmação `1/2` poderão ser marcadas logicamente como `Excluída`; investigar qualquer execução incompleta antes de tomar essa decisão.
+- [Dashboard] Verificar a cadeia de leitura de Coletas (synonym, endpoint, cache HTTP/React Query e exportação) para assegurar que o painel não mantenha `Em tratativa` quando `dbo.vw_coletas_powerbi` já entrega `Finalizada`.
+- [Operacional] Depois da publicação do ETL, validar no painel renovado as 41 coletas SPO como `Excluída`, as 104113/104116/104121/104124 como `Finalizada`, as 107877/107258/107259 como `Pendente` e os casos CPQ 103224/103524/104203.

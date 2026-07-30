@@ -16,6 +16,10 @@ export interface NovaSenhaObrigatoriaRequest {
   novaSenha: string;
 }
 
+export interface SolicitarRedefinicaoSenhaRequest {
+  email: string;
+}
+
 export interface PasswordResetRequiredResponse {
   status: 'PASSWORD_RESET_REQUIRED';
   userId: string;

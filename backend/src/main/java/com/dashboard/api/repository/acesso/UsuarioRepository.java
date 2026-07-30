@@ -32,6 +32,7 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
                    s.id AS [setorId],
                    s.nome AS [setorNome],
                    u.algoritmo_hash AS [algoritmoHash],
+                   u.password_reset_requested_at AS [passwordResetRequestedAt],
                    CONVERT(varchar(33), u.ultima_atividade, 127) AS [ultimaAtividade],
                    u.ultima_rota_acessada AS [ultimaRotaAcessada],
                    CAST(CASE
@@ -53,6 +54,7 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
                    s.id AS [setorId],
                    s.nome AS [setorNome],
                    u.algoritmo_hash AS [algoritmoHash],
+                   u.password_reset_requested_at AS [passwordResetRequestedAt],
                    CONVERT(varchar(33), u.ultima_atividade, 127) AS [ultimaAtividade],
                    CAST(NULL AS varchar(100)) AS [ultimaRotaAcessada],
                    CAST(CASE
@@ -106,6 +108,7 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
         Long getSetorId();
         String getSetorNome();
         String getAlgoritmoHash();
+        java.time.Instant getPasswordResetRequestedAt();
         String getUltimaAtividade();
         String getUltimaRotaAcessada();
         Boolean getOnline();

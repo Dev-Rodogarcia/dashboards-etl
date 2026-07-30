@@ -38,6 +38,9 @@ public class UsuarioEntity {
     @Column(name = "exige_troca_senha", nullable = false)
     private boolean exigeTrocaSenha;
 
+    @Column(name = "password_reset_requested_at")
+    private Instant passwordResetRequestedAt;
+
     @Column(name = "tentativas_falha", nullable = false)
     private int tentativasFalha;
 
@@ -108,6 +111,8 @@ public class UsuarioEntity {
     public void setSenhaAlteradaEm(Instant senhaAlteradaEm) { this.senhaAlteradaEm = senhaAlteradaEm; }
     public boolean isExigeTrocaSenha() { return exigeTrocaSenha; }
     public void setExigeTrocaSenha(boolean exigeTrocaSenha) { this.exigeTrocaSenha = exigeTrocaSenha; }
+    public Instant getPasswordResetRequestedAt() { return passwordResetRequestedAt; }
+    public void setPasswordResetRequestedAt(Instant passwordResetRequestedAt) { this.passwordResetRequestedAt = passwordResetRequestedAt; }
     public int getTentativasFalha() { return tentativasFalha; }
     public void setTentativasFalha(int tentativasFalha) { this.tentativasFalha = tentativasFalha; }
     public Instant getBloqueadoAte() { return bloqueadoAte; }

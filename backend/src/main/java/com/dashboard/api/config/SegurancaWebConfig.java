@@ -95,7 +95,8 @@ public class SegurancaWebConfig {
                                 "/api/auth/login",
                                 "/api/auth/refresh",
                                 "/api/auth/logout",
-                                "/api/auth/nova-senha-obrigatoria"
+                                "/api/auth/nova-senha-obrigatoria",
+                                "/api/auth/password-reset-request"
                         ).permitAll()
                         .requestMatchers("/actuator/health/liveness", "/actuator/health/readiness").permitAll()
                         .requestMatchers("/actuator/**").authenticated()

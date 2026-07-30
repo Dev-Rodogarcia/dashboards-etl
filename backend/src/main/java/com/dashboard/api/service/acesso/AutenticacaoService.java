@@ -277,6 +277,21 @@ public class AutenticacaoService {
         );
     }
 
+    @Transactional
+    public void solicitarRedefinicaoSenha(String email) {
+        usuarioRepository.findByEmailIgnoreCaseAndAtivoTrue(email.trim()).ifPresent(usuario -> {
+            usuario.setPasswordResetRequestedAt(Instant.now());
+            usuarioRepository.save(usuario);
+            auditService.registrar(
+                    AcaoAudit.SENHA_REDEFINICAO_SOLICITADA,
+                    usuario.getId(),
+                    usuario.getLogin(),
+                    "auth",
+                    null
+            );
+        });
+    }
+
     private SessaoUsuarioDTO mapearSessao(UsuarioEntity usuario) {
         Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
         if (escopoFiliaisUsuarioStore != null) {

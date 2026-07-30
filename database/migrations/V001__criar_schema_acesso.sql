@@ -61,6 +61,7 @@ CREATE TABLE acesso.usuarios (
     algoritmo_hash      VARCHAR(20)  NOT NULL DEFAULT 'bcrypt',
     senha_alterada_em   DATETIME2    NULL,
     exige_troca_senha   BIT          NOT NULL DEFAULT 0,
+    password_reset_requested_at DATETIME2 NULL,
     tentativas_falha    INT          NOT NULL DEFAULT 0,
     bloqueado_ate       DATETIME2    NULL,
     identity_source     VARCHAR(30)  NOT NULL DEFAULT 'local',
@@ -73,6 +74,10 @@ CREATE TABLE acesso.usuarios (
     criado_em           DATETIME2    NOT NULL DEFAULT SYSUTCDATETIME(),
     atualizado_em       DATETIME2    NOT NULL DEFAULT SYSUTCDATETIME()
 );
+
+CREATE INDEX IX_usuarios_password_reset_requested_at
+    ON acesso.usuarios (password_reset_requested_at)
+    WHERE password_reset_requested_at IS NOT NULL;
 
 -- -------------------------------------------------------------
 -- COMUNICADOS DA HOME E CURTIDAS (interação por usuário)

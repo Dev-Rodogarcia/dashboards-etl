@@ -6,6 +6,7 @@ import com.dashboard.api.dto.LoginResponseDTO;
 import com.dashboard.api.dto.NovaSenhaObrigatoriaRequestDTO;
 import com.dashboard.api.dto.PasswordResetRequiredResponseDTO;
 import com.dashboard.api.dto.SessaoUsuarioDTO;
+import com.dashboard.api.dto.SolicitarRedefinicaoSenhaRequestDTO;
 import com.dashboard.api.exception.CredencialInvalidaException;
 import com.dashboard.api.exception.RespostaErroPadrao;
 import com.dashboard.api.security.IpClienteResolver;
@@ -18,10 +19,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -156,6 +159,24 @@ public class AutenticacaoController {
             );
             return ResponseEntity.badRequest().body(erro);
         }
+    }
+
+    @PostMapping(value = "/password-reset-request", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, String>> solicitarRedefinicaoSenha(
+            @Valid @RequestBody SolicitarRedefinicaoSenhaRequestDTO request,
+            HttpServletRequest httpRequest
+    ) {
+        RateLimitService.RateLimitDecision decisao = rateLimitService.consumirSolicitacaoRedefinicaoSenha(
+                ipClienteResolver.resolver(httpRequest)
+        );
+        if (decisao.permitido()) {
+            autenticacaoService.solicitarRedefinicaoSenha(request.email());
+        }
+
+        return ResponseEntity.accepted().body(Map.of(
+                "message",
+                "Se o acesso estiver cadastrado e ativo, a solicitação de redefinição foi registrada."
+        ));
     }
 
     @GetMapping("/me")

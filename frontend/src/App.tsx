@@ -64,6 +64,7 @@ export default function App() {
       <Suspense fallback={<TelaCarregamento />}>
         <Routes>
           <Route path="/login" element={<RotaLogin />} />
+          <Route path="/auth/trocar-senha" element={<RotaLogin />} />
           <Route path="/acesso-negado" element={<AcessoNegadoPage />} />
 
           <Route element={<RotaProtegida allowPasswordChange />}>

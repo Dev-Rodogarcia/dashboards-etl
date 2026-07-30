@@ -90,6 +90,7 @@ public class GestaoUsuarioService {
 
     @Transactional(readOnly = true)
     public List<UsuarioAcessoDTO> listarUsuarios() {
+        boolean exibirSolicitacaoRedefinicao = operadorEhUsuarioSupremo();
         List<UsuarioRepository.UsuarioAcessoResumoProjection> usuarios = Boolean.TRUE.equals(usuarioRepository.existeColunaUltimaRotaAcessada())
                 ? usuarioRepository.findAcessoResumo()
                 : usuarioRepository.findAcessoResumoSemUltimaRota();
@@ -124,7 +125,8 @@ public class GestaoUsuarioService {
                         overridesPorUsuario,
                         templatesPorSetor,
                         filiaisPorSetor,
-                        escoposPorUsuario
+                        escoposPorUsuario,
+                        exibirSolicitacaoRedefinicao
                 ))
                 .toList();
     }
@@ -175,6 +177,7 @@ public class GestaoUsuarioService {
         usuario.setSenhaHash(senhaHash.valor());
         usuario.setAlgoritmoHash(senhaHash.algoritmo());
         usuario.setExigeTrocaSenha(true);
+        usuario.setPasswordResetRequestedAt(null);
         usuario.setSetor(setor);
         usuario.setAtivo(request.ativo() == null || request.ativo());
         aplicarEscopoFiliais(usuario, request);
@@ -225,6 +228,7 @@ public class GestaoUsuarioService {
             usuario.setAlgoritmoHash(senhaHash.algoritmo());
             usuario.setSenhaAlteradaEm(Instant.now());
             usuario.setExigeTrocaSenha(true);
+            usuario.setPasswordResetRequestedAt(null);
             senhaAlterada = true;
         }
 
@@ -281,6 +285,7 @@ public class GestaoUsuarioService {
         usuario.setAlgoritmoHash(senhaHash.algoritmo());
         usuario.setSenhaAlteradaEm(Instant.now());
         usuario.setExigeTrocaSenha(true);
+        usuario.setPasswordResetRequestedAt(null);
         usuario.setTentativasFalha(0);
         usuario.setBloqueadoAte(null);
         usuarioRepository.save(usuario);
@@ -311,7 +316,8 @@ public class GestaoUsuarioService {
             Map<Long, List<UsuarioPermissaoOverrideRepository.UsuarioPermissaoOverrideProjection>> overridesPorUsuario,
             Map<Long, Set<Long>> templatesPorSetor,
             Map<Long, List<String>> filiaisPorSetor,
-            Map<Long, EscopoFiliaisUsuarioStore.EscopoUsuario> escoposPorUsuario
+            Map<Long, EscopoFiliaisUsuarioStore.EscopoUsuario> escoposPorUsuario,
+            boolean exibirSolicitacaoRedefinicao
     ) {
         Long usuarioId = Objects.requireNonNull(usuario.getId(), "usuario.id é obrigatório.");
         Long setorId = Objects.requireNonNull(usuario.getSetorId(), "usuario.setorId é obrigatório.");
@@ -351,6 +357,7 @@ public class GestaoUsuarioService {
                 chavesOverridePorTipo(overrides, "GRANT"),
                 passwordHashService.statusAdministrativo(usuario.getAlgoritmoHash()).valor(),
                 passwordHashService.algoritmoExibicao(usuario.getAlgoritmoHash()),
+                exibirSolicitacaoRedefinicao ? usuario.getPasswordResetRequestedAt() : null,
                 Boolean.TRUE.equals(usuario.getOnline()),
                 parseUltimaAtividade(usuario.getUltimaAtividade()),
                 formatarRotaNegocio(usuario.getUltimaRotaAcessada())
@@ -512,6 +519,7 @@ public class GestaoUsuarioService {
                 permissoesConcedidas,
                 passwordHashService.statusAdministrativo(usuario).valor(),
                 passwordHashService.algoritmoExibicao(usuario),
+                null,
                 false,
                 usuario.getUltimaAtividade(),
                 formatarRotaNegocio(usuario.getUltimaRotaAcessada())
@@ -744,6 +752,14 @@ public class GestaoUsuarioService {
 
         return usuarioRepository.findByEmailIgnoreCase(authentication.getName())
                 .orElseThrow(() -> new AccessDeniedException("Usuário autenticado não encontrado."));
+    }
+
+    private boolean operadorEhUsuarioSupremo() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null
+                && authentication.getName() != null
+                && !authentication.getName().isBlank()
+                && usuarioSupremo.ehEmailSupremo(authentication.getName());
     }
 
     private String normalizarEmail(String email) {

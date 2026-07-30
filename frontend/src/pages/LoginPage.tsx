@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { AxiosError } from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { BarChart3, Eye, EyeOff, Loader2, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { useAutenticacao } from '../contexts/AutenticacaoContext';
 import { firstAccessibleRoute } from '../utils/accessControl';
 import { getApiErrorMessage } from '../utils/apiError';
 import { getPasswordPolicyErrors, PASSWORD_POLICY_HINT } from '../utils/passwordPolicy';
+import { solicitarRedefinicaoSenha } from '../api/endpoints/authServico';
 
 interface TrocaSenhaObrigatoriaPendente {
   email: string;
@@ -24,12 +25,16 @@ function isPasswordResetRequiredError(error: unknown): boolean {
 }
 
 export default function LoginPage() {
+  const location = useLocation();
+  const trocaObrigatoriaInicial = location.state as TrocaSenhaObrigatoriaPendente | null;
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [trocaObrigatoria, setTrocaObrigatoria] = useState<TrocaSenhaObrigatoriaPendente | null>(null);
+  const [trocaObrigatoria, setTrocaObrigatoria] = useState<TrocaSenhaObrigatoriaPendente | null>(trocaObrigatoriaInicial);
+  const [solicitandoRedefinicao, setSolicitandoRedefinicao] = useState(false);
+  const [mensagemRedefinicao, setMensagemRedefinicao] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [confirmacaoNovaSenha, setConfirmacaoNovaSenha] = useState('');
   const {
@@ -63,7 +68,10 @@ export default function LoginPage() {
       }), { replace: true });
     } catch (error) {
       if (isPasswordResetRequiredError(error)) {
-        setTrocaObrigatoria({ email: email.trim(), senhaTemporaria: senha });
+        navigate('/auth/trocar-senha', {
+          replace: true,
+          state: { email: email.trim(), senhaTemporaria: senha } satisfies TrocaSenhaObrigatoriaPendente,
+        });
         setErro('');
         return;
       }
@@ -112,6 +120,21 @@ export default function LoginPage() {
     }
   }
 
+  async function handleSolicitarRedefinicao(e: FormEvent) {
+    e.preventDefault();
+    setErro('');
+    setMensagemRedefinicao('');
+    setCarregando(true);
+    try {
+      await solicitarRedefinicaoSenha({ email });
+      setMensagemRedefinicao('Se o acesso estiver cadastrado e ativo, a solicitação de redefinição foi registrada.');
+    } catch (error) {
+      setErro(getApiErrorMessage(error, 'Não foi possível registrar a solicitação.'));
+    } finally {
+      setCarregando(false);
+    }
+  }
+
   function toggleTheme() {
     setTheme(isDarkTheme ? 'light' : 'dark');
   }
@@ -149,19 +172,19 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center px-4 py-6">
         <div className="flex w-full max-w-[780px] flex-col items-stretch gap-5 md:flex-row">
           <form
-            onSubmit={trocaObrigatoria ? handleNovaSenhaObrigatoria : handleLogin}
+            onSubmit={trocaObrigatoria ? handleNovaSenhaObrigatoria : solicitandoRedefinicao ? handleSolicitarRedefinicao : handleLogin}
             className="flex flex-1 flex-col gap-5 rounded-[24px] border p-7 shadow-sm transition-all duration-300 hover:shadow-md"
             style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
           >
             <div className="flex flex-col gap-2">
               <div className="space-y-1">
                 <h1 className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>
-                  {trocaObrigatoria ? 'Defina sua nova senha' : 'Acesso à Plataforma'}
+                  {trocaObrigatoria ? 'Defina sua nova senha' : solicitandoRedefinicao ? 'Solicitar redefinição de senha' : 'Acesso à Plataforma'}
                 </h1>
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                   {trocaObrigatoria
                     ? 'A senha temporária foi validada. Crie uma senha privada para continuar.'
-                    : 'Insira suas credenciais corporativas para entrar na sua conta'}
+                    : solicitandoRedefinicao ? 'Informe seu e-mail corporativo para avisar o administrador.' : 'Insira suas credenciais corporativas para entrar na sua conta'}
                 </p>
               </div>
 
@@ -186,6 +209,12 @@ export default function LoginPage() {
                 }}
               >
                 {erro}
+              </div>
+            )}
+
+            {mensagemRedefinicao && (
+              <div role="status" className="rounded-xl border px-3.5 py-2.5 text-xs font-medium" style={{ backgroundColor: 'var(--color-positive-badge-bg)', color: 'var(--color-positive-badge-text)', borderColor: 'var(--color-positive-border)' }}>
+                {mensagemRedefinicao}
               </div>
             )}
 
@@ -236,6 +265,17 @@ export default function LoginPage() {
                 >
                   {carregando ? 'Salvando nova senha...' : 'Salvar nova senha e entrar'}
                 </button>
+              </>
+            ) : solicitandoRedefinicao ? (
+              <>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>E-mail</span>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu.email@empresa.com" className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20" style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }} required />
+                </label>
+                <button type="submit" disabled={carregando} className="w-full cursor-pointer rounded-xl py-3 text-sm font-semibold shadow-sm transition-all duration-150 hover:shadow focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 active:scale-[0.98] disabled:opacity-50" style={{ backgroundColor: 'var(--color-primary)', color: '#ffffff' }}>
+                  {carregando ? 'Enviando solicitação...' : 'Solicitar redefinição'}
+                </button>
+                <button type="button" onClick={() => { setSolicitandoRedefinicao(false); setMensagemRedefinicao(''); setErro(''); }} className="text-center text-xs font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>Voltar ao login</button>
               </>
             ) : (
               <>
@@ -292,6 +332,9 @@ export default function LoginPage() {
                   ) : (
                     <span>Acessar plataforma</span>
                   )}
+                </button>
+                <button type="button" onClick={() => { setSolicitandoRedefinicao(true); setErro(''); }} className="text-center text-xs font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>
+                  Solicitar redefinição de senha
                 </button>
               </>
             )}

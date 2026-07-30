@@ -166,7 +166,7 @@ function formatPasswordStatus(status: UsuarioAdmin['statusSenha']): string {
   }
 }
 
-function renderPasswordStatusBadge(status: UsuarioAdmin['statusSenha'], algoritmo: string) {
+function renderPasswordStatusBadge(status: UsuarioAdmin['statusSenha'], algoritmo: string, passwordResetRequestedAt: string | null) {
   const style = PASSWORD_STATUS_STYLE[status];
 
   return (
@@ -177,6 +177,11 @@ function renderPasswordStatusBadge(status: UsuarioAdmin['statusSenha'], algoritm
       <span className="text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
         Hash: {algoritmo}
       </span>
+      {passwordResetRequestedAt && (
+        <span className="inline-flex w-fit rounded-full px-2 py-1 text-[11px] font-medium" style={{ backgroundColor: 'var(--color-warning-badge-bg)', color: 'var(--color-warning-badge-text)' }}>
+          Redefinição solicitada
+        </span>
+      )}
     </div>
   );
 }
@@ -760,7 +765,7 @@ export default function AdminUsuariosPage() {
           .map((chave) => catalogo.data?.find((item) => item.chave === chave)?.nome ?? chave)
           .join(', '),
         filiaisResumo: formatFiliaisResumo(usuario.filiaisPermitidasEfetivas, usuario.filiaisPermitidasEfetivas.length === 0),
-        senhaResumo: `${formatPasswordStatus(usuario.statusSenha)} • ${usuario.algoritmoSenha}`,
+        senhaResumo: `${formatPasswordStatus(usuario.statusSenha)} • ${usuario.algoritmoSenha}${usuario.passwordResetRequestedAt ? ' • Redefinição solicitada' : ''}`,
         acoes: usuario.id,
       })),
     [catalogo.data, papeis.data, usuarios.data],
@@ -1086,7 +1091,7 @@ export default function AdminUsuariosPage() {
       label: 'Senha',
       largura: '120px',
       ordenavel: false,
-      formato: (_, row) => renderPasswordStatusBadge(row.statusSenha, row.algoritmoSenha),
+      formato: (_, row) => renderPasswordStatusBadge(row.statusSenha, row.algoritmoSenha, row.passwordResetRequestedAt),
     },
     {
       chave: 'detalhes',

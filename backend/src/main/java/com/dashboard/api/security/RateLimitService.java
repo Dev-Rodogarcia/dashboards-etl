@@ -22,6 +22,8 @@ public class RateLimitService {
     private final int apiWindowSeconds;
     private final int exportMaxRequests;
     private final int exportWindowSeconds;
+    private final int passwordResetMaxRequests;
+    private final int passwordResetWindowSeconds;
 
     public RateLimitService(
             @Value("${security.rate-limit.login.max-attempts:10}") int loginMaxAttempts,
@@ -29,7 +31,9 @@ public class RateLimitService {
             @Value("${security.rate-limit.api.max-requests:120}") int apiMaxRequests,
             @Value("${security.rate-limit.api.window-seconds:60}") int apiWindowSeconds,
             @Value("${security.rate-limit.export.max-requests:12}") int exportMaxRequests,
-            @Value("${security.rate-limit.export.window-seconds:60}") int exportWindowSeconds
+            @Value("${security.rate-limit.export.window-seconds:60}") int exportWindowSeconds,
+            @Value("${security.rate-limit.password-reset.max-requests:5}") int passwordResetMaxRequests,
+            @Value("${security.rate-limit.password-reset.window-seconds:3600}") int passwordResetWindowSeconds
     ) {
         this.loginMaxAttempts = loginMaxAttempts;
         this.loginWindowSeconds = loginWindowSeconds;
@@ -37,6 +41,28 @@ public class RateLimitService {
         this.apiWindowSeconds = apiWindowSeconds;
         this.exportMaxRequests = exportMaxRequests;
         this.exportWindowSeconds = exportWindowSeconds;
+        this.passwordResetMaxRequests = passwordResetMaxRequests;
+        this.passwordResetWindowSeconds = passwordResetWindowSeconds;
+    }
+
+    public RateLimitService(
+            int loginMaxAttempts,
+            int loginWindowSeconds,
+            int apiMaxRequests,
+            int apiWindowSeconds,
+            int exportMaxRequests,
+            int exportWindowSeconds
+    ) {
+        this(
+                loginMaxAttempts,
+                loginWindowSeconds,
+                apiMaxRequests,
+                apiWindowSeconds,
+                exportMaxRequests,
+                exportWindowSeconds,
+                5,
+                3600
+        );
     }
 
     public RateLimitDecision consumirTentativaLogin(String ip, String loginOuEmail) {
@@ -57,6 +83,10 @@ public class RateLimitService {
 
     public RateLimitDecision consumirExportacao(String identificador) {
         return consumir("export:" + normalizar(identificador), exportMaxRequests, exportWindowSeconds);
+    }
+
+    public RateLimitDecision consumirSolicitacaoRedefinicaoSenha(String ip) {
+        return consumir("password-reset:" + normalizar(ip), passwordResetMaxRequests, passwordResetWindowSeconds);
     }
 
     private RateLimitDecision consumir(String chave, int limite, int janelaSegundos) {

@@ -5,6 +5,7 @@ import type {
   LoginRequest,
   LoginResponse,
   NovaSenhaObrigatoriaRequest,
+  SolicitarRedefinicaoSenhaRequest,
   UsuarioSessao,
 } from '../../types/auth';
 
@@ -41,4 +42,8 @@ export async function concluirTrocaSenhaObrigatoria(payload: NovaSenhaObrigatori
     AUTH_REQUEST_CONFIG,
   );
   return data;
+}
+
+export async function solicitarRedefinicaoSenha(payload: SolicitarRedefinicaoSenhaRequest): Promise<void> {
+  await clienteAxios.post('/api/auth/password-reset-request', payload, AUTH_REQUEST_CONFIG);
 }
