@@ -70,7 +70,7 @@ public class HomeComunicadoController {
 
     @GetMapping("/{id}/comentarios")
     public List<HomeComunicadoComentarioDTO> listarComentarios(@PathVariable Long id, Authentication authentication) {
-        return service.listarComentarios(id, usuarioLogin(authentication), acessoSeguranca.podeGerenciarHomeComunicados());
+        return service.listarComentarios(id, usuarioLogin(authentication), acessoSeguranca.ehAdmin());
     }
 
     @PostMapping("/{id}/comentarios")
@@ -88,7 +88,7 @@ public class HomeComunicadoController {
             @PathVariable Long comentarioId,
             Authentication authentication
     ) {
-        service.excluirComentario(id, comentarioId, usuarioLogin(authentication), acessoSeguranca.podeGerenciarHomeComunicados());
+        service.excluirComentario(id, comentarioId, usuarioLogin(authentication), acessoSeguranca.ehAdmin());
         return ResponseEntity.noContent().build();
     }
 

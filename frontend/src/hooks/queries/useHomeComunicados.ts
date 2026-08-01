@@ -79,6 +79,7 @@ export function useCriarComentarioHomeComunicado() {
     mutationFn: ({ id, body }: { id: string; body: string }) => criarComentarioHomeComunicado(id, body),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [...HOME_COMUNICADOS_QUERY_KEY, variables.id, 'comentarios'] });
+      queryClient.invalidateQueries({ queryKey: HOME_COMUNICADOS_QUERY_KEY });
     },
   });
 }
@@ -89,6 +90,7 @@ export function useExcluirComentarioHomeComunicado() {
     mutationFn: ({ id, commentId }: { id: string; commentId: string }) => excluirComentarioHomeComunicado(id, commentId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [...HOME_COMUNICADOS_QUERY_KEY, variables.id, 'comentarios'] });
+      queryClient.invalidateQueries({ queryKey: HOME_COMUNICADOS_QUERY_KEY });
     },
   });
 }

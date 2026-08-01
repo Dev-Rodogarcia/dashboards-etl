@@ -16,7 +16,20 @@ public interface HomeComunicadoComentarioRepository extends JpaRepository<HomeCo
             """, nativeQuery = true)
     List<ComentarioProjection> listarAtivos(@Param("comunicadoId") Long comunicadoId);
 
+    @Query(value = """
+            SELECT c.comunicado_id AS comunicadoId,
+                   CAST(COUNT_BIG(1) AS bigint) AS totalComentarios
+            FROM acesso.home_comunicado_comentarios c
+            WHERE c.ativo = 1 AND c.comunicado_id IN :comunicadoIds
+            GROUP BY c.comunicado_id
+            """, nativeQuery = true)
+    List<ResumoComentariosProjection> resumirAtivosPorComunicado(@Param("comunicadoIds") List<Long> comunicadoIds);
+
     interface ComentarioProjection {
         Long getId(); Long getUsuarioId(); String getCorpo(); java.time.Instant getCriadoEm(); String getAutorNome();
+    }
+
+    interface ResumoComentariosProjection {
+        Long getComunicadoId(); Long getTotalComentarios();
     }
 }

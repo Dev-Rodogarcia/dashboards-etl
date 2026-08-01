@@ -13,6 +13,7 @@ public record HomeComunicadoDTO(
         String atualizadoPor,
         Instant atualizadoEm,
         long totalCurtidas,
+        long totalComentarios,
         List<String> curtidoPor,
         boolean curtidoPeloUsuarioAtual
 ) {

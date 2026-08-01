@@ -434,7 +434,7 @@ export default function CommunicationsPanel({
                       style={{ borderColor: commentsOpen ? 'var(--color-primary)' : 'var(--color-border)', color: commentsOpen ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
                     >
                       <MessageCircle size={14} />
-                      Comentar
+                      {notice.commentCount > 0 ? notice.commentCount : 'Comentar'}
                       <span className="notice-comment-typing" aria-hidden="true">
                         <i />
                         <i />

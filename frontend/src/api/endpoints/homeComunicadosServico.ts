@@ -27,6 +27,7 @@ export function mapNoticeFromApi(notice: HomeNoticeApi): HomeNotice {
     publishedAt: notice.publicadoEm,
     updatedBy: notice.atualizadoPor,
     likeCount: notice.totalCurtidas ?? 0,
+    commentCount: notice.totalComentarios ?? 0,
     likedBy: notice.curtidoPor ?? [],
     likedByCurrentUser: notice.curtidoPeloUsuarioAtual ?? false,
   };

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { CircleHelp, Clock3, Eye, KeyRound, MapPin, MoreHorizontal, Pencil, Upload, UserCheck, UserX, Users } from 'lucide-react';
+import { CircleHelp, Clock3, Eye, EyeOff, KeyRound, MapPin, MoreHorizontal, Pencil, Upload, UserCheck, UserX, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import FiliaisPermitidasSplitSelect from '../components/admin/FiliaisPermitidasSplitSelect';
 import PermissionOverrideMatrix from '../components/admin/PermissionOverrideMatrix';
@@ -194,11 +194,15 @@ interface SummaryCardProps {
   iconSurface: string;
   icon: LucideIcon;
   listTitle: string;
-  usuarios: Array<Pick<UsuarioAdmin, 'id' | 'nome' | 'email'>>;
+  usuarios: UsuarioAdmin[];
   emptyMessage: string;
+  acaoUsuario?: {
+    label: string;
+    onClick: (usuario: UsuarioAdmin) => void;
+  };
 }
 
-function SummaryCard({ label, detail, value, accent, iconSurface, icon: Icon, listTitle, usuarios, emptyMessage }: SummaryCardProps) {
+function SummaryCard({ label, detail, value, accent, iconSurface, icon: Icon, listTitle, usuarios, emptyMessage, acaoUsuario }: SummaryCardProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -227,9 +231,24 @@ function SummaryCard({ label, detail, value, accent, iconSurface, icon: Icon, li
         </div>
         <div className="max-h-64 space-y-1 overflow-y-auto p-2">
           {usuarios.length > 0 ? usuarios.map((usuario) => (
-            <div key={usuario.id} className="rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--color-bg)' }}>
-              <p className="truncate text-sm font-semibold" title={usuario.nome}>{usuario.nome}</p>
-              <p className="truncate text-xs" title={usuario.email} style={{ color: 'var(--color-text-subtle)' }}>{usuario.email}</p>
+            <div key={usuario.id} className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--color-bg)' }}>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold" title={usuario.nome}>{usuario.nome}</p>
+                <p className="truncate text-xs" title={usuario.email} style={{ color: 'var(--color-text-subtle)' }}>{usuario.email}</p>
+              </div>
+              {acaoUsuario && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    acaoUsuario.onClick(usuario);
+                    setOpen(false);
+                  }}
+                  className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${FOCUS_RING_CLASS}`}
+                  style={SECONDARY_BUTTON_STYLE}
+                >
+                  {acaoUsuario.label}
+                </button>
+              )}
             </div>
           )) : <p className="px-3 py-6 text-center text-sm" style={{ color: 'var(--color-text-subtle)' }}>{emptyMessage}</p>}
         </div>
@@ -672,6 +691,8 @@ export default function AdminUsuariosPage() {
   const [usuarioParaRedefinirSenha, setUsuarioParaRedefinirSenha] = useState<UsuarioAdmin | null>(null);
   const [senhaTemporaria, setSenhaTemporaria] = useState('');
   const [confirmacaoSenhaTemporaria, setConfirmacaoSenhaTemporaria] = useState('');
+  const [mostrarSenhaFormulario, setMostrarSenhaFormulario] = useState(false);
+  const [mostrarSenhaTemporaria, setMostrarSenhaTemporaria] = useState(false);
   const [erroRedefinicaoSenha, setErroRedefinicaoSenha] = useState('');
   const [overrideState, setOverrideState] = useState<PermissionOverrideStateMap>(createEmptyPermissionOverrideState());
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -807,8 +828,10 @@ export default function AdminUsuariosPage() {
     () => usuariosOrdenadosPorNome.filter((usuario) => usuario.ativo),
     [usuariosOrdenadosPorNome],
   );
-  const usuariosInativos = useMemo(
-    () => usuariosOrdenadosPorNome.filter((usuario) => !usuario.ativo),
+  const usuariosComSolicitacaoRedefinicao = useMemo(
+    () => usuariosOrdenadosPorNome
+      .filter((usuario) => Boolean(usuario.passwordResetRequestedAt))
+      .sort((a, b) => Date.parse(b.passwordResetRequestedAt ?? '') - Date.parse(a.passwordResetRequestedAt ?? '')),
     [usuariosOrdenadosPorNome],
   );
 
@@ -1188,23 +1211,35 @@ export default function AdminUsuariosPage() {
 
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>Senha temporária</span>
-              <input
-                type="password"
-                value={senhaTemporaria}
-                onChange={(event) => setSenhaTemporaria(event.target.value)}
-                autoComplete="new-password"
-                className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-                style={FIELD_STYLE}
-                minLength={12}
-                required
-              />
+              <div className="relative">
+                <input
+                  type={mostrarSenhaTemporaria ? 'text' : 'password'}
+                  value={senhaTemporaria}
+                  onChange={(event) => setSenhaTemporaria(event.target.value)}
+                  autoComplete="new-password"
+                  className="w-full rounded-xl border px-3 py-2.5 pr-11 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                  style={FIELD_STYLE}
+                  minLength={12}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSenhaTemporaria((atual) => !atual)}
+                  aria-label={mostrarSenhaTemporaria ? 'Ocultar senha temporária' : 'Exibir senha temporária'}
+                  title={mostrarSenhaTemporaria ? 'Ocultar senha' : 'Exibir senha'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
+                  {mostrarSenhaTemporaria ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                </button>
+              </div>
               <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{PASSWORD_POLICY_HINT}</span>
             </label>
 
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-semibold" style={{ color: 'var(--color-text-subtle)' }}>Confirmar senha temporária</span>
               <input
-                type="password"
+                type={mostrarSenhaTemporaria ? 'text' : 'password'}
                 value={confirmacaoSenhaTemporaria}
                 onChange={(event) => setConfirmacaoSenhaTemporaria(event.target.value)}
                 autoComplete="new-password"
@@ -1242,7 +1277,18 @@ export default function AdminUsuariosPage() {
           <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-4 md:gap-4">
             <SummaryCard label="Total" detail="usuários cadastrados" value={resumoUsuarios.totalUsuarios} accent="var(--color-primary)" iconSurface="rgba(33, 71, 138, 0.14)" icon={Users} listTitle="Todos os usuários" usuarios={usuariosOrdenadosPorNome} emptyMessage="Nenhum usuário cadastrado." />
             <SummaryCard label="Ativos" detail="com acesso liberado" value={resumoUsuarios.usuariosAtivos} accent="#10b981" iconSurface="rgba(16, 185, 129, 0.14)" icon={UserCheck} listTitle="Usuários ativos" usuarios={usuariosAtivos} emptyMessage="Nenhum usuário ativo." />
-            <SummaryCard label="Inativos" detail="com acesso suspenso" value={resumoUsuarios.usuariosInativos} accent="#ef4444" iconSurface="rgba(239, 68, 68, 0.14)" icon={UserX} listTitle="Usuários inativos" usuarios={usuariosInativos} emptyMessage="Nenhum usuário inativo." />
+            <SummaryCard
+              label="Solicitações"
+              detail="aguardando redefinição"
+              value={usuariosComSolicitacaoRedefinicao.length}
+              accent="#f97316"
+              iconSurface="rgba(249, 115, 22, 0.14)"
+              icon={KeyRound}
+              listTitle="Solicitações de redefinição"
+              usuarios={usuariosComSolicitacaoRedefinicao}
+              emptyMessage="Nenhuma solicitação pendente."
+              acaoUsuario={{ label: 'Redefinir', onClick: abrirRedefinicaoSenha }}
+            />
             <OnlineUsersCard
               usuarios={usuariosOnlineComDetalhes}
               recentes={usuariosVistosRecentemente}
@@ -1281,15 +1327,27 @@ export default function AdminUsuariosPage() {
               <span className="text-sm font-medium" style={{ color: 'var(--color-text-subtle)' }}>
                 Senha {editing ? '(opcional)' : '(obrigatória)'}
               </span>
-              <input
-                type="password"
-                value={form.senha ?? ''}
-                onChange={(e) => setForm((atual) => ({ ...atual, senha: e.target.value }))}
-                className="w-full rounded-xl border px-3 py-2.5"
-                style={FIELD_STYLE}
-                minLength={12}
-                required={!editing}
-              />
+              <div className="relative">
+                <input
+                  type={mostrarSenhaFormulario ? 'text' : 'password'}
+                  value={form.senha ?? ''}
+                  onChange={(e) => setForm((atual) => ({ ...atual, senha: e.target.value }))}
+                  className="w-full rounded-xl border px-3 py-2.5 pr-11"
+                  style={FIELD_STYLE}
+                  minLength={12}
+                  required={!editing}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSenhaFormulario((atual) => !atual)}
+                  aria-label={mostrarSenhaFormulario ? 'Ocultar senha' : 'Exibir senha'}
+                  title={mostrarSenhaFormulario ? 'Ocultar senha' : 'Exibir senha'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
+                  {mostrarSenhaFormulario ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                </button>
+              </div>
               <span className="block text-[11px]" style={{ color: 'var(--color-text-subtle)' }}>
                 {PASSWORD_POLICY_HINT}
               </span>
@@ -1315,7 +1373,7 @@ export default function AdminUsuariosPage() {
                 Confirmar senha {editing ? '(opcional)' : '(obrigatória)'}
               </span>
               <input
-                type="password"
+                type={mostrarSenhaFormulario ? 'text' : 'password'}
                 value={form.confirmacaoSenha ?? ''}
                 onChange={(e) => setForm((atual) => ({ ...atual, confirmacaoSenha: e.target.value }))}
                 className="h-11 w-full rounded-xl border px-3"

@@ -30,6 +30,7 @@ export interface HomeNotice {
   publishedAt?: string | null;
   updatedBy?: string | null;
   likeCount: number;
+  commentCount: number;
   likedBy: string[];
   likedByCurrentUser: boolean;
 }
@@ -43,6 +44,7 @@ export interface HomeNoticeApi {
   publicadoEm: string;
   atualizadoPor?: string | null;
   totalCurtidas?: number;
+  totalComentarios?: number;
   curtidoPor?: string[];
   curtidoPeloUsuarioAtual?: boolean;
 }

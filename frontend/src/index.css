@@ -88,6 +88,17 @@ body {
   color: var(--color-text);
 }
 
+/* Impede que o preenchimento automático do navegador imponha fundo amarelo no tema escuro. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--color-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--color-bg) inset;
+  box-shadow: 0 0 0 1000px var(--color-bg) inset;
+  caret-color: var(--color-text);
+}
+
 .top-nav__drawer-backdrop {
   background: rgba(2, 6, 23, 0.22);
   backdrop-filter: blur(4px) saturate(106%);

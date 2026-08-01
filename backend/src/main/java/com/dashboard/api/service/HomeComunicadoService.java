@@ -48,11 +48,21 @@ public class HomeComunicadoService {
                 .map(usuario -> usuario.getId())
                 .orElse(-1L);
         if (comunicados.isEmpty()) return List.of();
+        List<Long> comunicadoIds = comunicados.stream().map(HomeComunicadoEntity::getId).toList();
         Map<Long, HomeComunicadoCurtidaRepository.ResumoCurtidasProjection> curtidasPorComunicado = curtidaRepository
-                .resumirAtivasPorComunicado(comunicados.stream().map(HomeComunicadoEntity::getId).toList(), usuarioId).stream()
+                .resumirAtivasPorComunicado(comunicadoIds, usuarioId).stream()
                 .collect(java.util.stream.Collectors.toMap(HomeComunicadoCurtidaRepository.ResumoCurtidasProjection::getComunicadoId, resumo -> resumo));
+        Map<Long, Long> totalComentariosPorComunicado = comentarioRepository.resumirAtivosPorComunicado(comunicadoIds).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        HomeComunicadoComentarioRepository.ResumoComentariosProjection::getComunicadoId,
+                        HomeComunicadoComentarioRepository.ResumoComentariosProjection::getTotalComentarios
+                ));
         return comunicados.stream()
-                .map(comunicado -> toDto(comunicado, curtidasPorComunicado.get(comunicado.getId())))
+                .map(comunicado -> toDto(
+                        comunicado,
+                        curtidasPorComunicado.get(comunicado.getId()),
+                        totalComentariosPorComunicado.getOrDefault(comunicado.getId(), 0L)
+                ))
                 .toList();
     }
 
@@ -64,7 +74,7 @@ public class HomeComunicadoService {
         entity.setPublicadoEm(Instant.now());
         entity.setCriadoPor(usuarioLogin);
         entity.setAtualizadoPor(usuarioLogin);
-        return toDto(repository.save(entity), null);
+        return toDto(repository.save(entity), null, 0L);
     }
 
     @Transactional
@@ -72,7 +82,7 @@ public class HomeComunicadoService {
         HomeComunicadoEntity entity = buscarAtivo(id);
         aplicarRequest(entity, request);
         entity.setAtualizadoPor(usuarioLogin);
-        return toDto(repository.save(entity), null);
+        return toDto(repository.save(entity), null, 0L);
     }
 
     @Transactional
@@ -190,7 +200,8 @@ public class HomeComunicadoService {
 
     private HomeComunicadoDTO toDto(
             HomeComunicadoEntity entity,
-            HomeComunicadoCurtidaRepository.ResumoCurtidasProjection curtidas
+            HomeComunicadoCurtidaRepository.ResumoCurtidasProjection curtidas,
+            long totalComentarios
     ) {
         List<String> curtidoPor = curtidas == null || curtidas.getCurtidoPor() == null
                 ? List.of()
@@ -205,6 +216,7 @@ public class HomeComunicadoService {
                 entity.getAtualizadoPor(),
                 entity.getAtualizadoEm(),
                 curtidas == null || curtidas.getTotalCurtidas() == null ? 0 : curtidas.getTotalCurtidas(),
+                totalComentarios,
                 curtidoPor,
                 curtidas != null && Boolean.TRUE.equals(curtidas.getCurtidoPeloUsuarioAtual())
         );
