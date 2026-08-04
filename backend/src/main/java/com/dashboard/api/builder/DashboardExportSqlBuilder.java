@@ -157,6 +157,17 @@ public class DashboardExportSqlBuilder {
         return new ExportSql("FROM " + parts.sourceSql() + " base WHERE " + parts.where(), parts.params());
     }
 
+    public ExportSql buildFilteredSourceWithDateColumn(
+            DashboardExportDefinition definition,
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            Set<String> filtrosIgnorados,
+            String dateColumn
+    ) {
+        SqlParts parts = buildBase(definition, filtro, escopo, filtrosIgnorados, true, dateColumn);
+        return new ExportSql("FROM " + parts.sourceSql() + " base WHERE " + parts.where(), parts.params());
+    }
+
     public ExportSql buildFilteredSourceWithoutPeriod(
             DashboardExportDefinition definition,
             FiltroConsultaDTO filtro,
@@ -183,11 +194,22 @@ public class DashboardExportSqlBuilder {
             Set<String> filtrosIgnorados,
             boolean incluirPeriodo
     ) {
+        return buildBase(definition, filtro, escopo, filtrosIgnorados, incluirPeriodo, null);
+    }
+
+    private SqlParts buildBase(
+            DashboardExportDefinition definition,
+            FiltroConsultaDTO filtro,
+            EscopoFilialService.EscopoFilial escopo,
+            Set<String> filtrosIgnorados,
+            boolean incluirPeriodo,
+            String dateColumn
+    ) {
         MapSqlParameterSource params = new MapSqlParameterSource();
         List<String> where = new ArrayList<>();
 
         if (incluirPeriodo) {
-            adicionarPeriodo(where, params, definition, filtro.dataInicio(), filtro.dataFim());
+            adicionarPeriodo(where, params, definition, dateColumn, filtro.dataInicio(), filtro.dataFim());
         }
         adicionarPredicadosObrigatorios(where, definition);
         adicionarEscopo(where, params, definition, escopo);
@@ -297,25 +319,29 @@ public class DashboardExportSqlBuilder {
             List<String> where,
             MapSqlParameterSource params,
             DashboardExportDefinition definition,
+            String dateColumnOverride,
             LocalDate dataInicio,
             LocalDate dataFim
     ) {
+        String dateColumn = dateColumnOverride == null || dateColumnOverride.isBlank()
+                ? definition.dateColumn()
+                : dateColumnOverride;
         if (definition.dateMode() == DashboardExportDefinition.DateMode.NATIVE_LOCAL_DATE) {
-            where.add(definition.dateColumn() + " >= :dataInicio AND " + definition.dateColumn() + " < :dataFimExclusivo");
+            where.add(dateColumn + " >= :dataInicio AND " + dateColumn + " < :dataFimExclusivo");
             params.addValue("dataInicio", dataInicio);
             params.addValue("dataFimExclusivo", dataFim.plusDays(1));
             return;
         }
 
         if (definition.dateMode() == DashboardExportDefinition.DateMode.LOCAL_DATE) {
-            where.add(definition.dateColumn() + " >= :dataInicio AND " + definition.dateColumn() + " < :dataFimExclusivo");
+            where.add(dateColumn + " >= :dataInicio AND " + dateColumn + " < :dataFimExclusivo");
             params.addValue("dataInicio", dataInicio);
             params.addValue("dataFimExclusivo", dataFim.plusDays(1));
             return;
         }
 
         JanelaOffsetDateTime janela = periodoOffsetDateTimeHelper.criarJanela(dataInicio, dataFim);
-        where.add(definition.dateColumn() + " >= :inicioOffset AND " + definition.dateColumn() + " < :fimOffset");
+        where.add(dateColumn + " >= :inicioOffset AND " + dateColumn + " < :fimOffset");
         params.addValue("inicioOffset", janela.inicioInclusivo());
         params.addValue("fimOffset", janela.fimExclusivo());
     }

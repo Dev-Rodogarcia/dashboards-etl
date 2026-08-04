@@ -34,6 +34,26 @@ export interface ContasAPagarMensalTrend {
   aberto: number;
 }
 
+export type ContasAPagarGranularidade = 'dia' | 'semana' | 'mes';
+export type ContasAPagarReferenciaTemporal = 'emissao' | 'competencia' | 'liquidacao';
+export type ContasAPagarMetrica = 'valorAPagar' | 'saldoAberto' | 'valorPago' | 'titulos';
+export type ContasAPagarDrilldownNivel = 'raiz' | 'classificacao' | 'despesa';
+
+export interface ContasAPagarDrilldownPoint {
+  label: string;
+  valor: number;
+  titulos: number;
+}
+
+export interface ContasAPagarDrilldownRequest {
+  limite: 5 | 10 | 15;
+  metrica: ContasAPagarMetrica;
+  nivel: ContasAPagarDrilldownNivel;
+  fornecedor?: string | null;
+  centroCusto?: string | null;
+  classificacao?: string | null;
+}
+
 export interface ContasAPagarPlanoConta {
   conta: string;
   valor: number;

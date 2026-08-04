@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   buscarContasAPagarGraficos,
+  buscarContasAPagarDrilldownCentroCusto,
+  buscarContasAPagarDrilldownFornecedores,
   buscarContasAPagarOverview,
   buscarContasAPagarSerie,
   buscarContasAPagarTabela,
   buscarContasAPagarTabelaPaginada,
   buscarContasAPagarTabelaTotal,
 } from '../../api/endpoints/contasAPagarServico';
-import type { ContasAPagarFiltro } from '../../types/contasAPagar';
+import type { ContasAPagarDrilldownRequest, ContasAPagarFiltro, ContasAPagarGranularidade, ContasAPagarReferenciaTemporal } from '../../types/contasAPagar';
 import type { TableApiFilters } from '../../types/tableFilters';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
@@ -23,11 +25,35 @@ export function useContasAPagarOverview(filtro: ContasAPagarFiltro) {
   });
 }
 
-export function useContasAPagarSerie(filtro: ContasAPagarFiltro) {
+export function useContasAPagarSerie(
+  filtro: ContasAPagarFiltro,
+  granularidade: ContasAPagarGranularidade = 'mes',
+  referencia: ContasAPagarReferenciaTemporal = 'emissao',
+) {
   return useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
-    queryKey: ['contas-a-pagar', 'serie', filtro],
-    queryFn: () => buscarContasAPagarSerie(filtro),
+    queryKey: ['contas-a-pagar', 'serie', filtro, granularidade, referencia],
+    queryFn: () => buscarContasAPagarSerie(filtro, granularidade, referencia),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useContasAPagarDrilldownFornecedores(filtro: ContasAPagarFiltro, request: ContasAPagarDrilldownRequest) {
+  return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
+    queryKey: ['contas-a-pagar', 'graficos', 'fornecedores', filtro, request],
+    queryFn: () => buscarContasAPagarDrilldownFornecedores(filtro, request),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useContasAPagarDrilldownCentroCusto(filtro: ContasAPagarFiltro, request: ContasAPagarDrilldownRequest) {
+  return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
+    queryKey: ['contas-a-pagar', 'graficos', 'centros-custo', filtro, request],
+    queryFn: () => buscarContasAPagarDrilldownCentroCusto(filtro, request),
     staleTime: STALE_TIME,
     retry: 1,
   });

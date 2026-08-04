@@ -5,9 +5,14 @@ import com.dashboard.api.definition.DashboardExportDefinition;
 import com.dashboard.api.dto.contaspagar.ContasAPagarCentroCustoDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarChartsDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarConciliacaoDTO;
+import com.dashboard.api.dto.contaspagar.ContasAPagarDrilldownNivel;
+import com.dashboard.api.dto.contaspagar.ContasAPagarDrilldownPointDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarFornecedorDTO;
+import com.dashboard.api.dto.contaspagar.ContasAPagarGranularidade;
 import com.dashboard.api.dto.contaspagar.ContasAPagarMensalTrendDTO;
+import com.dashboard.api.dto.contaspagar.ContasAPagarMetrica;
 import com.dashboard.api.dto.contaspagar.ContasAPagarOverviewDTO;
+import com.dashboard.api.dto.contaspagar.ContasAPagarReferenciaTemporal;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.service.acesso.EscopoFilialService;
 import com.dashboard.api.util.TemporalJsonUtils;
@@ -91,21 +96,31 @@ public class ContasAPagarSqlRepository {
     }
 
     public List<ContasAPagarMensalTrendDTO> buscarSerie(FiltroConsultaDTO filtro) {
-        DashboardExportSqlBuilder.ExportSql source = source(filtro);
+        return buscarSerie(filtro, ContasAPagarGranularidade.MES, ContasAPagarReferenciaTemporal.EMISSAO);
+    }
+
+    public List<ContasAPagarMensalTrendDTO> buscarSerie(
+            FiltroConsultaDTO filtro,
+            ContasAPagarGranularidade granularidade,
+            ContasAPagarReferenciaTemporal referencia
+    ) {
+        DashboardExportSqlBuilder.ExportSql source = source(filtro, referencia);
+        String dataReferencia = dataReferenciaSql(referencia);
+        String periodo = periodoSql(granularidade, dataReferencia);
         String sql = """
                 WITH base_filtrada AS (
                     SELECT *
                     %s
                 )
                 SELECT
-                    CONVERT(CHAR(7), [Emissão], 23) AS mes,
+                    %s AS mes,
                     CAST(COALESCE(SUM([Valor pago]), 0) AS DECIMAL(19,2)) AS pago,
                     CAST(COALESCE(SUM(COALESCE([Valor a pagar], 0) - COALESCE([Valor pago], 0)), 0) AS DECIMAL(19,2)) AS aberto
                 FROM base_filtrada
-                WHERE [Emissão] IS NOT NULL
-                GROUP BY CONVERT(CHAR(7), [Emissão], 23)
+                WHERE %s IS NOT NULL
+                GROUP BY %s
                 ORDER BY mes
-                """.formatted(source.sql());
+                """.formatted(source.sql(), periodo, dataReferencia, periodo);
 
         return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new ContasAPagarMensalTrendDTO(
                 rs.getString("mes"),
@@ -121,6 +136,30 @@ public class ContasAPagarSqlRepository {
               buscarCentroCusto(source),
               buscarConciliacao(source)
         );
+    }
+
+    public List<ContasAPagarDrilldownPointDTO> buscarDrilldownFornecedores(
+            FiltroConsultaDTO filtro,
+            int limite,
+            ContasAPagarMetrica metrica,
+            ContasAPagarDrilldownNivel nivel,
+            String fornecedor,
+            String classificacao
+    ) {
+        return buscarDrilldown(source(filtro), limite, metrica, nivel,
+                textoComPadrao("[Fornecedor/Nome]", "Sem fornecedor"), fornecedor, classificacao);
+    }
+
+    public List<ContasAPagarDrilldownPointDTO> buscarDrilldownCentroCusto(
+            FiltroConsultaDTO filtro,
+            int limite,
+            ContasAPagarMetrica metrica,
+            ContasAPagarDrilldownNivel nivel,
+            String centroCusto,
+            String classificacao
+    ) {
+        return buscarDrilldown(source(filtro), limite, metrica, nivel,
+                textoComPadrao("[Centro de custo/Nome]", "Sem centro de custo"), centroCusto, classificacao);
     }
 
     private List<ContasAPagarFornecedorDTO> buscarTopFornecedores(DashboardExportSqlBuilder.ExportSql source) {
@@ -190,6 +229,64 @@ public class ContasAPagarSqlRepository {
         ));
     }
 
+    private List<ContasAPagarDrilldownPointDTO> buscarDrilldown(
+            DashboardExportSqlBuilder.ExportSql source,
+            int limite,
+            ContasAPagarMetrica metrica,
+            ContasAPagarDrilldownNivel nivel,
+            String raizSql,
+            String raiz,
+            String classificacao
+    ) {
+        String classificacaoSql = textoComPadrao("[Conta Contábil/Classificação]", "Sem classificação");
+        String despesaSql = textoComPadrao("[Descrição da despesa]", "Sem descrição");
+        String labelSql = switch (nivel) {
+            case RAIZ -> raizSql;
+            case CLASSIFICACAO -> classificacaoSql;
+            case DESPESA -> despesaSql;
+        };
+        String filtrosDrilldown = "";
+        if (nivel == ContasAPagarDrilldownNivel.CLASSIFICACAO && raiz != null && !raiz.isBlank()) {
+            source.params().addValue("drillRaiz", raiz);
+            filtrosDrilldown = "AND " + raizSql + " = :drillRaiz";
+        }
+        if (nivel == ContasAPagarDrilldownNivel.DESPESA && raiz != null && !raiz.isBlank()
+                && classificacao != null && !classificacao.isBlank()) {
+            source.params().addValue("drillRaiz", raiz);
+            source.params().addValue("drillClassificacao", classificacao);
+            filtrosDrilldown = "AND " + raizSql + " = :drillRaiz AND " + classificacaoSql + " = :drillClassificacao";
+        }
+        if (nivel != ContasAPagarDrilldownNivel.RAIZ && filtrosDrilldown.isBlank()) {
+            return List.of();
+        }
+
+        source.params().addValue("drillLimite", limite);
+        String sql = """
+                WITH base_filtrada AS (
+                    SELECT *
+                    %s
+                ),
+                agregado AS (
+                    SELECT
+                        %s AS label,
+                        CAST(%s AS DECIMAL(19,2)) AS valor,
+                        COUNT(1) AS titulos
+                    FROM base_filtrada
+                    WHERE 1 = 1 %s
+                    GROUP BY %s
+                )
+                SELECT TOP (:drillLimite) label, valor, titulos
+                FROM agregado
+                ORDER BY valor DESC, label
+                """.formatted(source.sql(), labelSql, medidaSql(metrica), filtrosDrilldown, labelSql);
+
+        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new ContasAPagarDrilldownPointDTO(
+                rs.getString("label"),
+                decimal(rs.getBigDecimal("valor")),
+                rs.getInt("titulos")
+        ));
+    }
+
     private DashboardExportSqlBuilder.ExportSql source(FiltroConsultaDTO filtro) {
         return sqlBuilder.buildFilteredSource(
                 DashboardExportDefinition.CONTAS_A_PAGAR,
@@ -197,6 +294,59 @@ public class ContasAPagarSqlRepository {
                 escopoFilialService.escopoAtual(),
                 Set.of()
         );
+    }
+
+    private DashboardExportSqlBuilder.ExportSql source(FiltroConsultaDTO filtro, ContasAPagarReferenciaTemporal referencia) {
+        if (referencia == ContasAPagarReferenciaTemporal.COMPETENCIA) {
+            DashboardExportSqlBuilder.ExportSql source = sqlBuilder.buildFilteredSourceWithoutPeriod(
+                    DashboardExportDefinition.CONTAS_A_PAGAR,
+                    filtro,
+                    escopoFilialService.escopoAtual(),
+                    Set.of()
+            );
+            source.params().addValue("competenciaAnoInicio", filtro.dataInicio().getYear());
+            source.params().addValue("competenciaMesInicio", filtro.dataInicio().getMonthValue());
+            source.params().addValue("competenciaAnoFim", filtro.dataFim().getYear());
+            source.params().addValue("competenciaMesFim", filtro.dataFim().getMonthValue());
+            return new DashboardExportSqlBuilder.ExportSql(
+                    source.sql() + " AND (([Ano de Competência] > :competenciaAnoInicio OR ([Ano de Competência] = :competenciaAnoInicio AND [Mês de Competência] >= :competenciaMesInicio))"
+                            + " AND ([Ano de Competência] < :competenciaAnoFim OR ([Ano de Competência] = :competenciaAnoFim AND [Mês de Competência] <= :competenciaMesFim)))",
+                    source.params()
+            );
+        }
+
+        return sqlBuilder.buildFilteredSourceWithDateColumn(
+                DashboardExportDefinition.CONTAS_A_PAGAR,
+                filtro,
+                escopoFilialService.escopoAtual(),
+                Set.of(),
+                referencia == ContasAPagarReferenciaTemporal.LIQUIDACAO ? "[Baixa/Data liquidação]" : "[Emissão]"
+        );
+    }
+
+    private String dataReferenciaSql(ContasAPagarReferenciaTemporal referencia) {
+        return switch (referencia) {
+            case EMISSAO -> "[Emissão]";
+            case LIQUIDACAO -> "[Baixa/Data liquidação]";
+            case COMPETENCIA -> "DATEFROMPARTS([Ano de Competência], [Mês de Competência], 1)";
+        };
+    }
+
+    private String periodoSql(ContasAPagarGranularidade granularidade, String dataReferencia) {
+        return switch (granularidade) {
+            case DIA -> "CONVERT(CHAR(10), " + dataReferencia + ", 23)";
+            case SEMANA -> "CONVERT(CHAR(10), DATEADD(day, -DATEDIFF(day, 0, " + dataReferencia + ") % 7, " + dataReferencia + "), 23)";
+            case MES -> "CONVERT(CHAR(7), " + dataReferencia + ", 23)";
+        };
+    }
+
+    private String medidaSql(ContasAPagarMetrica metrica) {
+        return switch (metrica) {
+            case VALOR_A_PAGAR -> "SUM(COALESCE([Valor a pagar], 0))";
+            case SALDO_ABERTO -> "SUM(COALESCE([Valor a pagar], 0) - COALESCE([Valor pago], 0))";
+            case VALOR_PAGO -> "SUM(COALESCE([Valor pago], 0))";
+            case TITULOS -> "COUNT(1)";
+        };
     }
 
     private MapSqlParameterSource copiarParams(DashboardExportSqlBuilder.ExportSql source) {

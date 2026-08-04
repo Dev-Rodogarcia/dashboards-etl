@@ -2,8 +2,13 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.dto.contaspagar.ContaPagarResumoDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarChartsDTO;
+import com.dashboard.api.dto.contaspagar.ContasAPagarDrilldownNivel;
+import com.dashboard.api.dto.contaspagar.ContasAPagarDrilldownPointDTO;
+import com.dashboard.api.dto.contaspagar.ContasAPagarGranularidade;
 import com.dashboard.api.dto.contaspagar.ContasAPagarMensalTrendDTO;
+import com.dashboard.api.dto.contaspagar.ContasAPagarMetrica;
 import com.dashboard.api.dto.contaspagar.ContasAPagarOverviewDTO;
+import com.dashboard.api.dto.contaspagar.ContasAPagarReferenciaTemporal;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.repository.ContasAPagarSqlRepository;
 import com.dashboard.api.util.ConsultaLimiteUtils;
@@ -43,6 +48,19 @@ public class ContasAPagarService {
         return sqlRepository.buscarSerie(filtro);
     }
 
+    public List<ContasAPagarMensalTrendDTO> buscarSerie(
+            FiltroConsultaDTO filtro,
+            String granularidade,
+            String referencia
+    ) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        return sqlRepository.buscarSerie(
+                filtro,
+                ContasAPagarGranularidade.from(granularidade),
+                ContasAPagarReferenciaTemporal.from(referencia)
+        );
+    }
+
     public List<ContaPagarResumoDTO> buscarTabela(FiltroConsultaDTO filtro, int limite) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
         int limiteAplicado = ConsultaLimiteUtils.limitar(limite, 100, 200);
@@ -52,6 +70,36 @@ public class ContasAPagarService {
     public ContasAPagarChartsDTO buscarGraficos(FiltroConsultaDTO filtro) {
         validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
         return sqlRepository.buscarGraficos(filtro);
+    }
+
+    public List<ContasAPagarDrilldownPointDTO> buscarDrilldownFornecedores(
+            FiltroConsultaDTO filtro,
+            int limite,
+            String metrica,
+            String nivel,
+            String fornecedor,
+            String classificacao
+    ) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        return sqlRepository.buscarDrilldownFornecedores(filtro, normalizarLimite(limite), ContasAPagarMetrica.from(metrica),
+                ContasAPagarDrilldownNivel.from(nivel), fornecedor, classificacao);
+    }
+
+    public List<ContasAPagarDrilldownPointDTO> buscarDrilldownCentroCusto(
+            FiltroConsultaDTO filtro,
+            int limite,
+            String metrica,
+            String nivel,
+            String centroCusto,
+            String classificacao
+    ) {
+        validadorPeriodo.validar(filtro.dataInicio(), filtro.dataFim());
+        return sqlRepository.buscarDrilldownCentroCusto(filtro, normalizarLimite(limite), ContasAPagarMetrica.from(metrica),
+                ContasAPagarDrilldownNivel.from(nivel), centroCusto, classificacao);
+    }
+
+    private int normalizarLimite(int limite) {
+        return limite == 5 || limite == 15 ? limite : 10;
     }
 
 }

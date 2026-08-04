@@ -2,6 +2,7 @@ package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.contaspagar.ContaPagarResumoDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarChartsDTO;
+import com.dashboard.api.dto.contaspagar.ContasAPagarDrilldownPointDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarMensalTrendDTO;
 import com.dashboard.api.dto.contaspagar.ContasAPagarOverviewDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
@@ -44,8 +45,11 @@ public class ContasAPagarController {
     public ResponseEntity<List<ContasAPagarMensalTrendDTO>> serie(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "mes") String granularidade,
+            @RequestParam(defaultValue = "emissao") String referencia,
             @RequestParam MultiValueMap<String, String> params) {
-        return ResponseEntity.ok(contasAPagarService.buscarSerie(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+        return ResponseEntity.ok(contasAPagarService.buscarSerie(
+                FiltroRequestMapper.from(dataInicio, dataFim, params), granularidade, referencia));
     }
 
     @GetMapping("/graficos")
@@ -54,6 +58,34 @@ public class ContasAPagarController {
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(contasAPagarService.buscarGraficos(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
+    @GetMapping("/graficos/fornecedores")
+    public ResponseEntity<List<ContasAPagarDrilldownPointDTO>> fornecedores(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "10") int limite,
+            @RequestParam(defaultValue = "valorAPagar") String metrica,
+            @RequestParam(defaultValue = "raiz") String nivel,
+            @RequestParam(required = false) String fornecedor,
+            @RequestParam(required = false) String classificacao,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(contasAPagarService.buscarDrilldownFornecedores(
+                FiltroRequestMapper.from(dataInicio, dataFim, params), limite, metrica, nivel, fornecedor, classificacao));
+    }
+
+    @GetMapping("/graficos/centros-custo")
+    public ResponseEntity<List<ContasAPagarDrilldownPointDTO>> centrosCusto(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "10") int limite,
+            @RequestParam(defaultValue = "valorAPagar") String metrica,
+            @RequestParam(defaultValue = "raiz") String nivel,
+            @RequestParam(required = false) String centroCusto,
+            @RequestParam(required = false) String classificacao,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(contasAPagarService.buscarDrilldownCentroCusto(
+                FiltroRequestMapper.from(dataInicio, dataFim, params), limite, metrica, nivel, centroCusto, classificacao));
     }
 
     @GetMapping("/tabela")

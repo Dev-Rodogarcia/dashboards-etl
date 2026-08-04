@@ -2,6 +2,10 @@ package com.dashboard.api.service;
 
 import com.dashboard.api.builder.DashboardExportSqlBuilder;
 import com.dashboard.api.dto.contaspagar.ContasAPagarOverviewDTO;
+import com.dashboard.api.dto.contaspagar.ContasAPagarGranularidade;
+import com.dashboard.api.dto.contaspagar.ContasAPagarReferenciaTemporal;
+import com.dashboard.api.dto.contaspagar.ContasAPagarDrilldownNivel;
+import com.dashboard.api.dto.contaspagar.ContasAPagarMetrica;
 import com.dashboard.api.dto.FiltroConsultaDTO;
 import com.dashboard.api.repository.ContasAPagarSqlRepository;
 import com.dashboard.api.service.acesso.EscopoFilialService;
@@ -83,6 +87,43 @@ class ContasAPagarSqlRepositoryTest {
         assertThat(sqlCaptor.getValue())
                 .contains("CONVERT(CHAR(7), [Emissão], 23) AS mes")
                 .contains("GROUP BY CONVERT(CHAR(7), [Emissão], 23)")
+                .contains("SUM(COALESCE([Valor a pagar], 0) - COALESCE([Valor pago], 0))");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void buscarSerieDevePermitirDiaPorLiquidacaoComFiltroSargable() {
+        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(java.util.List.of());
+        ContasAPagarSqlRepository repository = new ContasAPagarSqlRepository(
+                jdbcTemplate, new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao()), escopoSemRestricao());
+
+        repository.buscarSerie(filtroPadrao(), ContasAPagarGranularidade.DIA, ContasAPagarReferenciaTemporal.LIQUIDACAO);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
+        assertThat(sqlCaptor.getValue())
+                .contains("[Baixa/Data liquidação] >= :dataInicio AND [Baixa/Data liquidação] < :dataFimExclusivo")
+                .contains("CONVERT(CHAR(10), [Baixa/Data liquidação], 23) AS mes")
+                .doesNotContain("TRY_CONVERT(date, [Baixa/Data liquidação])");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void buscarDrilldownDeveAplicarTopNoSql() {
+        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(java.util.List.of());
+        ContasAPagarSqlRepository repository = new ContasAPagarSqlRepository(
+                jdbcTemplate, new DashboardExportSqlBuilder(PeriodoOffsetDateTimeHelper.padrao()), escopoSemRestricao());
+
+        repository.buscarDrilldownFornecedores(filtroPadrao(), 5, ContasAPagarMetrica.SALDO_ABERTO,
+                ContasAPagarDrilldownNivel.RAIZ, null, null);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
+        assertThat(sqlCaptor.getValue())
+                .contains("SELECT TOP (:drillLimite) label, valor, titulos")
+                .contains("ORDER BY valor DESC, label")
                 .contains("SUM(COALESCE([Valor a pagar], 0) - COALESCE([Valor pago], 0))");
     }
 

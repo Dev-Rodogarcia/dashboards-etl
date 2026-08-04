@@ -305,27 +305,27 @@ export const chartDictionary = {
 
   contasPagarSerie: {
     ...contasPagarBase,
-    descricao: 'Evolui valores pagos e valores ainda em aberto por mês de emissão para leitura de desembolso e obrigação financeira.',
+    descricao: 'Evolui valores pagos e valores em aberto pela data de emissão, competência ou liquidação, com leitura diária, semanal ou mensal.',
     calculoTecnico: 'SUM([Valor pago]); SUM([Valor a pagar] - [Valor pago])',
     calculoNegocio:
-      'Soma o que já foi pago e calcula o saldo aberto subtraindo o pago do valor a pagar, organizando a visão pelo mês de emissão.',
-    agrupamento: 'GROUP BY CONVERT(CHAR(7), [Emissão], 23)',
+      'Soma o que já foi pago e calcula o saldo aberto subtraindo o pago do valor a pagar. O controle do card escolhe a data de referência e a granularidade, sem mudar os filtros globais da página.',
+    agrupamento: 'GROUP BY dia, início da semana (segunda-feira) ou mês da data de referência selecionada.',
   },
   contasPagarTopFornecedores: {
     ...contasPagarBase,
-    descricao: 'Identifica fornecedores com maior valor a pagar e volume de títulos, apoiando negociação e priorização de caixa.',
-    calculoTecnico: 'SUM([Valor a pagar]); COUNT(1)',
+    descricao: 'Identifica a concentração por fornecedor e permite detalhar a classificação e a despesa sem alterar os demais gráficos.',
+    calculoTecnico: 'SUM([Valor a pagar] | saldo aberto | [Valor pago] | COUNT(1)); SELECT TOP (:limite).',
     calculoNegocio:
-      'Soma o valor a pagar por fornecedor e conta quantos títulos compõem a obrigação, mantendo fornecedor vazio como "Sem fornecedor".',
-    agrupamento: "GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Fornecedor/Nome]))), N''), N'Sem fornecedor')",
+      'O card permite escolher a métrica e Top 5, 10 ou 15. Clique em um fornecedor para descer para classificação e depois para descrição da despesa.',
+    agrupamento: 'Fornecedor → Classificação contábil → Descrição da despesa.',
   },
   contasPagarCentroCusto: {
     ...contasPagarBase,
-    descricao: 'Distribui contas a pagar por centro de custo para apontar onde as obrigações financeiras estão concentradas.',
-    calculoTecnico: 'SUM([Valor a pagar])',
+    descricao: 'Distribui contas a pagar por centro de custo e permite detalhar sua composição contábil e de despesas.',
+    calculoTecnico: 'SUM([Valor a pagar] | saldo aberto | [Valor pago] | COUNT(1)); SELECT TOP (:limite).',
     calculoNegocio:
-      'Soma o valor a pagar de cada centro de custo e preserva registros sem classificação em "Sem centro de custo".',
-    agrupamento: "GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(NVARCHAR(255), [Centro de custo/Nome]))), N''), N'Sem centro de custo')",
+      'O card permite escolher a métrica e Top 5, 10 ou 15. Clique em um centro para descer para classificação e depois para descrição da despesa.',
+    agrupamento: 'Centro de custo → Classificação contábil → Descrição da despesa.',
   },
   contasPagarConciliacao: {
     ...contasPagarBase,
