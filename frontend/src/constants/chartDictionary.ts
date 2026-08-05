@@ -291,7 +291,7 @@ export const chartDictionary = {
     descricao: 'Ranqueia clientes com Top 5/10/15, métricas financeiras e Pareto, com drill-down para CNPJ e fatura.',
     calculoTecnico: 'SUM(valor_operacional), COUNT(1), ticket médio ou valor vencido sem baixa; percentual acumulado via SUM() OVER.',
     calculoNegocio:
-      'Expõe concentração da carteira e permite abrir o cliente em seus CNPJs e, por fim, nas faturas que compõem o resultado.',
+      'Expõe concentração da carteira em barras verticais, com Pareto no eixo percentual, e permite abrir o cliente em seus CNPJs e, por fim, nas faturas que compõem o resultado.',
     agrupamento: 'GROUP BY cliente, CNPJ ou documento/ID Único conforme o nível de drill-down.',
   },
   faturasStatusProcesso: {

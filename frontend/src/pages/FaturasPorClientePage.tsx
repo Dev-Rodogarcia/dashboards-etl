@@ -141,17 +141,24 @@ export default function FaturasPorClientePage() {
   }), [agingFaixa, agingMetrica, dadosAging, isDark, labelsAging, tokens.palette]);
 
   const topOption = useMemo<EChartsOption>(() => buildBaseBarOption(isDark, {
-    grid: { left: 12, right: 28, top: 24, bottom: 36, containLabel: true },
-    xAxis: [{ type: 'value' }, { type: 'value', min: 0, max: 100, position: 'top', axisLabel: { formatter: '{value}%' } }],
-    yAxis: { type: 'category', data: (topClientes.data ?? []).map((item) => item.label).reverse(), axisLabel: { formatter: abreviar } },
+    grid: { left: 16, right: 20, top: 15, bottom: 0, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: (topClientes.data ?? []).map((item) => item.label),
+      axisLabel: { formatter: abreviar, rotate: 28, interval: 0, hideOverlap: true },
+    },
+    yAxis: [
+      { type: 'value' },
+      { type: 'value', min: 0, max: 100, position: 'right', axisLabel: { formatter: '{value}%' } },
+    ],
     tooltip: { trigger: 'axis', formatter: (items: unknown) => {
       const item = (items as Array<{ name: string; value: number }>)[0];
       const point = (topClientes.data ?? []).find((dado) => dado.label === item?.name);
       return `${item?.name ?? ''}<br/>${formatarMetrica(Number(item?.value ?? 0), clienteMetrica)}<br/>Participação acumulada: ${point?.percentualAcumulado.toFixed(1) ?? '0'}%`;
     } },
     series: [
-      { type: 'bar', data: (topClientes.data ?? []).map((item) => item.valor).reverse(), itemStyle: { color: tokens.palette[2] } },
-      { type: 'line', xAxisIndex: 1, data: (topClientes.data ?? []).map((item) => item.percentualAcumulado).reverse(), itemStyle: { color: tokens.palette[1] } },
+      { type: 'bar', data: (topClientes.data ?? []).map((item) => item.valor), itemStyle: { color: tokens.palette[2] } },
+      { type: 'line', yAxisIndex: 1, data: (topClientes.data ?? []).map((item) => item.percentualAcumulado), itemStyle: { color: tokens.palette[1] } },
     ],
   }), [clienteMetrica, isDark, tokens.palette, topClientes.data]);
 
