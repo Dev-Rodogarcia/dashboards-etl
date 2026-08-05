@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { tratarErroRespostaApi, type RetryableRequestConfig } from './clienteAxios';
+import clienteAxios, { tratarErroRespostaApi, type RetryableRequestConfig } from './clienteAxios';
 import { SessaoExpiradaError } from '../utils/authSession';
 import type { LoginResponse } from '../types/auth';
 
@@ -42,6 +42,10 @@ function criarLoginResponse(token = 'token-renovado'): LoginResponse {
 }
 
 describe('tratarErroRespostaApi', () => {
+  it('nao fixa JSON como Content-Type para permitir que FormData defina seu boundary', () => {
+    expect(clienteAxios.defaults.headers.common['Content-Type']).toBeUndefined();
+  });
+
   it('renova a sessao e reexecuta endpoint protegido apos 401', async () => {
     const limparSessao = vi.fn();
     const revogarSessaoRemota = vi.fn().mockResolvedValue(undefined);

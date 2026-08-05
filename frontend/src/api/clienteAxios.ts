@@ -20,7 +20,6 @@ export interface ApiStatusAlertDetail {
 
 const clienteAxios = axios.create({
   baseURL: API_BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
   timeout: API_REQUEST_TIMEOUT_MS,
   withCredentials: true,
 });

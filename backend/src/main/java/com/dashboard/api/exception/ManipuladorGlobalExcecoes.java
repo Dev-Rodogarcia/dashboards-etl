@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
@@ -134,6 +135,19 @@ public class ManipuladorGlobalExcecoes {
         );
 
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(resposta);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<RespostaErroPadrao> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        log.warn("Content-Type não suportado: {}", ex.getContentType());
+
+        RespostaErroPadrao resposta = criarResposta(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                "Unsupported Media Type",
+                "Content-Type não suportado para este endpoint."
+        );
+
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(resposta);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

@@ -7,11 +7,13 @@ import org.springframework.core.MethodParameter;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.server.ResponseStatusException;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,6 +32,23 @@ class ManipuladorGlobalExcecoesTest {
         RespostaErroPadrao body = Objects.requireNonNull(resposta.getBody());
         assertThat(body.status()).isEqualTo(405);
         assertThat(body.erro()).isEqualTo("Method Not Allowed");
+    }
+
+    @Test
+    void deveRetornar415ParaContentTypeNaoSuportado() {
+        ManipuladorGlobalExcecoes handler = new ManipuladorGlobalExcecoes();
+
+        var resposta = handler.handleMediaTypeNotSupported(
+                new HttpMediaTypeNotSupportedException(
+                        MediaType.APPLICATION_JSON,
+                        List.of(MediaType.MULTIPART_FORM_DATA)
+                )
+        );
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+        RespostaErroPadrao body = Objects.requireNonNull(resposta.getBody());
+        assertThat(body.status()).isEqualTo(415);
+        assertThat(body.erro()).isEqualTo("Unsupported Media Type");
     }
 
     @Test
