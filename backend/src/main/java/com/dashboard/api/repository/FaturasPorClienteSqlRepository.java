@@ -240,6 +240,9 @@ public class FaturasPorClienteSqlRepository {
         String faturaSql = "COALESCE(NULLIF(LTRIM(RTRIM(documento_fatura)), N''), unique_id, N'Sem documento')";
         String labelSql = nivel == FaturasPorClienteDrilldownNivel.FATURA ? faturaSql : clienteSql;
         String detalheSql = nivel == FaturasPorClienteDrilldownNivel.FATURA ? "unique_id" : "NULL";
+        String agrupamentoSql = nivel == FaturasPorClienteDrilldownNivel.FATURA
+                ? labelSql + ", " + detalheSql
+                : labelSql;
         String filtroCliente = "";
         if (nivel == FaturasPorClienteDrilldownNivel.FATURA) {
             params.addValue("agingCliente", cliente);
@@ -262,13 +265,13 @@ public class FaturasPorClienteSqlRepository {
                     SELECT %s AS label, %s AS detalhe, SUM(valor_operacional) AS valor, COUNT(1) AS registros
                     FROM classificacao
                     WHERE faixa = :agingFaixa %s
-                    GROUP BY %s, %s
+                    GROUP BY %s
                 )
                 SELECT TOP (:drillLimite) label, detalhe, CAST(valor AS DECIMAL(19,2)) AS valor, registros,
                     CAST(COALESCE(SUM(valor) OVER (ORDER BY valor DESC, label ROWS UNBOUNDED PRECEDING) * 100.0 / NULLIF(SUM(valor) OVER (), 0), 0) AS DECIMAL(19,2)) AS percentual_acumulado
                 FROM agregado
                 ORDER BY valor DESC, label
-                """.formatted(labelSql, detalheSql, filtroCliente, labelSql, detalheSql);
+                """.formatted(labelSql, detalheSql, filtroCliente, agrupamentoSql);
         return mapearDrilldown(sql, params);
     }
 
@@ -351,6 +354,9 @@ public class FaturasPorClienteSqlRepository {
             case CNPJ -> clienteSql;
             case FATURA -> "unique_id";
         };
+        String agrupamentoSql = nivel == FaturasPorClienteDrilldownNivel.CLIENTE
+                ? labelSql
+                : labelSql + ", " + detalheSql;
         String filtros = "";
         if (nivel == FaturasPorClienteDrilldownNivel.CNPJ) {
             params.addValue("drillCliente", cliente);
@@ -365,13 +371,13 @@ public class FaturasPorClienteSqlRepository {
                     SELECT %s AS label, %s AS detalhe, CAST(%s AS DECIMAL(19,2)) AS valor, COUNT(1) AS registros
                     FROM base_normalizada
                     WHERE status_processo = N'Faturado' %s
-                    GROUP BY %s, %s
+                    GROUP BY %s
                 )
                 SELECT TOP (:drillLimite) label, detalhe, valor, registros,
                     CAST(COALESCE(SUM(valor) OVER (ORDER BY valor DESC, label ROWS UNBOUNDED PRECEDING) * 100.0 / NULLIF(SUM(valor) OVER (), 0), 0) AS DECIMAL(19,2)) AS percentual_acumulado
                 FROM agregado
                 ORDER BY valor DESC, label
-                """.formatted(labelSql, detalheSql, medidaSql(metrica), filtros, labelSql, detalheSql);
+                """.formatted(labelSql, detalheSql, medidaSql(metrica), filtros, agrupamentoSql);
         return mapearDrilldown(sql, params);
     }
 
