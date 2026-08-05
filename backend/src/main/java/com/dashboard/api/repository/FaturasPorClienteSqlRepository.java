@@ -3,8 +3,16 @@ package com.dashboard.api.repository;
 import com.dashboard.api.builder.DashboardExportSqlBuilder;
 import com.dashboard.api.definition.DashboardExportDefinition;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteAgingBucketDTO;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteAgingEscopo;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteDrilldownNivel;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteDrilldownPointDTO;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteGranularidade;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteMensalDTO;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteMetrica;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteOverviewDTO;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteReferenciaTemporal;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteSerieDTO;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteStatusEvolucaoDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteStatusProcessoDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteTopClienteDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
@@ -109,10 +117,46 @@ public class FaturasPorClienteSqlRepository {
         ));
     }
 
+    public List<FaturasPorClienteSerieDTO> buscarSerie(
+            FiltroConsultaDTO filtro,
+            FaturasPorClienteGranularidade granularidade,
+            FaturasPorClienteReferenciaTemporal referencia,
+            FaturasPorClienteMetrica metrica
+    ) {
+        DashboardExportSqlBuilder.ExportSql source = source(filtro, referencia);
+        String dataReferencia = dataReferenciaSql(referencia);
+        String periodo = periodoSql(granularidade, dataReferencia);
+        String sql = baseNormalizadaSql(source) + """
+                SELECT %s AS periodo,
+                    CAST(COALESCE(%s, 0) AS DECIMAL(19,2)) AS valor,
+                    COUNT(1) AS registros
+                FROM base_normalizada
+                WHERE status_processo = N'Faturado' AND %s IS NOT NULL
+                GROUP BY %s
+                ORDER BY periodo
+                """.formatted(periodo, medidaSql(metrica), dataReferencia, periodo);
+        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new FaturasPorClienteSerieDTO(
+                rs.getString("periodo"), decimal(rs.getBigDecimal("valor")), rs.getInt("registros")
+        ));
+    }
+
     public List<FaturasPorClienteAgingBucketDTO> buscarAging(FiltroConsultaDTO filtro, LocalDate dataReferencia) {
+        return buscarAging(filtro, dataReferencia, FaturasPorClienteAgingEscopo.TODOS);
+    }
+
+    public List<FaturasPorClienteAgingBucketDTO> buscarAging(
+            FiltroConsultaDTO filtro,
+            LocalDate dataReferencia,
+            FaturasPorClienteAgingEscopo escopo
+    ) {
         DashboardExportSqlBuilder.ExportSql source = source(filtro);
         MapSqlParameterSource params = copiarParams(source);
         params.addValue("dataReferencia", dataReferencia);
+        String filtroEscopo = switch (escopo) {
+            case TODOS -> "";
+            case A_VENCER -> "WHERE faixa = N'A vencer'";
+            case EM_ATRASO -> "WHERE faixa IN (N'1-15 dias', N'16-30 dias', N'31-60 dias', N'61+ dias')";
+        };
 
         String sql = baseNormalizadaSql(source) + """
                 , titulos_aging AS (
@@ -154,8 +198,9 @@ public class FaturasPorClienteSqlRepository {
                     CAST(COALESCE(SUM(valor_operacional), 0) AS DECIMAL(19,2)) AS valor,
                     COUNT(1) AS titulos
                 FROM classificacao
+                %s
                 GROUP BY faixa
-                """;
+                """.formatted(filtroEscopo);
 
         Map<String, FaturasPorClienteAgingBucketDTO> porFaixa = new LinkedHashMap<>();
         jdbcTemplate.query(sql, params, (org.springframework.jdbc.core.RowCallbackHandler) rs -> porFaixa.put(
@@ -173,6 +218,58 @@ public class FaturasPorClienteSqlRepository {
                         new FaturasPorClienteAgingBucketDTO(faixa, BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP), 0)
                 ))
                 .toList();
+    }
+
+    public List<FaturasPorClienteDrilldownPointDTO> buscarDrilldownAging(
+            FiltroConsultaDTO filtro,
+            LocalDate dataReferencia,
+            String faixa,
+            FaturasPorClienteDrilldownNivel nivel,
+            String cliente,
+            int limite
+    ) {
+        if (faixa == null || faixa.isBlank() || (nivel == FaturasPorClienteDrilldownNivel.FATURA && (cliente == null || cliente.isBlank()))) {
+            return List.of();
+        }
+        DashboardExportSqlBuilder.ExportSql source = source(filtro);
+        MapSqlParameterSource params = copiarParams(source);
+        params.addValue("dataReferencia", dataReferencia);
+        params.addValue("agingFaixa", faixa);
+        params.addValue("drillLimite", limite);
+        String clienteSql = "COALESCE(NULLIF(LTRIM(RTRIM(cliente_nome)), N''), N'Sem cliente')";
+        String faturaSql = "COALESCE(NULLIF(LTRIM(RTRIM(documento_fatura)), N''), unique_id, N'Sem documento')";
+        String labelSql = nivel == FaturasPorClienteDrilldownNivel.FATURA ? faturaSql : clienteSql;
+        String detalheSql = nivel == FaturasPorClienteDrilldownNivel.FATURA ? "unique_id" : "NULL";
+        String filtroCliente = "";
+        if (nivel == FaturasPorClienteDrilldownNivel.FATURA) {
+            params.addValue("agingCliente", cliente);
+            filtroCliente = "AND " + clienteSql + " = :agingCliente";
+        }
+        String sql = baseNormalizadaSql(source) + """
+                , classificacao AS (
+                    SELECT valor_operacional, cliente_nome, documento_fatura, unique_id,
+                        CASE
+                            WHEN status_pagamento = N'sem_vencimento' OR data_vencimento_fatura IS NULL THEN N'Sem vencimento'
+                            WHEN status_pagamento = N'a_vencer' OR DATEDIFF(day, data_vencimento_fatura, :dataReferencia) < 0 THEN N'A vencer'
+                            WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 15 THEN N'1-15 dias'
+                            WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 30 THEN N'16-30 dias'
+                            WHEN DATEDIFF(day, data_vencimento_fatura, :dataReferencia) <= 60 THEN N'31-60 dias'
+                            ELSE N'61+ dias'
+                        END AS faixa
+                    FROM base_normalizada
+                    WHERE status_processo = N'Faturado' AND status_pagamento <> N'baixado'
+                ), agregado AS (
+                    SELECT %s AS label, %s AS detalhe, SUM(valor_operacional) AS valor, COUNT(1) AS registros
+                    FROM classificacao
+                    WHERE faixa = :agingFaixa %s
+                    GROUP BY %s, %s
+                )
+                SELECT TOP (:drillLimite) label, detalhe, CAST(valor AS DECIMAL(19,2)) AS valor, registros,
+                    CAST(COALESCE(SUM(valor) OVER (ORDER BY valor DESC, label ROWS UNBOUNDED PRECEDING) * 100.0 / NULLIF(SUM(valor) OVER (), 0), 0) AS DECIMAL(19,2)) AS percentual_acumulado
+                FROM agregado
+                ORDER BY valor DESC, label
+                """.formatted(labelSql, detalheSql, filtroCliente, labelSql, detalheSql);
+        return mapearDrilldown(sql, params);
     }
 
     public List<FaturasPorClienteTopClienteDTO> buscarTopClientes(FiltroConsultaDTO filtro, int limite) {
@@ -224,6 +321,60 @@ public class FaturasPorClienteSqlRepository {
         ));
     }
 
+    public List<FaturasPorClienteDrilldownPointDTO> buscarDrilldownClientes(
+            FiltroConsultaDTO filtro,
+            LocalDate dataReferencia,
+            int limite,
+            FaturasPorClienteMetrica metrica,
+            FaturasPorClienteDrilldownNivel nivel,
+            String cliente,
+            String cnpj
+    ) {
+        if ((nivel == FaturasPorClienteDrilldownNivel.CNPJ && (cliente == null || cliente.isBlank()))
+                || (nivel == FaturasPorClienteDrilldownNivel.FATURA && (cnpj == null || cnpj.isBlank()))) {
+            return List.of();
+        }
+        DashboardExportSqlBuilder.ExportSql source = source(filtro);
+        MapSqlParameterSource params = copiarParams(source);
+        params.addValue("dataReferencia", dataReferencia);
+        params.addValue("drillLimite", limite);
+        String clienteSql = "COALESCE(NULLIF(LTRIM(RTRIM(cliente_nome)), N''), N'Sem cliente')";
+        String cnpjSql = "COALESCE(NULLIF(LTRIM(RTRIM(cliente_cnpj)), N''), N'Sem CNPJ')";
+        String faturaSql = "COALESCE(NULLIF(LTRIM(RTRIM(documento_fatura)), N''), unique_id, N'Sem documento')";
+        String labelSql = switch (nivel) {
+            case CLIENTE -> clienteSql;
+            case CNPJ -> cnpjSql;
+            case FATURA -> faturaSql;
+        };
+        String detalheSql = switch (nivel) {
+            case CLIENTE -> "NULL";
+            case CNPJ -> clienteSql;
+            case FATURA -> "unique_id";
+        };
+        String filtros = "";
+        if (nivel == FaturasPorClienteDrilldownNivel.CNPJ) {
+            params.addValue("drillCliente", cliente);
+            filtros = "AND " + clienteSql + " = :drillCliente";
+        }
+        if (nivel == FaturasPorClienteDrilldownNivel.FATURA) {
+            params.addValue("drillCnpj", cnpj);
+            filtros = "AND " + cnpjSql + " = :drillCnpj";
+        }
+        String sql = baseNormalizadaSql(source) + """
+                , agregado AS (
+                    SELECT %s AS label, %s AS detalhe, CAST(%s AS DECIMAL(19,2)) AS valor, COUNT(1) AS registros
+                    FROM base_normalizada
+                    WHERE status_processo = N'Faturado' %s
+                    GROUP BY %s, %s
+                )
+                SELECT TOP (:drillLimite) label, detalhe, valor, registros,
+                    CAST(COALESCE(SUM(valor) OVER (ORDER BY valor DESC, label ROWS UNBOUNDED PRECEDING) * 100.0 / NULLIF(SUM(valor) OVER (), 0), 0) AS DECIMAL(19,2)) AS percentual_acumulado
+                FROM agregado
+                ORDER BY valor DESC, label
+                """.formatted(labelSql, detalheSql, medidaSql(metrica), filtros, labelSql, detalheSql);
+        return mapearDrilldown(sql, params);
+    }
+
     public List<FaturasPorClienteStatusProcessoDTO> buscarStatusProcesso(FiltroConsultaDTO filtro) {
         DashboardExportSqlBuilder.ExportSql source = source(filtro);
         String sql = baseNormalizadaSql(source) + """
@@ -238,6 +389,25 @@ public class FaturasPorClienteSqlRepository {
         return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new FaturasPorClienteStatusProcessoDTO(
                 rs.getString("status_processo"),
                 rs.getInt("total")
+        ));
+    }
+
+    public List<FaturasPorClienteStatusEvolucaoDTO> buscarEvolucaoStatus(
+            FiltroConsultaDTO filtro,
+            FaturasPorClienteGranularidade granularidade
+    ) {
+        DashboardExportSqlBuilder.ExportSql source = source(filtro);
+        String periodo = periodoSql(granularidade, "data_emissao_cte");
+        String sql = baseNormalizadaSql(source) + """
+                SELECT %s AS periodo,
+                    SUM(CASE WHEN status_processo = N'Faturado' THEN 1 ELSE 0 END) AS faturado,
+                    SUM(CASE WHEN status_processo = N'Aguardando Faturamento' THEN 1 ELSE 0 END) AS aguardando_faturamento
+                FROM base_normalizada
+                GROUP BY %s
+                ORDER BY periodo
+                """.formatted(periodo, periodo);
+        return jdbcTemplate.query(sql, copiarParams(source), (rs, rowNum) -> new FaturasPorClienteStatusEvolucaoDTO(
+                rs.getString("periodo"), rs.getInt("faturado"), rs.getInt("aguardando_faturamento")
         ));
     }
 
@@ -275,6 +445,61 @@ public class FaturasPorClienteSqlRepository {
                 escopoFilialService.escopoAtual(),
                 Set.of()
         );
+    }
+
+    private DashboardExportSqlBuilder.ExportSql source(FiltroConsultaDTO filtro, FaturasPorClienteReferenciaTemporal referencia) {
+        if (referencia == FaturasPorClienteReferenciaTemporal.EMISSAO) {
+            return source(filtro);
+        }
+        DashboardExportSqlBuilder.ExportSql source = sqlBuilder.buildFilteredSourceWithoutPeriod(
+                DashboardExportDefinition.FATURAS_POR_CLIENTE,
+                filtro,
+                escopoFilialService.escopoAtual(),
+                Set.of()
+        );
+        String coluna = referencia == FaturasPorClienteReferenciaTemporal.VENCIMENTO
+                ? "data_vencimento_fatura" : "data_baixa_fatura";
+        source.params().addValue("dataInicio", filtro.dataInicio());
+        source.params().addValue("dataFimExclusivo", filtro.dataFim().plusDays(1));
+        return new DashboardExportSqlBuilder.ExportSql(
+                source.sql() + " AND " + coluna + " >= :dataInicio AND " + coluna + " < :dataFimExclusivo",
+                source.params()
+        );
+    }
+
+    private String dataReferenciaSql(FaturasPorClienteReferenciaTemporal referencia) {
+        return switch (referencia) {
+            case EMISSAO -> "data_emissao_cte";
+            case VENCIMENTO -> "data_vencimento_fatura";
+            case BAIXA -> "data_baixa_fatura";
+        };
+    }
+
+    private String periodoSql(FaturasPorClienteGranularidade granularidade, String coluna) {
+        return switch (granularidade) {
+            case DIA -> "CONVERT(CHAR(10), " + coluna + ", 23)";
+            case SEMANA -> "CONVERT(CHAR(10), DATEADD(day, -DATEDIFF(day, 0, " + coluna + ") % 7, " + coluna + "), 23)";
+            case MES -> "CONVERT(CHAR(7), " + coluna + ", 23)";
+        };
+    }
+
+    private String medidaSql(FaturasPorClienteMetrica metrica) {
+        return switch (metrica) {
+            case VALOR_FATURADO -> "SUM(valor_operacional)";
+            case REGISTROS_FATURADOS -> "COUNT(1)";
+            case TICKET_MEDIO -> "SUM(valor_operacional) / NULLIF(COUNT(1), 0)";
+            case VALOR_EM_ATRASO -> "SUM(CASE WHEN data_vencimento_fatura < :dataReferencia AND data_baixa_fatura IS NULL THEN valor_operacional ELSE 0 END)";
+        };
+    }
+
+    private List<FaturasPorClienteDrilldownPointDTO> mapearDrilldown(String sql, MapSqlParameterSource params) {
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new FaturasPorClienteDrilldownPointDTO(
+                rs.getString("label"),
+                rs.getString("detalhe"),
+                decimal(rs.getBigDecimal("valor")),
+                rs.getInt("registros"),
+                rs.getDouble("percentual_acumulado")
+        ));
     }
 
     private MapSqlParameterSource copiarParams(DashboardExportSqlBuilder.ExportSql source) {

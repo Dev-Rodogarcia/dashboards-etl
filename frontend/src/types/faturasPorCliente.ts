@@ -14,6 +14,32 @@ export interface FaturasPorClienteMensalTrend {
   registrosFaturados: number;
 }
 
+export type FaturasPorClienteGranularidade = 'dia' | 'semana' | 'mes';
+export type FaturasPorClienteReferenciaTemporal = 'emissao' | 'vencimento' | 'baixa';
+export type FaturasPorClienteMetrica = 'valor_faturado' | 'registros_faturados' | 'ticket_medio' | 'valor_em_atraso';
+export type FaturasPorClienteAgingEscopo = 'todos' | 'a_vencer' | 'em_atraso';
+export type FaturasPorClienteDrilldownNivel = 'cliente' | 'cnpj' | 'fatura';
+
+export interface FaturasPorClienteSerie {
+  periodo: string;
+  valor: number;
+  registros: number;
+}
+
+export interface FaturasPorClienteDrilldownPoint {
+  label: string;
+  detalhe: string | null;
+  valor: number;
+  registros: number;
+  percentualAcumulado: number;
+}
+
+export interface FaturasPorClienteStatusEvolucao {
+  periodo: string;
+  faturado: number;
+  aguardandoFaturamento: number;
+}
+
 export interface FaturasPorClienteAgingBucket {
   faixa: string;
   valor: number;

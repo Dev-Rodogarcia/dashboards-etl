@@ -271,36 +271,36 @@ export const chartDictionary = {
 
   faturasMensal: {
     ...faturasClienteBase,
-    descricao: 'Evolui o valor operacional faturado e a quantidade de faturas por mês de referência.',
-    calculoTecnico: 'CAST(COALESCE(SUM(valor_operacional), 0) AS DECIMAL(19,2)); COUNT(1)',
+    descricao: 'Evolui o faturamento por dia, semana ou mês conforme a referência de emissão, vencimento ou baixa selecionada no card.',
+    calculoTecnico: 'SUM(valor_operacional), COUNT(1) ou SUM(valor_operacional) / COUNT(1), conforme a métrica selecionada.',
     calculoNegocio:
-      'Soma o valor operacional das faturas de cada mês e conta quantos registros compõem esse total, permitindo enxergar tendência e densidade.',
-    agrupamento: 'GROUP BY CONVERT(CHAR(7), data_referencia_mensal, 23)',
+      'Permite alternar valor faturado, quantidade de faturas e ticket médio, sem alterar os filtros globais da página.',
+    agrupamento: 'GROUP BY dia, início da semana ou mês da data de referência selecionada.',
   },
   faturasAging: {
     ...faturasClienteBase,
-    descricao: 'Agrupa faturas por faixa de aging para priorizar cobrança, regularização e acompanhamento financeiro.',
+    descricao: 'Agrupa títulos abertos por faixa de aging e permite detalhar uma faixa até cliente e fatura/ID Único.',
     calculoTecnico: 'CAST(COALESCE(SUM(valor_operacional), 0) AS DECIMAL(19,2)); COUNT(1)',
     calculoNegocio:
-      'Soma o valor operacional e conta as faturas em cada faixa de vencimento ou atraso, mostrando concentração financeira por idade.',
-    agrupamento: 'GROUP BY faixa',
+      'Alterna valor e quantidade de títulos, restringe a visão a todos, a vencer ou em atraso e mantém o drill-down local ao card.',
+    agrupamento: 'GROUP BY faixa; no drill, GROUP BY cliente e depois por documento/ID Único.',
   },
   faturasTopClientes: {
     tabelasOrigem: 'dbo.fato_gestao_vista_faturas',
-    cruzamentos: 'JOIN representantes ON representantes.cliente_chave = totais.cliente_chave',
-    descricao: 'Ranqueia clientes por valor faturado e quantidade de faturas, com vínculo ao representante responsável.',
-    calculoTecnico: 'CAST(COALESCE(SUM(valor_operacional), 0) AS DECIMAL(19,2)); COUNT(1)',
+    cruzamentos: 'Nenhum JOIN; CTE agregado no FaturasPorClienteSqlRepository.',
+    descricao: 'Ranqueia clientes com Top 5/10/15, métricas financeiras e Pareto, com drill-down para CNPJ e fatura.',
+    calculoTecnico: 'SUM(valor_operacional), COUNT(1), ticket médio ou valor vencido sem baixa; percentual acumulado via SUM() OVER.',
     calculoNegocio:
-      'Soma o valor operacional de cada cliente, conta suas faturas e associa a carteira ao representante para leitura comercial e financeira.',
-    agrupamento: 'GROUP BY cliente_chave',
+      'Expõe concentração da carteira e permite abrir o cliente em seus CNPJs e, por fim, nas faturas que compõem o resultado.',
+    agrupamento: 'GROUP BY cliente, CNPJ ou documento/ID Único conforme o nível de drill-down.',
   },
   faturasStatusProcesso: {
     ...faturasClienteBase,
-    descricao: 'Mostra faturas por status de processo para identificar gargalos de emissão, validação, envio ou recebimento.',
-    calculoTecnico: 'COUNT(1)',
+    descricao: 'Mostra a distribuição atual ou a evolução temporal dos status Faturado e Aguardando Faturamento.',
+    calculoTecnico: 'COUNT(1); na evolução, SUM(CASE WHEN status_processo = ... THEN 1 ELSE 0 END).',
     calculoNegocio:
       'Conta cada fatura dentro do status de processo normalizado, expondo em qual etapa a carteira está concentrada.',
-    agrupamento: 'GROUP BY status_processo',
+    agrupamento: 'GROUP BY status_processo ou GROUP BY período temporal selecionado.',
   },
 
   contasPagarSerie: {

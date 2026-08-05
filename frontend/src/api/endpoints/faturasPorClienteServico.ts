@@ -6,9 +6,17 @@ import type { PaginacaoResponse } from '../../types/common';
 import type {
   FaturaPorClienteResumoRow,
   FaturasPorClienteAgingBucket,
+  FaturasPorClienteAgingEscopo,
+  FaturasPorClienteDrilldownNivel,
+  FaturasPorClienteDrilldownPoint,
   FaturasPorClienteFiltro,
+  FaturasPorClienteGranularidade,
   FaturasPorClienteMensalTrend,
+  FaturasPorClienteMetrica,
   FaturasPorClienteOverview,
+  FaturasPorClienteReferenciaTemporal,
+  FaturasPorClienteSerie,
+  FaturasPorClienteStatusEvolucao,
   FaturasPorClienteStatusProcesso,
   FaturasPorClienteTopCliente,
 } from '../../types/faturasPorCliente';
@@ -32,12 +40,43 @@ export async function buscarFaturasPorClienteMensal(
   return data;
 }
 
+export async function buscarFaturasPorClienteSerie(
+  filtro: FaturasPorClienteFiltro,
+  granularidade: FaturasPorClienteGranularidade,
+  referencia: FaturasPorClienteReferenciaTemporal,
+  metrica: FaturasPorClienteMetrica,
+): Promise<FaturasPorClienteSerie[]> {
+  const params = montarQueryParams(filtro);
+  params.set('granularidade', granularidade);
+  params.set('referencia', referencia);
+  params.set('metrica', metrica);
+  const { data } = await clienteAxios.get<FaturasPorClienteSerie[]>('/api/painel/faturas-por-cliente/serie', { params });
+  return data;
+}
+
 export async function buscarFaturasPorClienteAging(
-  filtro: FaturasPorClienteFiltro
+  filtro: FaturasPorClienteFiltro,
+  escopo: FaturasPorClienteAgingEscopo = 'todos',
 ): Promise<FaturasPorClienteAgingBucket[]> {
+  const params = montarQueryParams(filtro);
+  params.set('escopo', escopo);
   const { data } = await clienteAxios.get<FaturasPorClienteAgingBucket[]>('/api/painel/faturas-por-cliente/aging', {
-    params: montarQueryParams(filtro),
+    params,
   });
+  return data;
+}
+
+export async function buscarFaturasPorClienteAgingDrilldown(
+  filtro: FaturasPorClienteFiltro,
+  faixa: string,
+  nivel: FaturasPorClienteDrilldownNivel,
+  cliente?: string | null,
+): Promise<FaturasPorClienteDrilldownPoint[]> {
+  const params = montarQueryParams(filtro);
+  params.set('faixa', faixa);
+  params.set('nivel', nivel);
+  if (cliente) params.set('cliente', cliente);
+  const { data } = await clienteAxios.get<FaturasPorClienteDrilldownPoint[]>('/api/painel/faturas-por-cliente/aging/drilldown', { params });
   return data;
 }
 
@@ -53,12 +92,40 @@ export async function buscarFaturasPorClienteTopClientes(
   return data;
 }
 
+export async function buscarFaturasPorClienteTopClientesDrilldown(
+  filtro: FaturasPorClienteFiltro,
+  limite: 5 | 10 | 15,
+  metrica: FaturasPorClienteMetrica,
+  nivel: FaturasPorClienteDrilldownNivel,
+  cliente?: string | null,
+  cnpj?: string | null,
+): Promise<FaturasPorClienteDrilldownPoint[]> {
+  const params = montarQueryParams(filtro);
+  params.set('limite', String(limite));
+  params.set('metrica', metrica);
+  params.set('nivel', nivel);
+  if (cliente) params.set('cliente', cliente);
+  if (cnpj) params.set('cnpj', cnpj);
+  const { data } = await clienteAxios.get<FaturasPorClienteDrilldownPoint[]>('/api/painel/faturas-por-cliente/top-clientes/drilldown', { params });
+  return data;
+}
+
 export async function buscarFaturasPorClienteStatusProcesso(
   filtro: FaturasPorClienteFiltro
 ): Promise<FaturasPorClienteStatusProcesso[]> {
   const { data } = await clienteAxios.get<FaturasPorClienteStatusProcesso[]>('/api/painel/faturas-por-cliente/status-processo', {
     params: montarQueryParams(filtro),
   });
+  return data;
+}
+
+export async function buscarFaturasPorClienteStatusEvolucao(
+  filtro: FaturasPorClienteFiltro,
+  granularidade: FaturasPorClienteGranularidade,
+): Promise<FaturasPorClienteStatusEvolucao[]> {
+  const params = montarQueryParams(filtro);
+  params.set('granularidade', granularidade);
+  const { data } = await clienteAxios.get<FaturasPorClienteStatusEvolucao[]>('/api/painel/faturas-por-cliente/status-processo/evolucao', { params });
   return data;
 }
 

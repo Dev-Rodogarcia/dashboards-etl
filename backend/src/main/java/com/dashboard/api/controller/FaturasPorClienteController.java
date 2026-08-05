@@ -2,8 +2,11 @@ package com.dashboard.api.controller;
 
 import com.dashboard.api.dto.faturascliente.FaturaPorClienteResumoDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteAgingBucketDTO;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteDrilldownPointDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteMensalDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteOverviewDTO;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteSerieDTO;
+import com.dashboard.api.dto.faturascliente.FaturasPorClienteStatusEvolucaoDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteStatusProcessoDTO;
 import com.dashboard.api.dto.faturascliente.FaturasPorClienteTopClienteDTO;
 import com.dashboard.api.dto.FiltroConsultaDTO;
@@ -57,12 +60,38 @@ public class FaturasPorClienteController {
         return ResponseEntity.ok(service.buscarMensal(FiltroRequestMapper.from(dataInicio, dataFim, params)));
     }
 
+    @GetMapping("/serie")
+    public ResponseEntity<List<FaturasPorClienteSerieDTO>> serie(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "mes") String granularidade,
+            @RequestParam(defaultValue = "emissao") String referencia,
+            @RequestParam(defaultValue = "valor_faturado") String metrica,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(service.buscarSerie(
+                FiltroRequestMapper.from(dataInicio, dataFim, params), granularidade, referencia, metrica));
+    }
+
     @GetMapping("/aging")
     public ResponseEntity<List<FaturasPorClienteAgingBucketDTO>> aging(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "todos") String escopo,
             @RequestParam MultiValueMap<String, String> params) {
-        return ResponseEntity.ok(service.buscarAging(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+        return ResponseEntity.ok(service.buscarAging(FiltroRequestMapper.from(dataInicio, dataFim, params), escopo));
+    }
+
+    @GetMapping("/aging/drilldown")
+    public ResponseEntity<List<FaturasPorClienteDrilldownPointDTO>> agingDrilldown(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam String faixa,
+            @RequestParam(defaultValue = "cliente") String nivel,
+            @RequestParam(required = false) String cliente,
+            @RequestParam(defaultValue = "10") int limite,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(service.buscarDrilldownAging(
+                FiltroRequestMapper.from(dataInicio, dataFim, params), faixa, nivel, cliente, limite));
     }
 
     @GetMapping("/top-clientes")
@@ -74,12 +103,36 @@ public class FaturasPorClienteController {
         return ResponseEntity.ok(service.buscarTopClientes(FiltroRequestMapper.from(dataInicio, dataFim, params), limite));
     }
 
+    @GetMapping("/top-clientes/drilldown")
+    public ResponseEntity<List<FaturasPorClienteDrilldownPointDTO>> topClientesDrilldown(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "10") int limite,
+            @RequestParam(defaultValue = "valor_faturado") String metrica,
+            @RequestParam(defaultValue = "cliente") String nivel,
+            @RequestParam(required = false) String cliente,
+            @RequestParam(required = false) String cnpj,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(service.buscarDrilldownClientes(
+                FiltroRequestMapper.from(dataInicio, dataFim, params), limite, metrica, nivel, cliente, cnpj));
+    }
+
     @GetMapping("/status-processo")
     public ResponseEntity<List<FaturasPorClienteStatusProcessoDTO>> statusProcesso(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam MultiValueMap<String, String> params) {
         return ResponseEntity.ok(service.buscarStatusProcesso(FiltroRequestMapper.from(dataInicio, dataFim, params)));
+    }
+
+    @GetMapping("/status-processo/evolucao")
+    public ResponseEntity<List<FaturasPorClienteStatusEvolucaoDTO>> evolucaoStatusProcesso(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            @RequestParam(defaultValue = "dia") String granularidade,
+            @RequestParam MultiValueMap<String, String> params) {
+        return ResponseEntity.ok(service.buscarEvolucaoStatus(
+                FiltroRequestMapper.from(dataInicio, dataFim, params), granularidade));
     }
 
     @GetMapping("/tabela")

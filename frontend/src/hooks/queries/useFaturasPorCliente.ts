@@ -1,15 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   buscarFaturasPorClienteAging,
+  buscarFaturasPorClienteAgingDrilldown,
   buscarFaturasPorClienteMensal,
+  buscarFaturasPorClienteSerie,
   buscarFaturasPorClienteOverview,
   buscarFaturasPorClienteStatusProcesso,
+  buscarFaturasPorClienteStatusEvolucao,
   buscarFaturasPorClienteTabela,
   buscarFaturasPorClienteTabelaPaginada,
   buscarFaturasPorClienteTabelaTotal,
   buscarFaturasPorClienteTopClientes,
+  buscarFaturasPorClienteTopClientesDrilldown,
 } from '../../api/endpoints/faturasPorClienteServico';
-import type { FaturasPorClienteFiltro } from '../../types/faturasPorCliente';
+import type {
+  FaturasPorClienteAgingEscopo,
+  FaturasPorClienteDrilldownNivel,
+  FaturasPorClienteFiltro,
+  FaturasPorClienteGranularidade,
+  FaturasPorClienteMetrica,
+  FaturasPorClienteReferenciaTemporal,
+} from '../../types/faturasPorCliente';
 import type { TableApiFilters } from '../../types/tableFilters';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../utils/pollingUtils';
 
@@ -35,11 +46,42 @@ export function useFaturasPorClienteMensal(filtro: FaturasPorClienteFiltro) {
   });
 }
 
-export function useFaturasPorClienteAging(filtro: FaturasPorClienteFiltro) {
+export function useFaturasPorClienteSerie(
+  filtro: FaturasPorClienteFiltro,
+  granularidade: FaturasPorClienteGranularidade,
+  referencia: FaturasPorClienteReferenciaTemporal,
+  metrica: FaturasPorClienteMetrica,
+) {
   return useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
-    queryKey: ['faturas-por-cliente', 'aging', filtro],
-    queryFn: () => buscarFaturasPorClienteAging(filtro),
+    queryKey: ['faturas-por-cliente', 'serie', filtro, granularidade, referencia, metrica],
+    queryFn: () => buscarFaturasPorClienteSerie(filtro, granularidade, referencia, metrica),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturasPorClienteAging(filtro: FaturasPorClienteFiltro, escopo: FaturasPorClienteAgingEscopo = 'todos') {
+  return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
+    queryKey: ['faturas-por-cliente', 'aging', filtro, escopo],
+    queryFn: () => buscarFaturasPorClienteAging(filtro, escopo),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturasPorClienteAgingDrilldown(
+  filtro: FaturasPorClienteFiltro,
+  faixa: string | null,
+  nivel: FaturasPorClienteDrilldownNivel,
+  cliente: string | null,
+) {
+  return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
+    queryKey: ['faturas-por-cliente', 'aging', 'drilldown', filtro, faixa, nivel, cliente],
+    queryFn: () => buscarFaturasPorClienteAgingDrilldown(filtro, faixa ?? '', nivel, cliente),
+    enabled: Boolean(faixa),
     staleTime: STALE_TIME,
     retry: 1,
   });
@@ -55,11 +97,38 @@ export function useFaturasPorClienteTopClientes(filtro: FaturasPorClienteFiltro,
   });
 }
 
+export function useFaturasPorClienteTopClientesDrilldown(
+  filtro: FaturasPorClienteFiltro,
+  limite: 5 | 10 | 15,
+  metrica: FaturasPorClienteMetrica,
+  nivel: FaturasPorClienteDrilldownNivel,
+  cliente: string | null,
+  cnpj: string | null,
+) {
+  return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
+    queryKey: ['faturas-por-cliente', 'top-clientes', 'drilldown', filtro, limite, metrica, nivel, cliente, cnpj],
+    queryFn: () => buscarFaturasPorClienteTopClientesDrilldown(filtro, limite, metrica, nivel, cliente, cnpj),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
 export function useFaturasPorClienteStatusProcesso(filtro: FaturasPorClienteFiltro) {
   return useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: ['faturas-por-cliente', 'status-processo', filtro],
     queryFn: () => buscarFaturasPorClienteStatusProcesso(filtro),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useFaturasPorClienteStatusEvolucao(filtro: FaturasPorClienteFiltro, granularidade: FaturasPorClienteGranularidade) {
+  return useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
+    queryKey: ['faturas-por-cliente', 'status-processo', 'evolucao', filtro, granularidade],
+    queryFn: () => buscarFaturasPorClienteStatusEvolucao(filtro, granularidade),
     staleTime: STALE_TIME,
     retry: 1,
   });
