@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Funnel, Loader2, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
@@ -48,6 +48,7 @@ interface AnalyticalDataTableProps<T> {
   onSortChange?: (sortField: keyof T & string, sortDirection: SortDirection) => void;
   error?: unknown;
   errorFallbackMessage?: string;
+  acoesCabecalho?: ReactNode;
 }
 
 function useIsMobile() {
@@ -552,6 +553,7 @@ export default function AnalyticalDataTable<T>({
   onSortChange,
   error,
   errorFallbackMessage = 'Erro ao carregar tabela analítica.',
+  acoesCabecalho,
 }: AnalyticalDataTableProps<T>) {
   const hasError = Boolean(error);
   const isUpdating = Boolean(isFetching && !isLoading);
@@ -655,6 +657,7 @@ export default function AnalyticalDataTable<T>({
           >
             Limpar
           </button>
+          {acoesCabecalho}
           <label className="flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
             Linhas
             <select

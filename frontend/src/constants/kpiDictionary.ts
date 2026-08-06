@@ -802,30 +802,30 @@ export const KpiDictionary = {
       descricao: 'Quantidade total de registros de integração no período selecionado.',
       calculo: 'Soma do total de registros consolidados por sistema destino enviado pelo Satélite.',
       observacao:
-        'Indicador renderizado pelo Dashboard a partir da resposta consolidada do microsserviço Satélite.',
+        'Indicador renderizado pelo Dashboard a partir da resposta consolidada do microsserviço Satélite. Quando há filtro Integração, considera somente os destinos selecionados.',
     },
     taxaSucessoGlobal: {
-      titulo: 'Taxa de Sucesso Global',
-      descricao: 'Percentual global de registros com XML integrado com sucesso no período selecionado.',
-      calculo: 'Média ponderada do percentual de sucesso XML por sistema destino, usando o volume de cada destino como peso.',
+      titulo: 'Taxa de Sucesso Dados/Eventos',
+      descricao: 'Percentual global de registros com a etapa principal integrada com sucesso no período selecionado.',
+      calculo: 'Média ponderada do percentual de sucesso de dados/eventos por sistema destino, usando o volume de cada destino como peso.',
       observacao:
         'Os percentuais e volumes por destino são calculados pelo microsserviço Satélite. ' +
-        percentualSemBase,
+        `Quando há filtro Integração, considera somente os destinos selecionados. ${percentualSemBase}`,
     },
     taxaSucessoCanhotos: {
-      titulo: 'Taxa de Sucesso Canhotos',
-      descricao: 'Percentual global de canhotos integrados com sucesso no período selecionado.',
-      calculo: 'Média ponderada do percentual de sucesso de canhotos por sistema destino, usando o volume de cada destino como peso.',
+      titulo: 'Taxa de Sucesso Comprovantes/POD',
+      descricao: 'Percentual global de comprovantes integrados com sucesso no período selecionado.',
+      calculo: 'Média ponderada do percentual de sucesso de comprovantes/POD por sistema destino, usando o volume de cada destino como peso.',
       observacao:
         'Os percentuais e volumes por destino são calculados pelo microsserviço Satélite. ' +
-        percentualSemBase,
+        `Quando há filtro Integração, considera somente os destinos selecionados. ${percentualSemBase}`,
     },
     pendenciasErros: {
       titulo: 'Pendências',
       descricao: 'Quantidade de registros classificados como erro na evolução diária do período selecionado.',
       calculo: 'Soma dos erros diários enviados pelo endpoint de evolução diária do Satélite.',
       observacao:
-        'O agrupamento diário e a classificação de sucesso ou erro são calculados pelo microsserviço Satélite.',
+        'O agrupamento diário e a classificação de sucesso ou erro são calculados pelo microsserviço Satélite e respeitam os destinos selecionados no filtro Integração.',
     },
     taxaSucessoIntegracao: {
       titulo: 'Taxa de Sucesso da Integração',
@@ -872,7 +872,7 @@ export const KpiDictionary = {
       descricao: 'Comparação do volume integrado com sucesso e do volume remanescente por sistema destino.',
       calculo: 'Total de registros por destino × percentual de sucesso XML para sucessos; o restante compõe erros.',
       observacao:
-        'O total e o percentual de sucesso XML por destino são calculados pelo microsserviço Satélite.',
+        'O total e o percentual de sucesso XML por destino são calculados pelo microsserviço Satélite e respeitam os destinos selecionados no filtro Integração.',
     },
   },
 

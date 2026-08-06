@@ -3,12 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import type { EChartsOption } from 'echarts';
 import { Eye } from 'lucide-react';
 import ChartWrapper from '../components/charts/ChartWrapper';
+import AsyncMultiSelect from '../components/shared/AsyncMultiSelect';
 import { useEchartsTheme } from '../components/charts/useEchartsTheme';
 import QuarentenaErrosPanel from '../components/domain/integracoes/QuarentenaErrosPanel';
 import AnalyticalDataTable, {
   type ColunaTabelaAnalitica,
   type SortDirection,
 } from '../components/shared/AnalyticalDataTable';
+import ExportButton from '../components/shared/ExportButton';
 import CanhotoImagemModal from '../components/domain/integracoes/CanhotoImagemModal';
 import KpiCard from '../components/shared/KpiCard';
 import TooltipKpi from '../components/shared/TooltipKpi';
@@ -19,6 +21,7 @@ import MensagemErro from '../components/ui/MensagemErro';
 import {
   buscarIntegracoesAuditoria,
   buscarIntegracoesEvolucaoDiaria,
+  exportarIntegracoesCsv,
   type IntegracoesEscopo,
   type IntegracaoEvolucaoDiaria,
   type IntegracaoMetricaConsolidada,
@@ -32,6 +35,10 @@ import { useTabelaPaginadaState } from '../hooks/useTabelaPaginadaState';
 import { getApiErrorMessage, getTipoErro } from '../utils/apiError';
 import { buildBaseBarOption, buildBaseLineOption, getEchartsThemeTokens } from '../utils/echartsBuilders';
 import { formatarDataHora, formatarNumero, formatarPorcentagem } from '../utils/formatadores';
+import {
+  filtrarPorDestinosSelecionados,
+  respostaContemDestinoForaDaSelecao,
+} from '../utils/integracoesDestinoFilter';
 import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../utils/pollingUtils';
 import { combinarStatusOptions } from '../utils/tableStatusOptions';
 
@@ -40,6 +47,18 @@ const STATUS_PADRAO = ['SUCESSO', 'ERRO_DESTINO', 'PENDENTE_FOTO'];
 const EMPTY_METRICAS: IntegracaoMetricaConsolidada[] = [];
 const EMPTY_PENDENCIAS: IntegracaoPendencia[] = [];
 const EMPTY_EVOLUCAO_DIARIA: IntegracaoEvolucaoDiaria[] = [];
+const DESTINOS_GRAFICOS_INTEGRACOES: IntegracaoMetricaConsolidada[] = [
+  { sistemaDestino: 'PPG', totalRegistros: 0, percentualXmlSucesso: 0, percentualCanhotoSucesso: 0 },
+  { sistemaDestino: 'VEDACIT', totalRegistros: 0, percentualXmlSucesso: 0, percentualCanhotoSucesso: 0 },
+  {
+    sistemaDestino: 'SELIA',
+    totalRegistros: 0,
+    percentualXmlSucesso: 0,
+    percentualCanhotoSucesso: 0,
+    rotuloDados: 'AddEvents',
+    rotuloComprovante: 'POD/Comprovante',
+  },
+];
 type IntegracoesAba = IntegracoesEscopo | 'QUARENTENA';
 type IntegracoesEscopoPrincipal = 'INTEGRACOES' | 'QUARENTENA';
 type IntegracoesValorTone = 'text-positive' | 'text-warning' | 'text-negative';
@@ -61,6 +80,7 @@ const ABAS_STATUS_INTEGRACOES: { valor: IntegracoesEscopo; label: string }[] = [
   { valor: 'PENDENCIAS', label: 'Pendências Operacionais' },
   { valor: 'SUCESSO', label: 'Integrados com Sucesso' },
 ];
+const OPCOES_DESTINO_INTEGRACAO = ['PPG', 'VEDACIT', 'SELIA'];
 
 interface IntegracoesTableSort {
   field: keyof IntegracaoPendencia & string;
@@ -98,6 +118,21 @@ function renderStatus(valor: unknown) {
 function numeroSeguro(valor: unknown) {
   const numero = Number(valor);
   return Number.isFinite(numero) ? numero : 0;
+}
+
+function completarDestinosGraficos(metricas: IntegracaoMetricaConsolidada[], destinosSelecionados: string[]) {
+  const metricasSelecionadas = filtrarPorDestinosSelecionados(metricas, destinosSelecionados);
+  const destinosRetornados = new Set(
+    metricasSelecionadas.map((item) => item.sistemaDestino.trim().toUpperCase()),
+  );
+
+  return [
+    ...metricasSelecionadas,
+    ...DESTINOS_GRAFICOS_INTEGRACOES.filter((item) =>
+      (destinosSelecionados.length === 0 || destinosSelecionados.includes(item.sistemaDestino))
+      && !destinosRetornados.has(item.sistemaDestino),
+    ),
+  ];
 }
 
 function normalizarTooltipParams(params: unknown): TooltipParam[] {
@@ -150,6 +185,18 @@ function calcularSucessosPorPercentual(totalRegistros: number, percentual: numbe
   return Math.round(totalRegistros * Math.max(0, Math.min(percentual, 100)) / 100);
 }
 
+function rotuloEtapaDados(item: IntegracaoMetricaConsolidada) {
+  const rotulo = item.rotuloDados?.trim();
+  if (rotulo) return rotulo;
+  return item.sistemaDestino.trim().toUpperCase() === 'SELIA' ? 'AddEvents' : 'XML/Dados';
+}
+
+function rotuloEtapaComprovante(item: IntegracaoMetricaConsolidada) {
+  const rotulo = item.rotuloComprovante?.trim();
+  if (rotulo) return rotulo;
+  return item.sistemaDestino.trim().toUpperCase() === 'SELIA' ? 'POD/Comprovante' : 'Canhoto';
+}
+
 function buildResumoIntegracoesDados(metricas: IntegracaoMetricaConsolidada[]): ResumoTabelaIntegracao[] {
   return metricas
     .flatMap((item) => {
@@ -159,14 +206,14 @@ function buildResumoIntegracoesDados(metricas: IntegracaoMetricaConsolidada[]): 
 
       return [
         {
-          entidadeTabela: `${item.sistemaDestino} - XML/Dados`,
+          entidadeTabela: `${item.sistemaDestino} - ${rotuloEtapaDados(item)}`,
           totalProcessado: totalRegistros,
           totalSucesso: sucessoXml,
           totalErro: Math.max(totalRegistros - sucessoXml, 0),
           totalQuarentena: 0,
         },
         {
-          entidadeTabela: `${item.sistemaDestino} - Canhoto`,
+          entidadeTabela: `${item.sistemaDestino} - ${rotuloEtapaComprovante(item)}`,
           totalProcessado: totalRegistros,
           totalSucesso: sucessoCanhoto,
           totalErro: Math.max(totalRegistros - sucessoCanhoto, 0),
@@ -497,8 +544,8 @@ function criarColunas(
         </span>
       ),
     },
-    { chave: 'statusDados', label: 'Status XML', largura: '160px', filtroTabela: 'status', formato: renderStatus },
-    { chave: 'statusCanhoto', label: 'Status Comprovante', largura: '190px', filtroTabela: 'status', formato: renderStatus },
+    { chave: 'statusDados', label: 'Status Dados/Evento', largura: '160px', filtroTabela: 'status', formato: renderStatus },
+    { chave: 'statusCanhoto', label: 'Status Comprovante/POD', largura: '190px', filtroTabela: 'status', formato: renderStatus },
     { chave: 'dataProcessamento', label: 'Data de Processamento', largura: '210px', formato: formatarData },
     {
       chave: 'id',
@@ -583,7 +630,11 @@ export default function IntegracoesPage() {
   const [pendenciaCanhoto, setPendenciaCanhoto] = useState<IntegracaoPendencia | null>(null);
   const [abaSelecionada, setAbaSelecionada] = useState<IntegracoesAba>('PENDENCIAS');
   const [tableSort, setTableSort] = useState<IntegracoesTableSort | null>(null);
-  const { dataInicio, dataFim, setDataInicio, setDataFim, setDataRange } = useFiltro();
+  const { dataInicio, dataFim, filtros, setDataInicio, setDataFim, setDataRange, setFiltro } = useFiltro();
+  const destinosSelecionados = useMemo(
+    () => (filtros.integracao ?? []).filter((destino) => OPCOES_DESTINO_INTEGRACAO.includes(destino)),
+    [filtros.integracao],
+  );
   const { isDark } = useEchartsTheme();
   const filtrosTabela = useAnalyticalTableFilters();
   const escopoPrincipalSelecionado: IntegracoesEscopoPrincipal = abaSelecionada === 'QUARENTENA' ? 'QUARENTENA' : 'INTEGRACOES';
@@ -603,6 +654,7 @@ export default function IntegracoesPage() {
       tableSort,
       escopoPrincipalSelecionado,
       escopoTabelaSelecionado,
+      destinosSelecionados,
     ],
     queryFn: () => buscarIntegracoesAuditoria(
       paginacaoTabela.pagina,
@@ -613,6 +665,7 @@ export default function IntegracoesPage() {
       tableSort?.field,
       tableSort?.direction,
       escopoTabelaSelecionado,
+      destinosSelecionados,
     ),
     enabled: abaAuditoriaSelecionada,
     placeholderData: (previousData) => previousData,
@@ -622,8 +675,8 @@ export default function IntegracoesPage() {
 
   const evolucaoDiariaQuery = useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
-    queryKey: [...QUERY_KEY, 'evolucao-diaria', dataInicio, dataFim],
-    queryFn: () => buscarIntegracoesEvolucaoDiaria(dataInicio, dataFim),
+    queryKey: [...QUERY_KEY, 'evolucao-diaria', dataInicio, dataFim, destinosSelecionados],
+    queryFn: () => buscarIntegracoesEvolucaoDiaria(dataInicio, dataFim, undefined, destinosSelecionados),
     placeholderData: (previousData) => previousData,
     staleTime: 60 * 1000,
     retry: 1,
@@ -649,8 +702,21 @@ export default function IntegracoesPage() {
     updatedAt: integracoes.data?.geradoEm ?? null,
   });
 
-  const metricas = integracoes.data?.metricasConsolidadas ?? EMPTY_METRICAS;
-  const evolucaoDiaria = evolucaoDiariaQuery.data ?? EMPTY_EVOLUCAO_DIARIA;
+  const metricas = useMemo(
+    () => completarDestinosGraficos(integracoes.data?.metricasConsolidadas ?? EMPTY_METRICAS, destinosSelecionados),
+    [destinosSelecionados, integracoes.data?.metricasConsolidadas],
+  );
+  const sateliteIgnorouFiltroDestino = useMemo(
+    () => respostaContemDestinoForaDaSelecao(
+      integracoes.data?.metricasConsolidadas ?? EMPTY_METRICAS,
+      destinosSelecionados,
+      (metrica) => numeroSeguro(metrica.totalRegistros) > 0,
+    ),
+    [destinosSelecionados, integracoes.data?.metricasConsolidadas],
+  );
+  const evolucaoDiaria = sateliteIgnorouFiltroDestino
+    ? EMPTY_EVOLUCAO_DIARIA
+    : evolucaoDiariaQuery.data ?? EMPTY_EVOLUCAO_DIARIA;
   const resumoTabelasIntegracoes = useMemo(
     () => buildResumoIntegracoesDados(metricas),
     [metricas],
@@ -663,7 +729,12 @@ export default function IntegracoesPage() {
   const taxaSucessoGlobal = calcularTaxaPonderada(metricas, 'percentualXmlSucesso');
   const taxaSucessoCanhotos = calcularTaxaPonderada(metricas, 'percentualCanhotoSucesso');
   const totalPendencias = calcularTotalErros(evolucaoDiaria);
-  const pendencias = integracoes.data?.pendencias.itens ?? EMPTY_PENDENCIAS;
+  const pendencias = sateliteIgnorouFiltroDestino
+    ? EMPTY_PENDENCIAS
+    : integracoes.data?.pendencias.itens ?? EMPTY_PENDENCIAS;
+  const totalRegistrosTabela = sateliteIgnorouFiltroDestino
+    ? 0
+    : integracoes.data?.pendencias.paginacao.totalElementos;
   const tituloTabela = escopoTabelaSelecionado === 'PENDENCIAS'
     ? 'Pendências operacionais'
     : 'Integrados com sucesso';
@@ -727,6 +798,13 @@ export default function IntegracoesPage() {
           onDataFimChange={setDataFim}
           onRangeChange={setDataRange}
         />
+        <AsyncMultiSelect
+          label="Integração"
+          opcoes={OPCOES_DESTINO_INTEGRACAO}
+          selecionados={destinosSelecionados}
+          placeholder="Todos"
+          onChange={(destinos) => setFiltro('integracao', destinos)}
+        />
       </FilterBar>
 
       {abaAuditoriaSelecionada && integracoes.isError && (
@@ -736,8 +814,23 @@ export default function IntegracoesPage() {
         />
       )}
 
+      {abaAuditoriaSelecionada && sateliteIgnorouFiltroDestino && (
+        <section
+          role="alert"
+          className="mb-4 rounded-xl border px-4 py-3 text-sm"
+          style={{
+            backgroundColor: 'rgba(245, 158, 11, 0.10)',
+            borderColor: 'rgba(245, 158, 11, 0.35)',
+            color: 'var(--color-text)',
+          }}
+        >
+          O Satélite retornou destinos fora da seleção de Integração. Os dados foram ocultados para evitar
+          indicadores incorretos; atualize o processo do Satélite com o contrato de filtro por destino.
+        </section>
+      )}
+
       {abaSelecionada === 'QUARENTENA' ? (
-        <QuarentenaErrosPanel />
+        <QuarentenaErrosPanel destinosSelecionados={destinosSelecionados} />
       ) : (
         <>
           <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -751,20 +844,20 @@ export default function IntegracoesPage() {
             </TooltipKpi>
             <TooltipKpi kpiName="integracoes.taxaSucessoGlobal">
               <KpiCard
-                label="Sucesso Global"
+                label="Sucesso Dados/Eventos"
                 valor={formatarPercentual(taxaSucessoGlobal)}
                 valorClassName={valorClass(tomPercentual(taxaSucessoGlobal))}
                 metaLabel="Base"
-                metaValue="XML"
+                metaValue="Dados/Eventos"
               />
             </TooltipKpi>
             <TooltipKpi kpiName="integracoes.taxaSucessoCanhotos">
               <KpiCard
-                label="Sucesso Canhotos"
+                label="Sucesso Comprovantes/POD"
                 valor={formatarPercentual(taxaSucessoCanhotos)}
                 valorClassName={valorClass(tomPercentual(taxaSucessoCanhotos))}
                 metaLabel="Base"
-                metaValue="Canhotos"
+                metaValue="Comprovantes/POD"
               />
             </TooltipKpi>
             <TooltipKpi kpiName="integracoes.pendenciasErros">
@@ -900,7 +993,7 @@ export default function IntegracoesPage() {
             isFetching={integracoes.isFetching}
             error={integracoes.error}
             errorFallbackMessage={`Erro ao carregar ${tituloTabela.toLowerCase()}.`}
-            totalRegistros={integracoes.data?.pendencias.paginacao.totalElementos}
+            totalRegistros={totalRegistrosTabela}
             paginaAtual={paginacaoTabela.pagina}
             tamanhoPagina={paginacaoTabela.tamanhoPagina}
             onPaginaChange={paginacaoTabela.setPagina}
@@ -908,6 +1001,20 @@ export default function IntegracoesPage() {
             sortField={tableSort?.field}
             sortDirection={tableSort?.direction}
             onSortChange={(field, direction) => setTableSort({ field, direction })}
+            acoesCabecalho={(
+              <ExportButton
+                nomeArquivo={escopoTabelaSelecionado === 'SUCESSO' ? 'integracoes-sucesso' : 'integracoes-pendencias'}
+                onExport={() => exportarIntegracoesCsv(
+                  dataInicio,
+                  dataFim,
+                  filtrosTabela.apiFilters,
+                  tableSort?.field,
+                  tableSort?.direction,
+                  escopoTabelaSelecionado,
+                  destinosSelecionados,
+                )}
+              />
+            )}
           />
 
           <CanhotoImagemModal

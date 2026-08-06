@@ -45,7 +45,7 @@ const contasPagarBase = {
 
 const integracoesBase = {
   tabelasOrigem: 'Satélite TMS / endpoints de auditoria de integrações',
-  cruzamentos: 'Sem JOIN no Dashboard; dados consolidados no backend Satélite e repassados pelo proxy /api/painel/integracoes.',
+  cruzamentos: 'Sem JOIN no Dashboard; dados consolidados no backend Satélite e repassados pelo proxy /api/painel/integracoes. Quando selecionado, o filtro Integração é enviado como destino repetido e limita todas as métricas e séries aos destinos escolhidos.',
 } as const;
 
 export const chartDictionary = {
@@ -356,10 +356,10 @@ export const chartDictionary = {
     ...integracoesBase,
     descricao: 'Consolida o volume processado por etapa operacional de integração e destaca, em KPIs laterais, sucesso, erro, taxa e gargalos.',
     calculoTecnico:
-      'Leitura das métricas consolidadas do endpoint /api/auditoria/integracoes-clientes no Satélite; totalSucesso = ROUND(totalRegistros * percentualEtapa / 100) para XML/Dados e Canhoto; totalErro = totalRegistros - totalSucesso.',
+      'Leitura das métricas consolidadas do endpoint /api/auditoria/integracoes-clientes no Satélite; totalSucesso = ROUND(totalRegistros * percentualEtapa / 100) para as etapas retornadas por destino; totalErro = totalRegistros - totalSucesso.',
     calculoNegocio:
-      'Cada sistema destino vira duas etapas operacionais, XML/Dados e Canhoto. O gráfico horizontal mostra o volume total processado por etapa, enquanto os KPIs laterais resumem sucessos, erros/pendências, taxa de sucesso, maior volume e etapa crítica.',
-    agrupamento: 'Agrupado por sistema destino no Satélite e separado no frontend em XML/Dados e Canhoto.',
+      'Cada sistema destino vira duas etapas operacionais. Para PPG/Vedacit são XML/Dados e Canhoto; para SELIA são AddEvents e POD/Comprovante. O gráfico horizontal mostra o volume total processado por etapa, enquanto os KPIs laterais resumem sucessos, erros/pendências, taxa de sucesso, maior volume e etapa crítica.',
+    agrupamento: 'Agrupado por sistema destino no Satélite e separado no frontend conforme os rótulos de etapa retornados pelo contrato.',
   },
 
   cotacoesSerie: {

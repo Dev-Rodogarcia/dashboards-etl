@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { AxiosError } from 'axios';
+import { isAxiosError } from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { BarChart3, Eye, EyeOff, Loader2, Moon, ShieldCheck, Sun } from 'lucide-react';
@@ -16,7 +16,7 @@ interface TrocaSenhaObrigatoriaPendente {
 }
 
 function isPasswordResetRequiredError(error: unknown): boolean {
-  if (!(error instanceof AxiosError) || error.response?.status !== 428) {
+  if (!isAxiosError(error) || error.response?.status !== 428) {
     return false;
   }
 
@@ -24,15 +24,32 @@ function isPasswordResetRequiredError(error: unknown): boolean {
   return data?.status === 'PASSWORD_RESET_REQUIRED';
 }
 
+function obterTrocaSenhaObrigatoriaPendente(state: unknown): TrocaSenhaObrigatoriaPendente | null {
+  if (
+    !state
+    || typeof state !== 'object'
+    || !('email' in state)
+    || !('senhaTemporaria' in state)
+    || typeof state.email !== 'string'
+    || typeof state.senhaTemporaria !== 'string'
+  ) {
+    return null;
+  }
+
+  return {
+    email: state.email,
+    senhaTemporaria: state.senhaTemporaria,
+  };
+}
+
 export default function LoginPage() {
   const location = useLocation();
-  const trocaObrigatoriaInicial = location.state as TrocaSenhaObrigatoriaPendente | null;
+  const trocaObrigatoria = obterTrocaSenhaObrigatoriaPendente(location.state);
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [trocaObrigatoria, setTrocaObrigatoria] = useState<TrocaSenhaObrigatoriaPendente | null>(trocaObrigatoriaInicial);
   const [solicitandoRedefinicao, setSolicitandoRedefinicao] = useState(false);
   const [mensagemRedefinicao, setMensagemRedefinicao] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
@@ -107,7 +124,6 @@ export default function LoginPage() {
       setSenha('');
       setNovaSenha('');
       setConfirmacaoNovaSenha('');
-      setTrocaObrigatoria(null);
       navigate(firstAccessibleRoute({
         papel: resposta.usuario.papel,
         permissoesEfetivas: resposta.usuario.permissoesEfetivas,

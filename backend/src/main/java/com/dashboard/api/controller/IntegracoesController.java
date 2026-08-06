@@ -1,6 +1,10 @@
 package com.dashboard.api.controller;
 
 import com.dashboard.api.service.IntegracoesService;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -10,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequestMapping("/api/painel/integracoes")
@@ -44,16 +49,37 @@ public class IntegracoesController {
                 .body(respostaSatelite.getBody());
     }
 
+    @GetMapping(value = "/exportacao", produces = "text/csv")
+    public ResponseEntity<StreamingResponseBody> exportarIntegracoes(
+            @RequestParam String escopo,
+            @RequestParam(required = false) String dataInicial,
+            @RequestParam(required = false) String dataFinal,
+            @RequestParam MultiValueMap<String, String> params
+    ) {
+        StreamingResponseBody corpo = outputStream -> integracoesService.exportarIntegracoes(
+                params, escopo, dataInicial, dataFinal, outputStream
+        );
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename("integracoes.csv", StandardCharsets.UTF_8).build().toString()
+                )
+                .body(corpo);
+    }
+
     @GetMapping(value = "/evolucao-diaria", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> consultarEvolucaoDiaria(
             @RequestParam(required = false) String dataInicial,
             @RequestParam(required = false) String dataFinal,
-            @RequestParam(required = false) String escopo
+            @RequestParam(required = false) String escopo,
+            @RequestParam(required = false) List<String> destino
     ) {
         ResponseEntity<String> respostaSatelite = integracoesService.consultarEvolucaoDiaria(
                 dataInicial,
                 dataFinal,
-                escopo
+                escopo,
+                destino
         );
 
         return ResponseEntity
@@ -67,11 +93,11 @@ public class IntegracoesController {
     @GetMapping(value = "/resumo-tabelas", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> consultarResumoTabelas(
             @RequestParam(required = false) String dataInicial,
-            @RequestParam(required = false) String dataFinal
+            @RequestParam(required = false) String dataFinal,
+            @RequestParam(required = false) List<String> destino
     ) {
         ResponseEntity<String> respostaSatelite = integracoesService.consultarResumoTabelas(
-                dataInicial,
-                dataFinal
+                dataInicial, dataFinal, destino
         );
 
         return ResponseEntity

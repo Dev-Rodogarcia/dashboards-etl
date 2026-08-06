@@ -20,6 +20,14 @@ export function criarConfigDownloadCsv<T extends FiltroCsv>(filtro: T, filtrosTa
   };
 }
 
+export function criarConfigDownloadCsvComParametros(params: URLSearchParams) {
+  return {
+    params,
+    responseType: 'blob' as const,
+    timeout: API_DOWNLOAD_TIMEOUT_MS,
+  };
+}
+
 function normalizarHeader(header: unknown): string | undefined {
   if (Array.isArray(header)) {
     return header[0] == null ? undefined : String(header[0]);
@@ -94,7 +102,16 @@ export async function baixarCsv<T extends FiltroCsv>(
   nomeFallback: string,
   filtrosTabela?: TableApiFilters,
 ): Promise<void> {
-  const response = await clienteAxios.get<Blob>(endpoint, criarConfigDownloadCsv(filtro, filtrosTabela));
+  const params = criarConfigDownloadCsv(filtro, filtrosTabela).params;
+  await baixarCsvComParametros(endpoint, params, nomeFallback);
+}
+
+export async function baixarCsvComParametros(
+  endpoint: string,
+  params: URLSearchParams,
+  nomeFallback: string,
+): Promise<void> {
+  const response = await clienteAxios.get<Blob>(endpoint, criarConfigDownloadCsvComParametros(params));
   const contentDisposition = normalizarHeader(response.headers['content-disposition']);
   const contentType = normalizarHeader(response.headers['content-type']);
   const nomeArquivo = extrairNomeArquivo(contentDisposition, `${nomeFallback}.csv`);

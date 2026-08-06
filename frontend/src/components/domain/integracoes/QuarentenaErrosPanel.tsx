@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, Clock } from 'lucide-react';
 import DataTable, { type ColunaTabela } from '../../shared/DataTable';
+import ExportButton from '../../shared/ExportButton';
 import MensagemErro from '../../ui/MensagemErro';
 import {
   buscarErrosQuarentena,
+  exportarErrosQuarentenaCsv,
   type QuarentenaErroManual,
 } from '../../../api/endpoints/quarentenaServico';
 import { getApiErrorMessage, getTipoErro } from '../../../utils/apiError';
@@ -37,16 +39,29 @@ function formatarDataUltimaTentativa(valor: unknown) {
 
 function renderDestino(valor: unknown) {
   const destino = textoSeguro(valor);
-  const isVedacit = destino.toUpperCase() === 'VEDACIT';
+  const paletaPorDestino: Record<string, { backgroundColor: string; borderColor: string; color: string }> = {
+    VEDACIT: {
+      backgroundColor: 'rgba(249, 115, 22, 0.12)',
+      borderColor: 'rgba(249, 115, 22, 0.30)',
+      color: '#c2410c',
+    },
+    PPG: {
+      backgroundColor: 'rgba(33, 71, 138, 0.10)',
+      borderColor: 'rgba(33, 71, 138, 0.24)',
+      color: 'var(--color-primary)',
+    },
+    SELIA: {
+      backgroundColor: 'rgba(13, 148, 136, 0.12)',
+      borderColor: 'rgba(13, 148, 136, 0.30)',
+      color: '#0f766e',
+    },
+  };
+  const estilo = paletaPorDestino[destino.toUpperCase()] ?? paletaPorDestino.PPG;
 
   return (
     <span
       className="inline-flex rounded-full border px-2.5 py-1 text-xs font-bold"
-      style={{
-        backgroundColor: isVedacit ? 'rgba(249, 115, 22, 0.12)' : 'rgba(33, 71, 138, 0.10)',
-        borderColor: isVedacit ? 'rgba(249, 115, 22, 0.30)' : 'rgba(33, 71, 138, 0.24)',
-        color: isVedacit ? '#c2410c' : 'var(--color-primary)',
-      }}
+      style={estilo}
     >
       {destino}
     </span>
@@ -168,15 +183,19 @@ function QuarentenaEmptyState() {
   );
 }
 
-export default function QuarentenaErrosPanel() {
+interface QuarentenaErrosPanelProps {
+  destinosSelecionados: string[];
+}
+
+export default function QuarentenaErrosPanel({ destinosSelecionados }: QuarentenaErrosPanelProps) {
   const [pagina, setPagina] = useState(1);
   const [tamanhoPagina, setTamanhoPagina] = useState(100);
   const colunas = useMemo(() => criarColunas(), []);
 
   const quarentena = useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
-    queryKey: [...QUERY_KEY, pagina, tamanhoPagina],
-    queryFn: () => buscarErrosQuarentena(pagina, tamanhoPagina),
+    queryKey: [...QUERY_KEY, pagina, tamanhoPagina, destinosSelecionados],
+    queryFn: () => buscarErrosQuarentena(pagina, tamanhoPagina, destinosSelecionados),
     placeholderData: (previousData) => previousData,
     staleTime: 60 * 1000,
     retry: 1,
@@ -185,6 +204,14 @@ export default function QuarentenaErrosPanel() {
   const erros = quarentena.data?.content ?? EMPTY_ERROS;
   const totalErros = quarentena.data?.totalElements ?? 0;
   const possuiErros = totalErros > 0;
+  const escopoDestinos = useMemo(() => {
+    const destinos = Array.from(new Set(erros
+      .map((erro) => textoSeguro(erro.destino, ''))
+      .filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b));
+    if (destinos.length > 0) return destinos.join(' / ');
+    return destinosSelecionados.length > 0 ? destinosSelecionados.join(' / ') : 'PPG / Vedacit / SELIA';
+  }, [destinosSelecionados, erros]);
 
   function alterarTamanhoPagina(proximoTamanho: number) {
     setTamanhoPagina(proximoTamanho);
@@ -270,7 +297,7 @@ export default function QuarentenaErrosPanel() {
           </div>
           <div>
             <p className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Escopo</p>
-            <p className="mt-1 text-sm font-bold" style={{ color: 'var(--color-text)' }}>Vedacit / PPG</p>
+            <p className="mt-1 text-sm font-bold" style={{ color: 'var(--color-text)' }}>{escopoDestinos}</p>
           </div>
           <div>
             <p className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Remoção da lista</p>
@@ -302,6 +329,12 @@ export default function QuarentenaErrosPanel() {
           tamanhoPagina={tamanhoPagina}
           onPaginaChange={setPagina}
           onTamanhoPaginaChange={alterarTamanhoPagina}
+          acoesCabecalho={(
+            <ExportButton
+              nomeArquivo="quarentena-integracoes"
+              onExport={() => exportarErrosQuarentenaCsv(destinosSelecionados)}
+            />
+          )}
         />
       )}
     </div>
