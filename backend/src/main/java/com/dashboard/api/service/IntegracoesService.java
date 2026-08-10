@@ -56,6 +56,20 @@ public class IntegracoesService {
         return integracaoSateliteClient.buscarErrosQuarentena(pagina, tamanho, destinos);
     }
 
+    public ResponseEntity<String> consultarHistoricoQuarentena(
+            Integer pagina, Integer tamanho, String dataInicial, String dataFinal, List<String> destinos
+    ) {
+        return integracaoSateliteClient.buscarHistoricoQuarentena(
+                pagina, tamanho, dataInicial, dataFinal, destinos
+        );
+    }
+
+    public void exportarHistoricoQuarentena(
+            String dataInicial, String dataFinal, List<String> destinos, OutputStream outputStream
+    ) {
+        integracaoSateliteClient.exportarHistoricoQuarentena(dataInicial, dataFinal, destinos, outputStream);
+    }
+
     public void exportarErrosQuarentena(List<String> destinos, OutputStream outputStream) {
         integracaoSateliteClient.exportarErrosQuarentena(destinos, outputStream);
     }

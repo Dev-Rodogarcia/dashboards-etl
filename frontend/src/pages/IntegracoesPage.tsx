@@ -783,12 +783,42 @@ export default function IntegracoesPage() {
         dataInicio={dataInicio}
         dataFim={dataFim}
         actions={(
-          <SegmentedTabs
-            ariaLabel="Escopo principal de integrações"
-            options={ABAS_ESCOPO_INTEGRACOES}
-            selected={escopoPrincipalSelecionado}
-            onChange={selecionarEscopo}
-          />
+          <div className="flex items-center gap-2">
+            <SegmentedTabs
+              ariaLabel="Escopo principal de integrações"
+              options={ABAS_ESCOPO_INTEGRACOES}
+              selected={escopoPrincipalSelecionado}
+              onChange={selecionarEscopo}
+            />
+            {abaSelecionada === 'QUARENTENA' && (
+              <div className="flex items-center gap-1 rounded-lg border p-1" style={{ borderColor: 'var(--color-border)' }}>
+                {[
+                  { label: 'Todos', valor: null },
+                  { label: 'Vedacit', valor: 'VEDACIT' },
+                  { label: 'PPG', valor: 'PPG' },
+                  { label: 'SELIA', valor: 'SELIA' },
+                ].map((opcao) => {
+                  const ativo = opcao.valor === null
+                    ? destinosSelecionados.length === 0
+                    : destinosSelecionados.length === 1 && destinosSelecionados[0] === opcao.valor;
+                  return (
+                    <button
+                      key={opcao.label}
+                      type="button"
+                      onClick={() => setFiltro('integracao', opcao.valor ? [opcao.valor] : [])}
+                      className="rounded-md px-2 py-1 text-xs font-bold"
+                      style={{
+                        color: ativo ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                        backgroundColor: ativo ? 'rgba(33, 71, 138, 0.12)' : 'transparent',
+                      }}
+                    >
+                      {opcao.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
       >
         <DateRangePicker
@@ -798,13 +828,15 @@ export default function IntegracoesPage() {
           onDataFimChange={setDataFim}
           onRangeChange={setDataRange}
         />
-        <AsyncMultiSelect
-          label="Integração"
-          opcoes={OPCOES_DESTINO_INTEGRACAO}
-          selecionados={destinosSelecionados}
-          placeholder="Todos"
-          onChange={(destinos) => setFiltro('integracao', destinos)}
-        />
+        {abaSelecionada !== 'QUARENTENA' && (
+          <AsyncMultiSelect
+            label="Integração"
+            opcoes={OPCOES_DESTINO_INTEGRACAO}
+            selecionados={destinosSelecionados}
+            placeholder="Todos"
+            onChange={(destinos) => setFiltro('integracao', destinos)}
+          />
+        )}
       </FilterBar>
 
       {abaAuditoriaSelecionada && integracoes.isError && (
@@ -830,7 +862,11 @@ export default function IntegracoesPage() {
       )}
 
       {abaSelecionada === 'QUARENTENA' ? (
-        <QuarentenaErrosPanel destinosSelecionados={destinosSelecionados} />
+        <QuarentenaErrosPanel
+          destinosSelecionados={destinosSelecionados}
+          dataInicial={dataInicio}
+          dataFinal={dataFim}
+        />
       ) : (
         <>
           <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

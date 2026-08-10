@@ -31,6 +31,8 @@ public class IntegracaoSateliteClient {
     private static final String ROTA_IMAGEM_LOG = "/api/auditoria/logs/{id}/imagem";
     private static final String ROTA_QUARENTENA_ERROS = "/api/etl/quarentena/erros";
     private static final String ROTA_QUARENTENA_ERROS_EXPORTACAO = ROTA_QUARENTENA_ERROS + "/exportacao";
+    private static final String ROTA_QUARENTENA_HISTORICO = "/api/etl/quarentena/historico";
+    private static final String ROTA_QUARENTENA_HISTORICO_EXPORTACAO = ROTA_QUARENTENA_HISTORICO + "/exportacao";
 
     private final RestTemplate restTemplate;
     private final String sateliteBaseUrl;
@@ -181,6 +183,32 @@ public class IntegracaoSateliteClient {
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
         return restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+    }
+
+    public ResponseEntity<String> buscarHistoricoQuarentena(
+            Integer pagina, Integer tamanho, String dataInicial, String dataFinal, List<String> destinos
+    ) {
+        MultiValueMap<String, String> parametros = new LinkedMultiValueMap<>();
+        if (pagina != null) parametros.set("pagina", String.valueOf(Math.max(0, pagina)));
+        if (tamanho != null) parametros.set("tamanho", String.valueOf(Math.max(1, Math.min(tamanho, 500))));
+        adicionarParametroOpcional(parametros, "dataInicial", dataInicial);
+        adicionarParametroOpcional(parametros, "dataFinal", dataFinal);
+        if (destinos != null && !destinos.isEmpty()) parametros.put("destino", destinos);
+        URI uri = UriComponentsBuilder.fromUriString(sateliteBaseUrl + ROTA_QUARENTENA_HISTORICO)
+                .queryParams(parametros).build().encode().toUri();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        return restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+    }
+
+    public void exportarHistoricoQuarentena(
+            String dataInicial, String dataFinal, List<String> destinos, OutputStream outputStream
+    ) {
+        MultiValueMap<String, String> parametros = new LinkedMultiValueMap<>();
+        adicionarParametroOpcional(parametros, "dataInicial", dataInicial);
+        adicionarParametroOpcional(parametros, "dataFinal", dataFinal);
+        if (destinos != null && !destinos.isEmpty()) parametros.put("destino", destinos);
+        executarExportacao(ROTA_QUARENTENA_HISTORICO_EXPORTACAO, parametros, outputStream);
     }
 
     public void exportarErrosQuarentena(List<String> destinos, OutputStream outputStream) {

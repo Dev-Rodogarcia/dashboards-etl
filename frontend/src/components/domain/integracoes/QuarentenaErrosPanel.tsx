@@ -6,8 +6,11 @@ import ExportButton from '../../shared/ExportButton';
 import MensagemErro from '../../ui/MensagemErro';
 import {
   buscarErrosQuarentena,
+  buscarHistoricoRepescagens,
   exportarErrosQuarentenaCsv,
+  exportarHistoricoRepescagensCsv,
   type QuarentenaErroManual,
+  type QuarentenaHistoricoRepescagem,
 } from '../../../api/endpoints/quarentenaServico';
 import { getApiErrorMessage, getTipoErro } from '../../../utils/apiError';
 import { formatarDataHora, formatarNumero } from '../../../utils/formatadores';
@@ -15,6 +18,7 @@ import { OPERATIONAL_QUERY_POLLING_OPTIONS } from '../../../utils/pollingUtils';
 
 const QUERY_KEY = ['quarentena-erros'];
 const EMPTY_ERROS: QuarentenaErroManual[] = [];
+const EMPTY_HISTORICO: QuarentenaHistoricoRepescagem[] = [];
 
 function textoSeguro(valor: unknown, fallback = '-') {
   return typeof valor === 'string' && valor.trim() ? valor : fallback;
@@ -88,7 +92,7 @@ function ErroLimpoCell({ erro }: { erro: string }) {
 
   return (
     <div
-      className="max-w-[640px] rounded-lg border px-3 py-2"
+      className="max-w-[640px] rounded-md border px-2.5 py-1.5"
       title={erro}
       style={{
         backgroundColor: 'rgba(249, 115, 22, 0.12)',
@@ -98,7 +102,7 @@ function ErroLimpoCell({ erro }: { erro: string }) {
     >
       <div className={expanded ? 'block' : 'flex min-w-0 items-center gap-2'}>
         <span
-          className={`block min-w-0 cursor-help text-sm font-semibold leading-relaxed ${expanded ? 'max-h-32 overflow-y-auto pr-1' : 'flex-1'}`}
+          className={`block min-w-0 cursor-help text-xs font-semibold leading-snug ${expanded ? 'max-h-28 overflow-y-auto pr-1' : 'flex-1'}`}
           style={expanded
             ? { whiteSpace: 'normal' }
             : {
@@ -153,6 +157,18 @@ function criarColunas(): ColunaTabela<QuarentenaErroManual>[] {
   ];
 }
 
+function criarColunasHistorico(): ColunaTabela<QuarentenaHistoricoRepescagem>[] {
+  return [
+    { chave: 'destino', label: 'Destino', largura: '130px', formato: renderDestino, ordenavel: false },
+    { chave: 'numeroNf', label: 'NF', largura: '110px', formato: formatarNumeroNf, ordenavel: false },
+    { chave: 'etapa', label: 'Etapa', largura: '180px', ordenavel: false },
+    { chave: 'resultado', label: 'Resultado', largura: '150px', ordenavel: false },
+    { chave: 'entradaQuarentenaEm', label: 'Entrou em quarentena', largura: '190px', formato: formatarDataUltimaTentativa, ordenavel: false },
+    { chave: 'reprocessadoEm', label: 'Última repescagem', largura: '190px', formato: formatarDataUltimaTentativa, ordenavel: false },
+    { chave: 'motivo', label: 'Motivo', largura: '460px', formato: renderErroLimpo, ordenavel: false },
+  ];
+}
+
 function QuarentenaEmptyState() {
   return (
     <section
@@ -185,17 +201,32 @@ function QuarentenaEmptyState() {
 
 interface QuarentenaErrosPanelProps {
   destinosSelecionados: string[];
+  dataInicial: string;
+  dataFinal: string;
 }
 
-export default function QuarentenaErrosPanel({ destinosSelecionados }: QuarentenaErrosPanelProps) {
+export default function QuarentenaErrosPanel({
+  destinosSelecionados, dataInicial, dataFinal,
+}: QuarentenaErrosPanelProps) {
   const [pagina, setPagina] = useState(1);
-  const [tamanhoPagina, setTamanhoPagina] = useState(100);
+  const [tamanhoPagina, setTamanhoPagina] = useState(10);
+  const [paginaHistorico, setPaginaHistorico] = useState(1);
   const colunas = useMemo(() => criarColunas(), []);
+  const colunasHistorico = useMemo(() => criarColunasHistorico(), []);
 
   const quarentena = useQuery({
     ...OPERATIONAL_QUERY_POLLING_OPTIONS,
     queryKey: [...QUERY_KEY, pagina, tamanhoPagina, destinosSelecionados],
     queryFn: () => buscarErrosQuarentena(pagina, tamanhoPagina, destinosSelecionados),
+    placeholderData: (previousData) => previousData,
+    staleTime: 60 * 1000,
+    retry: 1,
+  });
+
+  const historico = useQuery({
+    ...OPERATIONAL_QUERY_POLLING_OPTIONS,
+    queryKey: ['quarentena-historico', paginaHistorico, destinosSelecionados, dataInicial, dataFinal],
+    queryFn: () => buscarHistoricoRepescagens(paginaHistorico, tamanhoPagina, dataInicial, dataFinal, destinosSelecionados),
     placeholderData: (previousData) => previousData,
     staleTime: 60 * 1000,
     retry: 1,
@@ -227,16 +258,16 @@ export default function QuarentenaErrosPanel({ destinosSelecionados }: Quarenten
         }}
       >
         <div
-          className="border-b px-5 py-4"
+          className="border-b px-5 py-3"
           style={{
             backgroundColor: possuiErros ? 'rgba(249, 115, 22, 0.10)' : 'rgba(22, 163, 74, 0.08)',
             borderColor: possuiErros ? 'rgba(249, 115, 22, 0.25)' : 'rgba(22, 163, 74, 0.20)',
           }}
         >
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-start gap-3">
               <span
-                className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border"
+                className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border"
                 style={{
                   backgroundColor: possuiErros ? 'rgba(249, 115, 22, 0.16)' : 'rgba(22, 163, 74, 0.12)',
                   borderColor: possuiErros ? 'rgba(249, 115, 22, 0.30)' : 'rgba(22, 163, 74, 0.26)',
@@ -249,10 +280,10 @@ export default function QuarentenaErrosPanel({ destinosSelecionados }: Quarenten
                 <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: possuiErros ? '#c2410c' : 'var(--color-positive-text)' }}>
                   {possuiErros ? 'Ação manual requerida' : 'Tudo limpo no momento'}
                 </p>
-                <h2 className="mt-1 text-xl font-bold" style={{ color: 'var(--color-text)' }}>
+                <h2 className="mt-0.5 text-lg font-bold" style={{ color: 'var(--color-text)' }}>
                   {possuiErros ? `${formatarNumero(totalErros)} nota(s) em quarentena` : 'Nenhuma nota em quarentena'}
                 </h2>
-                <p className="mt-1 max-w-3xl text-sm leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+                <p className="mt-0.5 max-w-3xl text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
                   Esses itens já passaram pelas tentativas automáticas e pela repescagem lenta. Corrija o dado de origem
                   ou bloqueio de negócio indicado em “Ação necessária” e aguarde o próximo ciclo do ETL.
                 </p>
@@ -288,21 +319,10 @@ export default function QuarentenaErrosPanel({ destinosSelecionados }: Quarenten
           </div>
         </div>
 
-        <div className="grid gap-3 px-5 py-4 sm:grid-cols-3">
-          <div>
-            <p className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Estado</p>
-            <p className="mt-1 text-sm font-bold" style={{ color: possuiErros ? '#c2410c' : 'var(--color-positive-text)' }}>
-              {possuiErros ? 'Intervenção humana' : 'Fila limpa'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Escopo</p>
-            <p className="mt-1 text-sm font-bold" style={{ color: 'var(--color-text)' }}>{escopoDestinos}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Remoção da lista</p>
-            <p className="mt-1 text-sm font-bold" style={{ color: 'var(--color-text)' }}>Automática após sucesso</p>
-          </div>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 px-5 py-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          <span>Estado: <strong style={{ color: possuiErros ? '#c2410c' : 'var(--color-positive-text)' }}>{possuiErros ? 'Intervenção humana' : 'Fila limpa'}</strong></span>
+          <span>Escopo: <strong style={{ color: 'var(--color-text)' }}>{escopoDestinos}</strong></span>
+          <span>Remoção: <strong style={{ color: 'var(--color-text)' }}>Automática após sucesso</strong></span>
         </div>
       </section>
 
@@ -337,6 +357,27 @@ export default function QuarentenaErrosPanel({ destinosSelecionados }: Quarenten
           )}
         />
       )}
+
+      <DataTable
+        titulo="Histórico de repescagens"
+        dados={historico.data?.content ?? EMPTY_HISTORICO}
+        colunas={colunasHistorico}
+        chaveLinha="id"
+        isLoading={historico.isLoading}
+        error={historico.error}
+        errorFallbackMessage="Erro ao carregar o histórico de repescagens."
+        totalRegistros={historico.data?.totalElements ?? 0}
+        paginaAtual={paginaHistorico}
+        tamanhoPagina={tamanhoPagina}
+        onPaginaChange={setPaginaHistorico}
+        onTamanhoPaginaChange={alterarTamanhoPagina}
+        acoesCabecalho={(
+          <ExportButton
+            nomeArquivo="historico-repescagens-integracoes"
+            onExport={() => exportarHistoricoRepescagensCsv(dataInicial, dataFinal, destinosSelecionados)}
+          />
+        )}
+      />
     </div>
   );
 }

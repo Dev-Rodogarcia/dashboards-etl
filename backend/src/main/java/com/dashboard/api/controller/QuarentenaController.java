@@ -41,6 +41,38 @@ public class QuarentenaController {
                 .body(respostaSatelite.getBody());
     }
 
+    @GetMapping(value = "/historico", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> listarHistorico(
+            @RequestParam(defaultValue = "0") Integer pagina,
+            @RequestParam(defaultValue = "100") Integer tamanho,
+            @RequestParam(required = false) String dataInicial,
+            @RequestParam(required = false) String dataFinal,
+            @RequestParam(required = false) List<String> destino
+    ) {
+        ResponseEntity<String> respostaSatelite = integracoesService.consultarHistoricoQuarentena(
+                pagina, tamanho, dataInicial, dataFinal, destino
+        );
+        return ResponseEntity.status(respostaSatelite.getStatusCode())
+                .contentType(respostaSatelite.getHeaders().getContentType() != null
+                        ? respostaSatelite.getHeaders().getContentType() : MediaType.APPLICATION_JSON)
+                .body(respostaSatelite.getBody());
+    }
+
+    @GetMapping(value = "/historico/exportacao", produces = "text/csv")
+    public ResponseEntity<StreamingResponseBody> exportarHistorico(
+            @RequestParam(required = false) String dataInicial,
+            @RequestParam(required = false) String dataFinal,
+            @RequestParam(required = false) List<String> destino
+    ) {
+        StreamingResponseBody corpo = outputStream -> integracoesService.exportarHistoricoQuarentena(
+                dataInicial, dataFinal, destino, outputStream
+        );
+        return ResponseEntity.ok().contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("historico-repescagens-integracoes.csv", StandardCharsets.UTF_8).build().toString())
+                .body(corpo);
+    }
+
     @GetMapping(value = "/erros/exportacao", produces = "text/csv")
     public ResponseEntity<StreamingResponseBody> exportarErrosManuais(
             @RequestParam(required = false) List<String> destino
