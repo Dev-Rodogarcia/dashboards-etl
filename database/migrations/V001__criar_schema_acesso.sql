@@ -6,6 +6,17 @@
 CREATE SCHEMA acesso;
 GO
 
+CREATE TABLE acesso.rate_limit_buckets (
+    chave             VARCHAR(300) NOT NULL CONSTRAINT PK_rate_limit_buckets PRIMARY KEY,
+    total_na_janela   INT NOT NULL CONSTRAINT CK_rate_limit_buckets_total_positivo CHECK (total_na_janela >= 0),
+    expira_em         DATETIME2(3) NOT NULL,
+    atualizado_em     DATETIME2(3) NOT NULL CONSTRAINT DF_rate_limit_buckets_atualizado DEFAULT SYSUTCDATETIME()
+);
+
+CREATE INDEX IX_rate_limit_buckets_expira_em
+    ON acesso.rate_limit_buckets (expira_em);
+GO
+
 -- -------------------------------------------------------------
 -- SETORES (departamentos / areas de negocio)
 -- -------------------------------------------------------------

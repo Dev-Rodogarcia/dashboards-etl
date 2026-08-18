@@ -2,6 +2,7 @@ package com.dashboard.api.security;
 
 import com.dashboard.api.model.acesso.AcaoAudit;
 import com.dashboard.api.service.acesso.AuditService;
+import com.dashboard.api.support.FakeRateLimitBucketStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletResponse;
@@ -58,6 +59,20 @@ class FiltroRateLimitApiTest {
     }
 
     @Test
+    void rotasDistintasUsamBucketsDistintosParaMesmoUsuario() throws Exception {
+        FiltroRateLimitApi filtro = filtroComLimite(1, 10);
+        autenticar("gestor@empresa.com");
+
+        MockHttpServletResponse fretes = executar(filtro, "/api/painel/fretes/tabela");
+        MockHttpServletResponse cotacoes = executar(filtro, "/api/painel/cotacoes/overview");
+        MockHttpServletResponse fretesBloqueado = executar(filtro, "/api/painel/fretes/tabela");
+
+        assertThat(fretes.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
+        assertThat(cotacoes.getStatus()).isEqualTo(HttpServletResponse.SC_NO_CONTENT);
+        assertThat(fretesBloqueado.getStatus()).isEqualTo(429);
+    }
+
+    @Test
     void limitaEndpointsDeMetasKpi() throws Exception {
         FiltroRateLimitApi filtro = filtroComLimite(1, 10);
         autenticar("gestor@empresa.com");
@@ -111,7 +126,7 @@ class FiltroRateLimitApiTest {
     }
 
     private FiltroRateLimitApi filtroComLimite(int apiMaxRequests, int exportMaxRequests) {
-        RateLimitService rateLimitService = new RateLimitService(
+        RateLimitService rateLimitService = new RateLimitService(new FakeRateLimitBucketStore(),
                 10,
                 900,
                 apiMaxRequests,

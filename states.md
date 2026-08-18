@@ -147,7 +147,7 @@
 - A lista exibida no hover de "Usuários Online Agora" é derivada de `usuariosOnlineDetalhes` do resumo de sessões e considera `ultima_atividade >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET())`; o tempo exibido é uma formatação amigável de `Date.now() - ultimaAtividade`, com fallback seguro quando o pulso não tem data válida.
 - Política de senha: mínimo 12 caracteres, com maiúscula, minúscula, número e símbolo; hashes novos usam Argon2id, com upgrade de hash legado quando aplicável.
 - Login bloqueia após 5 falhas por 15 minutos; troca de senha revoga todos os refresh tokens do usuário.
-- Rate limit separa login, API geral e exportação; `/api/interno/**` exige `X-API-KEY`.
+- Rate limit separa login, API geral, exportação e redefinição de senha; os contadores ficam compartilhados no banco `DASHBOARDS` em `acesso.rate_limit_buckets`, com lock serializável por chave, expiração indexada e sem confiar em `X-Forwarded-For` fora da origem Cloudflare validada. `/api/interno/**` exige `X-API-KEY`.
 - A API Spring emite headers defensivos por `SegurancaWebConfig`: CSP restritivo para respostas da API, HSTS, `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy` e cache-control padrão do Spring Security.
 - CORS de produção aceita somente origens públicas HTTPS; origens locais em produção e mistura de origem local com pública causam falha de startup. A política de `/api/**` permite `GET`, `POST`, `PUT`, `PATCH`, `DELETE` e `OPTIONS`, incluindo o preflight das ações administrativas de solicitação na Home.
 - Metas de fretes: branch `GLOBAL` é `NULL`, ano 2000-2100, mês 1-12 e meta não negativa; replicação só ocorre se destino estiver vazio e origem tiver metas.
@@ -179,3 +179,5 @@
 - É proibido incluir saudações, conclusões, explicações fora dos bullets ou reescrever outras seções durante a resposta de planejamento.
 
 ## Tarefas Pendentes
+
+- [ ] [Média / Código] Em `backend/src/main/java/com/dashboard/api/client/IntegracaoSateliteClient.java`, `backend/src/main/java/com/dashboard/api/service/IntegracoesService.java` e contratos DTO correspondentes, exibir no módulo de Integrações apenas os agregados de consumo e bloqueios fornecidos pelo Satélite, com janela horária/diária, sem requisitar a ESL pelo Dashboard. Criar tratamento de indisponibilidade e teste do cliente interno para que a tela não gere chamadas upstream adicionais.

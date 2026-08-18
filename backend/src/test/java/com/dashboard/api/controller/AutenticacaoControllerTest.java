@@ -43,7 +43,7 @@ class AutenticacaoControllerTest {
     void loginDeveRetornarMensagemExataDaFalhaDeCredencial() {
         AutenticacaoController controller = new AutenticacaoController(
                 new StubAutenticacaoService(),
-                new RateLimitService(10, 900, 120, 60, 12, 60),
+                new RateLimitService(new com.dashboard.api.support.FakeRateLimitBucketStore(), 10, 900, 120, 60, 12, 60),
                 new RefreshTokenService(mock(RefreshTokenSessionRepository.class), 30),
                 new IpClienteResolver(false),
                 "dashboard_refresh_token",
@@ -67,7 +67,7 @@ class AutenticacaoControllerTest {
     void loginDefineCookiePersistenteComMaxAgeDaSessao() {
         AutenticacaoController controller = new AutenticacaoController(
                 new StubAutenticacaoServiceSucesso(),
-                new RateLimitService(10, 900, 120, 60, 12, 60),
+                new RateLimitService(new com.dashboard.api.support.FakeRateLimitBucketStore(), 10, 900, 120, 60, 12, 60),
                 new RefreshTokenService(mock(RefreshTokenSessionRepository.class), 24),
                 new IpClienteResolver(false),
                 "dashboard_refresh_token",
@@ -98,7 +98,7 @@ class AutenticacaoControllerTest {
     void loginPermiteCookieCrossSiteQuandoSameSiteNoneEstaSeguro() {
         AutenticacaoController controller = new AutenticacaoController(
                 new StubAutenticacaoServiceSucesso(),
-                new RateLimitService(10, 900, 120, 60, 12, 60),
+                new RateLimitService(new com.dashboard.api.support.FakeRateLimitBucketStore(), 10, 900, 120, 60, 12, 60),
                 new RefreshTokenService(mock(RefreshTokenSessionRepository.class), 24),
                 new IpClienteResolver(false),
                 "dashboard_refresh_token",
@@ -121,7 +121,7 @@ class AutenticacaoControllerTest {
     void loginComTrocaObrigatoriaNaoEmiteSessao() {
         AutenticacaoController controller = new AutenticacaoController(
                 new StubAutenticacaoServiceTrocaObrigatoria(),
-                new RateLimitService(10, 900, 120, 60, 12, 60),
+                new RateLimitService(new com.dashboard.api.support.FakeRateLimitBucketStore(), 10, 900, 120, 60, 12, 60),
                 new RefreshTokenService(mock(RefreshTokenSessionRepository.class), 24),
                 new IpClienteResolver(false),
                 "dashboard_refresh_token",
@@ -143,7 +143,7 @@ class AutenticacaoControllerTest {
     void configuracaoCrossSiteSemSecureFalhaNoStartup() {
         assertThatThrownBy(() -> new AutenticacaoController(
                 new StubAutenticacaoServiceSucesso(),
-                new RateLimitService(10, 900, 120, 60, 12, 60),
+                new RateLimitService(new com.dashboard.api.support.FakeRateLimitBucketStore(), 10, 900, 120, 60, 12, 60),
                 new RefreshTokenService(mock(RefreshTokenSessionRepository.class), 24),
                 new IpClienteResolver(false),
                 "dashboard_refresh_token",

@@ -75,7 +75,7 @@ public class FiltroRateLimitApi extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
         String principal = principalAtual();
-        String identificador = ipClienteResolver.resolver(request) + ":" + principal;
+        String identificador = request.getRequestURI() + ":" + ipClienteResolver.resolver(request) + ":" + principal;
         boolean exportacao = ehExportacao(request.getRequestURI());
         RateLimitService.RateLimitDecision decisao = exportacao
                 ? rateLimitService.consumirExportacao(identificador)
