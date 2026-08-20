@@ -78,7 +78,14 @@ export default function FilterBar({
 }: FilterBarProps) {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
+  const [isPresentationMode, setIsPresentationMode] = useState(() => document.body.dataset.presentationMode === 'true');
   const panelId = useId();
+
+  useEffect(() => {
+    const atualizarModoApresentacao = () => setIsPresentationMode(document.body.dataset.presentationMode === 'true');
+    window.addEventListener('dashboard:presentation-mode-change', atualizarModoApresentacao);
+    return () => window.removeEventListener('dashboard:presentation-mode-change', atualizarModoApresentacao);
+  }, []);
 
   // Scroll lock quando drawer mobile está aberto
   useEffect(() => {
@@ -97,8 +104,8 @@ export default function FilterBar({
   // ── barra recolhida (sempre visível) ──────────────────────────────
   const collapsedBar = (
     <div
-      className="flex h-12 items-center gap-3 rounded-[20px] border px-4 shadow-sm"
-      style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+      className={`flex items-center border shadow-sm ${isPresentationMode ? 'h-8 gap-1.5 rounded-none border-0 bg-transparent px-0 shadow-none' : 'h-12 gap-3 rounded-[20px] px-4'}`}
+      style={{ backgroundColor: isPresentationMode ? 'transparent' : 'var(--color-card)', borderColor: 'var(--color-border)' }}
     >
       {/* Data compacta */}
       {showDate && (
@@ -126,9 +133,9 @@ export default function FilterBar({
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-controls={panelId}
-          className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium
+          className={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg font-medium
                      transition-all duration-150 hover:bg-[var(--color-bg)] active:scale-[0.97]
-                     focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                     focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] ${isPresentationMode ? 'px-1.5 py-1 text-xs' : 'px-2.5 py-1.5 text-sm'}`}
           style={{ color: 'var(--color-text)' }}
         >
           <SlidersHorizontal size={14} aria-hidden="true" />
@@ -149,14 +156,14 @@ export default function FilterBar({
       )}
 
       {actions ? (
-        <div className="flex shrink-0 items-center gap-2 overflow-hidden p-1">
+        <div className={`flex shrink-0 items-center gap-2 overflow-hidden ${isPresentationMode ? 'p-0' : 'p-1'}`}>
           {actions}
         </div>
       ) : null}
 
       {/* Chips de filtros ativos — somente desktop */}
       {hasActive && (
-        <div className="hidden min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:flex" aria-label="Filtros ativos">
+          <div className={`min-w-0 flex-1 items-center gap-1.5 overflow-hidden ${isPresentationMode ? 'hidden' : 'hidden md:flex'}`} aria-label="Filtros ativos">
           {filtersWithValues.slice(0, 3).map((f) => (
             <FilterBadge key={f.label} {...f} />
           ))}
@@ -346,8 +353,27 @@ export default function FilterBar({
       )
     : null;
 
+  const presentationSlot = typeof document !== 'undefined'
+    ? document.getElementById('presentation-filter-slot')
+    : null;
+
+  if (isPresentationMode && presentationSlot) {
+    return (
+      <>
+        {createPortal(
+          <div className="w-full">
+            {collapsedBar}
+            {desktopPanel}
+          </div>,
+          presentationSlot,
+        )}
+        {mobileDrawer}
+      </>
+    );
+  }
+
   return (
-    <div className="mb-3">
+    <div className={isPresentationMode ? '' : 'mb-3'}>
       {collapsedBar}
       {desktopPanel}
       {mobileDrawer}

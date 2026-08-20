@@ -15,7 +15,7 @@ interface FaturamentoKpiGridProps {
 type KpiValorTone = 'text-positive' | 'text-warning' | 'text-negative';
 
 const KPI_VALOR_CLASS = 'text-2xl font-bold truncate';
-const KPI_VALOR_DESTAQUE_CLASS = 'text-4xl font-bold truncate';
+const KPI_VALOR_DESTAQUE_CLASS = 'text-2xl font-bold truncate';
 
 interface MetaKpiState {
   metaValue: string;
@@ -113,6 +113,7 @@ export default function FaturamentoKpiGrid({
           valorClassName={valorClass(faturamentoMeta.valorTone)}
           helperText={faturamentoMeta.helperText}
           progressPct={faturamentoMeta.progressPct}
+          compact
         />
       </TooltipKpi>
       <TooltipKpi definition={KpiDictionary.faturamento.tendenciaPercentual}>
@@ -121,6 +122,7 @@ export default function FaturamentoKpiGrid({
           valor={formatarPorcentagem(tendenciaPercentualExibicao)}
           valorClassName={valorClass(tendenciaValorTone, KPI_VALOR_DESTAQUE_CLASS)}
           helperText={`Tendência: ${formatarMoeda(faturamentoDiario?.tendenciaFaturamento ?? 0)}`}
+          compact
         />
       </TooltipKpi>
     </div>

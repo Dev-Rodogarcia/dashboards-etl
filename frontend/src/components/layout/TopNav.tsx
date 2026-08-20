@@ -8,7 +8,9 @@ import {
   Activity,
   BarChart3,
   Building2,
+  ChevronLeft,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   ClipboardList,
   CreditCard,
@@ -18,6 +20,8 @@ import {
   MapPinned,
   Menu,
   Moon,
+  Presentation,
+  Settings2,
   Sun,
   Truck,
   UserCog,
@@ -30,6 +34,8 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { ADMIN_NAV_ITEMS, DASHBOARD_NAV_ITEMS, isAdministrativeDashboardNavItem } from '../../utils/accessControl';
 import type { NavItem } from '../../utils/accessControl';
 import { formatarDataHoraMinuto } from '../../utils/formatadores';
+import { filterPresentationPages, type PresentationPage } from '../../utils/presentationSequence';
+import PresentationSequencesModal from '../presentation/PresentationSequencesModal';
 
 const focusRingClass = 'outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card)]';
 
@@ -153,6 +159,8 @@ export default function TopNav() {
   const { canAccess, isAdminAcesso, isAdminPlataforma } = usePermissions();
   const pageHeader = usePageHeader();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [apresentacao, setApresentacao] = useState<{ paginas: NavItem[]; indice: number } | null>(null);
+  const [isPresentationManagerOpen, setIsPresentationManagerOpen] = useState(false);
   const [drawerScrollState, setDrawerScrollState] = useState({ canScrollUp: false, canScrollDown: false });
   const hamburgerButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -188,6 +196,64 @@ export default function TopNav() {
   const themeToggleLabel = isDarkTheme ? 'Alternar para modo claro' : 'Alternar para modo escuro';
   const hamburgerLabel = isMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação';
   const updatedAtLabel = pageHeader.updatedAt ? `Atualizado em ${formatarDataHoraMinuto(pageHeader.updatedAt)}` : null;
+
+  const paginasApresentacao = filterPresentationPages(canAccess);
+
+  const iniciarApresentacao = useCallback(async (paginas = paginasApresentacao) => {
+    if (paginas.length === 0) return;
+    setIsMenuOpen(false);
+    setApresentacao({ paginas, indice: 0 });
+    navigate(paginas[0].path);
+    try { await document.documentElement.requestFullscreen(); } catch { /* O modo continua funcional sem fullscreen. */ }
+  }, [navigate, paginasApresentacao]);
+
+  const sairApresentacao = useCallback(async () => {
+    setApresentacao(null);
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch {
+        // A apresentação já foi encerrada no React; falha nativa não deve quebrar a navegação.
+      }
+    }
+  }, []);
+
+  const navegarApresentacao = useCallback((direcao: -1 | 1) => {
+    if (!apresentacao) return;
+    const indice = apresentacao.indice + direcao;
+    if (indice < 0 || indice >= apresentacao.paginas.length) return;
+    setApresentacao({ ...apresentacao, indice });
+    navigate(apresentacao.paginas[indice].path);
+  }, [apresentacao, navigate]);
+
+  useEffect(() => {
+    document.body.dataset.presentationMode = apresentacao ? 'true' : 'false';
+    window.dispatchEvent(new Event('dashboard:presentation-mode-change'));
+    return () => {
+      delete document.body.dataset.presentationMode;
+      window.dispatchEvent(new Event('dashboard:presentation-mode-change'));
+    };
+  }, [apresentacao]);
+
+  useEffect(() => {
+    if (!apresentacao) return;
+
+    const handlePresentationKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        void sairApresentacao();
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        navegarApresentacao(-1);
+      } else if (event.key === 'ArrowRight' || event.key === ' ') {
+        event.preventDefault();
+        navegarApresentacao(1);
+      }
+    };
+
+    window.addEventListener('keydown', handlePresentationKeyDown);
+    return () => window.removeEventListener('keydown', handlePresentationKeyDown);
+  }, [apresentacao, navegarApresentacao, sairApresentacao]);
 
   const updateDrawerScrollState = useCallback(() => {
     const element = drawerNavRef.current;
@@ -358,7 +424,10 @@ export default function TopNav() {
                     <div className="flex min-w-0 items-center gap-3">
                       <NavLink
                         to="/"
-                        onClick={() => setIsMenuOpen(false)}
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          void sairApresentacao();
+                        }}
                         className={`top-nav__drawer-logo-mark flex h-10 shrink-0 items-center justify-center ${focusRingClass}`}
                         aria-label="Ir para Home"
                         title="Ir para Home"
@@ -500,17 +569,18 @@ export default function TopNav() {
   return (
     <>
       <header
-        className="top-nav sticky top-0 z-50 border-b px-4 py-3 shadow-sm sm:px-5"
+        className={`top-nav sticky top-0 z-50 border-b px-4 shadow-sm sm:px-5 ${apresentacao ? 'py-2' : 'py-3'}`}
         style={{
           backgroundColor: 'var(--color-card)',
           borderColor: 'var(--color-border)',
         }}
       >
-        <div className="flex w-full items-center justify-between gap-4">
-          <div className="flex min-w-0 flex-1 items-center gap-4">
+        <div className={`flex w-full items-center justify-between ${apresentacao ? 'gap-0' : 'gap-4'}`}>
+          <div className={`flex min-w-0 items-center ${apresentacao ? 'max-w-[16rem] shrink gap-2' : 'flex-1 gap-4'}`}>
             <NavLink
               to="/"
-              className={`top-nav__logo-wrap flex shrink-0 items-center border-r pr-4 ${focusRingClass}`}
+              onClick={() => void sairApresentacao()}
+              className={`top-nav__logo-wrap flex shrink-0 items-center border-r ${apresentacao ? 'pr-2' : 'pr-4'} ${focusRingClass}`}
               style={{ borderColor: 'var(--color-border)' }}
               aria-label="Ir para Home"
               title="Ir para Home"
@@ -518,20 +588,20 @@ export default function TopNav() {
               <img
                 src="/logo.png"
                 alt="Logo da empresa"
-                className="top-nav__logo h-8 w-auto object-contain transition-all duration-200 dark:brightness-0 dark:invert"
+                className={`top-nav__logo w-auto object-contain transition-all duration-200 dark:brightness-0 dark:invert ${apresentacao ? 'h-5' : 'h-8'}`}
               />
             </NavLink>
 
-            <div className="top-nav__page-copy min-w-0">
-              <h1 className="truncate text-lg font-bold leading-tight sm:text-xl" style={{ color: 'var(--color-text)' }}>
+            <div className={`top-nav__page-copy min-w-0 ${apresentacao ? 'border-r pr-3' : ''}`} style={apresentacao ? { borderColor: 'var(--color-border)' } : undefined}>
+              <h1 className={`truncate font-bold leading-tight ${apresentacao ? 'text-sm' : 'text-lg sm:text-xl'}`} style={{ color: 'var(--color-text)' }}>
                 {pageHeader.title}
               </h1>
-              {pageHeader.description && (
+              {!apresentacao && pageHeader.description && (
                 <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed sm:text-sm" style={{ color: 'var(--color-text-muted)' }}>
                   {pageHeader.description}
                 </p>
               )}
-              {updatedAtLabel && (
+              {!apresentacao && updatedAtLabel && (
                 <p className="mt-1 text-[11px] sm:hidden" style={{ color: 'var(--color-text-subtle)' }}>
                   {updatedAtLabel}
                 </p>
@@ -539,12 +609,54 @@ export default function TopNav() {
             </div>
           </div>
 
-          <div className="top-nav__right flex shrink-0 items-center gap-2">
+          {apresentacao && <div id="presentation-filter-slot" className="min-w-0 flex-1 border-r px-3" style={{ borderColor: 'var(--color-border)' }} />}
+
+          <div className={`top-nav__right flex shrink-0 items-center ${apresentacao ? 'gap-1.5 pl-3' : 'gap-2'}`}>
             {updatedAtLabel && (
-              <span className="top-nav__updated hidden max-w-[12rem] text-right text-xs leading-relaxed md:block" style={{ color: 'var(--color-text-subtle)' }}>
+              <span className={`top-nav__updated hidden max-w-[12rem] text-right leading-relaxed md:block ${apresentacao ? 'text-[10px]' : 'text-xs'}`} style={{ color: 'var(--color-text-subtle)' }}>
                 {updatedAtLabel}
               </span>
             )}
+
+            {apresentacao && (
+              <div className="flex items-center gap-1 border-l pl-3" style={{ borderColor: 'var(--color-border)' }}>
+                <span className="hidden pr-1 text-[10px] font-semibold lg:inline" style={{ color: 'var(--color-text-muted)' }}>
+                  {apresentacao.indice + 1}/{apresentacao.paginas.length}
+                </span>
+                <button type="button" onClick={() => navegarApresentacao(-1)} disabled={apresentacao.indice === 0} title="Página anterior" aria-label="Página anterior" className={`flex h-6 w-6 items-center justify-center rounded disabled:opacity-40 ${focusRingClass}`}>
+                  <ChevronLeft size={14} />
+                </button>
+                <button type="button" onClick={() => navegarApresentacao(1)} disabled={apresentacao.indice === apresentacao.paginas.length - 1} title="Próxima página" aria-label="Próxima página" className={`flex h-6 w-6 items-center justify-center rounded disabled:opacity-40 ${focusRingClass}`}>
+                  <ChevronRight size={14} />
+                </button>
+                <button type="button" onClick={() => void sairApresentacao()} title="Sair da apresentação (Esc)" aria-label="Sair da apresentação" className={`flex h-6 w-6 items-center justify-center rounded text-red-500 ${focusRingClass}`}>
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => void iniciarApresentacao()}
+              title="Iniciar apresentação"
+              aria-label="Iniciar apresentação em tela cheia"
+              disabled={paginasApresentacao.length === 0}
+              className={`top-nav__theme-button flex h-9 w-9 items-center justify-center rounded-xl transition-colors duration-150 hover:bg-[var(--color-bg)] disabled:opacity-40 ${focusRingClass}`}
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              <Presentation size={17} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsPresentationManagerOpen(true)}
+              title="Gerenciar apresentações"
+              aria-label="Gerenciar apresentações"
+              className={`top-nav__theme-button flex h-9 w-9 items-center justify-center rounded-xl transition-colors duration-150 hover:bg-[var(--color-bg)] ${focusRingClass}`}
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              <Settings2 size={17} />
+            </button>
 
             <button
               type="button"
@@ -574,6 +686,17 @@ export default function TopNav() {
       </header>
 
       {drawer}
+      <PresentationSequencesModal
+        open={isPresentationManagerOpen}
+        paginasDisponiveis={paginasApresentacao.map((pagina) => ({ id: pagina.path.slice(1), label: pagina.label }))}
+        onClose={() => setIsPresentationManagerOpen(false)}
+        onStart={(ids) => {
+          const paginas = ids
+            .map((id) => paginasApresentacao.find((pagina) => pagina.path === `/${id}`))
+            .filter((pagina): pagina is PresentationPage => Boolean(pagina));
+          void iniciarApresentacao(paginas);
+        }}
+      />
     </>
   );
 }

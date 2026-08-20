@@ -19,6 +19,8 @@ interface KpiCardProps {
     valor: number;
     direcao: 'up' | 'down' | 'neutral';
   };
+  className?: string;
+  compact?: boolean;
 }
 
 export default function KpiCard({
@@ -34,6 +36,8 @@ export default function KpiCard({
   helperTone,
   progressPct,
   trend,
+  className = '',
+  compact = false,
 }: KpiCardProps) {
   const flexBasis = getKpiFlexBasis(valor);
   const style = getGoalToneStyle(tone);
@@ -41,7 +45,7 @@ export default function KpiCard({
   const secondaryColor = tone === 'neutral' ? 'var(--color-text-subtle)' : style.text;
   const iconNode = icone ?? createElement(resolveKpiIcon(label), { size: 16, 'aria-hidden': 'true' });
   const widthPct = Math.max(0, Math.min(progressPct ?? 0, 100));
-  const cardClassName = 'flex min-w-0 flex-col gap-1 rounded-[20px] border p-3 transition-all duration-150 hover:shadow-lg hover:-translate-y-[2px] cursor-default';
+  const cardClassName = `flex min-w-0 flex-col rounded-[20px] border transition-all duration-150 hover:shadow-lg hover:-translate-y-[2px] cursor-default ${compact ? 'gap-0 p-2' : 'gap-1 p-3'} ${className}`;
   const labelClassName = 'text-[11px] font-medium uppercase tracking-wide truncate';
   const defaultValueClassName = 'text-2xl font-bold truncate';
 
@@ -76,23 +80,42 @@ export default function KpiCard({
       </span>
 
       {metaLabel && (
-        <span className="text-xs font-medium" style={{ color: 'var(--color-text-subtle)' }}>
+        <span className={compact ? 'text-[10px] font-medium leading-none' : 'text-xs font-medium'} style={{ color: 'var(--color-text-subtle)' }}>
           {metaLabel}: <strong style={{ color: secondaryColor }}>{metaValue?.trim() ? metaValue : '—'}</strong>
         </span>
       )}
 
-      {helperText && (
-        <span className="text-xs font-medium leading-tight" style={{ color: helperStyle.text }}>
-          {helperText}
-        </span>
-      )}
-
-      {progressPct != null && (
-        <div className="mt-1">
-          <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: style.track }}>
-            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${widthPct}%`, backgroundColor: style.fill }} />
-          </div>
+      {compact && (helperText || progressPct != null) ? (
+        <div className="mt-auto flex min-w-0 items-center gap-2 pt-0.5">
+          {helperText && (
+            <span className="min-w-0 shrink truncate text-[10px] font-medium leading-none" style={{ color: helperStyle.text }}>
+              {helperText}
+            </span>
+          )}
+          {progressPct != null && (
+            <div className="min-w-10 flex-1">
+              <div className="h-1 overflow-hidden rounded-full" style={{ backgroundColor: style.track }}>
+                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${widthPct}%`, backgroundColor: style.fill }} />
+              </div>
+            </div>
+          )}
         </div>
+      ) : (
+        <>
+          {helperText && (
+            <span className="text-xs font-medium leading-tight" style={{ color: helperStyle.text }}>
+              {helperText}
+            </span>
+          )}
+
+          {progressPct != null && (
+            <div className="mt-1">
+              <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: style.track }}>
+                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${widthPct}%`, backgroundColor: style.fill }} />
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {trend && (
